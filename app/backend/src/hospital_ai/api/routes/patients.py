@@ -2,15 +2,15 @@ import uuid
 from typing import Optional
 
 from fastapi import APIRouter, Depends, Query, Request
-from sqlalchemy import exists, or_, select
+from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from hospital_ai.api.deps import get_current_user, get_request_ip, get_session
 from hospital_ai.core.security import PATIENT_READ_SCOPES, new_trace_id
-from hospital_ai.db.models import Patient, PatientPermission, User
+from hospital_ai.db.models import Patient, User
 from hospital_ai.schemas.patients import PatientRead, PatientSearchResponse
 from hospital_ai.services.audit import AuditService
-from hospital_ai.services.permissions import PermissionService
+from hospital_ai.services.permissions import PermissionService, active_patient_permission_exists
 
 router = APIRouter()
 
@@ -23,13 +23,16 @@ async def search_patients(
     session: AsyncSession = Depends(get_session),
     current_user: User = Depends(get_current_user),
 ) -> PatientSearchResponse:
-    permission_exists = exists().where(
-        PatientPermission.user_id == current_user.id,
-        PatientPermission.patient_id == Patient.id,
-        PatientPermission.scope.in_(PATIENT_READ_SCOPES),
-        PatientPermission.deleted_at.is_(None),
+    permission_exists = active_patient_permission_exists(
+        user_id=current_user.id,
+        patient_id=Patient.id,
+        accepted_scopes=PATIENT_READ_SCOPES,
     )
-    stmt = select(Patient).where(Patient.deleted_at.is_(None), permission_exists).order_by(Patient.full_name)
+    stmt = (
+        select(Patient)
+        .where(Patient.deleted_at.is_(None), permission_exists)
+        .order_by(Patient.full_name)
+    )
     if q:
         pattern = f"%{q}%"
         stmt = stmt.where(or_(Patient.full_name.ilike(pattern), Patient.mrn.ilike(pattern)))

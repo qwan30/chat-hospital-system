@@ -4,15 +4,19 @@ import pytest
 from sqlalchemy import select
 
 from hospital_ai.db.migrations import PATIENT_ALICE_ID, RECORDS_ID
-from hospital_ai.db.models import Document, DocumentChunk
+from hospital_ai.db.models import Document, DocumentChunk, DocumentPage
 from hospital_ai.workers.jobs import process_document
+from tests.conftest import create_indexed_document
 
 
 @pytest.mark.asyncio
 async def test_text_document_moves_to_indexed(session_and_settings, tmp_path: Path):
     session, settings = session_and_settings
     storage_file = tmp_path / "note.txt"
-    storage_file.write_text("Patient reports dizziness. Follow up with cardiology.", encoding="utf-8")
+    storage_file.write_text(
+        "Patient reports dizziness. Follow up with cardiology.",
+        encoding="utf-8",
+    )
     document = Document(
         patient_id=PATIENT_ALICE_ID,
         uploaded_by=RECORDS_ID,
@@ -30,7 +34,9 @@ async def test_text_document_moves_to_indexed(session_and_settings, tmp_path: Pa
     refreshed = await session.get(Document, document.id)
     assert refreshed.status == "indexed"
     assert refreshed.page_count == 1
-    result = await session.execute(select(DocumentChunk).where(DocumentChunk.document_id == document.id))
+    result = await session.execute(
+        select(DocumentChunk).where(DocumentChunk.document_id == document.id)
+    )
     assert len(result.scalars().all()) == 1
 
 
@@ -59,5 +65,44 @@ async def test_failed_ocr_creates_no_chunks(session_and_settings, tmp_path: Path
 
     refreshed = await session.get(Document, document.id)
     assert refreshed.status == "ocr_failed"
-    result = await session.execute(select(DocumentChunk).where(DocumentChunk.document_id == document.id))
+    result = await session.execute(
+        select(DocumentChunk).where(DocumentChunk.document_id == document.id)
+    )
     assert result.scalars().all() == []
+
+
+@pytest.mark.asyncio
+async def test_failed_reindex_preserves_existing_searchable_chunks(
+    session_and_settings,
+    monkeypatch,
+):
+    session, settings = session_and_settings
+    document = await create_indexed_document(
+        session,
+        patient_id=PATIENT_ALICE_ID,
+        uploaded_by=RECORDS_ID,
+        title="Previously indexed note",
+        content="Original indexed content remains searchable.",
+    )
+
+    def fail_ocr(self, *, storage_uri, mime_type):
+        raise RuntimeError("ocr failed")
+
+    monkeypatch.setattr("hospital_ai.services.ocr.OcrService.extract_pages", fail_ocr)
+    await process_document(session, document.id, settings)
+
+    refreshed = await session.get(Document, document.id)
+    assert refreshed.status == "indexed"
+    assert refreshed.ocr_error == "ocr failed"
+
+    chunk_result = await session.execute(
+        select(DocumentChunk).where(DocumentChunk.document_id == document.id)
+    )
+    chunks = list(chunk_result.scalars().all())
+    assert len(chunks) == 1
+    assert chunks[0].content == "Original indexed content remains searchable."
+
+    page_result = await session.execute(
+        select(DocumentPage).where(DocumentPage.document_id == document.id)
+    )
+    assert len(page_result.scalars().all()) == 1

@@ -22,45 +22,51 @@ async def process_document(
     if document is None:
         return
 
-    await session.execute(delete(DocumentChunk).where(DocumentChunk.document_id == document_id))
-    await session.execute(delete(DocumentPage).where(DocumentPage.document_id == document_id))
-    document.status = "ocr_processing"
+    previous_status = document.status
     document.ocr_error = None
+    if previous_status != "indexed":
+        document.status = "ocr_processing"
     await session.commit()
 
     try:
-        pages = OcrService().extract_pages(storage_uri=document.storage_uri, mime_type=document.mime_type)
+        pages = OcrService().extract_pages(
+            storage_uri=document.storage_uri,
+            mime_type=document.mime_type,
+        )
     except Exception as exc:
-        document.status = "ocr_failed"
+        document.status = _failure_status(previous_status, "ocr_failed")
+        document.ocr_error = str(exc)
+        await session.commit()
+        return
+
+    try:
+        chunks = ChunkingService().chunk_pages(pages)
+        embeddings = await EmbeddingService(settings).embed_many(chunk.content for chunk in chunks)
+    except Exception as exc:
+        document.status = _failure_status(previous_status, "index_failed")
         document.ocr_error = str(exc)
         await session.commit()
         return
 
     page_rows: Dict[int, DocumentPage] = {}
-    for page in pages:
-        page_row = DocumentPage(
-            document_id=document.id,
-            page_number=page.page_number,
-            ocr_text=page.text,
-            ocr_confidence=page.confidence,
-        )
-        session.add(page_row)
-        page_rows[page.page_number] = page_row
-
-    document.status = "ocr_completed"
-    document.page_count = len(page_rows)
-    await session.flush()
-    await session.commit()
-
-    document = await session.get(Document, document_id)
-    if document is None:
-        return
-    document.status = "indexing"
-    await session.commit()
-
     try:
-        chunks = ChunkingService().chunk_pages(pages)
-        embeddings = await EmbeddingService(settings).embed_many(chunk.content for chunk in chunks)
+        document.status = "indexing"
+        await session.execute(delete(DocumentChunk).where(DocumentChunk.document_id == document_id))
+        await session.execute(delete(DocumentPage).where(DocumentPage.document_id == document_id))
+
+        for page in pages:
+            page_row = DocumentPage(
+                document_id=document.id,
+                page_number=page.page_number,
+                ocr_text=page.text,
+                ocr_confidence=page.confidence,
+            )
+            session.add(page_row)
+            page_rows[page.page_number] = page_row
+
+        document.page_count = len(page_rows)
+        await session.flush()
+
         for chunk, embedding in zip(chunks, embeddings):
             page_row = page_rows[chunk.page_number]
             session.add(
@@ -80,11 +86,22 @@ async def process_document(
                 )
             )
         document.status = "indexed"
+        document.ocr_error = None
         await session.commit()
     except Exception as exc:
-        document.status = "index_failed"
+        await session.rollback()
+        document = await session.get(Document, document_id)
+        if document is None:
+            return
+        document.status = _failure_status(previous_status, "index_failed")
         document.ocr_error = str(exc)
         await session.commit()
+
+
+def _failure_status(previous_status: str, failed_status: str) -> str:
+    if previous_status == "indexed":
+        return previous_status
+    return failed_status
 
 
 def process_document_job(document_id: str) -> None:

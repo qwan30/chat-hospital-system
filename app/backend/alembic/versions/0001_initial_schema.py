@@ -23,12 +23,20 @@ EMBEDDING_DIMENSIONS = 1024
 
 
 def _embedding_type():
-    if Vector is None:
-        return postgresql.JSONB()
+    _require_pgvector()
     return Vector(EMBEDDING_DIMENSIONS)
 
 
+def _require_pgvector() -> None:
+    if Vector is None:
+        raise RuntimeError(
+            "PostgreSQL migrations require the 'pgvector' Python package. "
+            "Install the backend postgres extra before running Alembic migrations."
+        )
+
+
 def upgrade() -> None:
+    _require_pgvector()
     op.execute("CREATE EXTENSION IF NOT EXISTS vector")
 
     op.create_table(

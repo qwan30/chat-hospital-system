@@ -3,12 +3,12 @@ import uuid
 from dataclasses import dataclass
 from typing import Any, Dict, Iterable, List, Sequence
 
-from sqlalchemy import exists, select, text
+from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from hospital_ai.db.models import Document, DocumentChunk, DocumentPage, PatientPermission
-
-READ_ALLOWED_SCOPES = ("read", "summary", "medication", "admin")
+from hospital_ai.core.security import PATIENT_READ_SCOPES
+from hospital_ai.db.models import Document, DocumentChunk, DocumentPage
+from hospital_ai.services.permissions import active_patient_permission_exists
 
 PERMISSION_FILTERED_RETRIEVAL_SQL = """
 with allowed as (
@@ -17,6 +17,7 @@ with allowed as (
   where pp.user_id = :user_id
     and pp.patient_id = :patient_id
     and pp.scope in ('read','summary','medication','admin')
+    and pp.deleted_at is null
     and (pp.expires_at is null or pp.expires_at > now())
 ),
 ranked_chunks as (
@@ -121,11 +122,10 @@ class RetrievalService:
         query_embedding: Sequence[float],
         top_k: int,
     ) -> List[RetrievedChunk]:
-        permission_exists = exists().where(
-            PatientPermission.user_id == user_id,
-            PatientPermission.patient_id == patient_id,
-            PatientPermission.scope.in_(READ_ALLOWED_SCOPES),
-            PatientPermission.deleted_at.is_(None),
+        permission_exists = active_patient_permission_exists(
+            user_id=user_id,
+            patient_id=patient_id,
+            accepted_scopes=PATIENT_READ_SCOPES,
         )
         stmt = (
             select(DocumentChunk, Document, DocumentPage)

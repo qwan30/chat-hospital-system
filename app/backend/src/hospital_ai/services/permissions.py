@@ -11,6 +11,23 @@ from hospital_ai.db.models import PatientPermission, User
 from hospital_ai.services.audit import AuditService
 
 
+def active_patient_permission_exists(
+    *,
+    user_id: uuid.UUID,
+    patient_id: uuid.UUID,
+    accepted_scopes: Iterable[str],
+    now: Optional[datetime] = None,
+):
+    active_at = now or datetime.now(timezone.utc)
+    return exists().where(
+        PatientPermission.user_id == user_id,
+        PatientPermission.patient_id == patient_id,
+        PatientPermission.scope.in_(set(accepted_scopes)),
+        PatientPermission.deleted_at.is_(None),
+        (PatientPermission.expires_at.is_(None)) | (PatientPermission.expires_at > active_at),
+    )
+
+
 class PermissionService:
     def __init__(self, session: AsyncSession) -> None:
         self.session = session
@@ -22,15 +39,11 @@ class PermissionService:
         patient_id: uuid.UUID,
         accepted_scopes: Iterable[str],
     ) -> bool:
-        accepted = set(accepted_scopes)
-        now = datetime.now(timezone.utc)
         stmt = select(
-            exists().where(
-                PatientPermission.user_id == user_id,
-                PatientPermission.patient_id == patient_id,
-                PatientPermission.scope.in_(accepted),
-                PatientPermission.deleted_at.is_(None),
-                (PatientPermission.expires_at.is_(None)) | (PatientPermission.expires_at > now),
+            active_patient_permission_exists(
+                user_id=user_id,
+                patient_id=patient_id,
+                accepted_scopes=accepted_scopes,
             )
         )
         result = await self.session.execute(stmt)

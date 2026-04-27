@@ -1,0 +1,119 @@
+export type ContractStatus = "verified-backend" | "local-sample-only" | "documented-gap";
+
+export type AssistantScope = "general" | "patient";
+
+export type PermissionState = "not-required" | "pending" | "allowed" | "denied";
+
+export type ContractInventoryItem = {
+  id: string;
+  label: string;
+  status: ContractStatus;
+  source: string;
+  implementationRule: string;
+};
+
+export type ChatAssistantRequest = {
+  scope: AssistantScope;
+  question: string;
+  patientId?: string;
+  topK?: number;
+};
+
+export type ChatAssistantCitation = {
+  evidenceId: string;
+  documentId: string;
+  documentTitle: string;
+  page: number;
+  chunkId: string;
+  score: number;
+  content?: string;
+  metadata: Record<string, unknown>;
+};
+
+export type ChatAssistantResponse = {
+  queryId: string;
+  answer: string;
+  citations: ChatAssistantCitation[];
+  confidence: "low" | "medium" | "high" | string;
+  disclaimer: string;
+};
+
+export type ChatAssistantUiBoundary = {
+  permissionState: PermissionState;
+  dataStatus: ContractStatus;
+  label: string;
+};
+
+export const chatAssistantContractInventory = [
+  {
+    id: "patient-scoped-chat",
+    label: "Patient-scoped chat request and cited answer",
+    status: "verified-backend",
+    source: "app/backend/src/hospital_ai/api/routes/chat.py and schemas/chat.py",
+    implementationRule:
+      "Use only when a patientId is selected; request body is patient_id, question, and top_k.",
+  },
+  {
+    id: "patient-permission-check",
+    label: "Patient read permission gate",
+    status: "verified-backend",
+    source: "app/backend/src/hospital_ai/services/permissions.py",
+    implementationRule:
+      "Show patient-linked answers and citations only after permission is allowed; denied state must block PHI evidence.",
+  },
+  {
+    id: "permission-filtered-citations",
+    label: "Permission-filtered citation evidence",
+    status: "verified-backend",
+    source: "app/backend/src/hospital_ai/services/retrieval.py and schemas/documents.py",
+    implementationRule:
+      "Citation UI may show evidence_id, document_id, document_title, page, chunk_id, score, content, and metadata returned by the backend.",
+  },
+  {
+    id: "shared-conversation-threads",
+    label: "Shared conversation threads",
+    status: "local-sample-only",
+    source: "No current backend thread/message contract",
+    implementationRule:
+      "Thread lists, sharing labels, and conversation history must be visibly marked local/sample until Phase 2 persistence exists.",
+  },
+  {
+    id: "general-hospital-knowledge",
+    label: "General hospital knowledge chat",
+    status: "documented-gap",
+    source: "Current ChatRequest requires patient_id",
+    implementationRule:
+      "General-scope prompts may be represented as UI state only; do not call them backend-backed or show real citations until an API contract exists.",
+  },
+  {
+    id: "hms-integration-data",
+    label: "HMS domain integration data",
+    status: "documented-gap",
+    source: "D:\\projects\\hospital-management-system is a domain reference, not a connected data source",
+    implementationRule:
+      "HMS-derived patient, appointment, lab, prescription, or role details must be unavailable or local/sample unless a verified integration contract is added.",
+  },
+] satisfies ContractInventoryItem[];
+
+export const chatAssistantUiBoundaries = [
+  {
+    permissionState: "not-required",
+    dataStatus: "documented-gap",
+    label: "General knowledge mode: UI-only until a general chat API exists.",
+  },
+  {
+    permissionState: "pending",
+    dataStatus: "verified-backend",
+    label: "Patient mode: wait for backend permission validation before showing PHI evidence.",
+  },
+  {
+    permissionState: "allowed",
+    dataStatus: "verified-backend",
+    label: "Patient mode: backend-backed answer and citations may be displayed.",
+  },
+  {
+    permissionState: "denied",
+    dataStatus: "verified-backend",
+    label: "Patient mode: block answer content and citations; show access-denied state.",
+  },
+] satisfies ChatAssistantUiBoundary[];

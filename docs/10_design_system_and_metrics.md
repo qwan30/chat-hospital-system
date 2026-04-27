@@ -2,44 +2,61 @@
 
 **Project:** AI-Powered Hospital Knowledge Assistant
 **Project Code:** HOSP-AI-001
-**Version:** 1.0
+**Version:** 1.1
 **Status:** Draft
-**Last Updated:** 2026-04-27
+**Last Updated:** 2026-04-28
 
 **Owner:** UX Lead / PM / Tech Lead
 
 ## 1. Purpose
-Define the UI style and measurement model needed to prove the hospital AI assistant reduces time, effort, and cost.
+
+Define the UI style and measurement model for a Kotaemon-style hospital assistant that helps staff retrieve, verify, and safely discuss hospital knowledge and permission-gated patient information.
 
 ## 2. UI Direction
-Use a Linear/Cal.com-inspired minimal enterprise style: monochrome-first, high readability, subtle shadows, and medical semantic colors only when meaning matters.
+
+Use Kotaemon as the primary interaction reference: conversation sidebar, central chat transcript, prompt composer, answer citations, and a source/evidence panel. Use `docs/design/core-ui-linear.md` for the dark, dense workspace shell and `docs/design/document-notion-lite.md` for readable evidence surfaces. Use `docs/design/dashboard-vercel.md` only for later dashboard or admin slices.
+
+The first screen is the assistant workspace. Metrics cards, document upload, knowledge-base management, settings, and admin dashboards are not part of Phase 1.
+
+Phase 1 components must distinguish verified backend-backed data from local/sample data. Patient-scoped answer fields may use the current chat API contract when available; shared-thread data, general hospital knowledge, HMS integration details, and missing patient metadata must be visibly marked as local/sample or unavailable until those contracts exist.
 
 ## 3. Design Tokens
+
 | Role | Token | Value |
 |---|---|---|
-| Primary text | text.primary | #242424 |
-| Secondary text | text.secondary | #898989 |
-| Background | bg.default | #ffffff |
-| Surface | surface.default | #ffffff |
-| Info | semantic.info | #2563eb |
-| Success | semantic.success | #16a34a |
-| Warning | semantic.warning | #f59e0b |
-| Danger | semantic.danger | #dc2626 |
+| App background | bg.app | #08090a |
+| Shell surface | surface.shell | #0f1011 |
+| Elevated surface | surface.elevated | #17181a |
+| Border | border.subtle | #26282c |
+| Primary text | text.primary | #f7f8f8 |
+| Secondary text | text.secondary | #a3a7ad |
+| Muted text | text.muted | #6f747d |
+| Accent | accent.primary | #5e6ad2 |
+| Info | semantic.info | #60a5fa |
+| Success | semantic.success | #34d399 |
+| Warning | semantic.warning | #fbbf24 |
+| Danger | semantic.danger | #f87171 |
+
+Keep semantic colors meaningful. Do not use medical colors as decoration.
 
 ## 4. Core Components
+
 | Component | Purpose | Must Have |
 |---|---|---|
-| Patient Banner | Prevent wrong-patient context | MRN/ID, DOB, scope |
-| AI Answer Card | Safe response display | Answer, citations, confidence, disclaimer |
-| Citation Chip | Link claim to source | Document/page/table/chunk |
-| Source Viewer | Verify answer | Page preview and highlight |
-| Medical Alert | Safety warning | Severity, source, explanation |
-| Metrics Card | Prove impact | Baseline, actual, time saved, cost estimate |
-| Audit Row | Review access | Actor, action, object, trace ID |
+| Chat Workspace Shell | Main app entry | Conversation sidebar, chat area, evidence panel |
+| Conversation Sidebar | Shared thread navigation | New, rename, delete, share, active state, empty state |
+| Prompt Composer | Ask general or patient-scoped questions | Keyboard submit, loading state, scope-aware placeholder |
+| Patient Context Gate | Prevent wrong-patient PHI access | Selected patient, permission status, denied state |
+| AI Answer Block | Safe response display | Answer, citations, confidence, disclaimer, no-evidence state |
+| Citation Chip | Link claim to source | Document/page/chunk label and selected state |
+| Evidence Panel | Verify answer | Source metadata, excerpt/summary, unavailable state |
+| Audit Cue | Explain sensitive access behavior | Trace ID or audit-ready state when available |
+| Metrics Card | Prove impact | Later dashboard/admin phase only; do not add to Phase 1 first screen |
 
 ## 5. AI Answer Layout
+
 ```text
-Patient Context Banner
+Question Scope
 Question
 Answer
 Evidence / Citations
@@ -47,7 +64,10 @@ Confidence
 Safety Note
 ```
 
+For patient-linked answers, the layout must also include the selected patient context and a visible permission result. The UI must not show patient evidence until permission validation is complete.
+
 ## 6. Metrics to Capture
+
 | Metric ID | Metric | Description |
 |---|---|---|
 | MET-001 | query_latency_ms | Total response time |
@@ -62,8 +82,10 @@ Safety Note
 | MET-010 | helpful_feedback_rate | User feedback metric |
 | MET-011 | no_evidence_rate | Unsupported query rate |
 | MET-012 | unauthorized_block_count | Blocked access attempts |
+| MET-013 | shared_thread_reuse_count | Shared conversation reuse |
 
 ## 7. Metric Event Schema
+
 ```sql
 CREATE TABLE metric_events (
     id UUID PRIMARY KEY,
@@ -79,11 +101,15 @@ CREATE TABLE metric_events (
     query_latency_ms INTEGER,
     retrieval_latency_ms INTEGER,
     generation_latency_ms INTEGER,
+    shared_thread_id UUID,
     created_at TIMESTAMP NOT NULL DEFAULT now()
 );
 ```
 
+Treat this schema as a planning target until backend migrations are validated. Do not back-edit existing base migrations when adding metric fields.
+
 ## 8. Baseline Assumptions
+
 | Workflow | Manual Baseline | AI Target | Target Reduction |
 |---|---:|---:|---:|
 | Patient summary | 10-15 min | <30 sec | ~95% |
@@ -93,17 +119,21 @@ CREATE TABLE metric_events (
 | Lab trend lookup | 5-10 min | <30 sec | ~90% |
 
 ## 9. Cost Saving Formula
+
 ```text
 cost_saved = time_saved_hours * average_staff_hourly_cost
 ```
+
 Example:
+
 ```text
 100 lookups/day * 10 minutes saved / 60 * $20/hour = ~$333/day
 ```
 
 ## 10. CV / Portfolio Template
+
 ```text
-Built an AI-powered hospital knowledge assistant using FastAPI, PostgreSQL, pgvector, OCR, and Graph RAG.
+Built a permission-aware hospital knowledge assistant with a chat-first workflow, cited answers, and patient-scoped evidence controls.
 Reduced patient information lookup time from ~10-15 minutes to under 30 seconds in simulated clinical workflows.
 Decreased manual document review effort by ~80% through permission-aware semantic search with citations.
 Implemented audit and metric tracking to estimate operational cost savings of ~$300/day.

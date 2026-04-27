@@ -147,6 +147,13 @@ class Document(TimestampMixin, SoftDeleteMixin, Base):
     status: Mapped[str] = mapped_column(String(32), nullable=False, default="uploaded")
     page_count: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     ocr_error: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    index_generation: Mapped[int] = mapped_column(
+        Integer,
+        nullable=False,
+        default=0,
+        server_default="0",
+    )
+    indexed_source_sha256: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
 
     patient: Mapped[Patient] = relationship(back_populates="documents")
     pages: Mapped[List["DocumentPage"]] = relationship(back_populates="document", cascade="all, delete-orphan")

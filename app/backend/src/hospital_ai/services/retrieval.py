@@ -3,7 +3,7 @@ import uuid
 from dataclasses import dataclass
 from typing import Any, Dict, Iterable, List, Sequence
 
-from sqlalchemy import select, text
+from sqlalchemy import bindparam, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from hospital_ai.core.security import PATIENT_READ_SCOPES
@@ -16,7 +16,7 @@ with allowed as (
   from patient_permissions pp
   where pp.user_id = :user_id
     and pp.patient_id = :patient_id
-    and pp.scope in ('read','summary','medication','admin')
+    and pp.scope in :accepted_scopes
     and pp.deleted_at is null
     and (pp.expires_at is null or pp.expires_at > now())
 ),
@@ -94,10 +94,13 @@ class RetrievalService:
         top_k: int,
     ) -> List[RetrievedChunk]:
         result = await self.session.execute(
-            text(PERMISSION_FILTERED_RETRIEVAL_SQL),
+            text(PERMISSION_FILTERED_RETRIEVAL_SQL).bindparams(
+                bindparam("accepted_scopes", expanding=True),
+            ),
             {
                 "user_id": user_id,
                 "patient_id": patient_id,
+                "accepted_scopes": tuple(sorted(PATIENT_READ_SCOPES)),
                 "query_embedding": format_pgvector(query_embedding),
                 "top_k": top_k,
             },

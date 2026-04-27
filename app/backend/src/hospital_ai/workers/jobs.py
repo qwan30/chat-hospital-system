@@ -1,8 +1,10 @@
 import asyncio
+import hashlib
 import uuid
-from typing import Dict
+from pathlib import Path
+from typing import Dict, Optional
 
-from sqlalchemy import delete
+from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from hospital_ai.core.config import Settings, get_settings
@@ -23,6 +25,11 @@ async def process_document(
         return
 
     previous_status = document.status
+    start_generation = document.index_generation
+    source_sha256 = _source_sha256(document.storage_uri)
+    preserve_existing_index = previous_status == "indexed" and (
+        source_sha256 is None or document.indexed_source_sha256 == source_sha256
+    )
     document.ocr_error = None
     if previous_status != "indexed":
         document.status = "ocr_processing"
@@ -34,22 +41,37 @@ async def process_document(
             mime_type=document.mime_type,
         )
     except Exception as exc:
-        document.status = _failure_status(previous_status, "ocr_failed")
-        document.ocr_error = str(exc)
-        await session.commit()
+        await _mark_failed_if_current(
+            session,
+            document_id,
+            start_generation,
+            preserve_existing_index,
+            "ocr_failed",
+            str(exc),
+        )
         return
 
     try:
         chunks = ChunkingService().chunk_pages(pages)
         embeddings = await EmbeddingService(settings).embed_many(chunk.content for chunk in chunks)
     except Exception as exc:
-        document.status = _failure_status(previous_status, "index_failed")
-        document.ocr_error = str(exc)
-        await session.commit()
+        await _mark_failed_if_current(
+            session,
+            document_id,
+            start_generation,
+            preserve_existing_index,
+            "index_failed",
+            str(exc),
+        )
         return
 
     page_rows: Dict[int, DocumentPage] = {}
     try:
+        document = await _locked_current_document(session, document_id)
+        if document is None or document.index_generation != start_generation:
+            await session.rollback()
+            return
+
         document.status = "indexing"
         await session.execute(delete(DocumentChunk).where(DocumentChunk.document_id == document_id))
         await session.execute(delete(DocumentPage).where(DocumentPage.document_id == document_id))
@@ -87,21 +109,63 @@ async def process_document(
             )
         document.status = "indexed"
         document.ocr_error = None
+        document.index_generation = start_generation + 1
+        document.indexed_source_sha256 = source_sha256
         await session.commit()
     except Exception as exc:
         await session.rollback()
-        document = await session.get(Document, document_id)
-        if document is None:
-            return
-        document.status = _failure_status(previous_status, "index_failed")
-        document.ocr_error = str(exc)
-        await session.commit()
+        await _mark_failed_if_current(
+            session,
+            document_id,
+            start_generation,
+            preserve_existing_index,
+            "index_failed",
+            str(exc),
+        )
 
 
-def _failure_status(previous_status: str, failed_status: str) -> str:
-    if previous_status == "indexed":
-        return previous_status
+def _source_sha256(storage_uri: str) -> Optional[str]:
+    try:
+        return hashlib.sha256(Path(storage_uri).read_bytes()).hexdigest()
+    except OSError:
+        return None
+
+
+def _failure_status(preserve_existing_index: bool, failed_status: str) -> str:
+    if preserve_existing_index:
+        return "indexed"
     return failed_status
+
+
+async def _locked_current_document(
+    session: AsyncSession,
+    document_id: uuid.UUID,
+) -> Optional[Document]:
+    result = await session.execute(
+        select(Document)
+        .where(Document.id == document_id)
+        .with_for_update()
+        .execution_options(populate_existing=True)
+    )
+    return result.scalar_one_or_none()
+
+
+async def _mark_failed_if_current(
+    session: AsyncSession,
+    document_id: uuid.UUID,
+    start_generation: int,
+    preserve_existing_index: bool,
+    failed_status: str,
+    error: str,
+) -> None:
+    document = await _locked_current_document(session, document_id)
+    if document is None or document.index_generation != start_generation:
+        await session.rollback()
+        return
+
+    document.status = _failure_status(preserve_existing_index, failed_status)
+    document.ocr_error = error
+    await session.commit()
 
 
 def process_document_job(document_id: str) -> None:

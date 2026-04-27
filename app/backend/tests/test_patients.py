@@ -23,6 +23,22 @@ def _request() -> Request:
 
 
 @pytest.mark.asyncio
+async def test_patient_search_returns_active_permission_match(session_and_settings):
+    session, _ = session_and_settings
+    doctor = await session.get(User, DOCTOR_ID)
+
+    response = await search_patients(
+        request=_request(),
+        q="Alice",
+        limit=20,
+        session=session,
+        current_user=doctor,
+    )
+
+    assert [patient.id for patient in response.items] == [PATIENT_ALICE_ID]
+
+
+@pytest.mark.asyncio
 async def test_patient_search_excludes_revoked_permissions(session_and_settings):
     session, _ = session_and_settings
     doctor = await session.get(User, DOCTOR_ID)

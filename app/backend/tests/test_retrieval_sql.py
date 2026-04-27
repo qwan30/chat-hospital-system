@@ -16,13 +16,16 @@ def test_retrieval_sql_repeats_patient_permission_filter():
     assert "from patient_permissions" in sql
     assert "pp.user_id = :user_id" in sql
     assert "pp.patient_id = :patient_id" in sql
-    assert "pp.deleted_at is null" in sql
-    assert "pp.expires_at is null or pp.expires_at > now()" in sql
+    assert "pp.scope in :accepted_scopes" in sql
+    assert "('read','summary','medication','admin')" not in sql
+    assert set(PATIENT_READ_SCOPES) == {"read", "summary", "medication", "admin"}
     assert "where exists (select 1 from allowed)" in sql
     assert "c.patient_id = :patient_id" in sql
     assert "c.deleted_at is null" in sql
     assert "d.deleted_at is null" in sql
     assert "p.deleted_at is null" in sql
+    assert "pp.deleted_at is null" in sql
+    assert "pp.expires_at is null or pp.expires_at > now()" in sql
 
 
 @pytest.mark.asyncio

@@ -8,17 +8,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from hospital_ai.core.security import PATIENT_READ_SCOPES
 from hospital_ai.db.models import Document, DocumentChunk, DocumentPage
-from hospital_ai.services.permissions import active_patient_permission_exists
+from hospital_ai.services.permissions import (
+    ACTIVE_PATIENT_PERMISSION_SQL,
+    active_patient_permission_exists,
+)
 
-PERMISSION_FILTERED_RETRIEVAL_SQL = """
+PERMISSION_FILTERED_RETRIEVAL_SQL = f"""
 with allowed as (
-  select 1
-  from patient_permissions pp
-  where pp.user_id = :user_id
-    and pp.patient_id = :patient_id
-    and pp.scope in :accepted_scopes
-    and pp.deleted_at is null
-    and (pp.expires_at is null or pp.expires_at > now())
+{ACTIVE_PATIENT_PERMISSION_SQL}
 ),
 ranked_chunks as (
   select

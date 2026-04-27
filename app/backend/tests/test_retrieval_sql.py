@@ -7,12 +7,14 @@ from hospital_ai.core.security import PATIENT_READ_SCOPES
 from hospital_ai.db.migrations import DOCTOR_ID, PATIENT_ALICE_ID, PATIENT_BOB_ID
 from hospital_ai.db.models import Document, DocumentChunk, DocumentPage, PatientPermission
 from hospital_ai.services.embeddings import deterministic_embedding
+from hospital_ai.services.permissions import ACTIVE_PATIENT_PERMISSION_SQL
 from hospital_ai.services.retrieval import PERMISSION_FILTERED_RETRIEVAL_SQL, RetrievalService
 from tests.conftest import create_indexed_document
 
 
 def test_retrieval_sql_repeats_patient_permission_filter():
     sql = PERMISSION_FILTERED_RETRIEVAL_SQL.lower()
+    assert ACTIVE_PATIENT_PERMISSION_SQL.lower() in sql
     assert "from patient_permissions" in sql
     assert "pp.user_id = :user_id" in sql
     assert "pp.patient_id = :patient_id" in sql

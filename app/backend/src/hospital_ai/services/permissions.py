@@ -1,8 +1,8 @@
 import uuid
 from datetime import datetime, timezone
-from typing import Iterable, Optional, Set
+from typing import Any, Iterable, Optional, Set
 
-from sqlalchemy import exists, select
+from sqlalchemy import exists, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from hospital_ai.core.errors import PermissionDeniedError
@@ -11,20 +11,48 @@ from hospital_ai.db.models import PatientPermission, User
 from hospital_ai.services.audit import AuditService
 
 
-def active_patient_permission_exists(
+ACTIVE_PATIENT_PERMISSION_SQL = """
+select 1
+from patient_permissions pp
+where pp.user_id = :user_id
+  and pp.patient_id = :patient_id
+  and pp.scope in :accepted_scopes
+  and pp.deleted_at is null
+  and (pp.expires_at is null or pp.expires_at > now())
+""".strip()
+
+
+def active_patient_permission_filters(
     *,
     user_id: uuid.UUID,
-    patient_id: uuid.UUID,
+    patient_id: Any,
     accepted_scopes: Iterable[str],
     now: Optional[datetime] = None,
 ):
     active_at = now or datetime.now(timezone.utc)
-    return exists().where(
+    return (
         PatientPermission.user_id == user_id,
         PatientPermission.patient_id == patient_id,
-        PatientPermission.scope.in_(set(accepted_scopes)),
+        PatientPermission.scope.in_(tuple(sorted(set(accepted_scopes)))),
         PatientPermission.deleted_at.is_(None),
-        (PatientPermission.expires_at.is_(None)) | (PatientPermission.expires_at > active_at),
+        or_(PatientPermission.expires_at.is_(None), PatientPermission.expires_at > active_at),
+    )
+
+
+def active_patient_permission_exists(
+    *,
+    user_id: uuid.UUID,
+    patient_id: Any,
+    accepted_scopes: Iterable[str],
+    now: Optional[datetime] = None,
+):
+    return exists().where(
+        *active_patient_permission_filters(
+            user_id=user_id,
+            patient_id=patient_id,
+            accepted_scopes=accepted_scopes,
+            now=now,
+        )
     )
 
 

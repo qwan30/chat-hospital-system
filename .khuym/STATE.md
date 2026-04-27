@@ -1,6 +1,6 @@
 # STATE
 focus: backend permission-filtered RAG review
-phase: executed-p2-retrieval-indexing-hardening
+phase: executed-p3-permission-predicate-centralization
 last_updated: 2026-04-27
 
 notes:
@@ -16,3 +16,5 @@ notes:
 - Verification: `python -m pytest` passed with 21 tests; `python -m ruff check .` could not run because `ruff` is not installed.
 - Direct execution fixed P2 review items for raw SQL scope drift, re-index generation races, changed-source stale index exposure, indexing-failure coverage, PostgreSQL integration-test scaffolding, and active patient-search coverage.
 - Verification: `python -m pytest` passed with 25 tests and 2 optional PostgreSQL tests skipped; `python -m ruff check .` could not run because `ruff` is not installed.
+- Direct execution fixed the P3 drift-prevention item by centralizing active patient-permission filters and sharing the raw SQL permission fragment with PostgreSQL retrieval.
+- Verification: focused permission and retrieval tests passed with 15 tests and 2 optional PostgreSQL tests skipped; full `python -m pytest` passed with 26 tests and 2 optional PostgreSQL tests skipped.

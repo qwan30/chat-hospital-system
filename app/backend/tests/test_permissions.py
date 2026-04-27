@@ -2,10 +2,29 @@ import pytest
 from sqlalchemy import select
 
 from hospital_ai.core.errors import PermissionDeniedError
-from hospital_ai.core.security import new_trace_id
+from hospital_ai.core.security import PATIENT_READ_SCOPES, new_trace_id
 from hospital_ai.db.migrations import DOCTOR_ID, PATIENT_ALICE_ID, PATIENT_BOB_ID, RECORDS_ID
 from hospital_ai.db.models import AuditLog, Document, User
-from hospital_ai.services.permissions import PermissionService
+from hospital_ai.services.permissions import PermissionService, active_patient_permission_exists
+
+
+def test_active_patient_permission_exists_uses_canonical_lifecycle_predicate():
+    stmt = select(
+        active_patient_permission_exists(
+            user_id=DOCTOR_ID,
+            patient_id=PATIENT_ALICE_ID,
+            accepted_scopes=PATIENT_READ_SCOPES,
+        )
+    )
+    sql = str(stmt.compile(compile_kwargs={"literal_binds": False})).lower()
+
+    assert "exists" in sql
+    assert "patient_permissions.user_id" in sql
+    assert "patient_permissions.patient_id" in sql
+    assert "patient_permissions.scope in" in sql
+    assert "patient_permissions.deleted_at is null" in sql
+    assert "patient_permissions.expires_at is null" in sql
+    assert "patient_permissions.expires_at >" in sql
 
 
 @pytest.mark.asyncio

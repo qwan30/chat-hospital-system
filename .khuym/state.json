@@ -3,7 +3,7 @@
   "feature_slug": "backend-permission-filtered-rag",
   "mode": "degraded_execution",
   "active_skill": "khuym:executing",
-  "phase": "executed-review-fixes",
+  "phase": "executed-p1-soft-delete-filter",
   "phase_number": 0,
   "epic_id": "",
   "approved_gates": {
@@ -18,5 +18,5 @@
     "br/bv unavailable; review beads not created",
     "history feature CONTEXT.md and approach.md unavailable"
   ],
-  "last_updated": "2026-04-27T16:00:00.000Z"
+  "last_updated": "2026-04-27T16:25:00.000Z"
 }

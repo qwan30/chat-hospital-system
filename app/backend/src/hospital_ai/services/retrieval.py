@@ -36,6 +36,9 @@ ranked_chunks as (
   where exists (select 1 from allowed)
     and c.patient_id = :patient_id
     and d.status = 'indexed'
+    and c.deleted_at is null
+    and d.deleted_at is null
+    and p.deleted_at is null
   order by c.embedding <=> CAST(:query_embedding AS vector)
   limit :top_k
 )
@@ -135,6 +138,9 @@ class RetrievalService:
                 permission_exists,
                 DocumentChunk.patient_id == patient_id,
                 Document.status == "indexed",
+                DocumentChunk.deleted_at.is_(None),
+                Document.deleted_at.is_(None),
+                DocumentPage.deleted_at.is_(None),
                 DocumentChunk.embedding.is_not(None),
             )
         )

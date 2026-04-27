@@ -5,7 +5,7 @@ from sqlalchemy import update
 
 from hospital_ai.core.security import PATIENT_READ_SCOPES
 from hospital_ai.db.migrations import DOCTOR_ID, PATIENT_ALICE_ID, PATIENT_BOB_ID
-from hospital_ai.db.models import PatientPermission
+from hospital_ai.db.models import Document, DocumentChunk, DocumentPage, PatientPermission
 from hospital_ai.services.embeddings import deterministic_embedding
 from hospital_ai.services.retrieval import PERMISSION_FILTERED_RETRIEVAL_SQL, RetrievalService
 from tests.conftest import create_indexed_document
@@ -20,6 +20,9 @@ def test_retrieval_sql_repeats_patient_permission_filter():
     assert "pp.expires_at is null or pp.expires_at > now()" in sql
     assert "where exists (select 1 from allowed)" in sql
     assert "c.patient_id = :patient_id" in sql
+    assert "c.deleted_at is null" in sql
+    assert "d.deleted_at is null" in sql
+    assert "p.deleted_at is null" in sql
 
 
 @pytest.mark.asyncio
@@ -106,6 +109,87 @@ async def test_expired_patient_permission_blocks_portable_retrieval(session_and_
         user_id=DOCTOR_ID,
         patient_id=PATIENT_ALICE_ID,
         query_embedding=deterministic_embedding("expired note"),
+        top_k=5,
+    )
+
+    assert results == []
+
+
+@pytest.mark.asyncio
+async def test_soft_deleted_document_is_not_retrieved(session_and_settings):
+    session, _ = session_and_settings
+    document = await create_indexed_document(
+        session,
+        patient_id=PATIENT_ALICE_ID,
+        uploaded_by=DOCTOR_ID,
+        title="Alice deleted document",
+        content="Deleted document content must not be retrieved.",
+    )
+    await session.execute(
+        update(Document)
+        .where(Document.id == document.id)
+        .values(deleted_at=datetime.now(timezone.utc))
+    )
+    await session.commit()
+
+    results = await RetrievalService(session).search(
+        user_id=DOCTOR_ID,
+        patient_id=PATIENT_ALICE_ID,
+        query_embedding=deterministic_embedding("deleted document"),
+        top_k=5,
+    )
+
+    assert results == []
+
+
+@pytest.mark.asyncio
+async def test_soft_deleted_page_is_not_retrieved(session_and_settings):
+    session, _ = session_and_settings
+    document = await create_indexed_document(
+        session,
+        patient_id=PATIENT_ALICE_ID,
+        uploaded_by=DOCTOR_ID,
+        title="Alice deleted page",
+        content="Deleted page content must not be retrieved.",
+    )
+    await session.execute(
+        update(DocumentPage)
+        .where(DocumentPage.document_id == document.id)
+        .values(deleted_at=datetime.now(timezone.utc))
+    )
+    await session.commit()
+
+    results = await RetrievalService(session).search(
+        user_id=DOCTOR_ID,
+        patient_id=PATIENT_ALICE_ID,
+        query_embedding=deterministic_embedding("deleted page"),
+        top_k=5,
+    )
+
+    assert results == []
+
+
+@pytest.mark.asyncio
+async def test_soft_deleted_chunk_is_not_retrieved(session_and_settings):
+    session, _ = session_and_settings
+    document = await create_indexed_document(
+        session,
+        patient_id=PATIENT_ALICE_ID,
+        uploaded_by=DOCTOR_ID,
+        title="Alice deleted chunk",
+        content="Deleted chunk content must not be retrieved.",
+    )
+    await session.execute(
+        update(DocumentChunk)
+        .where(DocumentChunk.document_id == document.id)
+        .values(deleted_at=datetime.now(timezone.utc))
+    )
+    await session.commit()
+
+    results = await RetrievalService(session).search(
+        user_id=DOCTOR_ID,
+        patient_id=PATIENT_ALICE_ID,
+        query_embedding=deterministic_embedding("deleted chunk"),
         top_k=5,
     )
 

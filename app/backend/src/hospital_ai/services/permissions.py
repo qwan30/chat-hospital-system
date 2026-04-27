@@ -1,0 +1,134 @@
+import uuid
+from datetime import datetime, timezone
+from typing import Iterable, Optional, Set
+
+from sqlalchemy import exists, select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from hospital_ai.core.errors import PermissionDeniedError
+from hospital_ai.core.security import PATIENT_READ_SCOPES, PATIENT_UPLOAD_SCOPES
+from hospital_ai.db.models import PatientPermission, User
+from hospital_ai.services.audit import AuditService
+
+
+class PermissionService:
+    def __init__(self, session: AsyncSession) -> None:
+        self.session = session
+
+    async def has_patient_scope(
+        self,
+        *,
+        user_id: uuid.UUID,
+        patient_id: uuid.UUID,
+        accepted_scopes: Iterable[str],
+    ) -> bool:
+        accepted = set(accepted_scopes)
+        now = datetime.now(timezone.utc)
+        stmt = select(
+            exists().where(
+                PatientPermission.user_id == user_id,
+                PatientPermission.patient_id == patient_id,
+                PatientPermission.scope.in_(accepted),
+                PatientPermission.deleted_at.is_(None),
+                (PatientPermission.expires_at.is_(None)) | (PatientPermission.expires_at > now),
+            )
+        )
+        result = await self.session.execute(stmt)
+        return bool(result.scalar())
+
+    async def require_patient_scope(
+        self,
+        *,
+        user: User,
+        patient_id: uuid.UUID,
+        accepted_scopes: Iterable[str],
+        action: str,
+        object_type: str = "patient",
+        object_id: Optional[uuid.UUID] = None,
+        trace_id: str,
+        ip_address: Optional[str] = None,
+        metadata: Optional[dict] = None,
+    ) -> None:
+        accepted: Set[str] = set(accepted_scopes)
+        if await self.has_patient_scope(
+            user_id=user.id,
+            patient_id=patient_id,
+            accepted_scopes=accepted,
+        ):
+            return
+
+        await AuditService(self.session).record(
+            actor_user_id=user.id,
+            action=action,
+            object_type=object_type,
+            object_id=object_id,
+            patient_id=patient_id,
+            outcome="denied",
+            trace_id=trace_id,
+            ip_address=ip_address,
+            metadata={"required_scopes": sorted(accepted), **(metadata or {})},
+        )
+        await self.session.commit()
+        raise PermissionDeniedError("User is not authorized for this patient.")
+
+    async def require_read(
+        self,
+        *,
+        user: User,
+        patient_id: uuid.UUID,
+        action: str,
+        trace_id: str,
+        object_type: str = "patient",
+        object_id: Optional[uuid.UUID] = None,
+        ip_address: Optional[str] = None,
+    ) -> None:
+        await self.require_patient_scope(
+            user=user,
+            patient_id=patient_id,
+            accepted_scopes=PATIENT_READ_SCOPES,
+            action=action,
+            object_type=object_type,
+            object_id=object_id,
+            trace_id=trace_id,
+            ip_address=ip_address,
+        )
+
+    async def require_upload_or_admin_role(
+        self,
+        *,
+        user: User,
+        patient_id: uuid.UUID,
+        action: str,
+        trace_id: str,
+        object_type: str = "document",
+        object_id: Optional[uuid.UUID] = None,
+        ip_address: Optional[str] = None,
+    ) -> None:
+        if user.role not in {"records_staff", "admin"}:
+            await AuditService(self.session).record(
+                actor_user_id=user.id,
+                action=action,
+                object_type=object_type,
+                object_id=object_id,
+                patient_id=patient_id,
+                outcome="denied",
+                trace_id=trace_id,
+                ip_address=ip_address,
+                metadata={"reason": "role_not_allowed", "role": user.role},
+            )
+            await self.session.commit()
+            raise PermissionDeniedError("Only records staff or admins can upload documents.")
+
+        if user.role == "admin":
+            return
+
+        await self.require_patient_scope(
+            user=user,
+            patient_id=patient_id,
+            accepted_scopes=PATIENT_UPLOAD_SCOPES,
+            action=action,
+            object_type=object_type,
+            object_id=object_id,
+            trace_id=trace_id,
+            ip_address=ip_address,
+        )

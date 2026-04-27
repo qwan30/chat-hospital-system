@@ -1,0 +1,22 @@
+{
+  "schema_version": "1.0",
+  "feature_slug": "backend-permission-filtered-rag",
+  "mode": "degraded_review",
+  "active_skill": "khuym:reviewing",
+  "phase": "reviewing-degraded",
+  "phase_number": 0,
+  "epic_id": "",
+  "approved_gates": {
+    "context": false,
+    "phase_plan": false,
+    "execution": false,
+    "review": false
+  },
+  "active_beads": [],
+  "active_workers": [],
+  "blockers": [
+    "br/bv unavailable; review beads not created",
+    "history feature CONTEXT.md and approach.md unavailable"
+  ],
+  "last_updated": "2026-04-27T15:40:00.000Z"
+}

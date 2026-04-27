@@ -1,0 +1,84 @@
+# Project command approval rules for chatbot-hospital-system.
+# Rules apply when Codex asks to run commands outside the sandbox.
+
+prefix_rule(
+    pattern = ["npm", "run", ["typecheck", "lint", "build"]],
+    decision = "allow",
+    justification = "Project validation commands are expected for frontend work",
+    match = [
+        "npm run typecheck",
+        "npm run lint",
+        "npm run build",
+    ],
+    not_match = [
+        "npm run dev",
+        "npm install",
+    ],
+)
+
+prefix_rule(
+    pattern = ["npm", "run", "dev"],
+    decision = "prompt",
+    justification = "Starting a dev server is allowed after confirming the port and duration",
+    match = [
+        "npm run dev",
+    ],
+)
+
+prefix_rule(
+    pattern = ["npm", ["install", "update", "audit", "fund"]],
+    decision = "prompt",
+    justification = "Dependency and network-affecting npm operations require review",
+    match = [
+        "npm install",
+        "npm update",
+        "npm audit",
+    ],
+)
+
+prefix_rule(
+    pattern = ["npx"],
+    decision = "prompt",
+    justification = "npx may execute downloaded code and requires review",
+    match = [
+        "npx shadcn add button",
+    ],
+)
+
+prefix_rule(
+    pattern = ["git", ["reset", "clean"]],
+    decision = "forbidden",
+    justification = "Do not destructively rewrite or delete workspace changes; inspect status and ask for explicit user direction instead",
+    match = [
+        "git reset --hard",
+        "git clean -fdx",
+    ],
+)
+
+prefix_rule(
+    pattern = ["git", "checkout", "--"],
+    decision = "forbidden",
+    justification = "Do not discard user changes with checkout; use a targeted patch or ask for explicit user direction",
+    match = [
+        "git checkout -- app/frontend/src/app/page.tsx",
+    ],
+)
+
+prefix_rule(
+    pattern = [["rm", "rmdir"], ["-rf", "-fr", "/s"]],
+    decision = "forbidden",
+    justification = "Recursive deletion requires explicit user direction and path verification",
+    match = [
+        "rm -rf .codex",
+        "rmdir /s build",
+    ],
+)
+
+prefix_rule(
+    pattern = ["Remove-Item", "-Recurse"],
+    decision = "forbidden",
+    justification = "Recursive deletion requires explicit user direction and path verification",
+    match = [
+        "Remove-Item -Recurse .codex",
+    ],
+)

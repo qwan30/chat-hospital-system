@@ -1,0 +1,81 @@
+# Project-local Codex configuration for chatbot-hospital-system.
+# Trust this project's .codex layer in Codex for these hooks and rules to load.
+
+log_dir = ".codex/logs"
+
+project_doc_max_bytes = 65536
+
+# KHUYM: compact_prompt start
+compact_prompt = """
+MANDATORY: Khuym context compaction recovery.
+
+STOP. Before doing anything else:
+1. Read AGENTS.md completely.
+2. If present, run node .codex/khuym_status.mjs --json.
+3. If present, read .khuym/HANDOFF.json, .khuym/state.json, and .khuym/STATE.md.
+4. Re-open the active feature CONTEXT.md before more planning or edits.
+5. Re-open the current bead or task before running more implementation commands.
+6. Check the current worktree state with git status before resuming.
+
+After completing these steps, briefly confirm what context you restored and only then continue.
+"""
+# KHUYM: compact_prompt end
+
+[features]
+codex_hooks = true
+
+[history]
+persistence = "save-all"
+max_bytes = 10485760
+
+[[hooks.SessionStart]]
+matcher = "startup|resume|clear"
+
+[[hooks.SessionStart.hooks]]
+type = "command"
+command = '''powershell -NoProfile -ExecutionPolicy Bypass -Command "$d=Get-Location; while ($d -and -not (Test-Path (Join-Path $d '.codex\hooks\run_hook.ps1'))) { $d=$d.Parent }; if ($d) { & (Join-Path $d '.codex\hooks\run_hook.ps1') 'session_start' }"'''
+timeout = 10
+statusMessage = "Loading project Codex context"
+
+[[hooks.UserPromptSubmit]]
+
+[[hooks.UserPromptSubmit.hooks]]
+type = "command"
+command = '''powershell -NoProfile -ExecutionPolicy Bypass -Command "$d=Get-Location; while ($d -and -not (Test-Path (Join-Path $d '.codex\hooks\run_hook.ps1'))) { $d=$d.Parent }; if ($d) { & (Join-Path $d '.codex\hooks\run_hook.ps1') 'user_prompt_submit' }"'''
+timeout = 10
+statusMessage = "Checking prompt for secrets and PHI"
+
+[[hooks.PreToolUse]]
+matcher = "Bash|apply_patch|Edit|Write|mcp__.*"
+
+[[hooks.PreToolUse.hooks]]
+type = "command"
+command = '''powershell -NoProfile -ExecutionPolicy Bypass -Command "$d=Get-Location; while ($d -and -not (Test-Path (Join-Path $d '.codex\hooks\run_hook.ps1'))) { $d=$d.Parent }; if ($d) { & (Join-Path $d '.codex\hooks\run_hook.ps1') 'pre_tool_use_policy' }"'''
+timeout = 10
+statusMessage = "Checking tool use policy"
+
+[[hooks.PermissionRequest]]
+matcher = "Bash|apply_patch|Edit|Write|mcp__.*"
+
+[[hooks.PermissionRequest.hooks]]
+type = "command"
+command = '''powershell -NoProfile -ExecutionPolicy Bypass -Command "$d=Get-Location; while ($d -and -not (Test-Path (Join-Path $d '.codex\hooks\run_hook.ps1'))) { $d=$d.Parent }; if ($d) { & (Join-Path $d '.codex\hooks\run_hook.ps1') 'permission_request' }"'''
+timeout = 10
+statusMessage = "Checking approval request"
+
+[[hooks.PostToolUse]]
+matcher = "Bash|apply_patch|Edit|Write|mcp__.*"
+
+[[hooks.PostToolUse.hooks]]
+type = "command"
+command = '''powershell -NoProfile -ExecutionPolicy Bypass -Command "$d=Get-Location; while ($d -and -not (Test-Path (Join-Path $d '.codex\hooks\run_hook.ps1'))) { $d=$d.Parent }; if ($d) { & (Join-Path $d '.codex\hooks\run_hook.ps1') 'post_tool_use_review' }"'''
+timeout = 10
+statusMessage = "Reviewing tool output"
+
+[[hooks.Stop]]
+
+[[hooks.Stop.hooks]]
+type = "command"
+command = '''powershell -NoProfile -ExecutionPolicy Bypass -Command "$d=Get-Location; while ($d -and -not (Test-Path (Join-Path $d '.codex\hooks\run_hook.ps1'))) { $d=$d.Parent }; if ($d) { & (Join-Path $d '.codex\hooks\run_hook.ps1') 'stop_continue' }"'''
+timeout = 10
+statusMessage = "Recording turn history"

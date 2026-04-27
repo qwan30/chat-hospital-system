@@ -1,7 +1,7 @@
 from datetime import datetime, timedelta, timezone
 
 import pytest
-from sqlalchemy import update
+from sqlalchemy import select, update
 
 from hospital_ai.core.security import PATIENT_READ_SCOPES
 from hospital_ai.db.migrations import DOCTOR_ID, PATIENT_ALICE_ID, PATIENT_BOB_ID
@@ -23,6 +23,9 @@ def test_retrieval_sql_repeats_patient_permission_filter():
     assert set(PATIENT_READ_SCOPES) == {"read", "summary", "medication", "admin"}
     assert "where exists (select 1 from allowed)" in sql
     assert "c.patient_id = :patient_id" in sql
+    assert "d.patient_id = :patient_id" in sql
+    assert "p.id = c.page_id and p.document_id = c.document_id" in sql
+    assert "c.embedding is not null" in sql
     assert "c.deleted_at is null" in sql
     assert "d.deleted_at is null" in sql
     assert "p.deleted_at is null" in sql
@@ -195,6 +198,71 @@ async def test_soft_deleted_chunk_is_not_retrieved(session_and_settings):
         user_id=DOCTOR_ID,
         patient_id=PATIENT_ALICE_ID,
         query_embedding=deterministic_embedding("deleted chunk"),
+        top_k=5,
+    )
+
+    assert results == []
+
+
+@pytest.mark.asyncio
+async def test_mismatched_chunk_document_patient_is_not_retrieved(session_and_settings):
+    session, _ = session_and_settings
+    document = await create_indexed_document(
+        session,
+        patient_id=PATIENT_BOB_ID,
+        uploaded_by=DOCTOR_ID,
+        title="Bob mismatched note",
+        content="Bob content must not be exposed through an Alice-owned chunk.",
+    )
+    await session.execute(
+        update(DocumentChunk)
+        .where(DocumentChunk.document_id == document.id)
+        .values(patient_id=PATIENT_ALICE_ID)
+    )
+    await session.commit()
+
+    results = await RetrievalService(session).search(
+        user_id=DOCTOR_ID,
+        patient_id=PATIENT_ALICE_ID,
+        query_embedding=deterministic_embedding("Bob content"),
+        top_k=5,
+    )
+
+    assert results == []
+
+
+@pytest.mark.asyncio
+async def test_mismatched_chunk_page_document_is_not_retrieved(session_and_settings):
+    session, _ = session_and_settings
+    alice_document = await create_indexed_document(
+        session,
+        patient_id=PATIENT_ALICE_ID,
+        uploaded_by=DOCTOR_ID,
+        title="Alice mismatched note",
+        content="Alice content should not use a page from another document.",
+    )
+    bob_document = await create_indexed_document(
+        session,
+        patient_id=PATIENT_BOB_ID,
+        uploaded_by=DOCTOR_ID,
+        title="Bob page source",
+        content="Bob page must not be cited for Alice evidence.",
+    )
+    bob_page_result = await session.execute(
+        select(DocumentPage).where(DocumentPage.document_id == bob_document.id)
+    )
+    bob_page = bob_page_result.scalar_one()
+    await session.execute(
+        update(DocumentChunk)
+        .where(DocumentChunk.document_id == alice_document.id)
+        .values(page_id=bob_page.id)
+    )
+    await session.commit()
+
+    results = await RetrievalService(session).search(
+        user_id=DOCTOR_ID,
+        patient_id=PATIENT_ALICE_ID,
+        query_embedding=deterministic_embedding("Alice content"),
         top_k=5,
     )
 

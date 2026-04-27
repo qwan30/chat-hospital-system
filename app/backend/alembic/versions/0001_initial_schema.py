@@ -106,8 +106,6 @@ def upgrade() -> None:
         sa.Column("status", sa.String(length=32), nullable=False),
         sa.Column("page_count", sa.Integer(), nullable=True),
         sa.Column("ocr_error", sa.Text(), nullable=True),
-        sa.Column("index_generation", sa.Integer(), nullable=False, server_default="0"),
-        sa.Column("indexed_source_sha256", sa.String(length=64), nullable=True),
         sa.Column("created_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.text("now()")),
         sa.Column("updated_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.text("now()")),
         sa.Column("deleted_at", sa.DateTime(timezone=True), nullable=True),

@@ -26,9 +26,9 @@ async def process_document(
 
     previous_status = document.status
     start_generation = document.index_generation
-    source_sha256 = _source_sha256(document.storage_uri)
+    source_sha256 = _source_sha256(settings, document.storage_uri)
     preserve_existing_index = previous_status == "indexed" and (
-        source_sha256 is None or document.indexed_source_sha256 == source_sha256
+        source_sha256 is not None and document.indexed_source_sha256 == source_sha256
     )
     document.ocr_error = None
     if previous_status != "indexed":
@@ -54,6 +54,10 @@ async def process_document(
     try:
         chunks = ChunkingService().chunk_pages(pages)
         embeddings = await EmbeddingService(settings).embed_many(chunk.content for chunk in chunks)
+        if len(embeddings) != len(chunks):
+            raise RuntimeError(
+                f"Embedding count mismatch: expected {len(chunks)}, received {len(embeddings)}."
+            )
     except Exception as exc:
         await _mark_failed_if_current(
             session,
@@ -124,9 +128,16 @@ async def process_document(
         )
 
 
-def _source_sha256(storage_uri: str) -> Optional[str]:
+def _source_sha256(settings: Settings, storage_uri: str) -> Optional[str]:
     try:
-        return hashlib.sha256(Path(storage_uri).read_bytes()).hexdigest()
+        storage_root = settings.storage_root.resolve()
+        source_path = Path(storage_uri)
+        if not source_path.is_absolute():
+            source_path = Path.cwd() / source_path
+        source_path = source_path.resolve()
+        if not source_path.is_relative_to(storage_root):
+            return None
+        return hashlib.sha256(source_path.read_bytes()).hexdigest()
     except OSError:
         return None
 

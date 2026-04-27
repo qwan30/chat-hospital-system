@@ -13,10 +13,30 @@ from hospital_ai.workers.jobs import process_document
 from tests.conftest import create_indexed_document
 
 
+def _storage_file(settings, name: str) -> Path:
+    settings.storage_root.mkdir(parents=True, exist_ok=True)
+    return settings.storage_root / name
+
+
+async def _attach_source_file(
+    document: Document,
+    session,
+    settings,
+    name: str,
+    content: str,
+) -> Path:
+    storage_file = _storage_file(settings, name)
+    storage_file.write_text(content, encoding="utf-8")
+    document.storage_uri = str(storage_file)
+    document.indexed_source_sha256 = hashlib.sha256(storage_file.read_bytes()).hexdigest()
+    await session.commit()
+    return storage_file
+
+
 @pytest.mark.asyncio
 async def test_text_document_moves_to_indexed(session_and_settings, tmp_path: Path):
     session, settings = session_and_settings
-    storage_file = tmp_path / "note.txt"
+    storage_file = _storage_file(settings, "note.txt")
     storage_file.write_text(
         "Patient reports dizziness. Follow up with cardiology.",
         encoding="utf-8",
@@ -50,7 +70,7 @@ async def test_text_document_moves_to_indexed(session_and_settings, tmp_path: Pa
 @pytest.mark.asyncio
 async def test_failed_ocr_creates_no_chunks(session_and_settings, tmp_path: Path, monkeypatch):
     session, settings = session_and_settings
-    storage_file = tmp_path / "scan.pdf"
+    storage_file = _storage_file(settings, "scan.pdf")
     storage_file.write_bytes(b"%PDF-1.4 synthetic")
     document = Document(
         patient_id=PATIENT_ALICE_ID,
@@ -91,6 +111,13 @@ async def test_failed_reindex_preserves_existing_searchable_chunks(
         title="Previously indexed note",
         content="Original indexed content remains searchable.",
     )
+    await _attach_source_file(
+        document,
+        session,
+        settings,
+        "previously-indexed-note.txt",
+        "Original indexed content remains searchable.",
+    )
 
     def fail_ocr(self, *, storage_uri, mime_type):
         raise RuntimeError("ocr failed")
@@ -129,6 +156,13 @@ async def test_failed_reindex_after_ocr_preserves_existing_chunks(
         title="Previously indexed note",
         content="Original indexed content survives embedding failure.",
     )
+    await _attach_source_file(
+        document,
+        session,
+        settings,
+        "embedding-failure-note.txt",
+        "Original indexed content survives embedding failure.",
+    )
 
     def extract_pages(self, *, storage_uri, mime_type):
         return [OcrPage(page_number=1, text="Replacement content", confidence=1.0)]
@@ -163,7 +197,7 @@ async def test_failed_reindex_for_changed_source_marks_index_failed(
     monkeypatch,
 ):
     session, settings = session_and_settings
-    storage_file = tmp_path / "changed-note.txt"
+    storage_file = _storage_file(settings, "changed-note.txt")
     storage_file.write_text("Original file content.", encoding="utf-8")
     document = await create_indexed_document(
         session,
@@ -207,6 +241,71 @@ async def test_failed_reindex_for_changed_source_marks_index_failed(
         top_k=5,
     )
     assert results == []
+
+
+@pytest.mark.asyncio
+async def test_failed_reindex_with_unknown_source_hash_marks_index_failed(
+    session_and_settings,
+    monkeypatch,
+):
+    session, settings = session_and_settings
+    document = await create_indexed_document(
+        session,
+        patient_id=PATIENT_ALICE_ID,
+        uploaded_by=RECORDS_ID,
+        title="Unknown source note",
+        content="Original indexed content should not be trusted without a source hash.",
+    )
+    document.storage_uri = "missing-source.txt"
+    document.indexed_source_sha256 = None
+    await session.commit()
+
+    def fail_ocr(self, *, storage_uri, mime_type):
+        raise RuntimeError("ocr failed")
+
+    monkeypatch.setattr("hospital_ai.services.ocr.OcrService.extract_pages", fail_ocr)
+    await process_document(session, document.id, settings)
+
+    refreshed = await session.get(Document, document.id)
+    assert refreshed.status == "ocr_failed"
+    assert refreshed.ocr_error == "ocr failed"
+
+
+@pytest.mark.asyncio
+async def test_embedding_count_mismatch_marks_index_failed(session_and_settings, monkeypatch):
+    session, settings = session_and_settings
+    storage_file = _storage_file(settings, "embedding-count-note.txt")
+    storage_file.write_text("Replacement content needs one embedding.", encoding="utf-8")
+    document = Document(
+        patient_id=PATIENT_ALICE_ID,
+        uploaded_by=RECORDS_ID,
+        title="Embedding count note",
+        document_type="clinical_note",
+        storage_uri=str(storage_file),
+        mime_type="text/plain",
+        status="uploaded",
+    )
+    session.add(document)
+    await session.commit()
+
+    async def return_no_embeddings(self, contents):
+        list(contents)
+        return []
+
+    monkeypatch.setattr(
+        "hospital_ai.services.embeddings.EmbeddingService.embed_many",
+        return_no_embeddings,
+    )
+    await process_document(session, document.id, settings)
+
+    refreshed = await session.get(Document, document.id)
+    assert refreshed.status == "index_failed"
+    assert "Embedding count mismatch" in refreshed.ocr_error
+
+    chunk_result = await session.execute(
+        select(DocumentChunk).where(DocumentChunk.document_id == document.id)
+    )
+    assert chunk_result.scalars().all() == []
 
 
 @pytest.mark.asyncio

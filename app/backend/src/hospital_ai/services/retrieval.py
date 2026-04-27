@@ -3,7 +3,7 @@ import uuid
 from dataclasses import dataclass
 from typing import Any, Dict, Iterable, List, Sequence
 
-from sqlalchemy import bindparam, select, text
+from sqlalchemy import and_, bindparam, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from hospital_ai.core.security import PATIENT_READ_SCOPES
@@ -29,13 +29,15 @@ ranked_chunks as (
     1 - (c.embedding <=> CAST(:query_embedding AS vector)) as score
   from document_chunks c
   join documents d on d.id = c.document_id
-  join document_pages p on p.id = c.page_id
+  join document_pages p on p.id = c.page_id and p.document_id = c.document_id
   where exists (select 1 from allowed)
     and c.patient_id = :patient_id
+    and d.patient_id = :patient_id
     and d.status = 'indexed'
     and c.deleted_at is null
     and d.deleted_at is null
     and p.deleted_at is null
+    and c.embedding is not null
   order by c.embedding <=> CAST(:query_embedding AS vector)
   limit :top_k
 )
@@ -133,10 +135,17 @@ class RetrievalService:
         stmt = (
             select(DocumentChunk, Document, DocumentPage)
             .join(Document, Document.id == DocumentChunk.document_id)
-            .join(DocumentPage, DocumentPage.id == DocumentChunk.page_id)
+            .join(
+                DocumentPage,
+                and_(
+                    DocumentPage.id == DocumentChunk.page_id,
+                    DocumentPage.document_id == DocumentChunk.document_id,
+                ),
+            )
             .where(
                 permission_exists,
                 DocumentChunk.patient_id == patient_id,
+                Document.patient_id == patient_id,
                 Document.status == "indexed",
                 DocumentChunk.deleted_at.is_(None),
                 Document.deleted_at.is_(None),

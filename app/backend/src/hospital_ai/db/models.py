@@ -107,6 +107,7 @@ class Patient(TimestampMixin, SoftDeleteMixin, Base):
 
     permissions: Mapped[List["PatientPermission"]] = relationship(back_populates="patient")
     documents: Mapped[List["Document"]] = relationship(back_populates="patient")
+    chat_threads: Mapped[List["ChatThread"]] = relationship(back_populates="patient")
 
 
 class PatientPermission(TimestampMixin, SoftDeleteMixin, Base):
@@ -225,6 +226,7 @@ class AiQuery(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
 
     evidence: Mapped[List["RetrievedEvidence"]] = relationship(back_populates="query", cascade="all, delete-orphan")
+    messages: Mapped[List["ChatMessage"]] = relationship(back_populates="ai_query")
 
 
 class RetrievedEvidence(Base):
@@ -238,3 +240,98 @@ class RetrievedEvidence(Base):
     citation_label: Mapped[str] = mapped_column(String(16), nullable=False)
 
     query: Mapped[AiQuery] = relationship(back_populates="evidence")
+
+
+class ChatThread(TimestampMixin, SoftDeleteMixin, Base):
+    __tablename__ = "chat_threads"
+    __table_args__ = (
+        CheckConstraint("scope in ('general','patient-linked')", name="ck_chat_threads_scope"),
+        CheckConstraint("visibility in ('private','shared')", name="ck_chat_threads_visibility"),
+        CheckConstraint("status in ('active','archived')", name="ck_chat_threads_status"),
+        CheckConstraint(
+            "(scope = 'general' and patient_id is null) or "
+            "(scope = 'patient-linked' and patient_id is not null)",
+            name="ck_chat_threads_patient_scope",
+        ),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    title: Mapped[str] = mapped_column(String(255), nullable=False)
+    scope: Mapped[str] = mapped_column(String(32), nullable=False)
+    visibility: Mapped[str] = mapped_column(String(32), nullable=False, default="private")
+    status: Mapped[str] = mapped_column(String(32), nullable=False, default="active")
+    owner_user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"), nullable=False, index=True)
+    patient_id: Mapped[Optional[uuid.UUID]] = mapped_column(ForeignKey("patients.id"), nullable=True, index=True)
+    created_trace_id: Mapped[str] = mapped_column(String(64), nullable=False)
+    last_message_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+
+    owner: Mapped[User] = relationship()
+    patient: Mapped[Optional[Patient]] = relationship(back_populates="chat_threads")
+    participants: Mapped[List["ChatThreadParticipant"]] = relationship(
+        back_populates="thread",
+        cascade="all, delete-orphan",
+    )
+    messages: Mapped[List["ChatMessage"]] = relationship(
+        back_populates="thread",
+        cascade="all, delete-orphan",
+    )
+
+
+class ChatThreadParticipant(TimestampMixin, SoftDeleteMixin, Base):
+    __tablename__ = "chat_thread_participants"
+    __table_args__ = (
+        UniqueConstraint("thread_id", "user_id", name="uq_chat_thread_participant"),
+        CheckConstraint(
+            "access_level in ('owner','write','read')",
+            name="ck_chat_thread_participants_access_level",
+        ),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    thread_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("chat_threads.id"), nullable=False, index=True)
+    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"), nullable=False, index=True)
+    access_level: Mapped[str] = mapped_column(String(32), nullable=False)
+    can_share: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    added_by_user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"), nullable=False)
+    created_trace_id: Mapped[str] = mapped_column(String(64), nullable=False)
+    last_read_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+
+    thread: Mapped[ChatThread] = relationship(back_populates="participants")
+    user: Mapped[User] = relationship(foreign_keys=[user_id])
+    added_by: Mapped[User] = relationship(foreign_keys=[added_by_user_id])
+
+
+class ChatMessage(Base):
+    __tablename__ = "chat_messages"
+    __table_args__ = (
+        CheckConstraint("role in ('user','assistant','system')", name="ck_chat_messages_role"),
+        CheckConstraint("scope in ('general','patient-linked')", name="ck_chat_messages_scope"),
+        CheckConstraint(
+            "patient_permission_state in ('not-required','pending','allowed','denied')",
+            name="ck_chat_messages_patient_permission_state",
+        ),
+        CheckConstraint(
+            "(scope = 'general' and patient_id is null) or "
+            "(scope = 'patient-linked' and patient_id is not null)",
+            name="ck_chat_messages_patient_scope",
+        ),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    thread_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("chat_threads.id"), nullable=False, index=True)
+    sender_user_id: Mapped[Optional[uuid.UUID]] = mapped_column(ForeignKey("users.id"), nullable=True, index=True)
+    ai_query_id: Mapped[Optional[uuid.UUID]] = mapped_column(ForeignKey("ai_queries.id"), nullable=True, index=True)
+    patient_id: Mapped[Optional[uuid.UUID]] = mapped_column(ForeignKey("patients.id"), nullable=True, index=True)
+    role: Mapped[str] = mapped_column(String(32), nullable=False)
+    scope: Mapped[str] = mapped_column(String(32), nullable=False)
+    content: Mapped[str] = mapped_column(Text, nullable=False)
+    patient_permission_state: Mapped[str] = mapped_column(String(32), nullable=False)
+    citations: Mapped[List[Dict[str, Any]]] = mapped_column(JSON, nullable=False, default=list)
+    meta: Mapped[Dict[str, Any]] = mapped_column("metadata", JSON, nullable=False, default=dict)
+    trace_id: Mapped[str] = mapped_column(String(64), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
+
+    thread: Mapped[ChatThread] = relationship(back_populates="messages")
+    sender: Mapped[Optional[User]] = relationship()
+    ai_query: Mapped[Optional[AiQuery]] = relationship(back_populates="messages")
+    patient: Mapped[Optional[Patient]] = relationship()

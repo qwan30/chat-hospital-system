@@ -3,8 +3,8 @@
   "feature_slug": "kotaemon-chat-assistant-ui",
   "mode": "standard_feature",
   "active_skill": "khuym:executing",
-  "phase": "review-followups-complete-uat-pending",
-  "phase_number": 9,
+  "phase": "phase-2-shared-chat-persistence-progress",
+  "phase_number": 10,
   "epic_id": "br-dyy",
   "approved_gates": {
     "context": false,
@@ -13,16 +13,6 @@
     "review": false
   },
   "active_beads": [],
-  "review_followups": {
-    "p1": [],
-    "p2": [],
-    "p3": [],
-    "external_ref": "br-dyy",
-    "known_pattern_beads": [
-      "br-ca7",
-      "br-dtm"
-    ]
-  },
   "completed_beads": [
     "br-dyy",
     "br-dyy.2",
@@ -42,57 +32,50 @@
     "br-ca7",
     "br-pos",
     "br-d99",
-    "br-54h"
+    "br-54h",
+    "br-gjf",
+    "br-22l",
+    "br-qql",
+    "br-mu0",
+    "br-200"
   ],
   "active_workers": [
     {
-      "codex_nickname": "ParentResume",
-      "codex_agent_id": "019dd090-82f4-7a81-84a2-5f76eba805ec",
-      "agent_mail_name": "DarkGate",
-      "status": "completed-review-followups-all",
+      "codex_nickname": "CodexExecute",
+      "agent_mail_name": "BrightReef",
+      "status": "paused-after-phase-2-progress",
       "current_bead": null
     }
   ],
   "blockers": [
-    "gkg command is unavailable on PATH; gkg-backed planning is degraded until installed or configured",
+    "gkg command is unavailable on PATH; GitNexus was used for analysis instead",
     "br is installed but cannot read this workspace cleanly; use npx.cmd bd for Beads commands unless the Beads store is deliberately migrated",
-    "cass and cm commands are unavailable, so prior-session CLI retrieval is degraded"
+    "frontend shell still uses sample workspace state until auth/base-url/live backend wiring is implemented",
+    "general hospital knowledge chat endpoint remains deferred; verified backend chat remains patient-linked"
   ],
   "tooling": {
     "agent_mail_url": "http://127.0.0.1:8765/api/",
     "agent_mail_status": "available",
     "coordinator_agent_name": "DarkGate",
     "epic_topic": "epic-br-dyy",
-    "agent_mail_start_command": "powershell -ExecutionPolicy Bypass -File .codex/start_agent_mail.ps1",
+    "agent_mail_name": "BrightReef",
     "beads_cli": "npx.cmd bd",
-    "beads_viewer_bridge": "npx.cmd bd export --no-memories -o .beads/issues.jsonl",
-    "beads_viewer_check": "bv --robot-triage --graph-root br-dyy"
+    "gitnexus_latest_commit": "72cdbbc"
   },
   "validation_artifacts": [
     "history/kotaemon-chat-assistant-ui/phase-1-validation.md",
     "history/kotaemon-chat-assistant-ui/phase-1-build-verification.md",
     "history/kotaemon-chat-assistant-ui/phase-1-browser-review.md",
     "history/kotaemon-chat-assistant-ui/phase-1-artifact-verification.md",
-    "history/kotaemon-chat-assistant-ui/br-9gn-verification.md",
-    "history/kotaemon-chat-assistant-ui/br-dtm-verification.md",
-    "history/kotaemon-chat-assistant-ui/br-ca7-verification.md",
-    "history/kotaemon-chat-assistant-ui/br-pos-verification.md",
-    "history/kotaemon-chat-assistant-ui/br-d99-verification.md",
-    "history/kotaemon-chat-assistant-ui/br-54h-verification.md",
-    ".khuym/findings/learnings-candidates.md"
+    ".khuym/HANDOFF.json"
   ],
   "latest_commits": [
-    "18807ca refactor(br-54h): consolidate chat contract types",
-    "8f293dd fix(br-d99): wire safe composer submit",
-    "d0476ae fix(br-pos): validate patient chat requests",
-    "2c98107 chore(br-dyy): close phase 1 epic",
-    "b07020b test(br-dyy.11): record browser review",
-    "e9d2d9c test(br-dyy.10): record frontend build verification",
-    "5a680f2 feat(br-dyy.7): add local thread affordances",
-    "ea34a51 feat(br-dyy.9): add cited evidence states",
-    "6767905 feat(br-dyy.8): add patient context gate",
-    "f60d62c feat(br-dyy.6): add typed assistant sample data"
+    "72cdbbc feat(br-200): add persisted thread frontend adapter",
+    "d62b5fc feat(br-mu0): add chat thread participant sharing",
+    "7a7c280 feat(br-qql): persist chat thread messages",
+    "3b93698 feat(br-22l): implement shared chat thread APIs",
+    "e81aa1f feat(br-gjf): define shared chat thread contract"
   ],
-  "next_action": "Run human UAT for Phase 1 review item 1; all automated review follow-up beads are closed.",
-  "last_updated": "2026-04-28T15:15:23+07:00"
+  "next_action": "Resume from live graph; no ready beads remain. Recommended next bead is frontend live wiring for persisted threads, keeping auth/base-url requirements explicit.",
+  "last_updated": "2026-04-28T16:32:00+07:00"
 }

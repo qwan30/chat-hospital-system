@@ -2,104 +2,75 @@
   "schema_version": "1.0",
   "format": "khuym-swarm-handoff",
   "feature": "kotaemon-chat-assistant-ui",
-  "skill": "khuym:reviewing",
-  "phase": "review-followups-complete-uat-pending",
-  "next_action": "Run human UAT for Phase 1 review item 1; all automated review follow-up beads are closed.",
-  "context_pct": 0.55,
+  "skill": "khuym:executing",
+  "phase": "phase-2-shared-chat-persistence-progress",
+  "next_action": "Resume from the live bead graph. There are no ready beads after br-200; likely next slice is live frontend auth/base-url wiring for persisted chat threads, or a separate backend general-knowledge chat endpoint if that is prioritized.",
+  "context_pct": 0.68,
   "session": {
-    "id": "khuym-swarm-resume-019dd090-82f4-7a81-84a2-5f76eba805ec",
-    "paused_at": "2026-04-28T15:15:23+07:00",
-    "reason_for_pause": "review_followups_complete_uat_pending",
-    "agent": "GrayHill"
+    "codex_nickname": "CodexExecute",
+    "agent_mail_name": "BrightReef",
+    "paused_at": "2026-04-28T16:32:00+07:00",
+    "reason_for_pause": "context_after_four_committed_execution_slices"
   },
   "swarm": {
     "epic_id": "br-dyy",
     "feature_name": "kotaemon-chat-assistant-ui",
     "project_key": "D:\\projects\\chatbot-hospital-system",
-    "epic_topic": "epic-br-dyy"
+    "epic_topic": "epic-br-dyy",
+    "coordinator": "DarkGate"
   },
   "graph_status": {
-    "open_beads": [],
     "ready_beads": [],
-    "in_progress_beads": [],
-    "blocked_beads": [],
-    "closed_beads": [
-      "br-dyy",
-      "br-dyy.2",
-      "br-dyy.3",
-      "br-dyy.4",
-      "br-dyy.5",
-      "br-dyy.6",
-      "br-dyy.7",
-      "br-dyy.8",
-      "br-dyy.9",
-      "br-dyy.10",
-      "br-dyy.11",
-      "br-dyy.12",
-      "br-dyy.13",
-      "br-9gn",
-      "br-dtm",
-      "br-ca7",
-      "br-pos",
-      "br-d99",
-      "br-54h"
-    ],
-    "graph_check": "npx.cmd bd graph check --json returned clean with zero cycles after Phase 1 closure."
+    "graph_check": "npx.cmd bd graph check --json returned clean with zero cycles after br-200.",
+    "gitnexus_status": "Indexed commit 72cdbbc; current commit 72cdbbc; status up-to-date."
   },
-  "review_status": {
-    "automated_review_complete": true,
-    "p1": [],
-    "p2": [],
-    "p3": [],
-    "security_findings": 0,
-    "known_pattern_beads": [
-      "br-ca7",
-      "br-dtm"
-    ],
-    "compounding_candidates": ".khuym/findings/learnings-candidates.md"
-  },
-  "active_workers": [
+  "completed_this_session": [
     {
-      "codex_nickname": "ParentResume",
-      "codex_agent_id": "019dd090-82f4-7a81-84a2-5f76eba805ec",
-      "agent_mail_name": "DarkGate",
-      "current_bead": null,
-      "status": "completed-phase-1-and-closed-epic",
-      "notes": "Completed br-dyy.6, br-dyy.7, br-dyy.8, br-dyy.9, br-dyy.10, br-dyy.11, and closed br-dyy in this resumed session."
+      "bead_id": "br-22l",
+      "commit": "3b93698",
+      "summary": "Implemented shared chat thread create/list/read/update/archive APIs."
+    },
+    {
+      "bead_id": "br-qql",
+      "commit": "7a7c280",
+      "summary": "Persisted patient-linked thread messages through the permission-filtered chat flow."
+    },
+    {
+      "bead_id": "br-mu0",
+      "commit": "d62b5fc",
+      "summary": "Added owner-managed participant sharing APIs with patient-permission guards."
+    },
+    {
+      "bead_id": "br-200",
+      "commit": "72cdbbc",
+      "summary": "Added frontend persisted chat thread API adapter and contract checks."
     }
   ],
+  "verification": {
+    "backend_latest": "python -m pytest: 46 passed, 2 skipped; python -m compileall src tests: passed.",
+    "frontend_latest": "npm.cmd run test:workspace: 18 passed; npm.cmd run typecheck/lint/build: passed.",
+    "gitnexus_latest": "npx.cmd gitnexus analyze --skip-agents-md: 1,182 nodes | 2,784 edges | 36 clusters | 84 flows."
+  },
   "open_blockers": [
     {
-      "bead_id": "phase-2-planning",
-      "description": "Shared thread persistence, real general hospital chat, HMS integration, and live permission-aware patient evidence wiring remain later-phase work.",
-      "thread_message_id": "br-dyy"
+      "description": "Frontend shell still uses sample workspace state and does not call persisted thread APIs until auth/base-url/live wiring is explicitly implemented."
+    },
+    {
+      "description": "General hospital knowledge chat endpoint remains deferred; existing backend chat generation is verified for patient-linked questions only."
     }
   ],
   "resume_instructions": {
-    "priority_next": "Run human UAT for Phase 1 review item 1; all automated review follow-up beads are closed.",
     "read_first": [
       "AGENTS.md",
       ".khuym/STATE.md",
       ".khuym/state.json",
       ".khuym/HANDOFF.json",
       "history/kotaemon-chat-assistant-ui/CONTEXT.md",
-      "history/kotaemon-chat-assistant-ui/phase-1-browser-review.md",
-      "history/kotaemon-chat-assistant-ui/phase-1-artifact-verification.md",
-      "history/kotaemon-chat-assistant-ui/br-9gn-verification.md",
-      "history/kotaemon-chat-assistant-ui/br-dtm-verification.md",
-      "history/kotaemon-chat-assistant-ui/br-ca7-verification.md",
-      "history/kotaemon-chat-assistant-ui/br-pos-verification.md",
-      "history/kotaemon-chat-assistant-ui/br-d99-verification.md",
-      "history/kotaemon-chat-assistant-ui/br-54h-verification.md",
-      "history/learnings/critical-patterns.md",
-      ".khuym/findings/learnings-candidates.md"
+      "history/learnings/critical-patterns.md"
     ],
     "check_mail": true,
     "bead_check": "npx.cmd bd ready --json",
-    "restore_confirmation": "Phase 1 epic remains closed. Review follow-ups are external-ref beads, not children of br-dyy. Do not reopen Phase 1 unless the user explicitly requests a fix."
-  },
-  "context_at_pause": {
-    "tokens_used_pct": 0.55,
-    "agent_mail_thread": "br-dyy"
+    "gitnexus_refresh": "npx.cmd gitnexus status; run npx.cmd gitnexus analyze --skip-agents-md if stale",
+    "priority_next": "Create the next narrow bead from live repo facts; recommended candidate is frontend live wiring for persisted chat threads without faking auth."
   }
 }

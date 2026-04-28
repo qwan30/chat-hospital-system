@@ -36,7 +36,7 @@ export type EvidenceSource = {
   excerpt: string;
   score: number | null;
   availability: EvidenceAvailability;
-  metadata: Record<string, string | number | boolean | null>;
+  metadata: Record<string, unknown>;
   provenance: DataProvenance;
 };
 

@@ -109,3 +109,32 @@ test("empty and unavailable evidence states have readable copy", () => {
   assert.match(mockData, /Unavailable until a general-scope chat API exists\./);
   assert.match(mockData, /No source matched this part of the sample answer\./);
 });
+
+test("backend chat adapter returns matching message and evidence artifacts", () => {
+  const api = source("src/lib/chat-assistant/api.ts");
+
+  assert.match(api, /export type BackendChatArtifacts = \{\s+message: AssistantMessage;\s+evidenceSources: EvidenceSource\[\];\s+\}/);
+  assert.match(api, /export function mapBackendChatResponseToChatArtifacts/);
+  assert.match(api, /const evidenceSources = response\.citations\.map\(mapBackendCitationToEvidenceSource\)/);
+  assert.match(api, /citations: evidenceSources\.map\(mapEvidenceSourceToCitation\)/);
+});
+
+test("backend evidence mapping preserves citation detail for the source panel", () => {
+  const api = source("src/lib/chat-assistant/api.ts");
+  const types = source("src/lib/chat-assistant/types.ts");
+
+  for (const field of [
+    "documentId: citation.document_id",
+    "title: citation.document_title",
+    "page: citation.page",
+    "chunkId: citation.chunk_id",
+    "excerpt: citation.content?.trim()",
+    "score: citation.score",
+    "metadata: citation.metadata",
+  ]) {
+    assert.ok(api.includes(field), `missing backend evidence field preservation: ${field}`);
+  }
+
+  assert.match(api, /evidenceSourceId: source\.id/);
+  assert.match(types, /metadata: Record<string, unknown>/);
+});

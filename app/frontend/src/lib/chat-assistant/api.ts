@@ -2,6 +2,7 @@ import type {
   AssistantMessage,
   ChatScope,
   DataProvenance,
+  EvidenceSource,
   PatientContext,
   SourceCitation,
   UUIDString,
@@ -30,6 +31,11 @@ export type BackendChatResponse = {
   citations: BackendChatCitation[];
   confidence: string;
   disclaimer: string;
+};
+
+export type BackendChatArtifacts = {
+  message: AssistantMessage;
+  evidenceSources: EvidenceSource[];
 };
 
 export type ChatSubmitReadiness =
@@ -87,26 +93,55 @@ export function mapBackendChatResponseToAssistantMessage(
   scope: ChatScope,
   patientContextId: string | null,
 ): AssistantMessage {
+  return mapBackendChatResponseToChatArtifacts(response, scope, patientContextId).message;
+}
+
+export function mapBackendChatResponseToChatArtifacts(
+  response: BackendChatResponse,
+  scope: ChatScope,
+  patientContextId: string | null,
+  createdAt = new Date().toISOString(),
+): BackendChatArtifacts {
+  const evidenceSources = response.citations.map(mapBackendCitationToEvidenceSource);
+
   return {
-    id: response.query_id,
-    role: "assistant",
-    content: response.answer,
-    createdAt: new Date().toISOString(),
-    scope,
-    patientContextId,
-    confidence: normalizeConfidence(response.confidence),
-    disclaimer: response.disclaimer,
-    provenance: backendVerifiedProvenance,
-    citations: response.citations.map(mapBackendCitation),
+    evidenceSources,
+    message: {
+      id: response.query_id,
+      role: "assistant",
+      content: response.answer,
+      createdAt,
+      scope,
+      patientContextId,
+      confidence: normalizeConfidence(response.confidence),
+      disclaimer: response.disclaimer,
+      provenance: backendVerifiedProvenance,
+      citations: evidenceSources.map(mapEvidenceSourceToCitation),
+    },
   };
 }
 
-function mapBackendCitation(citation: BackendChatCitation): SourceCitation {
+function mapBackendCitationToEvidenceSource(citation: BackendChatCitation): EvidenceSource {
   return {
     id: citation.evidence_id,
-    label: `${citation.document_title} p. ${citation.page}`,
-    evidenceSourceId: citation.evidence_id,
+    documentId: citation.document_id,
+    title: citation.document_title,
+    page: citation.page,
+    chunkId: citation.chunk_id,
+    excerpt: citation.content?.trim() || "No excerpt returned by backend.",
+    score: citation.score,
     availability: "available",
+    metadata: citation.metadata,
+    provenance: backendVerifiedProvenance,
+  };
+}
+
+function mapEvidenceSourceToCitation(source: EvidenceSource): SourceCitation {
+  return {
+    id: source.id,
+    label: source.page ? `${source.title} p. ${source.page}` : source.title,
+    evidenceSourceId: source.id,
+    availability: source.availability,
     provenance: backendVerifiedProvenance,
   };
 }

@@ -1,0 +1,190 @@
+from datetime import datetime, timezone
+
+import pytest
+from sqlalchemy import func, select, update
+from starlette.requests import Request
+
+from hospital_ai.api.routes.chat_threads import (
+    ask_thread_message,
+    create_thread,
+    get_thread,
+    list_thread_messages,
+)
+from hospital_ai.core.errors import PermissionDeniedError
+from hospital_ai.db.migrations import DOCTOR_ID, PATIENT_ALICE_ID, RECORDS_ID
+from hospital_ai.db.models import AiQuery, AuditLog, ChatMessage, ChatThread, PatientPermission, User
+from hospital_ai.schemas.chat_threads import ChatThreadCreate, ChatThreadDetail, ChatThreadMessageRequest
+from tests.conftest import create_indexed_document
+
+
+def _request(method: str = "POST") -> Request:
+    return Request(
+        {
+            "type": "http",
+            "method": method,
+            "path": "/api/v1/chat-threads",
+            "headers": [],
+            "client": ("testclient", 50000),
+        }
+    )
+
+
+@pytest.mark.asyncio
+async def test_patient_thread_message_persists_question_answer_and_citations(session_and_settings):
+    session, settings = session_and_settings
+    doctor = await session.get(User, DOCTOR_ID)
+    await create_indexed_document(
+        session,
+        patient_id=PATIENT_ALICE_ID,
+        uploaded_by=DOCTOR_ID,
+        title="Alice allergy note",
+        content="Alice has a documented allergy to penicillin.",
+    )
+    thread = await create_thread(
+        payload=ChatThreadCreate(
+            title="Alice care question",
+            scope="patient-linked",
+            patient_id=PATIENT_ALICE_ID,
+        ),
+        request=_request(),
+        session=session,
+        current_user=doctor,
+    )
+
+    response = await ask_thread_message(
+        thread_id=thread.id,
+        payload=ChatThreadMessageRequest(question="What allergy is documented?", top_k=5),
+        request=_request(),
+        session=session,
+        current_user=doctor,
+        settings=settings,
+    )
+
+    assert response.user_message.role == "user"
+    assert response.user_message.sender_user_id == DOCTOR_ID
+    assert response.user_message.patient_permission_state == "allowed"
+    assert response.assistant_message.role == "assistant"
+    assert response.assistant_message.ai_query_id is not None
+    assert [citation.evidence_id for citation in response.assistant_message.citations] == ["E1"]
+    assert response.assistant_message.metadata["confidence"] in {"low", "medium", "high"}
+
+    persisted_thread = await session.get(ChatThread, thread.id)
+    assert persisted_thread.last_message_at is not None
+
+    listed = await list_thread_messages(
+        thread_id=thread.id,
+        request=_request("GET"),
+        session=session,
+        current_user=doctor,
+    )
+    assert [message.role for message in listed.items] == ["user", "assistant"]
+    assert listed.items[1].ai_query_id == response.assistant_message.ai_query_id
+    detail = ChatThreadDetail.from_orm(
+        await get_thread(
+            thread_id=thread.id,
+            request=_request("GET"),
+            session=session,
+            current_user=doctor,
+        )
+    )
+    assert detail.messages[1].metadata["confidence"] in {"low", "medium", "high"}
+
+    audit_result = await session.execute(
+        select(AuditLog).where(
+            AuditLog.action == "chat_thread.message.create",
+            AuditLog.object_id == thread.id,
+            AuditLog.outcome == "allowed",
+        )
+    )
+    assert audit_result.scalar_one().meta["ai_query_id"] == str(response.assistant_message.ai_query_id)
+
+
+@pytest.mark.asyncio
+async def test_thread_message_denied_participant_is_forbidden_and_audited(session_and_settings):
+    session, settings = session_and_settings
+    doctor = await session.get(User, DOCTOR_ID)
+    records_user = await session.get(User, RECORDS_ID)
+    thread = await create_thread(
+        payload=ChatThreadCreate(
+            title="Private Alice thread",
+            scope="patient-linked",
+            patient_id=PATIENT_ALICE_ID,
+        ),
+        request=_request(),
+        session=session,
+        current_user=doctor,
+    )
+
+    with pytest.raises(PermissionDeniedError):
+        await ask_thread_message(
+            thread_id=thread.id,
+            payload=ChatThreadMessageRequest(question="Can I read this?"),
+            request=_request(),
+            session=session,
+            current_user=records_user,
+            settings=settings,
+        )
+
+    with pytest.raises(PermissionDeniedError):
+        await list_thread_messages(
+            thread_id=thread.id,
+            request=_request("GET"),
+            session=session,
+            current_user=records_user,
+        )
+
+    audit_result = await session.execute(
+        select(AuditLog).where(
+            AuditLog.object_id == thread.id,
+            AuditLog.outcome == "denied",
+        )
+    )
+    reasons = [row.meta["reason"] for row in audit_result.scalars()]
+    assert reasons == ["thread_access_denied", "thread_access_denied"]
+
+
+@pytest.mark.asyncio
+async def test_revoked_patient_permission_blocks_thread_message_before_query(session_and_settings):
+    session, settings = session_and_settings
+    doctor = await session.get(User, DOCTOR_ID)
+    thread = await create_thread(
+        payload=ChatThreadCreate(
+            title="Revoked Alice thread",
+            scope="patient-linked",
+            patient_id=PATIENT_ALICE_ID,
+        ),
+        request=_request(),
+        session=session,
+        current_user=doctor,
+    )
+    await session.execute(
+        update(PatientPermission)
+        .where(PatientPermission.user_id == DOCTOR_ID, PatientPermission.patient_id == PATIENT_ALICE_ID)
+        .values(deleted_at=datetime.now(timezone.utc))
+    )
+    await session.commit()
+
+    with pytest.raises(PermissionDeniedError):
+        await ask_thread_message(
+            thread_id=thread.id,
+            payload=ChatThreadMessageRequest(question="What changed?"),
+            request=_request(),
+            session=session,
+            current_user=doctor,
+            settings=settings,
+        )
+
+    message_count = await session.scalar(select(func.count()).select_from(ChatMessage))
+    query_count = await session.scalar(select(func.count()).select_from(AiQuery))
+    assert message_count == 0
+    assert query_count == 0
+
+    audit_result = await session.execute(
+        select(AuditLog).where(
+            AuditLog.action == "chat_thread.message.create",
+            AuditLog.object_id == thread.id,
+            AuditLog.patient_id == PATIENT_ALICE_ID,
+            AuditLog.outcome == "denied",
+        )
+    )
+    assert audit_result.scalar_one() is not None

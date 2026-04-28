@@ -79,7 +79,7 @@ class ChatMessageCreate(PatientScopeMixin):
     content: str = Field(min_length=1)
     patient_permission_state: PatientPermissionState = "not-required"
     citations: List[EvidenceRead] = Field(default_factory=list)
-    metadata: Dict[str, object] = Field(default_factory=dict)
+    metadata: Dict[str, object] = Field(default_factory=dict, alias="meta")
 
 
 class ChatMessageRead(ChatMessageCreate):
@@ -98,3 +98,17 @@ class ChatThreadDetail(ChatThreadRead):
 
 class ChatThreadListResponse(ApiSchema):
     items: List[ChatThreadRead]
+
+
+class ChatThreadMessageRequest(ApiSchema):
+    question: str = Field(min_length=1)
+    top_k: int = Field(default=5, ge=1, le=20)
+
+
+class ChatThreadMessageResponse(ApiSchema):
+    user_message: ChatMessageRead
+    assistant_message: ChatMessageRead
+
+
+class ChatThreadMessageListResponse(ApiSchema):
+    items: List[ChatMessageRead]

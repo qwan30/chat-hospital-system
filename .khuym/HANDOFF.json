@@ -1,0 +1,79 @@
+{
+  "schema_version": "1.0",
+  "format": "khuym-swarm-handoff",
+  "feature": "kotaemon-chat-assistant-ui",
+  "skill": "khuym:reviewing",
+  "phase": "phase-1-complete-review-ready",
+  "next_action": "Run Khuym reviewing for Phase 1, then plan Phase 2 shared-thread persistence and backend contract work.",
+  "context_pct": 0.45,
+  "session": {
+    "id": "khuym-swarm-resume-019dd090-82f4-7a81-84a2-5f76eba805ec",
+    "paused_at": "2026-04-28T13:32:53+07:00",
+    "reason_for_pause": "phase_1_complete_review_ready",
+    "agent": "DarkGate"
+  },
+  "swarm": {
+    "epic_id": "br-dyy",
+    "feature_name": "kotaemon-chat-assistant-ui",
+    "project_key": "D:\\projects\\chatbot-hospital-system",
+    "epic_topic": "epic-br-dyy"
+  },
+  "graph_status": {
+    "open_beads": [],
+    "ready_beads": [],
+    "in_progress_beads": [],
+    "blocked_beads": [],
+    "closed_beads": [
+      "br-dyy",
+      "br-dyy.2",
+      "br-dyy.3",
+      "br-dyy.4",
+      "br-dyy.5",
+      "br-dyy.6",
+      "br-dyy.7",
+      "br-dyy.8",
+      "br-dyy.9",
+      "br-dyy.10",
+      "br-dyy.11",
+      "br-dyy.12",
+      "br-dyy.13"
+    ],
+    "graph_check": "npx.cmd bd graph check --json returned clean with zero cycles after Phase 1 closure."
+  },
+  "active_workers": [
+    {
+      "codex_nickname": "ParentResume",
+      "codex_agent_id": "019dd090-82f4-7a81-84a2-5f76eba805ec",
+      "agent_mail_name": "DarkGate",
+      "current_bead": null,
+      "status": "completed-phase-1-and-closed-epic",
+      "notes": "Completed br-dyy.6, br-dyy.7, br-dyy.8, br-dyy.9, br-dyy.10, br-dyy.11, and closed br-dyy in this resumed session."
+    }
+  ],
+  "open_blockers": [
+    {
+      "bead_id": "phase-2-planning",
+      "description": "Shared thread persistence, real general hospital chat, HMS integration, and live permission-aware patient evidence wiring remain later-phase work.",
+      "thread_message_id": "br-dyy"
+    }
+  ],
+  "resume_instructions": {
+    "priority_next": "Run Khuym reviewing for Phase 1, then plan Phase 2 shared-thread persistence and backend contract work.",
+    "read_first": [
+      "AGENTS.md",
+      ".khuym/STATE.md",
+      ".khuym/state.json",
+      ".khuym/HANDOFF.json",
+      "history/kotaemon-chat-assistant-ui/CONTEXT.md",
+      "history/kotaemon-chat-assistant-ui/phase-1-browser-review.md",
+      "history/learnings/critical-patterns.md"
+    ],
+    "check_mail": true,
+    "bead_check": "npx.cmd bd ready --json",
+    "restore_confirmation": "Phase 1 should remain closed; do not reopen or add Phase 1 scope unless the user explicitly requests a fix."
+  },
+  "context_at_pause": {
+    "tokens_used_pct": 0.45,
+    "agent_mail_thread": "br-dyy"
+  }
+}

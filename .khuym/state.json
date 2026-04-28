@@ -1,22 +1,71 @@
 {
   "schema_version": "1.0",
-  "feature_slug": "backend-permission-filtered-rag",
-  "mode": "degraded_execution",
-  "active_skill": "khuym:executing",
-  "phase": "executed-review-p1-p2-hardening",
-  "phase_number": 0,
-  "epic_id": "",
+  "feature_slug": "kotaemon-chat-assistant-ui",
+  "mode": "standard_feature",
+  "active_skill": "khuym:reviewing",
+  "phase": "phase-1-complete-review-ready",
+  "phase_number": 9,
+  "epic_id": "br-dyy",
   "approved_gates": {
     "context": false,
-    "phase_plan": false,
-    "execution": false,
+    "phase_plan": true,
+    "execution": true,
     "review": false
   },
   "active_beads": [],
-  "active_workers": [],
-  "blockers": [
-    "br/bv unavailable; review beads not created",
-    "history feature CONTEXT.md and approach.md unavailable"
+  "completed_beads": [
+    "br-dyy",
+    "br-dyy.2",
+    "br-dyy.3",
+    "br-dyy.4",
+    "br-dyy.5",
+    "br-dyy.6",
+    "br-dyy.7",
+    "br-dyy.8",
+    "br-dyy.9",
+    "br-dyy.10",
+    "br-dyy.11",
+    "br-dyy.12",
+    "br-dyy.13"
   ],
-  "last_updated": "2026-04-28T00:12:00.000+07:00"
+  "active_workers": [
+    {
+      "codex_nickname": "ParentResume",
+      "codex_agent_id": "019dd090-82f4-7a81-84a2-5f76eba805ec",
+      "agent_mail_name": "DarkGate",
+      "status": "completed-phase-1-and-closed-epic",
+      "current_bead": null
+    }
+  ],
+  "blockers": [
+    "gkg command is unavailable on PATH; gkg-backed planning is degraded until installed or configured",
+    "br is installed but cannot read this workspace cleanly; use npx.cmd bd for Beads commands unless the Beads store is deliberately migrated",
+    "cass and cm commands are unavailable, so prior-session CLI retrieval is degraded"
+  ],
+  "tooling": {
+    "agent_mail_url": "http://127.0.0.1:8765/api/",
+    "agent_mail_status": "available",
+    "coordinator_agent_name": "DarkGate",
+    "epic_topic": "epic-br-dyy",
+    "agent_mail_start_command": "powershell -ExecutionPolicy Bypass -File .codex/start_agent_mail.ps1",
+    "beads_cli": "npx.cmd bd",
+    "beads_viewer_bridge": "npx.cmd bd export --no-memories -o .beads/issues.jsonl",
+    "beads_viewer_check": "bv --robot-triage --graph-root br-dyy"
+  },
+  "validation_artifacts": [
+    "history/kotaemon-chat-assistant-ui/phase-1-validation.md",
+    "history/kotaemon-chat-assistant-ui/phase-1-build-verification.md",
+    "history/kotaemon-chat-assistant-ui/phase-1-browser-review.md"
+  ],
+  "latest_commits": [
+    "2c98107 chore(br-dyy): close phase 1 epic",
+    "b07020b test(br-dyy.11): record browser review",
+    "e9d2d9c test(br-dyy.10): record frontend build verification",
+    "5a680f2 feat(br-dyy.7): add local thread affordances",
+    "ea34a51 feat(br-dyy.9): add cited evidence states",
+    "6767905 feat(br-dyy.8): add patient context gate",
+    "f60d62c feat(br-dyy.6): add typed assistant sample data"
+  ],
+  "next_action": "Run Khuym reviewing for Phase 1, then plan Phase 2 shared-thread persistence and backend contract work.",
+  "last_updated": "2026-04-28T13:32:53+07:00"
 }

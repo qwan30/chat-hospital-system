@@ -78,11 +78,28 @@ export function prepareVerifiedBackendChatRequest(
     };
   }
 
+  const normalizedQuestion = question.trim();
+  if (!normalizedQuestion) {
+    return {
+      ready: false,
+      reason: "Question must include non-whitespace text before patient chat submission.",
+      scope: context.scope,
+    };
+  }
+
+  if (!Number.isInteger(topK) || topK < 1 || topK > 20) {
+    return {
+      ready: false,
+      reason: "topK must be an integer between 1 and 20 before patient chat submission.",
+      scope: context.scope,
+    };
+  }
+
   return {
     ready: true,
     request: {
       patient_id: context.patientId,
-      question,
+      question: normalizedQuestion,
       top_k: topK,
     },
   };

@@ -138,3 +138,37 @@ test("backend evidence mapping preserves citation detail for the source panel", 
   assert.match(api, /evidenceSourceId: source\.id/);
   assert.match(types, /metadata: Record<string, unknown>/);
 });
+
+test("backend chat request helper rejects unsafe patient submission states", () => {
+  const api = source("src/lib/chat-assistant/api.ts");
+
+  for (const guard of [
+    "context.scope !== \"patient-linked\"",
+    "General hospital knowledge has no verified backend chat contract yet.",
+    "context.permissionState !== \"allowed\"",
+    "Patient-linked chat requires allowed permission before sending patient_id.",
+    "!context.patientId",
+    "Patient-linked chat requires a selected patient_id.",
+    "const normalizedQuestion = question.trim();",
+    "Question must include non-whitespace text before patient chat submission.",
+    "!Number.isInteger(topK) || topK < 1 || topK > 20",
+    "topK must be an integer between 1 and 20 before patient chat submission.",
+  ]) {
+    assert.ok(api.includes(guard), `missing patient chat readiness guard: ${guard}`);
+  }
+});
+
+test("backend chat request helper normalizes ready requests and preserves response contracts", () => {
+  const api = source("src/lib/chat-assistant/api.ts");
+
+  for (const contract of [
+    "topK = 5",
+    "question: normalizedQuestion",
+    "top_k: topK",
+    "citations: evidenceSources.map(mapEvidenceSourceToCitation)",
+    "disclaimer: response.disclaimer",
+    "return \"unknown\";",
+  ]) {
+    assert.ok(api.includes(contract), `missing backend chat adapter contract: ${contract}`);
+  }
+});

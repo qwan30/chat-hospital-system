@@ -111,6 +111,20 @@ export const sampleEvidenceSources: EvidenceSource[] = [
     },
     provenance: documentedGapProvenance,
   },
+  {
+    id: "evidence-no-match",
+    documentId: null,
+    title: "No matching evidence",
+    page: null,
+    chunkId: null,
+    excerpt: "No source matched this part of the sample answer.",
+    score: null,
+    availability: "no-evidence",
+    metadata: {
+      emptyState: true,
+    },
+    provenance: localSampleProvenance,
+  },
 ];
 
 export const sampleWorkspaceState: ChatAssistantWorkspaceState = {
@@ -165,6 +179,13 @@ export const sampleWorkspaceState: ChatAssistantWorkspaceState = {
               label: "Patient chart gated",
               evidenceSourceId: "evidence-patient-chart-gated",
               availability: "permission-gated",
+              provenance: localSampleProvenance,
+            },
+            {
+              id: "citation-no-evidence",
+              label: "No source",
+              evidenceSourceId: "evidence-no-match",
+              availability: "no-evidence",
               provenance: localSampleProvenance,
             },
           ],

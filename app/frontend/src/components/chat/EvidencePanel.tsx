@@ -1,19 +1,38 @@
-import { FileText, PanelRightOpen, ShieldAlert } from "lucide-react";
+import { CircleSlash, FileText, LockKeyhole, PanelRightOpen, ShieldAlert } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import type { EvidenceAvailability } from "@/lib/chat-assistant";
+import { sampleEvidenceSources } from "@/lib/chat-assistant";
 
-const evidenceItems = [
+const evidenceStyles: Record<
+  EvidenceAvailability,
   {
-    title: "Hospital policy manual",
-    detail: "General knowledge source, page 12",
-    status: "Available",
+    label: string;
+    icon: typeof FileText;
+    className: string;
+  }
+> = {
+  available: {
+    label: "Available",
+    icon: FileText,
+    className: "border-white/10 bg-white/[0.03]",
   },
-  {
-    title: "Patient-linked chart",
-    detail: "Hidden until permission is allowed",
-    status: "Gated",
+  "permission-gated": {
+    label: "Gated",
+    icon: LockKeyhole,
+    className: "border-[#fbbf24]/30 bg-[#fbbf24]/10",
   },
-];
+  unavailable: {
+    label: "Unavailable",
+    icon: CircleSlash,
+    className: "border-white/10 bg-white/[0.02]",
+  },
+  "no-evidence": {
+    label: "No evidence",
+    icon: CircleSlash,
+    className: "border-[#f87171]/30 bg-[#f87171]/10",
+  },
+};
 
 export function EvidencePanel() {
   return (
@@ -29,18 +48,28 @@ export function EvidencePanel() {
       </div>
 
       <div className="space-y-3 p-4">
-        {evidenceItems.map((item) => (
-          <article key={item.title} className="rounded-md border border-white/10 bg-white/[0.03] p-4">
+        {sampleEvidenceSources.map((item) => {
+          const style = evidenceStyles[item.availability];
+          const Icon = style.icon;
+
+          return (
+          <article key={item.id} id={item.id} className={`scroll-mt-4 rounded-md border p-4 ${style.className}`}>
             <div className="mb-2 flex items-start justify-between gap-3">
               <div className="flex min-w-0 items-center gap-2 text-sm font-medium text-white">
-                <FileText className="size-4 shrink-0 text-[#60a5fa]" />
+                <Icon className="size-4 shrink-0 text-[#60a5fa]" />
                 <span className="truncate">{item.title}</span>
               </div>
-              <Badge className="shrink-0">{item.status}</Badge>
+              <Badge className="shrink-0">{style.label}</Badge>
             </div>
-            <p className="text-sm leading-5 text-[#a3a7ad]">{item.detail}</p>
+            <p className="text-sm leading-5 text-[#a3a7ad]">{item.excerpt}</p>
+            <div className="mt-3 flex flex-wrap gap-2 text-xs text-[#8a8f98]">
+              {item.page ? <span>Page {item.page}</span> : null}
+              {item.score !== null ? <span>Score {item.score.toFixed(2)}</span> : null}
+              <span>{item.provenance.visibleLabel}</span>
+            </div>
           </article>
-        ))}
+          );
+        })}
 
         <article className="rounded-md border border-[#f87171]/30 bg-[#f87171]/10 p-4">
           <div className="mb-2 flex items-center gap-2 text-sm font-medium text-[#fecaca]">

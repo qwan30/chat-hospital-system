@@ -203,5 +203,16 @@ export const sampleWorkspaceState: ChatAssistantWorkspaceState = {
       provenance: localSampleProvenance,
       messages: [],
     },
+    {
+      id: "thread-local-evidence",
+      title: "Citation walkthrough",
+      description: "Evidence preview sample, not persisted",
+      active: false,
+      sharedState: "local-only",
+      updatedAt: "2026-04-28T05:30:00.000Z",
+      patientContextId: null,
+      provenance: localSampleProvenance,
+      messages: [],
+    },
   ],
 };

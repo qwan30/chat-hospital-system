@@ -7,6 +7,7 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
+    "test:workspace": "node scripts/verify-chat-workspace-state.mjs",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
     "ui:add": "shadcn add"

@@ -1,10 +1,8 @@
 "use client";
 
-import { useMemo, useState } from "react";
 import { CheckCircle2, CircleDashed, Globe2, LockKeyhole, ShieldAlert } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import type { PatientContext, PatientPermissionState } from "@/lib/chat-assistant";
-import { samplePatientContexts } from "@/lib/chat-assistant";
 
 const permissionCopy: Record<
   PatientPermissionState,
@@ -41,13 +39,17 @@ const permissionCopy: Record<
   },
 };
 
-export function PatientContextGate() {
-  const [activeContextId, setActiveContextId] = useState(samplePatientContexts[0]?.id ?? "");
-  const activeContext = useMemo(
-    () => samplePatientContexts.find((context) => context.id === activeContextId) ?? samplePatientContexts[0],
-    [activeContextId],
-  );
-
+export function PatientContextGate({
+  activeContext,
+  activeContextId,
+  contexts,
+  onSelectContext,
+}: {
+  activeContext: PatientContext | undefined;
+  activeContextId: string;
+  contexts: PatientContext[];
+  onSelectContext: (contextId: string) => void;
+}) {
   if (!activeContext) {
     return null;
   }
@@ -69,12 +71,12 @@ export function PatientContextGate() {
           </div>
 
           <div className="grid gap-2 sm:grid-cols-2">
-            {samplePatientContexts.map((context) => (
+            {contexts.map((context) => (
               <ContextButton
                 key={context.id}
                 context={context}
-                selected={context.id === activeContext.id}
-                onSelect={() => setActiveContextId(context.id)}
+                selected={context.id === activeContextId}
+                onSelect={() => onSelectContext(context.id)}
               />
             ))}
           </div>

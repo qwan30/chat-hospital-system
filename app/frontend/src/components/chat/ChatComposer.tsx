@@ -1,7 +1,12 @@
 import { ArrowUp, Search, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import type { PatientContext } from "@/lib/chat-assistant";
 
-export function ChatComposer() {
+export function ChatComposer({ activeContext }: { activeContext: PatientContext | undefined }) {
+  const scopeLabel = activeContext
+    ? `${activeContext.displayLabel} / ${activeContext.permissionLabel}`
+    : "No active scope selected";
+
   return (
     <form className="border-t border-white/10 bg-[#0f1011] p-3 md:p-4">
       <label className="sr-only" htmlFor="assistant-question">
@@ -20,7 +25,7 @@ export function ChatComposer() {
         <div className="flex shrink-0 items-center gap-2">
           <Button size="sm" variant="secondary" type="button">
             <ShieldCheck className="size-4" />
-            Scope
+            <span className="max-w-[180px] truncate">{scopeLabel}</span>
           </Button>
           <Button size="icon" type="button" aria-label="Submit question">
             <ArrowUp className="size-4" />

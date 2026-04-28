@@ -1,19 +1,24 @@
 "use client";
 
-import { useMemo, useState } from "react";
 import { ChevronDown, MessageSquarePlus, Moon, PanelLeft } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ThreadShareControls } from "@/components/chat/ThreadShareControls";
-import { sampleWorkspaceState } from "@/lib/chat-assistant";
+import type { ConversationThread } from "@/lib/chat-assistant";
 
-export function ConversationSidebar() {
-  const [activeThreadId, setActiveThreadId] = useState(sampleWorkspaceState.activeThreadId);
-  const activeThread = useMemo(
-    () => sampleWorkspaceState.threads.find((thread) => thread.id === activeThreadId),
-    [activeThreadId],
-  );
-
+export function ConversationSidebar({
+  activeThread,
+  activeThreadId,
+  onSelectFirstThread,
+  onSelectThread,
+  threads,
+}: {
+  activeThread: ConversationThread | undefined;
+  activeThreadId: string;
+  onSelectFirstThread: () => void;
+  onSelectThread: (threadId: string) => void;
+  threads: ConversationThread[];
+}) {
   return (
     <aside className="order-2 flex min-h-[320px] min-w-0 flex-col border-t border-white/10 bg-[#0b0c0d] lg:order-1 lg:min-h-dvh lg:border-r lg:border-t-0">
       <div className="flex h-16 items-center justify-between border-b border-white/10 px-4">
@@ -32,7 +37,7 @@ export function ConversationSidebar() {
       </div>
 
       <div className="border-b border-white/10 p-3">
-        <Button className="w-full justify-between" type="button" onClick={() => setActiveThreadId(sampleWorkspaceState.activeThreadId)}>
+        <Button className="w-full justify-between" type="button" onClick={onSelectFirstThread}>
           <span className="inline-flex items-center gap-2">
             <MessageSquarePlus className="size-4" />
             New conversation
@@ -42,7 +47,7 @@ export function ConversationSidebar() {
       </div>
 
       <nav className="flex-1 space-y-2 overflow-y-auto p-3" aria-label="Conversation threads">
-        {sampleWorkspaceState.threads.map((thread) => (
+        {threads.map((thread) => (
           <button
             key={thread.id}
             className={
@@ -53,7 +58,7 @@ export function ConversationSidebar() {
             }
             type="button"
             aria-current={thread.id === activeThreadId ? "page" : undefined}
-            onClick={() => setActiveThreadId(thread.id)}
+            onClick={() => onSelectThread(thread.id)}
           >
             <span className="block truncate text-sm font-medium">{thread.title}</span>
             <span className="mt-1 flex items-center justify-between gap-2 text-xs text-[#8a8f98]">
@@ -66,7 +71,7 @@ export function ConversationSidebar() {
 
       <ThreadShareControls
         activeThread={activeThread}
-        onSelectFirstThread={() => setActiveThreadId(sampleWorkspaceState.activeThreadId)}
+        onSelectFirstThread={onSelectFirstThread}
       />
     </aside>
   );

@@ -1,17 +1,21 @@
 import { Bot, LockKeyhole, UserRound } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { SourceCitation } from "@/components/chat/SourceCitation";
-import { sampleWorkspaceState } from "@/lib/chat-assistant";
+import type { ConversationThread } from "@/lib/chat-assistant";
 
-export function ChatTranscript() {
-  const activeThread =
-    sampleWorkspaceState.threads.find((thread) => thread.id === sampleWorkspaceState.activeThreadId) ??
-    sampleWorkspaceState.threads[0];
-
+export function ChatTranscript({ activeThread }: { activeThread: ConversationThread | undefined }) {
   return (
     <div className="flex-1 min-w-0 overflow-y-auto px-4 py-5 md:px-5">
       <div className="mx-auto flex w-full max-w-4xl flex-col gap-5">
-        {activeThread.messages.map((message) => {
+        {!activeThread ? (
+          <EmptyThreadNotice title="No conversation selected" body="Choose a thread from the sidebar to inspect its messages." />
+        ) : null}
+
+        {activeThread && activeThread.messages.length === 0 ? (
+          <EmptyThreadNotice title={activeThread.title} body="This shared-thread sample has no messages yet." />
+        ) : null}
+
+        {activeThread?.messages.map((message) => {
           const isAssistant = message.role === "assistant";
 
           return (
@@ -65,5 +69,17 @@ export function ChatTranscript() {
         </article>
       </div>
     </div>
+  );
+}
+
+function EmptyThreadNotice({ title, body }: { title: string; body: string }) {
+  return (
+    <article className="max-w-3xl rounded-md border border-white/10 bg-white/[0.03] p-4">
+      <div className="mb-2 flex items-center gap-2 text-sm font-medium text-[#d0d6e0]">
+        <Bot className="size-4 text-[#828fff]" />
+        {title}
+      </div>
+      <p className="text-sm leading-6 text-[#a3a7ad]">{body}</p>
+    </article>
   );
 }

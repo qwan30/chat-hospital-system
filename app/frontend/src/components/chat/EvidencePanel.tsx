@@ -1,8 +1,7 @@
 import { CircleSlash, FileText, LockKeyhole, PanelRightOpen, ShieldAlert } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import type { EvidenceAvailability } from "@/lib/chat-assistant";
-import { sampleEvidenceSources } from "@/lib/chat-assistant";
+import type { ConversationThread, EvidenceAvailability, EvidenceSource, PatientContext } from "@/lib/chat-assistant";
 
 const evidenceStyles: Record<
   EvidenceAvailability,
@@ -34,7 +33,15 @@ const evidenceStyles: Record<
   },
 };
 
-export function EvidencePanel() {
+export function EvidencePanel({
+  activeContext,
+  activeThread,
+  evidenceSources,
+}: {
+  activeContext: PatientContext | undefined;
+  activeThread: ConversationThread | undefined;
+  evidenceSources: EvidenceSource[];
+}) {
   return (
     <aside className="order-3 min-h-[360px] min-w-0 border-t border-white/10 bg-[#111214] lg:min-h-dvh lg:border-l lg:border-t-0">
       <div className="flex h-16 items-center justify-between border-b border-white/10 px-4">
@@ -48,7 +55,21 @@ export function EvidencePanel() {
       </div>
 
       <div className="space-y-3 p-4">
-        {sampleEvidenceSources.map((item) => {
+        {evidenceSources.length === 0 ? (
+          <article className="rounded-md border border-white/10 bg-white/[0.03] p-4">
+            <div className="mb-2 flex items-center gap-2 text-sm font-medium text-white">
+              <CircleSlash className="size-4 text-[#8a8f98]" />
+              No active thread evidence
+            </div>
+            <p className="text-sm leading-5 text-[#a3a7ad]">
+              {activeThread
+                ? `${activeThread.title} has no cited evidence yet.`
+                : "Choose a conversation before inspecting evidence."}
+            </p>
+          </article>
+        ) : null}
+
+        {evidenceSources.map((item) => {
           const style = evidenceStyles[item.availability];
           const Icon = style.icon;
 
@@ -77,8 +98,8 @@ export function EvidencePanel() {
             Permission boundary
           </div>
           <p className="text-sm leading-5 text-[#f5b4b4]">
-            The panel can show general sources now. Patient-linked evidence remains unavailable until permission
-            validation is explicit.
+            Active scope: {activeContext?.displayLabel ?? "No context selected"}. Patient-linked evidence remains
+            unavailable until permission validation is explicit.
           </p>
         </article>
       </div>

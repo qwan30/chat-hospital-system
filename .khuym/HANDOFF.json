@@ -3,12 +3,12 @@
   "format": "khuym-execution-handoff",
   "feature": "kotaemon-chat-assistant-ui",
   "skill": "khuym:executing",
-  "phase": "phase-1-and-2-executed",
-  "next_action": "Prepare Phase 3 - Connect the first HMS-backed data slice, then validate before implementation.",
-  "context_pct": 0.56,
+  "phase": "reviewing-p2-p3-followups-created",
+  "next_action": "Continue human UAT. Item 1 should verify D2/D5 chat-first workspace layout.",
+  "context_pct": 0.61,
   "session": {
-    "paused_at": "2026-04-28T22:40:00+07:00",
-    "reason_for_pause": "phase_1_2_execution_complete"
+    "paused_at": "2026-04-28T23:08:00+07:00",
+    "reason_for_pause": "review_waiting_for_human_uat"
   },
   "swarm": {
     "epic_id": "br-dyy",
@@ -33,12 +33,32 @@
     "browser": "Playwright loaded http://localhost:3000 with no console warnings/errors; no-token state rendered correctly.",
     "gkg": "gkg command is unavailable on PATH; gkg index could not run."
   },
+  "review_findings": {
+    "p1": [],
+    "p2": [
+      "br-bhm",
+      "br-d0q",
+      "br-1kq",
+      "br-9e6",
+      "br-760"
+    ],
+    "p3": [
+      "br-2o5",
+      "br-9kw",
+      "br-epf"
+    ],
+    "artifact_verification": "all changed artifacts passed L1/L2/L3",
+    "learnings_candidates": [
+      "general-chat-retrieval-separation",
+      "hms-evidence-lineage-before-ranking"
+    ]
+  },
   "open_blockers": [
     {
       "description": "Phase 3 HMS integration remains unimplemented and must start by selecting one safe data family."
     },
     {
-      "description": "Final Khuym review, UAT, release docs, and P1 fix loop remain pending."
+      "description": "Human UAT, release docs, and final epic close remain pending."
     },
     {
       "description": "Production auth/session handling remains separate from the current dev bearer-token frontend flow."
@@ -57,6 +77,6 @@
       "history/kotaemon-chat-assistant-ui/phase-plan.md",
       "history/learnings/critical-patterns.md"
     ],
-    "priority_next": "Run khuym:planning for Phase 3 with validation before implementation."
+    "priority_next": "Continue human UAT Item 1 for D2/D5. Do not close review until UAT is recorded."
   }
 }

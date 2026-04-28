@@ -2,9 +2,9 @@
   "schema_version": "1.0",
   "feature_slug": "kotaemon-chat-assistant-ui",
   "mode": "standard_feature",
-  "active_skill": "khuym:executing",
-  "phase": "phase-1-and-2-executed",
-  "phase_number": 12,
+  "active_skill": "khuym:reviewing",
+  "phase": "reviewing-p2-p3-followups-created",
+  "phase_number": 13,
   "epic_id": "br-dyy",
   "approved_gates": {
     "context": true,
@@ -48,7 +48,7 @@
     "gkg command is unavailable on PATH; direct file inspection was used",
     "br ready --json fails with JSON_ERROR missing field jsonl_export",
     "HMS integration remains unimplemented and must start with one selected data family",
-    "Final Khuym review, UAT, release docs, and P1 fix loop remain pending",
+    "Human UAT, release docs, and final epic close remain pending",
     "Production auth/session handling is separate from the current dev bearer-token flow"
   ],
   "tooling": {
@@ -67,6 +67,25 @@
     ".khuym/STATE.md",
     ".khuym/state.json"
   ],
+  "review_findings": {
+    "p1": [],
+    "p2": [
+      "br-bhm",
+      "br-d0q",
+      "br-1kq",
+      "br-9e6",
+      "br-760"
+    ],
+    "p3": [
+      "br-2o5",
+      "br-9kw",
+      "br-epf"
+    ],
+    "known_pattern_matches": [
+      "RAG Evidence Requires Full Join-Chain Authorization"
+    ],
+    "artifact_verification": "all changed artifacts passed L1/L2/L3"
+  },
   "latest_verification": [
     "python -m pytest: 48 passed, 2 skipped",
     "python -m compileall src tests: passed",
@@ -76,6 +95,6 @@
     "npm run build: passed",
     "Playwright http://localhost:3000 smoke: no console warnings or errors"
   ],
-  "next_action": "Prepare Phase 3 - Connect the first HMS-backed data slice, then validate before implementation.",
-  "last_updated": "2026-04-28T22:40:00+07:00"
+  "next_action": "Human UAT Item 1: verify D2/D5 chat-first workspace layout before proceeding.",
+  "last_updated": "2026-04-28T23:08:00+07:00"
 }

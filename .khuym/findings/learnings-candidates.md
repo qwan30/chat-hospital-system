@@ -18,3 +18,17 @@ Tags: [testing, contracts, frontend, backend-adapter, permissions]
 Summary: Contract adapters around patient-scoped chat should get executable tests before more UI is built on top of them. Validation helpers that allow whitespace-only questions or invalid `topK` values are small bugs now, but they become harder to unwind once composer submission, patient scope, citation rendering, and failure states are wired together.
 Evidence: Code-quality found that `prepareVerifiedBackendChatRequest` does not trim or reject whitespace-only questions or invalid `topK`; test-coverage separately called for unit tests around patient-scoped chat request and response adapters plus composer submit-flow tests. The previous learning "Optional Production-Path Tests Are Not Enough for PHI Boundaries" applies by analogy: fast UI/unit tests are useful, but patient-scoped request and evidence behavior must be executable, not assumed from types.
 Recommended title: 20260428-executable-chat-contract-tests.md
+
+## Candidate: general-chat-retrieval-separation
+Category: pattern
+Tags: [backend, rag, permissions, phi, general-knowledge]
+Summary: General-mode chat must be retrieval-separated from patient evidence. A general hospital question should not call patient retrieval, should not create a patient-scoped `AiQuery`, should keep `patient_id` null, and should cite only explicitly approved non-PHI sources.
+Evidence: The Phase 1/2 review found a positive match with the promoted "RAG Evidence Requires Full Join-Chain Authorization" pattern. The new general path avoids patient retrieval entirely and the added leak test indexes a patient allergy document before proving the general answer path does not return patient chunks.
+Recommended title: 20260428-general-chat-retrieval-separation.md
+
+## Candidate: hms-evidence-lineage-before-ranking
+Category: decision
+Tags: [hms, rag, permissions, evidence-lineage, phi]
+Summary: Before HMS-derived data reaches ranking or an LLM context, the integration must define approval state, patient ownership, lifecycle state, source lineage, and permission gates as executable checks. Treat HMS integration as a join-chain authorization problem from the start.
+Evidence: The reviewing learnings pass flagged Phase 3 as the next place where the existing "RAG Evidence Requires Full Join-Chain Authorization" failure mode can recur. This should shape the Phase 3 plan before any HMS import/API path is implemented.
+Recommended title: 20260428-hms-evidence-lineage-before-ranking.md

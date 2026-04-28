@@ -166,7 +166,7 @@ class ChatGenerator:
     async def generate(self, prompt: str) -> str:
         if self.settings.chat_provider == "ollama":
             return await self._generate_ollama(prompt)
-        return "Based on the authorized evidence, the record indicates relevant clinical details in [E1]."
+        return build_stub_answer(prompt)
 
     async def _generate_ollama(self, prompt: str) -> str:
         url = f"{self.settings.ollama_base_url.rstrip('/')}/api/chat"
@@ -211,6 +211,54 @@ def build_grounded_prompt(question: str, evidence: Sequence[RetrievedChunk]) -> 
         + "\n\n".join(blocks)
         + "\n\nAnswer using only the evidence. Include citations like [E1]."
     )
+
+
+def build_stub_answer(prompt: str) -> str:
+    evidence = parse_prompt_evidence(prompt)
+    if not evidence:
+        return "Based on the authorized evidence, the record contains relevant clinical details [E1]."
+
+    evidence_id, content = evidence[0]
+    status = line_value(content, "Status")
+    vital_signs = line_value(content, "Vital signs")
+    if status or vital_signs:
+        parts = []
+        if status:
+            parts.append(f"The appointment status is {status} [{evidence_id}].")
+        if vital_signs:
+            parts.append(f"Vital signs: {trim_sentence(vital_signs)} [{evidence_id}].")
+        return " ".join(parts)
+
+    first_fact = first_evidence_fact(content)
+    return f"Based on the authorized evidence, {trim_sentence(first_fact)} [{evidence_id}]."
+
+
+def parse_prompt_evidence(prompt: str) -> List[tuple[str, str]]:
+    pattern = re.compile(
+        r"\[(E\d+)\] Document:.*?\n(?P<content>.*?)(?=\n\n\[E\d+\] Document:|\n\nAnswer using only the evidence\.|$)",
+        re.DOTALL,
+    )
+    return [(match.group(1), match.group("content").strip()) for match in pattern.finditer(prompt)]
+
+
+def line_value(content: str, label: str) -> str:
+    prefix = f"{label}:"
+    for line in content.splitlines():
+        if line.startswith(prefix):
+            return line[len(prefix) :].strip()
+    return ""
+
+
+def first_evidence_fact(content: str) -> str:
+    for line in content.splitlines():
+        normalized = line.strip()
+        if normalized and normalized.lower() != "hms appointment summary":
+            return normalized
+    return "the record contains relevant clinical details"
+
+
+def trim_sentence(value: str) -> str:
+    return value.rstrip(".")
 
 
 def extract_citation_ids(answer: str) -> Set[str]:

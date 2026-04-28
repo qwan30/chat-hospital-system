@@ -98,6 +98,8 @@ async def test_hms_appointment_import_becomes_permission_filtered_patient_eviden
     assert citation.metadata["source_family"] == "appointments"
     assert citation.metadata["source_record_id"] == str(APPOINTMENT_ID)
     assert citation.metadata["patient_permission_required"] is True
+    assert "CHECKED_IN" in response.assistant_message.content
+    assert "Blood pressure 128/78" in response.assistant_message.content
 
 
 @pytest.mark.asyncio

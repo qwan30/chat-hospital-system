@@ -50,6 +50,8 @@ docker compose up -d postgres redis
 
 The default `.env.example` uses deterministic embeddings and a stub chat client so unit tests and local smoke checks do not require Ollama. Set `HOSPITAL_AI_EMBEDDING_PROVIDER=ollama` and `HOSPITAL_AI_CHAT_PROVIDER=ollama` to use local Ollama APIs.
 
+The frontend runs on a separate Next.js origin during local UAT. Keep `HOSPITAL_AI_CORS_ORIGINS` limited to explicit development origins such as `http://localhost:3000` and the fallback `http://localhost:3001`; do not replace it with a wildcard for PHI-bearing environments.
+
 ## Development Auth
 
 MVP auth uses bearer tokens mapped to seeded synthetic users:

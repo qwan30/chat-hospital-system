@@ -1,14 +1,14 @@
 {
   "schema_version": "1.0",
-  "format": "khuym-execution-handoff",
+  "format": "khuym-review-handoff",
   "feature": "kotaemon-chat-assistant-ui",
-  "skill": "khuym:executing",
-  "phase": "phase-3-4-executed",
-  "next_action": "Run final khuym:reviewing, then complete human UAT using phase-3-4-verification.md.",
+  "skill": "khuym:reviewing",
+  "phase": "manual-uat-p2-fixed-human-signoff-pending",
+  "next_action": "Get explicit human UAT sign-off. After approval, run final Khuym finishing/epic close and then compounding.",
   "context_pct": 0.62,
   "session": {
-    "paused_at": "2026-04-28T23:35:39+07:00",
-    "reason_for_pause": "phase_3_4_execution_complete"
+    "paused_at": "2026-04-28T17:20:00Z",
+    "reason_for_pause": "agent_product_uat_complete_human_signoff_pending"
   },
   "swarm": {
     "epic_id": "br-dyy",
@@ -19,49 +19,51 @@
   },
   "completed_this_execution": [
     {
-      "phase": "Phase 1",
-      "summary": "Frontend shell now loads persisted backend threads, exposes backend URL and bearer token controls, wires create/rename/archive/share actions, and submits questions through persisted thread messages."
+      "phase": "Product UAT",
+      "summary": "Ran API and Playwright UAT across dev-doctor, dev-records, dev-security, dev-admin, anonymous, and wrong-token paths."
     },
     {
-      "phase": "Phase 2",
-      "summary": "Backend general chat-thread messages now answer from approved non-PHI hospital knowledge and refuse patient-linked evidence in general mode."
+      "phase": "P1 UAT fix",
+      "summary": "Fixed missing FastAPI CORS headers that blocked the Next.js frontend from loading persisted backend threads."
     },
     {
-      "phase": "Phase 3",
-      "summary": "Backend imports synthetic/de-identified HMS appointment summaries as indexed patient-linked evidence with HMS source lineage and permission-filtered citations."
+      "phase": "Evidence",
+      "summary": "Recorded API evidence, desktop/mobile screenshots, wrong-token denial evidence, and a stable UAT report under history/kotaemon-chat-assistant-ui."
     },
     {
-      "phase": "Phase 4",
-      "summary": "Frontend/backend hardening, review follow-up fixes, release docs, seeded UAT evidence, and full backend/frontend verification are complete."
+      "phase": "Manual end-user browser feedback",
+      "summary": "Ran a fresh Chrome/Playwright end-user pass and recorded open P2/P3 feedback plus screenshots under history/kotaemon-chat-assistant-ui/uat-evidence/manual-end-user-20260429."
+    },
+    {
+      "phase": "P2 UAT fix",
+      "summary": "Fixed the four manual P2 findings: archived threads are hidden from the default active list, stub HMS appointment answers state status and vitals, allowed patient evidence uses allowed-state copy, and patient-linked thread creation requires explicit confirmation."
     }
   ],
   "verification": {
-    "backend": "python -m pytest: 55 passed, 2 skipped; python -m compileall src tests: passed.",
-    "frontend": "npm run test:workspace: 16 passed; npm run typecheck/lint/build: passed.",
-    "browser": "Playwright loaded http://localhost:3000 after clearing storage with no console warnings/errors. Seeded human UAT remains pending.",
-    "gkg": "gkg command is unavailable on PATH; gkg index could not run."
+    "backend": "PYTHONPYCACHEPREFIX=.verify-pycache python -m compileall src tests scripts: passed; python -m pytest: 57 passed, 2 skipped.",
+    "frontend": "npm.cmd run test:workspace: 16 passed; npm.cmd run typecheck/lint/build: passed.",
+    "api_uat": "python scripts/uat_product_api_check.py: passed.",
+    "browser_uat": "Playwright loaded persisted backend threads with dev-doctor after CORS fix, captured desktop/mobile evidence, confirmed wrong-token denial uses sanitized UI and no localStorage token persistence, and later manual end-user P2 findings were fixed with targeted regression coverage.",
+    "gkg": "gkg command is unavailable on PATH; direct file inspection and Khuym scout were used."
   },
   "review_findings": {
     "p1": [],
-    "closed_p2": [
-      "br-bhm",
-      "br-d0q",
-      "br-1kq",
-      "br-9e6",
-      "br-760"
+    "p2": [],
+    "fixed_uat_p2": [
+      "Archived conversations remain visible in the default active list and stay selected after archive.",
+      "Patient-linked answers cite HMS appointment evidence but answer text is too generic for appointment status and vital signs.",
+      "Allowed patient context still shows a contradictory red gated-evidence warning.",
+      "New conversation can create a patient-linked persisted thread without explicit scope confirmation."
     ],
-    "closed_p3": [
-      "br-9kw",
-      "br-epf"
+    "fixed_uat_p1": [
+      "Missing CORS headers blocked browser UAT from the Next.js origin."
     ],
     "open_p3": [
       "br-2o5"
     ],
-    "artifact_verification": "all changed artifacts passed L1/L2/L3",
-    "learnings_candidates": [
-      "general-chat-retrieval-separation",
-      "hms-evidence-lineage-before-ranking"
-    ]
+    "artifact_report": "history/kotaemon-chat-assistant-ui/uat-product-test-report.md",
+    "artifact_evidence_dir": "history/kotaemon-chat-assistant-ui/uat-evidence/20260428T170614Z",
+    "manual_evidence_dir": "history/kotaemon-chat-assistant-ui/uat-evidence/manual-end-user-20260429"
   },
   "open_blockers": [
     {
@@ -71,10 +73,10 @@
       "description": "Production auth/session handling remains separate from the current memory-only dev bearer-token frontend flow."
     },
     {
-      "description": "br ready --json still fails with JSON_ERROR missing jsonl_export, so bead routing remains degraded."
+      "description": "P3 br-2o5 remains open for general knowledge provider abstraction."
     },
     {
-      "description": "P3 br-2o5 remains open for general knowledge provider abstraction."
+      "description": "br ready --json still fails with JSON_ERROR missing jsonl_export, so bead routing remains degraded."
     }
   ],
   "resume_instructions": {
@@ -86,8 +88,9 @@
       "history/kotaemon-chat-assistant-ui/CONTEXT.md",
       "history/kotaemon-chat-assistant-ui/phase-plan.md",
       "history/kotaemon-chat-assistant-ui/phase-3-4-verification.md",
+      "history/kotaemon-chat-assistant-ui/uat-product-test-report.md",
       "history/learnings/critical-patterns.md"
     ],
-    "priority_next": "Run final khuym:reviewing, then complete human UAT using phase-3-4-verification.md."
+    "priority_next": "Get explicit human UAT sign-off. If approved, finish Khuym review closeout and run compounding."
   }
 }

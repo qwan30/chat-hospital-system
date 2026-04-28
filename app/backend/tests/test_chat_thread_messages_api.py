@@ -5,9 +5,11 @@ from sqlalchemy import func, select, update
 from starlette.requests import Request
 
 from hospital_ai.api.routes.chat_threads import (
+    archive_thread,
     ask_thread_message,
     create_thread,
     get_thread,
+    list_threads,
     list_thread_messages,
 )
 from hospital_ai.core.errors import ExternalServiceError, PermissionDeniedError
@@ -354,3 +356,26 @@ async def test_patient_thread_invalid_citations_do_not_commit_orphaned_user_mess
     )
     assert message_count == 0
     assert failed_query_count == 1
+
+
+@pytest.mark.asyncio
+async def test_archived_threads_are_hidden_from_default_thread_list(session_and_settings):
+    session, _ = session_and_settings
+    doctor = await session.get(User, DOCTOR_ID)
+    thread = await create_thread(
+        payload=ChatThreadCreate(title="Archive me", scope="general"),
+        request=_request(),
+        session=session,
+        current_user=doctor,
+    )
+
+    archived = await archive_thread(
+        thread_id=thread.id,
+        request=_request("DELETE"),
+        session=session,
+        current_user=doctor,
+    )
+    listed = await list_threads(session=session, current_user=doctor)
+
+    assert archived.status == "archived"
+    assert all(item.id != thread.id for item in listed.items)

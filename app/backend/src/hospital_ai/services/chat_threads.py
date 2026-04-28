@@ -94,6 +94,7 @@ class ChatThreadService:
             .join(ChatThreadParticipant)
             .where(
                 ChatThread.deleted_at.is_(None),
+                ChatThread.status == "active",
                 ChatThreadParticipant.deleted_at.is_(None),
                 ChatThreadParticipant.user_id == user.id,
                 or_(ChatThread.scope == "general", permission_exists),

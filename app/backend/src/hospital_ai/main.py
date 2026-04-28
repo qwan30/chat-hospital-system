@@ -1,6 +1,7 @@
 from typing import Optional
 
 from fastapi import FastAPI, Request
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from hospital_ai.api.router import api_router
@@ -18,6 +19,14 @@ def create_app(settings: Optional[Settings] = None) -> FastAPI:
         version="0.1.0",
         default_response_class=JSONResponse,
     )
+    if active_settings.cors_origin_list:
+        app.add_middleware(
+            CORSMiddleware,
+            allow_origins=active_settings.cors_origin_list,
+            allow_credentials=False,
+            allow_methods=["*"],
+            allow_headers=["*"],
+        )
     app.include_router(api_router, prefix=active_settings.api_v1_prefix)
 
     @app.exception_handler(AppError)

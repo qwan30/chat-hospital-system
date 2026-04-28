@@ -1,4 +1,4 @@
-import { CircleSlash, FileText, LockKeyhole, ShieldAlert } from "lucide-react";
+import { CheckCircle2, CircleDashed, CircleSlash, FileText, Globe2, LockKeyhole, ShieldAlert } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import type { ConversationThread, EvidenceAvailability, EvidenceSource, PatientContext } from "@/lib/chat-assistant";
 
@@ -41,6 +41,9 @@ export function EvidencePanel({
   activeThread: ConversationThread | undefined;
   evidenceSources: EvidenceSource[];
 }) {
+  const boundary = permissionBoundaryFor(activeContext);
+  const BoundaryIcon = boundary.icon;
+
   return (
     <aside className="order-3 min-h-[360px] min-w-0 border-t border-white/10 bg-[#111214] lg:min-h-dvh lg:border-l lg:border-t-0">
       <div className="flex h-16 items-center border-b border-white/10 px-4">
@@ -92,17 +95,64 @@ export function EvidencePanel({
           );
         })}
 
-        <article className="rounded-md border border-[#f87171]/30 bg-[#f87171]/10 p-4">
-          <div className="mb-2 flex items-center gap-2 text-sm font-medium text-[#fecaca]">
-            <ShieldAlert className="size-4" />
-            Permission boundary
+        <article className={`rounded-md border p-4 ${boundary.className}`}>
+          <div className="mb-2 flex items-center gap-2 text-sm font-medium">
+            <BoundaryIcon className="size-4" />
+            {boundary.label}
           </div>
-          <p className="text-sm leading-5 text-[#f5b4b4]">
-            Active scope: {activeContext?.displayLabel ?? "No context selected"}. Patient-linked evidence remains
-            unavailable until permission validation is explicit.
-          </p>
+          <p className="text-sm leading-5">{boundary.detail}</p>
         </article>
       </div>
     </aside>
   );
+}
+
+function permissionBoundaryFor(context: PatientContext | undefined): {
+  icon: typeof FileText;
+  label: string;
+  detail: string;
+  className: string;
+} {
+  if (!context) {
+    return {
+      icon: CircleSlash,
+      label: "No active scope",
+      detail: "Choose a conversation before inspecting permission-scoped evidence.",
+      className: "border-white/10 bg-white/[0.02] text-[#a3a7ad]",
+    };
+  }
+
+  if (context.permissionState === "not-required") {
+    return {
+      icon: Globe2,
+      label: "General evidence allowed",
+      detail: `Active scope: ${context.displayLabel}. General hospital knowledge uses approved non-PHI sources without patient-linked evidence.`,
+      className: "border-[#60a5fa]/30 bg-[#60a5fa]/10 text-[#bfdbfe]",
+    };
+  }
+
+  if (context.permissionState === "allowed") {
+    return {
+      icon: CheckCircle2,
+      label: "Patient evidence allowed",
+      detail: `Active scope: ${context.displayLabel}. Backend permission is allowed, so patient-linked evidence may be shown when citations are returned.`,
+      className: "border-[#34d399]/30 bg-[#34d399]/10 text-[#bbf7d0]",
+    };
+  }
+
+  if (context.permissionState === "pending") {
+    return {
+      icon: CircleDashed,
+      label: "Permission pending",
+      detail: `Active scope: ${context.displayLabel}. Patient-linked evidence remains unavailable until backend permission validation completes.`,
+      className: "border-[#fbbf24]/30 bg-[#fbbf24]/10 text-[#fde68a]",
+    };
+  }
+
+  return {
+    icon: ShieldAlert,
+    label: "Permission denied",
+    detail: `Active scope: ${context.displayLabel}. Patient-linked evidence and citations remain hidden for this context.`,
+    className: "border-[#f87171]/30 bg-[#f87171]/10 text-[#fecaca]",
+  };
 }

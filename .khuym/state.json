@@ -2,9 +2,9 @@
   "schema_version": "1.0",
   "feature_slug": "kotaemon-chat-assistant-ui",
   "mode": "standard_feature",
-  "active_skill": "khuym:executing",
-  "phase": "phase-3-4-executed",
-  "phase_number": 14,
+  "active_skill": "khuym:reviewing",
+  "phase": "manual-uat-p2-fixed-human-signoff-pending",
+  "phase_number": 16,
   "epic_id": "br-dyy",
   "approved_gates": {
     "context": true,
@@ -13,99 +13,13 @@
     "review": false
   },
   "active_beads": [],
-  "completed_beads": [
-    "br-dyy",
-    "br-dyy.2",
-    "br-dyy.3",
-    "br-dyy.4",
-    "br-dyy.5",
-    "br-dyy.6",
-    "br-dyy.7",
-    "br-dyy.8",
-    "br-dyy.9",
-    "br-dyy.10",
-    "br-dyy.11",
-    "br-dyy.12",
-    "br-dyy.13",
-    "br-9gn",
-    "br-dtm",
-    "br-ca7",
-    "br-pos",
-    "br-d99",
-    "br-54h",
-    "br-gjf",
-    "br-22l",
-    "br-qql",
-    "br-mu0",
-    "br-200",
-    "br-bhm",
-    "br-d0q",
-    "br-1kq",
-    "br-9e6",
-    "br-760",
-    "br-9kw",
-    "br-epf"
-  ],
-  "completed_phases": [
-    "Phase 1 - Wire persisted chat threads into the frontend",
-    "Phase 2 - Add safe general hospital knowledge chat",
-    "Phase 3 - Connect HMS appointment summary evidence",
-    "Phase 4 - Automated hardening, verification, and release docs"
-  ],
   "active_workers": [],
   "blockers": [
-    "gkg command is unavailable on PATH; direct file inspection was used",
-    "br ready --json fails with JSON_ERROR missing field jsonl_export",
     "Human UAT sign-off and final epic close remain pending",
     "Production auth/session handling is separate from the current memory-only dev bearer-token flow",
-    "P3 br-2o5 remains open for a general knowledge source provider abstraction"
+    "P3 br-2o5 remains open for a general knowledge source provider abstraction",
+    "gkg command is unavailable on PATH; direct file inspection was used",
+    "br ready --json fails with JSON_ERROR missing field jsonl_export"
   ],
-  "tooling": {
-    "agent_mail_url": "http://127.0.0.1:8765/api/",
-    "agent_mail_status": "not-used-this-turn-tools-not-exposed",
-    "coordinator_agent_name": "DarkGate",
-    "epic_topic": "epic-br-dyy",
-    "beads_cli": "br-installed-but-ready-json-fails",
-    "gkg": "unavailable-on-path"
-  },
-  "validation_artifacts": [
-    "history/kotaemon-chat-assistant-ui/phase-plan.md",
-    "history/kotaemon-chat-assistant-ui/discovery.md",
-    "history/kotaemon-chat-assistant-ui/approach.md",
-    ".khuym/HANDOFF.json",
-    ".khuym/STATE.md",
-    ".khuym/state.json"
-  ],
-  "review_findings": {
-    "p1": [],
-    "closed_p2": [
-      "br-bhm",
-      "br-d0q",
-      "br-1kq",
-      "br-9e6",
-      "br-760"
-    ],
-    "closed_p3": [
-      "br-9kw",
-      "br-epf"
-    ],
-    "open_p3": [
-      "br-2o5"
-    ],
-    "known_pattern_matches": [
-      "RAG Evidence Requires Full Join-Chain Authorization"
-    ],
-    "artifact_verification": "all changed artifacts passed L1/L2/L3"
-  },
-  "latest_verification": [
-    "python -m pytest: 55 passed, 2 skipped",
-    "python -m compileall src tests: passed",
-    "npm run test:workspace: 16 passed",
-    "npm run typecheck: passed",
-    "npm run lint: passed",
-    "npm run build: passed",
-    "Playwright http://localhost:3000 smoke after storage clear: no console warnings or errors"
-  ],
-  "next_action": "Run final khuym:reviewing, then complete human UAT using history/kotaemon-chat-assistant-ui/phase-3-4-verification.md.",
-  "last_updated": "2026-04-28T23:35:39+07:00"
+  "last_updated": "2026-04-29T00:52:43+07:00"
 }

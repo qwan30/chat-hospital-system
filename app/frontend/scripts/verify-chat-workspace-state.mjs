@@ -16,6 +16,7 @@ test("AssistantShell loads persisted backend threads instead of sample conversat
 
   for (const contract of [
     "listBackendChatThreads(apiConfig)",
+    "thread.status === \"active\"",
     "mapBackendChatThreadToConversationThread",
     "getBackendChatThread(threadId, apiConfig)",
     "mapBackendChatThreadDetailToWorkspaceArtifacts",
@@ -54,6 +55,7 @@ test("AssistantShell wires persisted thread actions into sidebar controls", () =
 
   for (const contract of [
     "createBackendChatThread",
+    "Create a patient-linked conversation for ${activePatientContext.displayLabel}",
     "updateBackendChatThread",
     "archiveBackendChatThread",
     "addBackendThreadParticipant",
@@ -135,6 +137,16 @@ test("evidence states are rendered with text labels, not color alone", () => {
 
   for (const label of ["Available", "Gated", "Unavailable", "No evidence"]) {
     assert.ok(panel.includes(`label: "${label}"`), `missing visible evidence label: ${label}`);
+  }
+
+  for (const boundary of [
+    "Patient evidence allowed",
+    "Backend permission is allowed, so patient-linked evidence may be shown when citations are returned.",
+    "General evidence allowed",
+    "Permission pending",
+    "Permission denied",
+  ]) {
+    assert.ok(panel.includes(boundary), `missing permission boundary copy: ${boundary}`);
   }
 
   for (const state of ["available", "permission-gated", "unavailable", "no-evidence"]) {

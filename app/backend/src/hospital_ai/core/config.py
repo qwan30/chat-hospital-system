@@ -1,6 +1,6 @@
 from functools import lru_cache
 from pathlib import Path
-from typing import Dict
+from typing import Dict, List
 
 from pydantic import BaseSettings, Field, validator
 
@@ -12,6 +12,10 @@ class Settings(BaseSettings):
     redis_url: str = "redis://localhost:6379/0"
     storage_root: Path = Path(".local_storage")
     worker_inline: bool = False
+    cors_origins: str = (
+        "http://localhost:3000,http://127.0.0.1:3000,"
+        "http://localhost:3001,http://127.0.0.1:3001"
+    )
 
     dev_bearer_tokens: str = (
         "dev-doctor:doctor@example.test,"
@@ -47,6 +51,10 @@ class Settings(BaseSettings):
             if sep and token.strip() and email.strip():
                 mapping[token.strip()] = email.strip().lower()
         return mapping
+
+    @property
+    def cors_origin_list(self) -> List[str]:
+        return [origin.strip().rstrip("/") for origin in self.cors_origins.split(",") if origin.strip()]
 
     class Config:
         env_prefix = "HOSPITAL_AI_"

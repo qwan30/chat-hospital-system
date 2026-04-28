@@ -75,10 +75,25 @@ npm run build
 
 Latest result:
 - Backend compile passed.
-- Backend tests: 55 passed, 2 skipped.
+- Backend tests: 56 passed, 2 skipped.
 - Frontend workspace tests: 16 passed.
 - Frontend typecheck, lint, and build passed.
 - Playwright loaded `http://localhost:3000` after clearing browser storage with no console warnings or errors.
+
+## Product UAT Pass - 2026-04-28
+
+Product-level UAT evidence is recorded in `uat-product-test-report.md` and
+`uat-evidence/20260428T170614Z/`.
+
+The UAT pass found one P1 browser blocker: the frontend could not call the
+separate FastAPI origin because CORS was not configured. The fix added explicit
+local UAT origins through `HOSPITAL_AI_CORS_ORIGINS` and a regression test in
+`tests/test_cors.py`.
+
+Rerun result after the fix:
+- API UAT scenarios passed for `dev-doctor`, `dev-records`, `dev-security`, `dev-admin`, no token, and wrong token.
+- Browser UAT loaded persisted threads with `dev-doctor`, rendered HMS appointment evidence with `source_family=appointments`, rendered a cited general knowledge answer, showed a sanitized wrong-token denial, and passed desktop/mobile smoke checks.
+- No unresolved P1 or P2 UAT findings remain.
 
 ## Remaining Non-Blocking Follow-Up
 

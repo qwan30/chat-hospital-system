@@ -127,7 +127,9 @@ export function AssistantShell() {
       setWorkspaceState({ status: "loading", message: "Loading persisted backend threads." });
       try {
         const summaries = await listBackendChatThreads(apiConfig);
-        const nextThreads = summaries.map((thread) => mapBackendChatThreadToConversationThread(thread));
+        const nextThreads = summaries
+          .filter((thread) => thread.status === "active")
+          .map((thread) => mapBackendChatThreadToConversationThread(thread));
         const preferred =
           (preferredThreadId ? nextThreads.find((thread) => thread.id === preferredThreadId) : undefined) ??
           nextThreads.find((thread) => thread.id === activeThreadId) ??
@@ -185,6 +187,19 @@ export function AssistantShell() {
       setComposerSubmitState({
         status: "blocked",
         message: "Patient-linked threads require allowed permission before creation.",
+      });
+      return;
+    }
+
+    if (
+      isPatientLinked &&
+      !window.confirm(
+        `Create a patient-linked conversation for ${activePatientContext.displayLabel}? This persists patient-scoped thread metadata in the backend.`,
+      )
+    ) {
+      setComposerSubmitState({
+        status: "idle",
+        message: "Patient-linked conversation creation canceled before backend persistence.",
       });
       return;
     }

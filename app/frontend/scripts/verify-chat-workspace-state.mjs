@@ -141,6 +141,78 @@ test("backend evidence mapping preserves citation detail for the source panel", 
   assert.match(types, /metadata: Record<string, unknown>/);
 });
 
+test("persisted chat thread adapter exposes backend thread and message endpoints", () => {
+  const api = source("src/lib/chat-assistant/api.ts");
+
+  for (const contract of [
+    "export type BackendChatThread",
+    "export type BackendChatMessage",
+    "export type BackendChatParticipant",
+    "export type BackendThreadApiConfig",
+    "export function mapBackendChatThreadToConversationThread",
+    "export function mapBackendChatThreadDetailToConversationThread",
+    "export function mapBackendChatMessageToChatArtifacts",
+    "export function mapBackendChatMessageToAssistantMessage",
+    "export async function listBackendChatThreads",
+    "export function createBackendChatThread",
+    "export function getBackendChatThread",
+    "export function updateBackendChatThread",
+    "export function archiveBackendChatThread",
+    "export function askBackendThreadMessage",
+    "export async function listBackendThreadMessages",
+    "export async function listBackendThreadParticipants",
+    "export function addBackendThreadParticipant",
+    "export function updateBackendThreadParticipant",
+    "export function removeBackendThreadParticipant",
+  ]) {
+    assert.ok(api.includes(contract), `missing persisted thread adapter contract: ${contract}`);
+  }
+});
+
+test("persisted chat thread adapter maps backend data into existing workspace types", () => {
+  const api = source("src/lib/chat-assistant/api.ts");
+  const shell = source("src/components/chat/AssistantShell.tsx");
+
+  for (const contract of [
+    "sharedState: \"backend-persisted\"",
+    "updatedAt: thread.last_message_at ?? thread.updated_at",
+    "messages: messages.map(mapBackendChatMessageToAssistantMessage)",
+    "patientContextId: thread.patient_id",
+    "role === \"assistant\" || role === \"system\"",
+    "return \"staff\";",
+    "scope === \"patient-linked\" ? \"patient-linked\" : \"general-knowledge\"",
+    "metadata.confidence",
+    "metadata.disclaimer",
+    "citations: evidenceSources.map(mapEvidenceSourceToCitation)",
+  ]) {
+    assert.ok(api.includes(contract), `missing persisted thread mapping contract: ${contract}`);
+  }
+
+  assert.ok(
+    shell.includes("API submission remains deferred until live wiring."),
+    "shell must not claim live persisted submission until it calls the backend adapter",
+  );
+});
+
+test("persisted chat thread adapter uses the API v1 route contract", () => {
+  const api = source("src/lib/chat-assistant/api.ts");
+
+  for (const route of [
+    "\"/chat-threads\"",
+    "`/chat-threads/${threadId}`",
+    "`/chat-threads/${threadId}/messages`",
+    "`/chat-threads/${threadId}/participants`",
+    "`/chat-threads/${threadId}/participants/${participantId}`",
+    "authorization",
+    "Bearer ${config.token}",
+    "Hospital assistant API request failed with status",
+  ]) {
+    assert.ok(api.includes(route), `missing persisted thread route contract: ${route}`);
+  }
+
+  assert.match(api, /\/api\/v1\$\{path\}/);
+});
+
 test("backend chat request helper rejects unsafe patient submission states", () => {
   const api = source("src/lib/chat-assistant/api.ts");
 

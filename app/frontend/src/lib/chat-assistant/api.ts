@@ -1,6 +1,7 @@
 import type {
   AssistantMessage,
   ChatScope,
+  ConversationThread,
   DataProvenance,
   EvidenceSource,
   PatientContext,
@@ -36,6 +37,105 @@ export type BackendChatResponse = {
 export type BackendChatArtifacts = {
   message: AssistantMessage;
   evidenceSources: EvidenceSource[];
+};
+
+export type BackendThreadScope = "general" | "patient-linked";
+export type BackendThreadVisibility = "private" | "shared";
+export type BackendThreadStatus = "active" | "archived";
+export type BackendParticipantAccessLevel = "owner" | "write" | "read";
+export type BackendMessageRole = "user" | "assistant" | "system";
+export type BackendPatientPermissionState = "not-required" | "pending" | "allowed" | "denied";
+
+export type BackendChatThread = {
+  id: UUIDString;
+  title: string;
+  scope: BackendThreadScope;
+  patient_id: UUIDString | null;
+  visibility: BackendThreadVisibility;
+  status: BackendThreadStatus;
+  owner_user_id: UUIDString;
+  created_trace_id: string;
+  last_message_at: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type BackendChatMessage = {
+  id: UUIDString;
+  thread_id: UUIDString;
+  sender_user_id: UUIDString | null;
+  ai_query_id: UUIDString | null;
+  patient_id: UUIDString | null;
+  role: BackendMessageRole;
+  scope: BackendThreadScope;
+  content: string;
+  patient_permission_state: BackendPatientPermissionState;
+  citations: BackendChatCitation[];
+  metadata: Record<string, unknown>;
+  trace_id: string;
+  created_at: string;
+};
+
+export type BackendChatThreadDetail = BackendChatThread & {
+  participants: BackendChatParticipant[];
+  messages: BackendChatMessage[];
+};
+
+export type BackendChatParticipant = {
+  id: UUIDString;
+  thread_id: UUIDString;
+  user_id: UUIDString;
+  access_level: BackendParticipantAccessLevel;
+  can_share: boolean;
+  added_by_user_id: UUIDString;
+  created_trace_id: string;
+  last_read_at: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type BackendChatThreadCreateRequest = {
+  title: string;
+  scope?: BackendThreadScope;
+  patient_id?: UUIDString | null;
+  visibility?: BackendThreadVisibility;
+};
+
+export type BackendChatThreadUpdateRequest = {
+  title?: string;
+  visibility?: BackendThreadVisibility;
+  status?: BackendThreadStatus;
+};
+
+export type BackendThreadMessageRequest = {
+  question: string;
+  top_k?: number;
+};
+
+export type BackendThreadMessageResponse = {
+  user_message: BackendChatMessage;
+  assistant_message: BackendChatMessage;
+};
+
+export type BackendChatParticipantCreateRequest = {
+  user_id: UUIDString;
+  access_level?: Exclude<BackendParticipantAccessLevel, "owner">;
+  can_share?: boolean;
+};
+
+export type BackendChatParticipantUpdateRequest = {
+  access_level?: Exclude<BackendParticipantAccessLevel, "owner">;
+  can_share?: boolean;
+};
+
+export type BackendListResponse<T> = {
+  items: T[];
+};
+
+export type BackendThreadApiConfig = {
+  baseUrl?: string;
+  token?: string;
+  fetcher?: typeof fetch;
 };
 
 export type ChatSubmitReadiness =
@@ -145,6 +245,164 @@ export function mapBackendChatResponseToChatArtifacts(
   };
 }
 
+export function mapBackendChatThreadToConversationThread(
+  thread: BackendChatThread,
+  messages: BackendChatMessage[] = [],
+): ConversationThread {
+  return {
+    id: thread.id,
+    title: thread.title,
+    description:
+      thread.scope === "patient-linked"
+        ? "Persisted patient-linked backend thread"
+        : "Persisted general backend thread",
+    active: thread.status === "active",
+    sharedState: "backend-persisted",
+    updatedAt: thread.last_message_at ?? thread.updated_at,
+    messages: messages.map(mapBackendChatMessageToAssistantMessage),
+    patientContextId: thread.patient_id,
+    provenance: backendVerifiedProvenance,
+  };
+}
+
+export function mapBackendChatThreadDetailToConversationThread(
+  detail: BackendChatThreadDetail,
+): ConversationThread {
+  return mapBackendChatThreadToConversationThread(detail, detail.messages);
+}
+
+export function mapBackendChatMessageToChatArtifacts(message: BackendChatMessage): BackendChatArtifacts {
+  const evidenceSources = message.citations.map(mapBackendCitationToEvidenceSource);
+
+  return {
+    evidenceSources,
+    message: {
+      id: message.id,
+      role: mapBackendMessageRole(message.role),
+      content: message.content,
+      createdAt: message.created_at,
+      scope: mapBackendThreadScope(message.scope),
+      patientContextId: message.patient_id,
+      confidence: normalizeConfidence(String(message.metadata.confidence ?? "unknown")),
+      disclaimer: typeof message.metadata.disclaimer === "string" ? message.metadata.disclaimer : null,
+      provenance: backendVerifiedProvenance,
+      citations: evidenceSources.map(mapEvidenceSourceToCitation),
+    },
+  };
+}
+
+export function mapBackendChatMessageToAssistantMessage(message: BackendChatMessage): AssistantMessage {
+  return mapBackendChatMessageToChatArtifacts(message).message;
+}
+
+export async function listBackendChatThreads(config: BackendThreadApiConfig = {}): Promise<BackendChatThread[]> {
+  const response = await requestBackendJson<BackendListResponse<BackendChatThread>>(config, "/chat-threads");
+  return response.items;
+}
+
+export function createBackendChatThread(
+  payload: BackendChatThreadCreateRequest,
+  config: BackendThreadApiConfig = {},
+): Promise<BackendChatThread> {
+  return requestBackendJson(config, "/chat-threads", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export function getBackendChatThread(
+  threadId: UUIDString,
+  config: BackendThreadApiConfig = {},
+): Promise<BackendChatThreadDetail> {
+  return requestBackendJson(config, `/chat-threads/${threadId}`);
+}
+
+export function updateBackendChatThread(
+  threadId: UUIDString,
+  payload: BackendChatThreadUpdateRequest,
+  config: BackendThreadApiConfig = {},
+): Promise<BackendChatThread> {
+  return requestBackendJson(config, `/chat-threads/${threadId}`, {
+    method: "PATCH",
+    body: JSON.stringify(payload),
+  });
+}
+
+export function archiveBackendChatThread(
+  threadId: UUIDString,
+  config: BackendThreadApiConfig = {},
+): Promise<BackendChatThread> {
+  return requestBackendJson(config, `/chat-threads/${threadId}`, {
+    method: "DELETE",
+  });
+}
+
+export function askBackendThreadMessage(
+  threadId: UUIDString,
+  payload: BackendThreadMessageRequest,
+  config: BackendThreadApiConfig = {},
+): Promise<BackendThreadMessageResponse> {
+  return requestBackendJson(config, `/chat-threads/${threadId}/messages`, {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function listBackendThreadMessages(
+  threadId: UUIDString,
+  config: BackendThreadApiConfig = {},
+): Promise<BackendChatMessage[]> {
+  const response = await requestBackendJson<BackendListResponse<BackendChatMessage>>(
+    config,
+    `/chat-threads/${threadId}/messages`,
+  );
+  return response.items;
+}
+
+export async function listBackendThreadParticipants(
+  threadId: UUIDString,
+  config: BackendThreadApiConfig = {},
+): Promise<BackendChatParticipant[]> {
+  const response = await requestBackendJson<BackendListResponse<BackendChatParticipant>>(
+    config,
+    `/chat-threads/${threadId}/participants`,
+  );
+  return response.items;
+}
+
+export function addBackendThreadParticipant(
+  threadId: UUIDString,
+  payload: BackendChatParticipantCreateRequest,
+  config: BackendThreadApiConfig = {},
+): Promise<BackendChatParticipant> {
+  return requestBackendJson(config, `/chat-threads/${threadId}/participants`, {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export function updateBackendThreadParticipant(
+  threadId: UUIDString,
+  participantId: UUIDString,
+  payload: BackendChatParticipantUpdateRequest,
+  config: BackendThreadApiConfig = {},
+): Promise<BackendChatParticipant> {
+  return requestBackendJson(config, `/chat-threads/${threadId}/participants/${participantId}`, {
+    method: "PATCH",
+    body: JSON.stringify(payload),
+  });
+}
+
+export function removeBackendThreadParticipant(
+  threadId: UUIDString,
+  participantId: UUIDString,
+  config: BackendThreadApiConfig = {},
+): Promise<BackendChatParticipant> {
+  return requestBackendJson(config, `/chat-threads/${threadId}/participants/${participantId}`, {
+    method: "DELETE",
+  });
+}
+
 function mapBackendCitationToEvidenceSource(citation: BackendChatCitation): EvidenceSource {
   return {
     id: citation.evidence_id,
@@ -158,6 +416,45 @@ function mapBackendCitationToEvidenceSource(citation: BackendChatCitation): Evid
     metadata: citation.metadata,
     provenance: backendVerifiedProvenance,
   };
+}
+
+async function requestBackendJson<T>(
+  config: BackendThreadApiConfig,
+  path: string,
+  init: RequestInit = {},
+): Promise<T> {
+  const fetcher = config.fetcher ?? fetch;
+  const headers = new Headers(init.headers);
+  if (init.body && !headers.has("content-type")) {
+    headers.set("content-type", "application/json");
+  }
+  if (config.token && !headers.has("authorization")) {
+    headers.set("authorization", `Bearer ${config.token}`);
+  }
+
+  const response = await fetcher(`${normalizeBaseUrl(config.baseUrl)}/api/v1${path}`, {
+    ...init,
+    headers,
+  });
+  if (!response.ok) {
+    throw new Error(`Hospital assistant API request failed with status ${response.status}.`);
+  }
+  return (await response.json()) as T;
+}
+
+function normalizeBaseUrl(baseUrl: string | undefined): string {
+  return baseUrl ? baseUrl.replace(/\/$/, "") : "";
+}
+
+function mapBackendThreadScope(scope: BackendThreadScope): ChatScope {
+  return scope === "patient-linked" ? "patient-linked" : "general-knowledge";
+}
+
+function mapBackendMessageRole(role: BackendMessageRole): AssistantMessage["role"] {
+  if (role === "assistant" || role === "system") {
+    return role;
+  }
+  return "staff";
 }
 
 function mapEvidenceSourceToCitation(source: EvidenceSource): SourceCitation {

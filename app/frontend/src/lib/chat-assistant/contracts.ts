@@ -1,8 +1,10 @@
-export type ContractStatus = "verified-backend" | "local-sample-only" | "documented-gap";
+import type { ChatDataStatus, ChatScope, PatientPermissionState } from "./types";
 
-export type AssistantScope = "general" | "patient";
+export type ContractStatus = ChatDataStatus;
 
-export type PermissionState = "not-required" | "pending" | "allowed" | "denied";
+export type AssistantScope = ChatScope;
+
+export type PermissionState = PatientPermissionState;
 
 export type ContractInventoryItem = {
   id: string;

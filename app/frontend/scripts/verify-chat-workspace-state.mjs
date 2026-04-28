@@ -222,3 +222,20 @@ test("composer readiness flow covers blocked, loading, ready, and rejected state
     assert.ok(shell.includes(contract), `missing shell readiness contract: ${contract}`);
   }
 });
+
+test("contract inventory reuses canonical chat type literals", () => {
+  const contracts = source("src/lib/chat-assistant/contracts.ts");
+
+  assert.match(contracts, /import type \{ ChatDataStatus, ChatScope, PatientPermissionState \} from "\.\/types";/);
+  assert.ok(contracts.includes("export type ContractStatus = ChatDataStatus;"));
+  assert.ok(contracts.includes("export type AssistantScope = ChatScope;"));
+  assert.ok(contracts.includes("export type PermissionState = PatientPermissionState;"));
+
+  for (const duplicate of [
+    /export type ContractStatus = "verified-backend"/,
+    /export type AssistantScope = "general"/,
+    /export type PermissionState = "not-required"/,
+  ]) {
+    assert.doesNotMatch(contracts, duplicate);
+  }
+});

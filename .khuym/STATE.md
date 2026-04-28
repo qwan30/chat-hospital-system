@@ -1,6 +1,6 @@
 # STATE
-focus: Kotaemon-first chat assistant UI
-phase: phase-2-shared-chat-persistence-progress
+focus: Kotaemon-first chat assistant UI completion
+phase: phase-1-and-2-executed
 last_updated: 2026-04-28
 
 ## Current State
@@ -8,50 +8,47 @@ last_updated: 2026-04-28
 Skill: executing
 Feature: kotaemon-chat-assistant-ui
 Epic: `br-dyy`
-Coordinator: DarkGate
-Worker: CodexExecute / BrightReef
-Epic Topic: `epic-br-dyy`
+Plan Gate: approved by user in the 2026-04-28 execution request
+Execution Gate: Phase 1 and Phase 2 complete
+Current Phase To Prepare Next: Phase 3 - Connect the first HMS-backed data slice
 
-Phase 1 remains complete with UAT pending. This execution pass advanced Phase 2 shared chat persistence and stopped at a clean handoff boundary.
+Phase 1 live frontend wiring is complete: the root chat workspace loads persisted backend threads, uses explicit backend URL and bearer-token controls, maps thread details into one active workspace state, and wires create, rename, archive, share, and thread-message submission actions.
 
-## Completed This Session
+Phase 2 safe general hospital knowledge is complete for curated approved non-PHI sources: general chat-thread messages use a backend service that does not query patient chunks, returns cited approved sources when evidence matches, and returns an honest no-evidence answer otherwise.
 
-- Closed `br-22l`: backend `/api/v1/chat-threads` create/list/read/update/archive APIs with participant access checks, patient-linked permission checks, and audit records.
-- Closed `br-qql`: persisted patient-linked thread messages through the existing permission-filtered chat answer flow, including `ai_query` linkage, citations, and `last_message_at`.
-- Closed `br-mu0`: owner-managed participant sharing APIs with patient-read guards for both actor and target user.
-- Closed `br-200`: frontend typed adapter and mappers for persisted thread, message, and participant APIs while keeping the UI shell sample-first.
+## Artifacts Updated
+
+- `app/frontend/src/components/chat/AssistantShell.tsx`
+- `app/frontend/src/lib/chat-assistant/api.ts`
+- `app/backend/src/hospital_ai/services/chat_threads.py`
+- `app/backend/src/hospital_ai/services/general_knowledge.py`
+- `app/backend/tests/test_chat_thread_messages_api.py`
+- `app/frontend/scripts/verify-chat-workspace-state.mjs`
+- `history/kotaemon-chat-assistant-ui/discovery.md`
+- `history/kotaemon-chat-assistant-ui/approach.md`
+- `history/kotaemon-chat-assistant-ui/phase-plan.md`
 
 ## Verification Summary
 
-- Backend latest: `python -m pytest` passed with `46 passed, 2 skipped`.
+- Backend: `python -m pytest` passed with `48 passed, 2 skipped`.
 - Backend compile: `python -m compileall src tests` passed.
-- Frontend workspace contract: `npm.cmd run test:workspace` passed with `18` tests.
-- Frontend typecheck/lint/build: `npm.cmd run typecheck`, `npm.cmd run lint`, and `npm.cmd run build` passed.
-- GitNexus latest: indexed commit `72cdbbc`, `1,182 nodes`, `2,784 edges`, `36 clusters`, `84 flows`.
-- Beads graph: `npx.cmd bd graph check --json` clean with zero cycles; `npx.cmd bd ready --json` returned no ready beads.
-
-## Latest Commits
-
-- `72cdbbc` feat(br-200): add persisted thread frontend adapter
-- `d62b5fc` feat(br-mu0): add chat thread participant sharing
-- `7a7c280` feat(br-qql): persist chat thread messages
-- `3b93698` feat(br-22l): implement shared chat thread APIs
-- `e81aa1f` feat(br-gjf): define shared chat thread contract
-
-## Remaining Gaps
-
-- Frontend shell still reads `sampleWorkspaceState`; it does not call persisted backend APIs yet.
-- Auth/base-url/session handling for frontend live API calls is not wired.
-- General hospital knowledge chat remains a documented gap; verified backend answer flow is still patient-linked.
-- Human UAT for Phase 1 remains pending.
+- Frontend workspace contract: `npm run test:workspace` passed with `12` tests.
+- Frontend: `npm run typecheck`, `npm run lint`, and `npm run build` passed.
+- Browser smoke: Playwright loaded `http://localhost:3000` with no console warnings/errors.
 
 ## Tooling Notes
 
-- Use `npx.cmd bd ...` for Beads in this workspace.
-- Use `npx.cmd gitnexus analyze --skip-agents-md` after each commit before choosing the next slice.
-- `gkg`, `cass`, and `cm` remain unavailable on this shell PATH.
-- `.khuym/HANDOFF.json` is current and should be read before resuming.
+- `gkg index D:\projects\chatbot-hospital-system` was attempted, but `gkg` is not on PATH.
+- `br.exe` and `bv.exe` are on PATH.
+- `br ready --json` still fails with `JSON_ERROR` because the Beads store expects a missing `jsonl_export` field.
+- `bv --robot-next --graph-root br-dyy` works and reports no actionable items.
+
+## Remaining Gaps
+
+- HMS integration remains unimplemented.
+- Final Khuym review, UAT, browser evidence against a seeded live backend, and release docs remain pending.
+- Production auth/session handling is not implemented; the frontend uses explicit dev bearer-token configuration.
 
 ## Next
 
-Resume from the live graph. If no ready beads exist, create the next narrow bead from repo facts. Recommended next slice: wire the frontend shell to persisted chat-thread APIs with explicit auth/base-url handling, without faking live persistence.
+Prepare Phase 3 with validation before implementation. Choose one HMS-backed data family, define fields and exclusions, prove permission/evidence lineage, then implement that slice.

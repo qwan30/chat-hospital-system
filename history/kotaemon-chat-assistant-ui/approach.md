@@ -3,7 +3,34 @@
 **Feature:** kotaemon-chat-assistant-ui
 **Date:** 2026-04-28
 **Skill:** khuym:planning
-**Status:** Ready for phase-plan approval
+**Status:** Phase 1 and Phase 2 execution complete
+
+## Completion Planning Refresh - 2026-04-28
+
+The original approach correctly moved the project away from dashboard-first UI and into the Kotaemon-style assistant shell. The current completion problem is narrower: make the existing shell use real backend thread data, add the still-missing general knowledge path, connect one HMS-backed data slice safely, and then close review/UAT.
+
+### Updated Gap Analysis
+
+| Requirement | Current reality | Remaining gap | Risk |
+|---|---|---|---|
+| First screen is chat-first assistant | Implemented in `AssistantShell` | Keep the shell stable while later HMS integration lands | Low |
+| One active workspace state | Hydrates from backend thread details and owns sidebar/transcript/evidence state | Continue testing reload and denied states in UAT | Low |
+| Shared chat thread persistence | Backend APIs, frontend adapters, and live shell actions are wired | Later polish can replace prompt-based share/rename with dedicated dialogs | Low |
+| Auth/base URL/session handling | Runtime backend URL and bearer-token controls are visible in the shell | Production auth remains a later hardening topic | Medium |
+| Patient-linked saved messages | UI submit calls `askBackendThreadMessage` for persisted patient-linked threads | Requires seeded backend data for full demo | Low |
+| General hospital knowledge | Backend general threads now answer from approved non-PHI sources | Expand source management after HMS integration decisions | Medium |
+| HMS integration | HMS remains reference-only | Need one explicit data family, import/API path, permission mapping, and evidence traceability | High |
+| Final completion proof | Tests have passed for previous slices | Need final review, browser QA, docs, UAT, and P1 fix loop | Medium |
+
+### Updated Recommended Approach
+
+The first two completion phases are now implemented. The remaining approach is to choose one HMS-backed data family, map its permission/evidence lineage, then run final review/UAT and release-doc hardening.
+
+### Updated HIGH-Risk Summary For Validating
+
+- **General hospital knowledge retrieval:** tests now prove the route does not return patient-linked chunks; review should keep this invariant.
+- **HMS data integration:** validating must choose one data family and prove the permission/evidence lineage before implementation.
+- **Live frontend auth/config:** validating should check the dev-token/base-URL approach does not hardcode secrets or make sample data look live.
 
 ## Gap Analysis
 

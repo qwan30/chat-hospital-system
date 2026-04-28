@@ -1,122 +1,136 @@
-# Phase Plan - Kotaemon-First Chat Assistant UI
+# Phase Plan - Complete Kotaemon-First Hospital Assistant
 
 **Feature:** kotaemon-chat-assistant-ui
 **Date:** 2026-04-28
 **Skill:** khuym:planning
-**Plan Gate:** approved by user on 2026-04-28
+**Plan Gate:** approved by user and executed through Phase 2 on 2026-04-28
+**Based on:**
+- `history/kotaemon-chat-assistant-ui/CONTEXT.md`
+- `history/kotaemon-chat-assistant-ui/discovery.md`
+- `history/kotaemon-chat-assistant-ui/approach.md`
+- `.khuym/HANDOFF.json`
+- `.khuym/STATE.md`
 
-## Feature Summary
+---
 
-This feature turns the application into a Kotaemon-style collaborative hospital assistant. Users should open the app directly into a chat workspace, ask general hospital or patient-linked questions, inspect cited evidence, and understand when patient data is blocked by permissions.
+## 1. Feature Summary
 
-Kotaemon guides the interaction model. The hospital-management-system repo guides the data/domain model. This repository owns the assistant UI, backend contracts, permission-aware retrieval, and safe integration plan.
+The project is already past the first visible product turn: the root frontend is a Kotaemon-style chat workspace, the backend has patient-scoped permission-filtered chat, and shared chat thread APIs plus frontend API adapters exist. It is not complete because the live frontend still reads `sampleWorkspaceState`, general hospital knowledge chat has no real backend path, HMS data is not integrated, and final review/UAT has not happened.
 
-## Phase 1 - Make The First Screen A Kotaemon-Style Chat Workspace
+Completion should therefore happen in four remaining phases. First make the current chat screen use real persisted threads. Then add a safe general hospital knowledge path. Then connect the first real HMS-backed hospital data slice. Finally harden, review, document, and run UAT so the project can be called finished without pretending mocks are production behavior.
 
-### What changes for users
+---
 
-Opening the app shows a dense chat workspace instead of a dashboard. Staff see a conversation sidebar, central chat transcript, prompt composer, patient/context gate, answer citations, and a source/evidence panel. Any data that is not connected to a real backend contract is visibly marked as local/mock.
+## 2. Current Completed State
 
-### Why this comes first
-
-The current app opens into a dashboard, which is the largest mismatch with the locked direction. A correct chat workspace lets the team review the product shape before risky backend thread and HMS integration work begins.
-
-### Stories
-
-| Story | What happens | Done looks like |
+| Capability | Current state | Evidence |
 |---|---|---|
-| 1. Align docs and contract inventory | The docs and implementation plan say the same thing: Kotaemon-first, chat-first, Phase 1 scope only | `docs/04`, `docs/10`, discovery, and approach reflect D1-D12 |
-| 2. Build the React chat workspace shell | The Next.js first screen becomes a Kotaemon-like shell | `page.tsx` renders chat workspace regions with responsive layout |
-| 3. Add conversation, patient gate, and evidence states | The UI shows shared-thread affordances, patient permission state, citations, and source inspection | User can see general vs patient-linked scope and no mock is presented as real hospital data |
-| 4. Verify the first-screen experience | Build/typecheck/design review confirm the screen is usable and not dashboard-first | Verification output records build results, responsive issues, and remaining backend gaps |
+| Chat-first first screen | Complete for Phase 1 | `AssistantShell` is the root experience and Phase 1 verification artifacts exist |
+| Central active workspace state | Complete for sample data | `AssistantShell` owns active thread, patient context, transcript, and evidence source derivation |
+| Patient-scoped backend chat | Complete for verified patient-linked questions | Backend `/api/v1/chat` and `ChatService` enforce permission-before-retrieval |
+| Shared chat thread backend | Mostly complete | `/api/v1/chat-threads` supports create/list/read/update/archive, messages, participants, audit, and patient permission guards |
+| Frontend persisted-thread adapter | Complete and used by the shell | `AssistantShell` loads backend threads and calls typed thread/message/participant API helpers |
+| General hospital knowledge chat | Complete for approved non-PHI sources | General chat-thread messages use `GeneralKnowledgeService` and safety tests prove patient chunks are not returned |
+| HMS integration | Not complete | HMS remains a domain/reference source, not a connected data source |
+| Release review/UAT | Not complete | Phase 1 UAT is still pending and no final P1/P2/P3 review has passed |
 
-### Simplest demo
+---
 
-Start the frontend, open the root page, and land directly in the assistant workspace. Open a sample shared thread, switch between general and patient-linked scope, view an answer with citations, open a source in the evidence panel, and see any missing backend pieces labeled as local/mock.
+## 3. Why This Breakdown
 
-### Unlocks next
+- The live frontend wiring must happen first because the product still looks more complete than it behaves: the UI has persisted-thread adapters, but users are still seeing sample threads.
+- General hospital knowledge comes after live thread wiring because D9 requires general hospital answers, and the app needs one reliable conversation storage path before another answer mode is added.
+- HMS integration comes after the general path because patient-linked HMS data increases the PHI blast radius; permission and citation boundaries must be proven before richer data enters the assistant.
+- Final review and UAT come last because the project cannot be called complete until tests, browser evidence, docs, and Khuym review gates all agree there are no blocking P1 findings.
 
-The team can now validate the exact backend APIs needed for real shared threads and general/patient-scoped chat.
+---
 
-## Phase 2 - Make Shared Chat Threads Real And Safe
+## 4. Phase Overview Table
 
-### What changes for users
+| Phase | What Changes In Real Life | Why This Phase Exists Now | Demo Walkthrough | Unlocks Next |
+|---|---|---|---|---|
+| Phase 1: Wire persisted chat threads into the frontend | Staff open the chat workspace and see real backend threads, messages, and sharing state instead of sample-only conversations | Backend APIs and frontend adapters already exist, but the shell does not call them | Start backend and frontend, sign in with a dev token, load persisted threads, open a thread, submit a patient-linked question, and see the saved assistant answer with citations after reload | General chat can reuse the same live thread flow |
+| Phase 2: Add safe general hospital knowledge chat | Staff can ask non-patient hospital questions through a real backend path with citations or an honest no-evidence response | The product contract says general knowledge is supported, but current backend chat requires patient scope | Create a general thread, ask a hospital policy question, receive a cited answer from approved non-PHI knowledge, and confirm no patient permission state is required | HMS integration can add richer data without overloading the general path |
+| Phase 3: Connect the first HMS-backed data slice | The assistant can answer from one explicitly supported HMS-derived data family with patient permission and evidence traceability | HMS is currently only a reference; real value needs one safe integration path | Select an authorized synthetic patient, ask about the chosen HMS data family, inspect citations, then revoke permission and confirm the same answer is blocked | Final project review can test end-to-end hospital usefulness |
+| Phase 4: Hardening, review, UAT, and release docs | The project has proof that the assistant works, blocks unsafe access, documents its limits, and passes final Khuym review | The project is not finished until verification and docs catch up with implementation | Run backend/frontend tests, browser QA, permission adversarial checks, docs review, and UAT; fix P1 issues before closing | Project can be marked complete or handed off with known non-blocking future work |
 
-Conversations are no longer just UI state. Staff can create, rename, delete, reopen, and share conversation threads with correct access controls and audit behavior.
+---
 
-### Why this comes after Phase 1
+## 5. Phase Details
 
-The UI shell defines what the thread model needs to support. Building persistence second avoids designing storage around the old dashboard prototype.
+### Phase 1: Wire Persisted Chat Threads Into The Frontend
 
-### Stories
+- **Status:** Complete in this execution pass.
+- **What Changes In Real Life:** The existing chat workspace stops being sample-first. A staff user can load persisted backend threads, switch between them, send a patient-linked question through the thread API, and see the saved answer survive reload.
+- **Why This Phase Exists Now:** This is the narrowest path from current state to real product behavior. The backend and adapter are already in place; the missing piece is live shell state, auth/base URL handling, and no-fake fallback behavior.
+- **Stories Inside This Phase:**
+  - Story 1: Runtime API configuration and dev auth - the frontend has an explicit backend base URL and token source, with visible unauthenticated/error states.
+  - Story 2: Persisted thread loading and active state - the sidebar, transcript, evidence panel, patient gate, and sharing controls all derive from one backend-loaded active thread model.
+  - Story 3: Thread actions and patient-linked submit - create, rename, archive, participant display/share actions, and `askBackendThreadMessage` are wired without bypassing permission guards.
+  - Story 4: Live wiring verification - adapter/unit checks plus browser smoke prove reload persistence, denied states, and citation/evidence fidelity.
+- **Demo Walkthrough:** Run the backend with seed data and start the frontend with a dev API token. Open the app, load persisted threads, create a patient-linked thread for an authorized synthetic patient, ask a question, see the assistant response and citations, reload, and confirm the same thread/messages return from the backend.
+- **Unlocks Next:** General hospital knowledge can be added as another real thread/message mode instead of a separate sample-only UI path.
 
-| Story | What happens | Done looks like |
-|---|---|---|
-| 1. Define thread and message contract | Backend schema and API shape are explicit | Contract covers thread metadata, messages, sharing, patient context, and audit identifiers |
-| 2. Persist and reload conversations | Threads survive page reload and can be selected from the sidebar | API tests cover create/list/read/update/delete |
-| 3. Enforce sharing and PHI boundaries | Shared thread access is allowed only where safe | Unauthorized users cannot read patient-linked messages or citations |
-| 4. Connect frontend to real thread APIs | Mock thread data is removed or kept only for dev fallback | UI uses real data for thread list and history |
+### Phase 2: Add Safe General Hospital Knowledge Chat
 
-### Simplest demo
+- **Status:** Complete in this execution pass for curated approved non-PHI sources.
+- **What Changes In Real Life:** Staff can ask hospital policy or operational questions that are not tied to a patient. The answer path is real, cites approved non-PHI sources, and does not require a patient permission gate.
+- **Why This Phase Exists After Phase 1:** General chat should reuse the same persisted thread experience. Adding it before live thread wiring would create another disconnected path and make completion harder to verify.
+- **Stories Inside This Phase:**
+  - Story 1: Define the general-knowledge evidence boundary - decide which documents or records are approved for non-PHI retrieval and how they are marked.
+  - Story 2: Backend general chat contract - allow general threads to accept messages through a real service path that cannot retrieve patient-linked evidence.
+  - Story 3: Frontend general mode wiring - remove the documented-gap copy for general scope only after the backend contract exists.
+  - Story 4: Safety tests - prove general chat never returns patient chunks and patient chat still requires permission.
+- **Demo Walkthrough:** Create a general thread, ask a synthetic hospital policy question, and receive an answer with citations from approved general documents. Then attempt to retrieve patient-linked evidence through the general path and confirm it is refused or absent.
+- **Unlocks Next:** The assistant now supports both top-level modes from D9, so HMS integration can focus on the first valuable patient-linked data slice.
 
-Staff user A creates a thread and shares it. Staff user B with access can open the thread. A user without patient permission can see only allowed thread metadata or a blocked state, not patient evidence.
+### Phase 3: Connect The First HMS-Backed Data Slice
 
-### Unlocks next
+- **What Changes In Real Life:** The assistant can answer from one real HMS-derived data family, such as appointments, lab summaries, prescriptions, or a deliberately selected low-risk patient record slice, using synthetic or de-identified data in development.
+- **Why This Phase Exists After General Chat:** HMS data introduces cross-system mapping and PHI rules. It should land after both conversation storage and general retrieval boundaries are already working.
+- **Stories Inside This Phase:**
+  - Story 1: Choose and document the first HMS data family - name the exact HMS source, fields, roles, exclusions, and permission requirement.
+  - Story 2: Build import or API contract - move data into this backend through an explicit path; do not depend on removed HMS internal-assistant endpoints.
+  - Story 3: Index and cite HMS-derived evidence - preserve source identity, patient identity, document/page/chunk lineage where applicable, and UI evidence fidelity.
+  - Story 4: Permission adversarial tests - cover revoked permission, mismatched patient ownership, deleted source records, and unauthorized sharing.
+- **Demo Walkthrough:** Load synthetic HMS-derived records for one patient, ask an authorized patient-linked question, inspect the cited evidence, then remove permission and confirm the same question creates no answer and no LLM evidence context.
+- **Unlocks Next:** The project has a real hospital-data story instead of only UI and generic RAG capability.
 
-The system can safely attach real hospital knowledge and patient-linked data to collaborative conversations.
+### Phase 4: Hardening, Review, UAT, And Release Docs
 
-## Phase 3 - Connect Hospital Knowledge And HMS Data Safely
+- **What Changes In Real Life:** The project has evidence that it works end to end, knows its remaining limits, and is safe enough to present as complete for this milestone.
+- **Why This Phase Closes The Feature:** Final review must happen after the real paths are implemented; otherwise the project can pass tests while the most important workflows are still mock-only.
+- **Stories Inside This Phase:**
+  - Story 1: Verification gate - run backend tests, frontend workspace tests, typecheck, lint, build, compile, and any available PostgreSQL/pgvector checks.
+  - Story 2: Browser and accessibility QA - capture desktop/mobile evidence for chat, persistence, general mode, patient mode, denied states, and evidence panels.
+  - Story 3: Docs and runbooks - update README, backend/frontend env instructions, API notes, safety limitations, and UAT checklist.
+  - Story 4: Khuym review and fix loop - run review, fix P1 findings, record P2/P3 follow-ups, and only then close the completion milestone.
+- **Demo Walkthrough:** A reviewer starts the stack from docs, signs in with a seeded token, completes the general and patient-linked demos, sees correct refusal behavior, verifies persisted history, and can trace every citation to allowed evidence.
+- **Unlocks Next:** Later Kotaemon surfaces like knowledge management, uploads, settings, admin dashboards, and metrics can become separate follow-up epics.
 
-### What changes for users
+---
 
-The assistant can answer from real supported hospital knowledge and selected patient-linked data families, using HMS as the domain/reference source without depending on removed HMS AI endpoints.
+## 6. Phase Order Check
 
-### Why this comes after shared threads
+- [x] Phase 1 is obviously first because the frontend already has adapters but does not use them.
+- [x] Each later phase depends on or benefits from the one before it.
+- [x] No phase is only a technical bucket; each phase changes what a staff user or reviewer can actually prove.
+- [x] The plan preserves D1-D12: Kotaemon-first UI, chat-first entry, HMS as data/domain reference, visible patient gating, and no fake real hospital data.
 
-Patient-linked answers and citations become more sensitive when saved and shared. The collaboration boundary should be safe before richer HMS data enters the assistant flow.
+---
 
-### Stories
+## 7. Approval Summary
 
-| Story | What happens | Done looks like |
-|---|---|---|
-| 1. Map first HMS data families | Decide which HMS data can support assistant answers first | Mapping names exact HMS sources, permissions, fields, and excluded data |
-| 2. Build the integration/import contract | Data reaches the chatbot backend through an explicit safe path | No dependency on removed HMS internal-assistant APIs |
-| 3. Connect answer and citation UI to real evidence | UI shows real sources for supported data | Evidence panel displays source metadata from real indexed/linked records |
-| 4. Prove permission and retrieval safety | Adversarial tests cover revoked, expired, mismatched, and unauthorized cases | No unauthorized chunks or patient data reach the LLM context |
+- **Current phase to prepare next:** `Phase 3 - Connect the first HMS-backed data slice`
+- **What the user should picture after Phase 1 and 2:** the chat workspace uses real backend thread data, saved patient-linked answers, and safe general hospital knowledge answers from approved non-PHI sources.
+- **What will not happen until later phases:** HMS data integration and final UAT/release hardening.
 
-### Simplest demo
+Planning has broken the remaining work into phases and stories. Phase 1 and Phase 2 have now been executed from this plan.
 
-Ask a general hospital question and receive cited evidence. Select an authorized patient and ask about supported records, labs, or appointment context. Then try the same patient-linked question without permission and see a blocked, audited state.
+## 8. Execution Update - 2026-04-28
 
-### Unlocks next
-
-The assistant has the safe data foundation needed for broader Kotaemon-like management surfaces.
-
-## Phase 4 - Expand Kotaemon Surfaces Beyond Chat
-
-### What changes for users
-
-After the chat assistant is real, later Kotaemon-like surfaces can be added: knowledge-base management, document indexing/upload, settings, and admin/metrics dashboards.
-
-### Why this comes last
-
-These surfaces are explicitly out of scope for Phase 1. They are useful only after the core assistant, collaboration, and patient-data safety are working.
-
-### Stories
-
-| Story | What happens | Done looks like |
-|---|---|---|
-| 1. Add knowledge/document management | Users can manage indexed sources through the UI | Upload/indexing UI has queue states and safety rules |
-| 2. Add settings and workspace controls | Admins can configure assistant behavior and access rules | Settings are permission-protected and audited |
-| 3. Add metrics and operational dashboards | Product owners can inspect usage, savings, and safety metrics | Dashboard uses real metric events and no fake ROI claims |
-| 4. Run full UX review | The full UI is checked against Kotaemon and healthcare workflows | Findings are documented and fixed or tracked |
-
-### Simplest demo
-
-Upload or manage a knowledge source, ask a question using it, inspect usage metrics, and confirm admin-only controls remain protected.
-
-## Recommended Next Preparation
-
-Prepare Phase 1 first. It closes the most visible product gap, keeps the scope bounded, and gives validating a concrete UI and contract surface to inspect before backend persistence or HMS data integration begins.
-
-Phase plan approved. Planning continues by preparing Phase 1 for validation.
+- [x] Phase 1 complete: the frontend shell now loads persisted backend threads, exposes runtime backend URL and bearer-token configuration, creates/renames/archives/shares threads, and submits questions through `askBackendThreadMessage`.
+- [x] Phase 2 complete: general chat-thread messages now use approved non-PHI general hospital knowledge, return citations when evidence matches, and return an honest no-evidence answer otherwise.
+- [x] Safety verification added: backend tests prove general chat stores no patient ID, creates no `AiQuery`, marks citations as approved non-PHI, and does not return patient-linked chunks when patient documents exist.
+- [ ] Phase 3 remains next: connect one selected HMS-backed data family with permission and evidence traceability.
+- [ ] Phase 4 remains pending: final review, UAT, release docs, and P1 fix loop.

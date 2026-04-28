@@ -16,7 +16,7 @@ const permissionCopy: Record<
   "not-required": {
     icon: Globe2,
     label: "General mode",
-    detail: "General questions do not require patient selection. Backend citations are still a documented gap.",
+    detail: "General questions use backend-approved non-PHI hospital knowledge without patient selection.",
     className: "border-[#60a5fa]/30 bg-[#60a5fa]/10 text-[#bfdbfe]",
   },
   pending: {

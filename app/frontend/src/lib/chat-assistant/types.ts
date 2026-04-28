@@ -65,12 +65,22 @@ export type ConversationThread = {
   id: string;
   title: string;
   description: string;
+  scope: ChatScope;
   active: boolean;
   sharedState: "local-only" | "sample-shared" | "backend-persisted";
   updatedAt: string;
   messages: AssistantMessage[];
   patientContextId: string | null;
+  participants: ConversationParticipant[];
   provenance: DataProvenance;
+};
+
+export type ConversationParticipant = {
+  id: string;
+  userId: UUIDString;
+  accessLevel: "owner" | "write" | "read";
+  canShare: boolean;
+  lastReadAt: string | null;
 };
 
 export type ChatAssistantWorkspaceState = {

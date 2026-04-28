@@ -1,16 +1,14 @@
 {
   "schema_version": "1.0",
-  "format": "khuym-swarm-handoff",
+  "format": "khuym-execution-handoff",
   "feature": "kotaemon-chat-assistant-ui",
   "skill": "khuym:executing",
-  "phase": "phase-2-shared-chat-persistence-progress",
-  "next_action": "Resume from the live bead graph. There are no ready beads after br-200; likely next slice is live frontend auth/base-url wiring for persisted chat threads, or a separate backend general-knowledge chat endpoint if that is prioritized.",
-  "context_pct": 0.68,
+  "phase": "phase-1-and-2-executed",
+  "next_action": "Prepare Phase 3 - Connect the first HMS-backed data slice, then validate before implementation.",
+  "context_pct": 0.56,
   "session": {
-    "codex_nickname": "CodexExecute",
-    "agent_mail_name": "BrightReef",
-    "paused_at": "2026-04-28T16:32:00+07:00",
-    "reason_for_pause": "context_after_four_committed_execution_slices"
+    "paused_at": "2026-04-28T22:40:00+07:00",
+    "reason_for_pause": "phase_1_2_execution_complete"
   },
   "swarm": {
     "epic_id": "br-dyy",
@@ -19,44 +17,34 @@
     "epic_topic": "epic-br-dyy",
     "coordinator": "DarkGate"
   },
-  "graph_status": {
-    "ready_beads": [],
-    "graph_check": "npx.cmd bd graph check --json returned clean with zero cycles after br-200.",
-    "gitnexus_status": "Indexed commit 72cdbbc; current commit 72cdbbc; status up-to-date."
-  },
-  "completed_this_session": [
+  "completed_this_execution": [
     {
-      "bead_id": "br-22l",
-      "commit": "3b93698",
-      "summary": "Implemented shared chat thread create/list/read/update/archive APIs."
+      "phase": "Phase 1",
+      "summary": "Frontend shell now loads persisted backend threads, exposes backend URL and bearer token controls, wires create/rename/archive/share actions, and submits questions through persisted thread messages."
     },
     {
-      "bead_id": "br-qql",
-      "commit": "7a7c280",
-      "summary": "Persisted patient-linked thread messages through the permission-filtered chat flow."
-    },
-    {
-      "bead_id": "br-mu0",
-      "commit": "d62b5fc",
-      "summary": "Added owner-managed participant sharing APIs with patient-permission guards."
-    },
-    {
-      "bead_id": "br-200",
-      "commit": "72cdbbc",
-      "summary": "Added frontend persisted chat thread API adapter and contract checks."
+      "phase": "Phase 2",
+      "summary": "Backend general chat-thread messages now answer from approved non-PHI hospital knowledge and refuse patient-linked evidence in general mode."
     }
   ],
   "verification": {
-    "backend_latest": "python -m pytest: 46 passed, 2 skipped; python -m compileall src tests: passed.",
-    "frontend_latest": "npm.cmd run test:workspace: 18 passed; npm.cmd run typecheck/lint/build: passed.",
-    "gitnexus_latest": "npx.cmd gitnexus analyze --skip-agents-md: 1,182 nodes | 2,784 edges | 36 clusters | 84 flows."
+    "backend": "python -m pytest: 48 passed, 2 skipped; python -m compileall src tests: passed.",
+    "frontend": "npm run test:workspace: 12 passed; npm run typecheck/lint/build: passed.",
+    "browser": "Playwright loaded http://localhost:3000 with no console warnings/errors; no-token state rendered correctly.",
+    "gkg": "gkg command is unavailable on PATH; gkg index could not run."
   },
   "open_blockers": [
     {
-      "description": "Frontend shell still uses sample workspace state and does not call persisted thread APIs until auth/base-url/live wiring is explicitly implemented."
+      "description": "Phase 3 HMS integration remains unimplemented and must start by selecting one safe data family."
     },
     {
-      "description": "General hospital knowledge chat endpoint remains deferred; existing backend chat generation is verified for patient-linked questions only."
+      "description": "Final Khuym review, UAT, release docs, and P1 fix loop remain pending."
+    },
+    {
+      "description": "Production auth/session handling remains separate from the current dev bearer-token frontend flow."
+    },
+    {
+      "description": "br ready --json still fails with JSON_ERROR missing jsonl_export, so bead routing remains degraded."
     }
   ],
   "resume_instructions": {
@@ -66,11 +54,9 @@
       ".khuym/state.json",
       ".khuym/HANDOFF.json",
       "history/kotaemon-chat-assistant-ui/CONTEXT.md",
+      "history/kotaemon-chat-assistant-ui/phase-plan.md",
       "history/learnings/critical-patterns.md"
     ],
-    "check_mail": true,
-    "bead_check": "npx.cmd bd ready --json",
-    "gitnexus_refresh": "npx.cmd gitnexus status; run npx.cmd gitnexus analyze --skip-agents-md if stale",
-    "priority_next": "Create the next narrow bead from live repo facts; recommended candidate is frontend live wiring for persisted chat threads without faking auth."
+    "priority_next": "Run khuym:planning for Phase 3 with validation before implementation."
   }
 }

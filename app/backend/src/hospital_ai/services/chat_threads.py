@@ -20,6 +20,7 @@ from hospital_ai.schemas.chat_threads import (
 )
 from hospital_ai.services.audit import AuditService
 from hospital_ai.services.chat import ChatService
+from hospital_ai.services.general_knowledge import GeneralKnowledgeService
 from hospital_ai.services.permissions import PermissionService, active_patient_permission_exists
 
 
@@ -470,8 +471,19 @@ class ChatThreadService:
             trace_id=trace_id,
             ip_address=ip_address,
         )
+
+        if thread.scope == "general":
+            return await self._ask_general_thread_message(
+                user=user,
+                thread=thread,
+                payload=payload,
+                settings=settings,
+                trace_id=trace_id,
+                ip_address=ip_address,
+            )
+
         if thread.scope != "patient-linked":
-            raise ValidationAppError("Thread message answers currently require a patient-linked thread.")
+            raise ValidationAppError("Unsupported chat thread scope.")
 
         now = datetime.now(timezone.utc)
         user_message = ChatMessage(
@@ -524,6 +536,76 @@ class ChatThreadService:
             trace_id=trace_id,
             ip_address=ip_address,
             metadata={"ai_query_id": str(response.query_id)},
+        )
+        await self.session.commit()
+        await self.session.refresh(user_message)
+        await self.session.refresh(assistant_message)
+        return user_message, assistant_message
+
+    async def _ask_general_thread_message(
+        self,
+        *,
+        user: User,
+        thread: ChatThread,
+        payload: ChatThreadMessageRequest,
+        settings: Settings,
+        trace_id: str,
+        ip_address: Optional[str],
+    ) -> tuple[ChatMessage, ChatMessage]:
+        now = datetime.now(timezone.utc)
+        user_message = ChatMessage(
+            thread_id=thread.id,
+            sender_user_id=user.id,
+            patient_id=None,
+            role="user",
+            scope="general",
+            content=payload.question,
+            patient_permission_state="not-required",
+            citations=[],
+            meta={"top_k": payload.top_k},
+            trace_id=trace_id,
+            created_at=now,
+        )
+        self.session.add(user_message)
+        await self.session.flush()
+
+        response = await GeneralKnowledgeService(settings).answer(
+            question=payload.question,
+            top_k=payload.top_k,
+        )
+        assistant_message = ChatMessage(
+            thread_id=thread.id,
+            ai_query_id=None,
+            patient_id=None,
+            role="assistant",
+            scope="general",
+            content=response.answer,
+            patient_permission_state="not-required",
+            citations=[json.loads(citation.json()) for citation in response.citations],
+            meta={
+                "confidence": response.confidence,
+                "disclaimer": response.disclaimer,
+                "source_scope": "general-hospital-knowledge",
+            },
+            trace_id=trace_id,
+            created_at=datetime.now(timezone.utc),
+        )
+        thread.last_message_at = assistant_message.created_at
+        self.session.add(assistant_message)
+        await AuditService(self.session).record(
+            actor_user_id=user.id,
+            action="chat_thread.message.create",
+            object_type="chat_thread",
+            object_id=thread.id,
+            patient_id=None,
+            outcome="allowed",
+            trace_id=trace_id,
+            ip_address=ip_address,
+            metadata={
+                "result": "general_knowledge",
+                "evidence_count": len(response.citations),
+                "source_scope": "general-hospital-knowledge",
+            },
         )
         await self.session.commit()
         await self.session.refresh(user_message)

@@ -3,7 +3,35 @@
 **Feature:** kotaemon-chat-assistant-ui
 **Date:** 2026-04-28
 **Skill:** khuym:planning
-**Status:** Phase 1 discovery complete with degraded graph tooling
+**Status:** Phase 1 and Phase 2 execution complete with degraded gkg/bd tooling
+
+## Completion Planning Refresh - 2026-04-28
+
+This discovery file originally supported Phase 1 planning. It has been refreshed for completion planning from the current repo state.
+
+### Current shipped or implemented capabilities
+
+| Area | Current state | Planning impact |
+|---|---|---|
+| Chat-first frontend shell | Implemented under `app/frontend/src/components/chat` and rendered from the root route | Keep the Kotaemon-first shell; do not restart from the old dashboard direction. |
+| Active workspace model | `AssistantShell` owns active persisted thread, patient context, composer state, and evidence source derivation | Later phases should preserve one parent-owned active state model. |
+| Frontend backend adapter | `app/frontend/src/lib/chat-assistant/api.ts` maps persisted backend threads, messages, participants, citations, and evidence | Later UI work should reuse this adapter instead of inventing a second API layer. |
+| Backend chat threads | `app/backend/src/hospital_ai/api/routes/chat_threads.py` and `services/chat_threads.py` support thread CRUD, messages, participants, audit, and permission guards | Phase 2 backend persistence is no longer a blank gap; the remaining gap is frontend live wiring and general-mode support. |
+| Patient-linked thread messages | Patient-linked thread message creation calls `ChatService.answer`, persists user and assistant messages, links `ai_query_id`, stores citations, and updates `last_message_at` | Patient-linked live submit is wired through the frontend shell. |
+| General thread messages | `ChatThreadService.ask_thread_message` answers general threads through approved non-PHI sources | General chat is implemented; source expansion remains future work. |
+| HMS integration | HMS remains only a domain/data reference and no connected import/API path exists here | A later phase must choose one supported HMS data family and preserve permission/evidence traceability. |
+
+### Tooling refresh
+
+`gkg index D:\projects\chatbot-hospital-system` and `gkg server start` were attempted during this planning pass, but `gkg` is not on PATH. `br.exe` exists but `br ready --json` fails with `JSON_ERROR` because the Beads store expects a missing `jsonl_export` field. `bv --robot-next --graph-root br-dyy` works and reports no actionable items available. `npx.cmd bd ready --json` and `npx.cmd gitnexus status` did not resolve their underlying binaries in this shell.
+
+Completion planning therefore used direct file inspection and checked-in Khuym state as the discovery source. Bead creation remains blocked until the Beads CLI path/store issue is fixed or a deliberate `bd`/`br` migration is performed.
+
+### Completion gaps found
+
+1. HMS-derived data is not connected to the chatbot backend.
+2. Final Khuym review, UAT, browser evidence for seeded live data, and release docs are not done.
+3. Production auth/session handling remains separate from the current dev bearer-token flow.
 
 ## Institutional Learnings
 

@@ -12,7 +12,7 @@ export function ChatTranscript({ activeThread }: { activeThread: ConversationThr
         ) : null}
 
         {activeThread && activeThread.messages.length === 0 ? (
-          <EmptyThreadNotice title={activeThread.title} body="This shared-thread sample has no messages yet." />
+          <EmptyThreadNotice title={activeThread.title} body="This persisted backend thread has no messages yet." />
         ) : null}
 
         {activeThread?.messages.map((message) => {
@@ -63,8 +63,8 @@ export function ChatTranscript({ activeThread }: { activeThread: ConversationThr
             Patient-linked evidence remains gated
           </div>
           <p className="text-sm leading-6 text-[#f5b4b4]">
-            Patient context can be selected in later story beads, but denied or pending permission states must not show
-            patient evidence or citations.
+            Patient context can be selected for patient-linked backend threads, but denied or pending permission states
+            must not show patient evidence or citations.
           </p>
         </article>
       </div>

@@ -9,13 +9,21 @@ import type { ConversationThread } from "@/lib/chat-assistant";
 export function ConversationSidebar({
   activeThread,
   activeThreadId,
-  onSelectFirstThread,
+  isCreatingThread,
+  onArchiveThread,
+  onCreateThread,
+  onRenameThread,
+  onShareThread,
   onSelectThread,
   threads,
 }: {
   activeThread: ConversationThread | undefined;
   activeThreadId: string;
-  onSelectFirstThread: () => void;
+  isCreatingThread: boolean;
+  onArchiveThread: () => void;
+  onCreateThread: () => void;
+  onRenameThread: () => void;
+  onShareThread: () => void;
   onSelectThread: (threadId: string) => void;
   threads: ConversationThread[];
 }) {
@@ -37,10 +45,10 @@ export function ConversationSidebar({
       </div>
 
       <div className="border-b border-white/10 p-3">
-        <Button className="w-full justify-between" type="button" onClick={onSelectFirstThread}>
+        <Button className="w-full justify-between" disabled={isCreatingThread} type="button" onClick={onCreateThread}>
           <span className="inline-flex items-center gap-2">
             <MessageSquarePlus className="size-4" />
-            New conversation
+            {isCreatingThread ? "Creating..." : "New conversation"}
           </span>
           <ChevronDown className="size-4 opacity-70" />
         </Button>
@@ -71,7 +79,10 @@ export function ConversationSidebar({
 
       <ThreadShareControls
         activeThread={activeThread}
-        onSelectFirstThread={onSelectFirstThread}
+        onArchiveThread={onArchiveThread}
+        onCreateThread={onCreateThread}
+        onRenameThread={onRenameThread}
+        onShareThread={onShareThread}
       />
     </aside>
   );

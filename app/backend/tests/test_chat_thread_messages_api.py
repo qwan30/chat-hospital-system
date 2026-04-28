@@ -188,3 +188,84 @@ async def test_revoked_patient_permission_blocks_thread_message_before_query(ses
         )
     )
     assert audit_result.scalar_one() is not None
+
+
+@pytest.mark.asyncio
+async def test_general_thread_message_uses_approved_non_phi_knowledge(session_and_settings):
+    session, settings = session_and_settings
+    doctor = await session.get(User, DOCTOR_ID)
+    thread = await create_thread(
+        payload=ChatThreadCreate(title="General transfer policy", scope="general"),
+        request=_request(),
+        session=session,
+        current_user=doctor,
+    )
+
+    response = await ask_thread_message(
+        thread_id=thread.id,
+        payload=ChatThreadMessageRequest(question="What approval is needed for a ward transfer?", top_k=5),
+        request=_request(),
+        session=session,
+        current_user=doctor,
+        settings=settings,
+    )
+
+    assert response.user_message.scope == "general"
+    assert response.user_message.patient_id is None
+    assert response.user_message.patient_permission_state == "not-required"
+    assert response.assistant_message.scope == "general"
+    assert response.assistant_message.patient_id is None
+    assert response.assistant_message.patient_permission_state == "not-required"
+    assert [citation.evidence_id for citation in response.assistant_message.citations] == ["E1"]
+    assert response.assistant_message.citations[0].metadata["approved_non_phi"] is True
+    assert response.assistant_message.citations[0].metadata["contains_phi"] is False
+
+    query_count = await session.scalar(select(func.count()).select_from(AiQuery))
+    assert query_count == 0
+
+    audit_result = await session.execute(
+        select(AuditLog).where(
+            AuditLog.action == "chat_thread.message.create",
+            AuditLog.object_id == thread.id,
+            AuditLog.patient_id.is_(None),
+            AuditLog.outcome == "allowed",
+        )
+    )
+    assert audit_result.scalar_one().meta["source_scope"] == "general-hospital-knowledge"
+
+
+@pytest.mark.asyncio
+async def test_general_thread_message_cannot_leak_patient_chunks(session_and_settings):
+    session, settings = session_and_settings
+    doctor = await session.get(User, DOCTOR_ID)
+    await create_indexed_document(
+        session,
+        patient_id=PATIENT_ALICE_ID,
+        uploaded_by=DOCTOR_ID,
+        title="Alice confidential allergy note",
+        content="Alice has a documented allergy to penicillin.",
+    )
+    thread = await create_thread(
+        payload=ChatThreadCreate(title="General no patient data", scope="general"),
+        request=_request(),
+        session=session,
+        current_user=doctor,
+    )
+
+    response = await ask_thread_message(
+        thread_id=thread.id,
+        payload=ChatThreadMessageRequest(question="What allergy is documented for Alice?", top_k=5),
+        request=_request(),
+        session=session,
+        current_user=doctor,
+        settings=settings,
+    )
+
+    assert response.assistant_message.patient_id is None
+    assert response.assistant_message.citations == []
+    assert "approved general hospital knowledge" in response.assistant_message.content
+
+    message_count = await session.scalar(select(func.count()).select_from(ChatMessage))
+    query_count = await session.scalar(select(func.count()).select_from(AiQuery))
+    assert message_count == 2
+    assert query_count == 0

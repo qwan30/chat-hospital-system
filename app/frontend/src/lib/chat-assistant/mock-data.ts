@@ -26,6 +26,13 @@ export const verifiedBackendProvenance: DataProvenance = {
   note: "The current backend supports patient-scoped chat only after permission validation.",
 };
 
+export const generalKnowledgeBackendProvenance: DataProvenance = {
+  status: "verified-backend",
+  visibleLabel: "Backend verified",
+  sourceLabel: "Approved general knowledge API",
+  note: "General knowledge answers use approved non-PHI backend sources and do not require patient context.",
+};
+
 export const samplePatientContexts: PatientContext[] = [
   {
     id: "general-knowledge",
@@ -34,7 +41,7 @@ export const samplePatientContexts: PatientContext[] = [
     displayLabel: "General hospital knowledge",
     permissionState: "not-required",
     permissionLabel: "No patient selected",
-    provenance: documentedGapProvenance,
+    provenance: generalKnowledgeBackendProvenance,
   },
   {
     id: "patient-pending-sample",
@@ -46,21 +53,21 @@ export const samplePatientContexts: PatientContext[] = [
     provenance: localSampleProvenance,
   },
   {
-    id: "patient-allowed-sample",
+    id: "20000000-0000-0000-0000-000000000001",
     scope: "patient-linked",
-    patientId: "44444444-4444-4444-8444-444444444444",
-    displayLabel: "Synthetic allowed context",
+    patientId: "20000000-0000-0000-0000-000000000001",
+    displayLabel: "Alice synthetic patient",
     permissionState: "allowed",
-    permissionLabel: "Permission allowed",
+    permissionLabel: "Dev doctor read allowed",
     provenance: localSampleProvenance,
   },
   {
-    id: "patient-denied-sample",
+    id: "20000000-0000-0000-0000-000000000002",
     scope: "patient-linked",
-    patientId: "22222222-2222-4222-8222-222222222222",
-    displayLabel: "Synthetic denied context",
+    patientId: "20000000-0000-0000-0000-000000000002",
+    displayLabel: "Bob synthetic patient",
     permissionState: "denied",
-    permissionLabel: "Permission denied",
+    permissionLabel: "Dev doctor read denied",
     provenance: localSampleProvenance,
   },
 ];
@@ -137,10 +144,12 @@ export const sampleWorkspaceState: ChatAssistantWorkspaceState = {
       id: "thread-local-policy",
       title: "Ward transfer policy",
       description: "General knowledge sample, not persisted",
+      scope: "general-knowledge",
       active: true,
       sharedState: "local-only",
       updatedAt: "2026-04-28T06:00:00.000Z",
       patientContextId: null,
+      participants: [],
       provenance: localSampleProvenance,
       messages: [
         {
@@ -196,10 +205,12 @@ export const sampleWorkspaceState: ChatAssistantWorkspaceState = {
       id: "thread-local-permission",
       title: "Patient context review",
       description: "Permission-state sample, not persisted",
+      scope: "patient-linked",
       active: false,
       sharedState: "sample-shared",
       updatedAt: "2026-04-28T05:45:00.000Z",
       patientContextId: "patient-pending-sample",
+      participants: [],
       provenance: localSampleProvenance,
       messages: [],
     },
@@ -207,10 +218,12 @@ export const sampleWorkspaceState: ChatAssistantWorkspaceState = {
       id: "thread-local-evidence",
       title: "Citation walkthrough",
       description: "Evidence preview sample, not persisted",
+      scope: "general-knowledge",
       active: false,
       sharedState: "local-only",
       updatedAt: "2026-04-28T05:30:00.000Z",
       patientContextId: null,
+      participants: [],
       provenance: localSampleProvenance,
       messages: [],
     },

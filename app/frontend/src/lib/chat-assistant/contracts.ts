@@ -74,18 +74,18 @@ export const chatAssistantContractInventory = [
   {
     id: "shared-conversation-threads",
     label: "Shared conversation threads",
-    status: "local-sample-only",
-    source: "No current backend thread/message contract",
+    status: "verified-backend",
+    source: "app/backend/src/hospital_ai/api/routes/chat_threads.py and schemas/chat_threads.py",
     implementationRule:
-      "Thread lists, sharing labels, and conversation history must be visibly marked local/sample until Phase 2 persistence exists.",
+      "Thread lists, messages, sharing labels, and participant actions must use /api/v1/chat-threads with bearer auth.",
   },
   {
     id: "general-hospital-knowledge",
     label: "General hospital knowledge chat",
-    status: "documented-gap",
-    source: "Current ChatRequest requires patient_id",
+    status: "verified-backend",
+    source: "app/backend/src/hospital_ai/services/general_knowledge.py",
     implementationRule:
-      "General-scope prompts may be represented as UI state only; do not call them backend-backed or show real citations until an API contract exists.",
+      "General-scope prompts must go through persisted general chat threads and may cite only approved non-PHI knowledge sources.",
   },
   {
     id: "hms-integration-data",
@@ -100,8 +100,8 @@ export const chatAssistantContractInventory = [
 export const chatAssistantUiBoundaries = [
   {
     permissionState: "not-required",
-    dataStatus: "documented-gap",
-    label: "General knowledge mode: UI-only until a general chat API exists.",
+    dataStatus: "verified-backend",
+    label: "General knowledge mode: backend-approved non-PHI retrieval does not require patient context.",
   },
   {
     permissionState: "pending",

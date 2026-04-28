@@ -1,6 +1,7 @@
 import type {
   AssistantMessage,
   ChatScope,
+  ConversationParticipant,
   ConversationThread,
   DataProvenance,
   EvidenceSource,
@@ -36,6 +37,11 @@ export type BackendChatResponse = {
 
 export type BackendChatArtifacts = {
   message: AssistantMessage;
+  evidenceSources: EvidenceSource[];
+};
+
+export type BackendThreadWorkspaceArtifacts = {
+  thread: ConversationThread;
   evidenceSources: EvidenceSource[];
 };
 
@@ -142,11 +148,29 @@ export type ChatSubmitReadiness =
   | { ready: true; request: BackendChatRequest }
   | { ready: false; reason: string; scope: ChatScope };
 
+export type ThreadMessageSubmitReadiness =
+  | { ready: true; request: BackendThreadMessageRequest }
+  | { ready: false; reason: string; scope: ChatScope };
+
 const backendVerifiedProvenance: DataProvenance = {
   status: "verified-backend",
   visibleLabel: "Backend verified",
   sourceLabel: "Patient-scoped chat API",
   note: "Current backend route accepts patient_id, question, and top_k after permission validation.",
+};
+
+const backendThreadProvenance: DataProvenance = {
+  status: "verified-backend",
+  visibleLabel: "Backend persisted",
+  sourceLabel: "Persisted chat thread API",
+  note: "Thread list, messages, and sharing state are loaded from the backend chat-thread API.",
+};
+
+const generalKnowledgeProvenance: DataProvenance = {
+  status: "verified-backend",
+  visibleLabel: "Backend verified",
+  sourceLabel: "Approved general knowledge API",
+  note: "General answers use backend-approved non-PHI knowledge sources and do not require patient context.",
 };
 
 export function prepareVerifiedBackendChatRequest(
@@ -248,27 +272,55 @@ export function mapBackendChatResponseToChatArtifacts(
 export function mapBackendChatThreadToConversationThread(
   thread: BackendChatThread,
   messages: BackendChatMessage[] = [],
+  participants: BackendChatParticipant[] = [],
 ): ConversationThread {
+  const scope = mapBackendThreadScope(thread.scope);
+  const participantCount = participants.length;
+
   return {
     id: thread.id,
     title: thread.title,
     description:
       thread.scope === "patient-linked"
         ? "Persisted patient-linked backend thread"
-        : "Persisted general backend thread",
+        : "Persisted general hospital knowledge thread",
+    scope,
     active: thread.status === "active",
     sharedState: "backend-persisted",
     updatedAt: thread.last_message_at ?? thread.updated_at,
     messages: messages.map(mapBackendChatMessageToAssistantMessage),
     patientContextId: thread.patient_id,
-    provenance: backendVerifiedProvenance,
+    participants: participants.map(mapBackendParticipantToConversationParticipant),
+    provenance: {
+      ...backendThreadProvenance,
+      note:
+        participantCount > 0
+          ? `${backendThreadProvenance.note} Participants loaded: ${participantCount}.`
+          : backendThreadProvenance.note,
+    },
   };
 }
 
 export function mapBackendChatThreadDetailToConversationThread(
   detail: BackendChatThreadDetail,
 ): ConversationThread {
-  return mapBackendChatThreadToConversationThread(detail, detail.messages);
+  return mapBackendChatThreadToConversationThread(detail, detail.messages, detail.participants);
+}
+
+export function mapBackendChatThreadDetailToWorkspaceArtifacts(
+  detail: BackendChatThreadDetail,
+): BackendThreadWorkspaceArtifacts {
+  const messageArtifacts = detail.messages.map(mapBackendChatMessageToChatArtifacts);
+  const evidenceSources = dedupeEvidenceSources(messageArtifacts.flatMap((artifact) => artifact.evidenceSources));
+  const thread = mapBackendChatThreadToConversationThread(detail, [], detail.participants);
+
+  return {
+    evidenceSources,
+    thread: {
+      ...thread,
+      messages: messageArtifacts.map((artifact) => artifact.message),
+    },
+  };
 }
 
 export function mapBackendChatMessageToChatArtifacts(message: BackendChatMessage): BackendChatArtifacts {
@@ -285,7 +337,7 @@ export function mapBackendChatMessageToChatArtifacts(message: BackendChatMessage
       patientContextId: message.patient_id,
       confidence: normalizeConfidence(String(message.metadata.confidence ?? "unknown")),
       disclaimer: typeof message.metadata.disclaimer === "string" ? message.metadata.disclaimer : null,
-      provenance: backendVerifiedProvenance,
+      provenance: message.scope === "general" ? generalKnowledgeProvenance : backendVerifiedProvenance,
       citations: evidenceSources.map(mapEvidenceSourceToCitation),
     },
   };
@@ -348,6 +400,95 @@ export function askBackendThreadMessage(
   });
 }
 
+export function prepareBackendThreadMessageRequest(
+  thread: ConversationThread | undefined,
+  context: PatientContext | undefined,
+  question: string,
+  topK = 5,
+): ThreadMessageSubmitReadiness {
+  const normalizedQuestion = question.trim();
+  if (!thread) {
+    return {
+      ready: false,
+      reason: "Create or select a persisted backend thread before submitting a question.",
+      scope: context?.scope ?? "general-knowledge",
+    };
+  }
+
+  if (!thread.active) {
+    return {
+      ready: false,
+      reason: "Archived chat threads cannot accept new questions.",
+      scope: thread.scope,
+    };
+  }
+
+  if (!normalizedQuestion) {
+    return {
+      ready: false,
+      reason: "Question must include non-whitespace text before chat submission.",
+      scope: thread.scope,
+    };
+  }
+
+  if (!Number.isInteger(topK) || topK < 1 || topK > 20) {
+    return {
+      ready: false,
+      reason: "topK must be an integer between 1 and 20 before chat submission.",
+      scope: thread.scope,
+    };
+  }
+
+  if (thread.scope === "general-knowledge") {
+    return {
+      ready: true,
+      request: {
+        question: normalizedQuestion,
+        top_k: topK,
+      },
+    };
+  }
+
+  if (!context || context.scope !== "patient-linked") {
+    return {
+      ready: false,
+      reason: "Patient-linked thread submission requires the matching patient context.",
+      scope: "patient-linked",
+    };
+  }
+
+  if (context.permissionState !== "allowed") {
+    const permissionReason =
+      context.permissionState === "pending"
+        ? "Patient-linked chat is blocked while permission validation is pending."
+        : context.permissionState === "denied"
+          ? "Patient-linked chat is blocked because permission was denied."
+          : "Patient-linked chat requires allowed permission before sending patient_id.";
+
+    return {
+      ready: false,
+      reason: permissionReason,
+      scope: context.scope,
+    };
+  }
+
+  if (!context.patientId || context.patientId !== thread.patientContextId) {
+    return {
+      ready: false,
+      reason: "Patient-linked chat requires the selected patient context to match the backend thread patient_id.",
+      scope: context.scope,
+    };
+  }
+
+  return {
+    ready: true,
+    request: {
+      question: normalizedQuestion,
+      top_k: topK,
+    },
+  };
+}
+
 export async function listBackendThreadMessages(
   threadId: UUIDString,
   config: BackendThreadApiConfig = {},
@@ -404,6 +545,9 @@ export function removeBackendThreadParticipant(
 }
 
 function mapBackendCitationToEvidenceSource(citation: BackendChatCitation): EvidenceSource {
+  const provenance =
+    citation.metadata.approved_non_phi === true ? generalKnowledgeProvenance : backendVerifiedProvenance;
+
   return {
     id: citation.evidence_id,
     documentId: citation.document_id,
@@ -414,7 +558,7 @@ function mapBackendCitationToEvidenceSource(citation: BackendChatCitation): Evid
     score: citation.score,
     availability: "available",
     metadata: citation.metadata,
-    provenance: backendVerifiedProvenance,
+    provenance,
   };
 }
 
@@ -437,9 +581,22 @@ async function requestBackendJson<T>(
     headers,
   });
   if (!response.ok) {
-    throw new Error(`Hospital assistant API request failed with status ${response.status}.`);
+    throw new Error(await describeBackendError(response));
   }
   return (await response.json()) as T;
+}
+
+async function describeBackendError(response: Response): Promise<string> {
+  try {
+    const payload = (await response.json()) as { message?: string; detail?: string };
+    const detail = payload.message ?? payload.detail;
+    if (detail) {
+      return `Hospital assistant API request failed with status ${response.status}: ${detail}`;
+    }
+  } catch {
+    // Fall through to the status-only message.
+  }
+  return `Hospital assistant API request failed with status ${response.status}.`;
 }
 
 function normalizeBaseUrl(baseUrl: string | undefined): string {
@@ -457,14 +614,34 @@ function mapBackendMessageRole(role: BackendMessageRole): AssistantMessage["role
   return "staff";
 }
 
+function mapBackendParticipantToConversationParticipant(
+  participant: BackendChatParticipant,
+): ConversationParticipant {
+  return {
+    id: participant.id,
+    userId: participant.user_id,
+    accessLevel: participant.access_level,
+    canShare: participant.can_share,
+    lastReadAt: participant.last_read_at,
+  };
+}
+
 function mapEvidenceSourceToCitation(source: EvidenceSource): SourceCitation {
   return {
     id: source.id,
     label: source.page ? `${source.title} p. ${source.page}` : source.title,
     evidenceSourceId: source.id,
     availability: source.availability,
-    provenance: backendVerifiedProvenance,
+    provenance: source.provenance,
   };
+}
+
+function dedupeEvidenceSources(sources: EvidenceSource[]): EvidenceSource[] {
+  const seen = new Map<string, EvidenceSource>();
+  for (const source of sources) {
+    seen.set(source.id, source);
+  }
+  return Array.from(seen.values());
 }
 
 function normalizeConfidence(confidence: string): AssistantMessage["confidence"] {

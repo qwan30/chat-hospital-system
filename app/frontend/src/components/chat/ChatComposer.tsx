@@ -1,19 +1,19 @@
 import { useState, type FormEvent } from "react";
 import { ArrowUp, Search, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import type { BackendChatRequest, ChatSubmitReadiness, PatientContext } from "@/lib/chat-assistant";
+import type { BackendThreadMessageRequest, ThreadMessageSubmitReadiness, PatientContext } from "@/lib/chat-assistant";
 
 export type ComposerSubmitState =
   | { status: "idle"; message: string }
   | { status: "blocked"; message: string }
   | { status: "loading"; message: string }
-  | { status: "ready"; message: string; request: BackendChatRequest }
+  | { status: "ready"; message: string; request: BackendThreadMessageRequest }
   | { status: "error"; message: string };
 
 type ChatComposerProps = {
   activeContext: PatientContext | undefined;
   isSubmitting: boolean;
-  onSubmitQuestion: (question: string) => ChatSubmitReadiness;
+  onSubmitQuestion: (question: string) => ThreadMessageSubmitReadiness;
   submitState: ComposerSubmitState;
 };
 

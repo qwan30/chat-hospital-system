@@ -1,31 +1,80 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { RefreshCw } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { ChatComposer, type ComposerSubmitState } from "@/components/chat/ChatComposer";
 import { ChatTranscript } from "@/components/chat/ChatTranscript";
 import { ConversationSidebar } from "@/components/chat/ConversationSidebar";
 import { EvidencePanel } from "@/components/chat/EvidencePanel";
 import { PatientContextGate } from "@/components/chat/PatientContextGate";
-import { prepareVerifiedBackendChatRequest, sampleWorkspaceState, type ChatSubmitReadiness } from "@/lib/chat-assistant";
+import {
+  addBackendThreadParticipant,
+  archiveBackendChatThread,
+  askBackendThreadMessage,
+  createBackendChatThread,
+  getBackendChatThread,
+  listBackendChatThreads,
+  mapBackendChatThreadDetailToWorkspaceArtifacts,
+  prepareBackendThreadMessageRequest,
+  sampleWorkspaceState,
+  updateBackendChatThread,
+  type BackendThreadApiConfig,
+  type ChatAssistantWorkspaceState,
+  type ConversationThread,
+  type EvidenceSource,
+  type ThreadMessageSubmitReadiness,
+} from "@/lib/chat-assistant";
+
+const TOKEN_STORAGE_KEY = "hospital-ai.devToken";
+const DEFAULT_API_BASE_URL = process.env.NEXT_PUBLIC_HOSPITAL_AI_API_BASE_URL ?? "http://localhost:8000";
+const DEFAULT_DEV_TOKEN = process.env.NEXT_PUBLIC_HOSPITAL_AI_DEV_TOKEN ?? "";
+
+type WorkspaceLoadState =
+  | { status: "config-required"; message: string }
+  | { status: "loading"; message: string }
+  | { status: "ready"; message: string }
+  | { status: "empty"; message: string }
+  | { status: "error"; message: string };
 
 export function AssistantShell() {
-  const [activeThreadId, setActiveThreadId] = useState(sampleWorkspaceState.activeThreadId);
+  const [apiBaseUrl, setApiBaseUrl] = useState(DEFAULT_API_BASE_URL);
+  const [apiToken, setApiToken] = useState(readInitialToken);
+  const [threads, setThreads] = useState<ConversationThread[]>([]);
+  const [evidenceSources, setEvidenceSources] = useState<EvidenceSource[]>([]);
+  const [activeThreadId, setActiveThreadId] = useState("");
   const [activePatientContextId, setActivePatientContextId] = useState(sampleWorkspaceState.activePatientContextId);
+  const [workspaceState, setWorkspaceState] = useState<WorkspaceLoadState>(
+    apiToken.trim()
+      ? { status: "loading", message: "Loading persisted backend threads." }
+      : { status: "config-required", message: "Enter a backend bearer token before loading persisted threads." },
+  );
+  const [isCreatingThread, setIsCreatingThread] = useState(false);
   const [composerSubmitState, setComposerSubmitState] = useState<ComposerSubmitState>({
     status: "idle",
-    message: "Submit a question to validate whether the selected scope can use the patient chat backend.",
+    message: "Create or select a persisted backend thread before asking a question.",
   });
 
+  const patientContexts = sampleWorkspaceState.patientContexts;
+  const apiConfig = useMemo<BackendThreadApiConfig>(
+    () => ({
+      baseUrl: apiBaseUrl.trim(),
+      token: apiToken.trim(),
+    }),
+    [apiBaseUrl, apiToken],
+  );
+
   const activeThread = useMemo(
-    () => sampleWorkspaceState.threads.find((thread) => thread.id === activeThreadId) ?? sampleWorkspaceState.threads[0],
-    [activeThreadId],
+    () => threads.find((thread) => thread.id === activeThreadId),
+    [activeThreadId, threads],
   );
   const activePatientContext = useMemo(
     () =>
-      sampleWorkspaceState.patientContexts.find((context) => context.id === activePatientContextId) ??
-      sampleWorkspaceState.patientContexts[0],
-    [activePatientContextId],
+      patientContexts.find((context) => context.id === activePatientContextId) ??
+      patientContexts.find((context) => context.id === "general-knowledge") ??
+      patientContexts[0],
+    [activePatientContextId, patientContexts],
   );
   const activeEvidenceSources = useMemo(() => {
     if (!activeThread) {
@@ -36,47 +85,221 @@ export function AssistantShell() {
       activeThread.messages.flatMap((message) => message.citations.map((citation) => citation.evidenceSourceId)),
     );
 
-    return sampleWorkspaceState.evidenceSources.filter((source) => citationSourceIds.has(source.id));
-  }, [activeThread]);
+    return evidenceSources.filter((source) => citationSourceIds.has(source.id));
+  }, [activeThread, evidenceSources]);
+
+  const loadWorkspace = useCallback(
+    async (preferredThreadId?: string) => {
+      if (!apiConfig.token) {
+        setThreads([]);
+        setEvidenceSources([]);
+        setActiveThreadId("");
+        setWorkspaceState({
+          status: "config-required",
+          message: "Enter a backend bearer token before loading persisted threads.",
+        });
+        return;
+      }
+
+      setWorkspaceState({ status: "loading", message: "Loading persisted backend threads." });
+      try {
+        const summaries = await listBackendChatThreads(apiConfig);
+        const details = await Promise.all(summaries.map((thread) => getBackendChatThread(thread.id, apiConfig)));
+        const artifacts = details.map(mapBackendChatThreadDetailToWorkspaceArtifacts);
+        const nextThreads = artifacts.map((artifact) => artifact.thread);
+        const nextEvidenceSources = dedupeEvidenceSources(
+          artifacts.flatMap((artifact) => artifact.evidenceSources),
+        );
+        const preferred =
+          (preferredThreadId ? nextThreads.find((thread) => thread.id === preferredThreadId) : undefined) ??
+          nextThreads.find((thread) => thread.id === activeThreadId) ??
+          nextThreads[0];
+
+        setThreads(nextThreads);
+        setEvidenceSources(nextEvidenceSources);
+        setActiveThreadId(preferred?.id ?? "");
+        setActivePatientContextId(preferred?.patientContextId ?? "general-knowledge");
+        setWorkspaceState(
+          nextThreads.length > 0
+            ? { status: "ready", message: `Loaded ${nextThreads.length} persisted backend thread(s).` }
+            : { status: "empty", message: "No persisted backend threads yet. Create a conversation to begin." },
+        );
+      } catch (error) {
+        setWorkspaceState({
+          status: "error",
+          message: error instanceof Error ? error.message : "Unable to load persisted backend threads.",
+        });
+      }
+    },
+    [activeThreadId, apiConfig],
+  );
+
+  useEffect(() => {
+    const timerId = window.setTimeout(() => {
+      void loadWorkspace();
+    }, 0);
+    return () => window.clearTimeout(timerId);
+  }, [loadWorkspace]);
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem(TOKEN_STORAGE_KEY, apiToken);
+    }
+  }, [apiToken]);
 
   function handleSelectThread(threadId: string) {
-    const nextThread = sampleWorkspaceState.threads.find((thread) => thread.id === threadId);
+    const nextThread = threads.find((thread) => thread.id === threadId);
 
     if (!nextThread) {
       return;
     }
 
     setActiveThreadId(nextThread.id);
-    setActivePatientContextId(nextThread.patientContextId ?? sampleWorkspaceState.activePatientContextId);
+    setActivePatientContextId(nextThread.patientContextId ?? "general-knowledge");
   }
 
-  function handleSelectFirstThread() {
-    handleSelectThread(sampleWorkspaceState.activeThreadId);
-  }
-
-  function handleSubmitQuestion(question: string): ChatSubmitReadiness {
+  async function handleCreateThread() {
     if (!activePatientContext) {
-      const readiness: ChatSubmitReadiness = {
-        ready: false,
-        reason: "Select a chat scope before submitting a question.",
-        scope: "general-knowledge",
-      };
-
-      setComposerSubmitState({ status: "error", message: readiness.reason });
-      return readiness;
+      setComposerSubmitState({ status: "error", message: "Select a scope before creating a thread." });
+      return;
     }
 
-    const readiness = prepareVerifiedBackendChatRequest(activePatientContext, question);
+    const isPatientLinked = activePatientContext.scope === "patient-linked";
+    if (isPatientLinked && activePatientContext.permissionState !== "allowed") {
+      setComposerSubmitState({
+        status: "blocked",
+        message: "Patient-linked threads require allowed permission before creation.",
+      });
+      return;
+    }
+
+    setIsCreatingThread(true);
+    try {
+      const created = await createBackendChatThread(
+        {
+          title: isPatientLinked ? `${activePatientContext.displayLabel} question` : "General hospital question",
+          scope: isPatientLinked ? "patient-linked" : "general",
+          patient_id: isPatientLinked ? activePatientContext.patientId : null,
+          visibility: "private",
+        },
+        apiConfig,
+      );
+      setComposerSubmitState({
+        status: "idle",
+        message: "Created persisted backend thread. Submit a question to save the first message.",
+      });
+      await loadWorkspace(created.id);
+    } catch (error) {
+      setComposerSubmitState({
+        status: "error",
+        message: error instanceof Error ? error.message : "Unable to create persisted backend thread.",
+      });
+    } finally {
+      setIsCreatingThread(false);
+    }
+  }
+
+  async function handleRenameThread() {
+    if (!activeThread) {
+      return;
+    }
+
+    const nextTitle = window.prompt("Rename conversation", activeThread.title)?.trim();
+    if (!nextTitle || nextTitle === activeThread.title) {
+      return;
+    }
+
+    try {
+      await updateBackendChatThread(activeThread.id, { title: nextTitle }, apiConfig);
+      await loadWorkspace(activeThread.id);
+    } catch (error) {
+      setComposerSubmitState({
+        status: "error",
+        message: error instanceof Error ? error.message : "Unable to rename persisted backend thread.",
+      });
+    }
+  }
+
+  async function handleArchiveThread() {
+    if (!activeThread || !window.confirm(`Archive "${activeThread.title}"?`)) {
+      return;
+    }
+
+    try {
+      await archiveBackendChatThread(activeThread.id, apiConfig);
+      await loadWorkspace();
+    } catch (error) {
+      setComposerSubmitState({
+        status: "error",
+        message: error instanceof Error ? error.message : "Unable to archive persisted backend thread.",
+      });
+    }
+  }
+
+  async function handleShareThread() {
+    if (!activeThread) {
+      return;
+    }
+
+    const userId = window.prompt("User UUID to share with")?.trim();
+    if (!userId) {
+      return;
+    }
+
+    try {
+      await addBackendThreadParticipant(
+        activeThread.id,
+        {
+          user_id: userId,
+          access_level: "read",
+          can_share: false,
+        },
+        apiConfig,
+      );
+      await loadWorkspace(activeThread.id);
+    } catch (error) {
+      setComposerSubmitState({
+        status: "error",
+        message: error instanceof Error ? error.message : "Unable to share persisted backend thread.",
+      });
+    }
+  }
+
+  function handleSubmitQuestion(question: string): ThreadMessageSubmitReadiness {
+    const readiness = prepareBackendThreadMessageRequest(activeThread, activePatientContext, question);
     if (!readiness.ready) {
       setComposerSubmitState({ status: "blocked", message: readiness.reason });
       return readiness;
     }
 
-    setComposerSubmitState({
-      status: "ready",
-      message: "Backend-ready patient chat request prepared. API submission remains deferred until live wiring.",
-      request: readiness.request,
-    });
+    if (!activeThread) {
+      const blocked: ThreadMessageSubmitReadiness = {
+        ready: false,
+        reason: "Create or select a persisted backend thread before submitting a question.",
+        scope: activePatientContext?.scope ?? "general-knowledge",
+      };
+      setComposerSubmitState({ status: "blocked", message: blocked.reason });
+      return blocked;
+    }
+
+    setComposerSubmitState({ status: "loading", message: "Saving question and backend answer to the active thread." });
+    void (async () => {
+      try {
+        await askBackendThreadMessage(activeThread.id, readiness.request, apiConfig);
+        await loadWorkspace(activeThread.id);
+        setComposerSubmitState({
+          status: "ready",
+          message: "Persisted backend answer saved to this thread.",
+          request: readiness.request,
+        });
+      } catch (error) {
+        setComposerSubmitState({
+          status: "error",
+          message: error instanceof Error ? error.message : "Unable to save backend thread message.",
+        });
+      }
+    })();
+
     return readiness;
   }
 
@@ -86,27 +309,65 @@ export function AssistantShell() {
         <ConversationSidebar
           activeThread={activeThread}
           activeThreadId={activeThreadId}
-          onSelectFirstThread={handleSelectFirstThread}
+          isCreatingThread={isCreatingThread}
+          onArchiveThread={handleArchiveThread}
+          onCreateThread={handleCreateThread}
+          onRenameThread={handleRenameThread}
           onSelectThread={handleSelectThread}
-          threads={sampleWorkspaceState.threads}
+          onShareThread={handleShareThread}
+          threads={threads}
         />
 
         <section className="order-1 flex min-h-[76dvh] min-w-0 flex-col bg-[#0f1011] lg:order-2 lg:min-h-dvh">
-          <header className="flex min-h-16 flex-col justify-center gap-3 border-b border-white/10 px-4 py-4 md:flex-row md:items-center md:justify-between md:px-5">
-            <div className="min-w-0">
-              <p className="text-xs font-medium uppercase text-[#8a8f98]">Kotaemon-style assistant</p>
-              <h1 className="text-lg font-semibold text-white">Ask hospital questions with cited evidence</h1>
+          <header className="flex min-h-16 flex-col justify-center gap-3 border-b border-white/10 px-4 py-4 md:px-5">
+            <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+              <div className="min-w-0">
+                <p className="text-xs font-medium uppercase text-[#8a8f98]">Kotaemon-style assistant</p>
+                <h1 className="text-lg font-semibold text-white">Ask hospital questions with cited evidence</h1>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <Badge>Persisted threads</Badge>
+                <Badge className="border-[#34d399]/30 text-[#34d399]">General knowledge backend</Badge>
+              </div>
             </div>
-            <div className="flex flex-wrap gap-2">
-              <Badge>General scope ready</Badge>
-              <Badge className="border-[#34d399]/30 text-[#34d399]">Patient gate visible</Badge>
+
+            <div className="grid gap-2 rounded-md border border-white/10 bg-[#08090a] p-3 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] md:items-center">
+              <label className="min-w-0 text-xs text-[#9ca3af]">
+                <span className="sr-only">Backend base URL</span>
+                <input
+                  className="h-9 w-full rounded-md border border-white/10 bg-white/[0.03] px-3 text-sm text-white outline-none placeholder:text-[#6f747d]"
+                  onChange={(event) => setApiBaseUrl(event.target.value)}
+                  placeholder="Backend base URL"
+                  value={apiBaseUrl}
+                />
+              </label>
+              <label className="min-w-0 text-xs text-[#9ca3af]">
+                <span className="sr-only">Bearer token</span>
+                <input
+                  className="h-9 w-full rounded-md border border-white/10 bg-white/[0.03] px-3 text-sm text-white outline-none placeholder:text-[#6f747d]"
+                  onChange={(event) => setApiToken(event.target.value)}
+                  placeholder="Bearer token, for example dev-doctor"
+                  type="password"
+                  value={apiToken}
+                />
+              </label>
+              <Button size="sm" variant="secondary" type="button" onClick={() => void loadWorkspace()}>
+                <RefreshCw className="size-4" />
+                Refresh
+              </Button>
+              <p
+                aria-live="polite"
+                className={`text-xs md:col-span-3 ${workspaceState.status === "error" ? "text-[#fca5a5]" : "text-[#9ca3af]"}`}
+              >
+                {workspaceState.message}
+              </p>
             </div>
           </header>
 
           <PatientContextGate
             activeContext={activePatientContext}
             activeContextId={activePatientContextId}
-            contexts={sampleWorkspaceState.patientContexts}
+            contexts={patientContexts}
             onSelectContext={setActivePatientContextId}
           />
           <ChatTranscript activeThread={activeThread} />
@@ -126,4 +387,19 @@ export function AssistantShell() {
       </div>
     </main>
   );
+}
+
+function readInitialToken(): string {
+  if (typeof window === "undefined") {
+    return DEFAULT_DEV_TOKEN;
+  }
+  return window.localStorage.getItem(TOKEN_STORAGE_KEY) ?? DEFAULT_DEV_TOKEN;
+}
+
+function dedupeEvidenceSources(sources: EvidenceSource[]): EvidenceSource[] {
+  const seen = new Map<string, EvidenceSource>();
+  for (const source of sources) {
+    seen.set(source.id, source);
+  }
+  return Array.from(seen.values());
 }

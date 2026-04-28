@@ -3,11 +3,11 @@
   "feature_slug": "kotaemon-chat-assistant-ui",
   "mode": "standard_feature",
   "active_skill": "khuym:executing",
-  "phase": "phase-2-shared-chat-persistence-progress",
-  "phase_number": 10,
+  "phase": "phase-1-and-2-executed",
+  "phase_number": 12,
   "epic_id": "br-dyy",
   "approved_gates": {
-    "context": false,
+    "context": true,
     "phase_plan": true,
     "execution": true,
     "review": false
@@ -39,43 +39,43 @@
     "br-mu0",
     "br-200"
   ],
-  "active_workers": [
-    {
-      "codex_nickname": "CodexExecute",
-      "agent_mail_name": "BrightReef",
-      "status": "paused-after-phase-2-progress",
-      "current_bead": null
-    }
+  "completed_phases": [
+    "Phase 1 - Wire persisted chat threads into the frontend",
+    "Phase 2 - Add safe general hospital knowledge chat"
   ],
+  "active_workers": [],
   "blockers": [
-    "gkg command is unavailable on PATH; GitNexus was used for analysis instead",
-    "br is installed but cannot read this workspace cleanly; use npx.cmd bd for Beads commands unless the Beads store is deliberately migrated",
-    "frontend shell still uses sample workspace state until auth/base-url/live backend wiring is implemented",
-    "general hospital knowledge chat endpoint remains deferred; verified backend chat remains patient-linked"
+    "gkg command is unavailable on PATH; direct file inspection was used",
+    "br ready --json fails with JSON_ERROR missing field jsonl_export",
+    "HMS integration remains unimplemented and must start with one selected data family",
+    "Final Khuym review, UAT, release docs, and P1 fix loop remain pending",
+    "Production auth/session handling is separate from the current dev bearer-token flow"
   ],
   "tooling": {
     "agent_mail_url": "http://127.0.0.1:8765/api/",
-    "agent_mail_status": "available",
+    "agent_mail_status": "not-used-this-turn-tools-not-exposed",
     "coordinator_agent_name": "DarkGate",
     "epic_topic": "epic-br-dyy",
-    "agent_mail_name": "BrightReef",
-    "beads_cli": "npx.cmd bd",
-    "gitnexus_latest_commit": "72cdbbc"
+    "beads_cli": "br-installed-but-ready-json-fails",
+    "gkg": "unavailable-on-path"
   },
   "validation_artifacts": [
-    "history/kotaemon-chat-assistant-ui/phase-1-validation.md",
-    "history/kotaemon-chat-assistant-ui/phase-1-build-verification.md",
-    "history/kotaemon-chat-assistant-ui/phase-1-browser-review.md",
-    "history/kotaemon-chat-assistant-ui/phase-1-artifact-verification.md",
-    ".khuym/HANDOFF.json"
+    "history/kotaemon-chat-assistant-ui/phase-plan.md",
+    "history/kotaemon-chat-assistant-ui/discovery.md",
+    "history/kotaemon-chat-assistant-ui/approach.md",
+    ".khuym/HANDOFF.json",
+    ".khuym/STATE.md",
+    ".khuym/state.json"
   ],
-  "latest_commits": [
-    "72cdbbc feat(br-200): add persisted thread frontend adapter",
-    "d62b5fc feat(br-mu0): add chat thread participant sharing",
-    "7a7c280 feat(br-qql): persist chat thread messages",
-    "3b93698 feat(br-22l): implement shared chat thread APIs",
-    "e81aa1f feat(br-gjf): define shared chat thread contract"
+  "latest_verification": [
+    "python -m pytest: 48 passed, 2 skipped",
+    "python -m compileall src tests: passed",
+    "npm run test:workspace: 12 passed",
+    "npm run typecheck: passed",
+    "npm run lint: passed",
+    "npm run build: passed",
+    "Playwright http://localhost:3000 smoke: no console warnings or errors"
   ],
-  "next_action": "Resume from live graph; no ready beads remain. Recommended next bead is frontend live wiring for persisted threads, keeping auth/base-url requirements explicit.",
-  "last_updated": "2026-04-28T16:32:00+07:00"
+  "next_action": "Prepare Phase 3 - Connect the first HMS-backed data slice, then validate before implementation.",
+  "last_updated": "2026-04-28T22:40:00+07:00"
 }

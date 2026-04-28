@@ -28,6 +28,7 @@ export const verifiedBackendProvenance: DataProvenance = {
 
 export const samplePatientContexts: PatientContext[] = [
   {
+    id: "general-knowledge",
     scope: "general-knowledge",
     patientId: null,
     displayLabel: "General hospital knowledge",
@@ -36,6 +37,7 @@ export const samplePatientContexts: PatientContext[] = [
     provenance: documentedGapProvenance,
   },
   {
+    id: "patient-pending-sample",
     scope: "patient-linked",
     patientId: "11111111-1111-4111-8111-111111111111",
     displayLabel: "Synthetic patient context",
@@ -44,6 +46,16 @@ export const samplePatientContexts: PatientContext[] = [
     provenance: localSampleProvenance,
   },
   {
+    id: "patient-allowed-sample",
+    scope: "patient-linked",
+    patientId: "44444444-4444-4444-8444-444444444444",
+    displayLabel: "Synthetic allowed context",
+    permissionState: "allowed",
+    permissionLabel: "Permission allowed",
+    provenance: localSampleProvenance,
+  },
+  {
+    id: "patient-denied-sample",
     scope: "patient-linked",
     patientId: "22222222-2222-4222-8222-222222222222",
     displayLabel: "Synthetic denied context",
@@ -166,7 +178,7 @@ export const sampleWorkspaceState: ChatAssistantWorkspaceState = {
       active: false,
       sharedState: "sample-shared",
       updatedAt: "2026-04-28T05:45:00.000Z",
-      patientContextId: "11111111-1111-4111-8111-111111111111",
+      patientContextId: "patient-pending-sample",
       provenance: localSampleProvenance,
       messages: [],
     },

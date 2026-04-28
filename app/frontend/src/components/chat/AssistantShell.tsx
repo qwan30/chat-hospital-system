@@ -3,6 +3,7 @@ import { ChatComposer } from "@/components/chat/ChatComposer";
 import { ChatTranscript } from "@/components/chat/ChatTranscript";
 import { ConversationSidebar } from "@/components/chat/ConversationSidebar";
 import { EvidencePanel } from "@/components/chat/EvidencePanel";
+import { PatientContextGate } from "@/components/chat/PatientContextGate";
 
 export function AssistantShell() {
   return (
@@ -22,6 +23,7 @@ export function AssistantShell() {
             </div>
           </header>
 
+          <PatientContextGate />
           <ChatTranscript />
           <ChatComposer />
         </section>

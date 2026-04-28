@@ -18,6 +18,7 @@ export type DataProvenance = {
 };
 
 export type PatientContext = {
+  id: string;
   scope: ChatScope;
   patientId: UUIDString | null;
   displayLabel: string;

@@ -89,11 +89,11 @@ export const chatAssistantContractInventory = [
   },
   {
     id: "hms-integration-data",
-    label: "HMS domain integration data",
-    status: "documented-gap",
-    source: "D:\\projects\\hospital-management-system is a domain reference, not a connected data source",
+    label: "HMS appointment summary evidence",
+    status: "verified-backend",
+    source: "app/backend/src/hospital_ai/api/routes/hms.py and services/hms_appointments.py",
     implementationRule:
-      "HMS-derived patient, appointment, lab, prescription, or role details must be unavailable or local/sample unless a verified integration contract is added.",
+      "Only imported synthetic or de-identified appointment summaries are connected; citations must preserve HMS source_system, source_family, source_record_id, and patient permission metadata.",
   },
 ] satisfies ContractInventoryItem[];
 

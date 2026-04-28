@@ -1,6 +1,5 @@
-import { CircleSlash, FileText, LockKeyhole, PanelRightOpen, ShieldAlert } from "lucide-react";
+import { CircleSlash, FileText, LockKeyhole, ShieldAlert } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import type { ConversationThread, EvidenceAvailability, EvidenceSource, PatientContext } from "@/lib/chat-assistant";
 
 const evidenceStyles: Record<
@@ -44,14 +43,11 @@ export function EvidencePanel({
 }) {
   return (
     <aside className="order-3 min-h-[360px] min-w-0 border-t border-white/10 bg-[#111214] lg:min-h-dvh lg:border-l lg:border-t-0">
-      <div className="flex h-16 items-center justify-between border-b border-white/10 px-4">
+      <div className="flex h-16 items-center border-b border-white/10 px-4">
         <div className="min-w-0">
           <p className="text-xs font-medium uppercase text-[#8a8f98]">Evidence</p>
           <h2 className="truncate text-base font-semibold text-white">Source Panel</h2>
         </div>
-        <Button size="icon" variant="ghost" aria-label="Toggle evidence panel">
-          <PanelRightOpen className="size-4" />
-        </Button>
       </div>
 
       <div className="space-y-3 p-4">
@@ -87,6 +83,10 @@ export function EvidencePanel({
               {item.page ? <span>Page {item.page}</span> : null}
               {item.score !== null ? <span>Score {item.score.toFixed(2)}</span> : null}
               <span>{item.provenance.visibleLabel}</span>
+              {typeof item.metadata.source_family === "string" ? <span>{item.metadata.source_family}</span> : null}
+              {typeof item.metadata.source_record_id === "string" ? (
+                <span>Source {item.metadata.source_record_id.slice(0, 8)}</span>
+              ) : null}
             </div>
           </article>
           );

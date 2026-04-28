@@ -17,19 +17,18 @@ import {
   getBackendChatThread,
   listBackendChatThreads,
   mapBackendChatThreadDetailToWorkspaceArtifacts,
+  mapBackendChatThreadToConversationThread,
   prepareBackendThreadMessageRequest,
   sampleWorkspaceState,
   updateBackendChatThread,
   type BackendThreadApiConfig,
-  type ChatAssistantWorkspaceState,
   type ConversationThread,
   type EvidenceSource,
+  type PatientContext,
   type ThreadMessageSubmitReadiness,
 } from "@/lib/chat-assistant";
 
-const TOKEN_STORAGE_KEY = "hospital-ai.devToken";
 const DEFAULT_API_BASE_URL = process.env.NEXT_PUBLIC_HOSPITAL_AI_API_BASE_URL ?? "http://localhost:8000";
-const DEFAULT_DEV_TOKEN = process.env.NEXT_PUBLIC_HOSPITAL_AI_DEV_TOKEN ?? "";
 
 type WorkspaceLoadState =
   | { status: "config-required"; message: string }
@@ -40,11 +39,11 @@ type WorkspaceLoadState =
 
 export function AssistantShell() {
   const [apiBaseUrl, setApiBaseUrl] = useState(DEFAULT_API_BASE_URL);
-  const [apiToken, setApiToken] = useState(readInitialToken);
+  const [apiToken, setApiToken] = useState("");
   const [threads, setThreads] = useState<ConversationThread[]>([]);
   const [evidenceSources, setEvidenceSources] = useState<EvidenceSource[]>([]);
   const [activeThreadId, setActiveThreadId] = useState("");
-  const [activePatientContextId, setActivePatientContextId] = useState(sampleWorkspaceState.activePatientContextId);
+  const [activePatientContextId, setActivePatientContextId] = useState("general-knowledge");
   const [workspaceState, setWorkspaceState] = useState<WorkspaceLoadState>(
     apiToken.trim()
       ? { status: "loading", message: "Loading persisted backend threads." }
@@ -56,7 +55,7 @@ export function AssistantShell() {
     message: "Create or select a persisted backend thread before asking a question.",
   });
 
-  const patientContexts = sampleWorkspaceState.patientContexts;
+  const patientContexts = useMemo(() => buildPatientContextsFromThreads(threads), [threads]);
   const apiConfig = useMemo<BackendThreadApiConfig>(
     () => ({
       baseUrl: apiBaseUrl.trim(),
@@ -88,12 +87,36 @@ export function AssistantShell() {
     return evidenceSources.filter((source) => citationSourceIds.has(source.id));
   }, [activeThread, evidenceSources]);
 
+  const hydrateThreadDetail = useCallback(
+    async (threadId: string) => {
+      try {
+        const detail = await getBackendChatThread(threadId, apiConfig);
+        const artifact = mapBackendChatThreadDetailToWorkspaceArtifacts(detail);
+        setThreads((currentThreads) =>
+          currentThreads.map((thread) => (thread.id === threadId ? artifact.thread : thread)),
+        );
+        setEvidenceSources((currentSources) =>
+          dedupeEvidenceSources([...currentSources, ...artifact.evidenceSources]),
+        );
+        return artifact.thread;
+      } catch {
+        setWorkspaceState({
+          status: "ready",
+          message: "Thread summaries loaded. Selected thread details could not load; choose another thread or refresh.",
+        });
+        return undefined;
+      }
+    },
+    [apiConfig],
+  );
+
   const loadWorkspace = useCallback(
     async (preferredThreadId?: string) => {
       if (!apiConfig.token) {
         setThreads([]);
         setEvidenceSources([]);
         setActiveThreadId("");
+        setActivePatientContextId("general-knowledge");
         setWorkspaceState({
           status: "config-required",
           message: "Enter a backend bearer token before loading persisted threads.",
@@ -104,19 +127,14 @@ export function AssistantShell() {
       setWorkspaceState({ status: "loading", message: "Loading persisted backend threads." });
       try {
         const summaries = await listBackendChatThreads(apiConfig);
-        const details = await Promise.all(summaries.map((thread) => getBackendChatThread(thread.id, apiConfig)));
-        const artifacts = details.map(mapBackendChatThreadDetailToWorkspaceArtifacts);
-        const nextThreads = artifacts.map((artifact) => artifact.thread);
-        const nextEvidenceSources = dedupeEvidenceSources(
-          artifacts.flatMap((artifact) => artifact.evidenceSources),
-        );
+        const nextThreads = summaries.map((thread) => mapBackendChatThreadToConversationThread(thread));
         const preferred =
           (preferredThreadId ? nextThreads.find((thread) => thread.id === preferredThreadId) : undefined) ??
           nextThreads.find((thread) => thread.id === activeThreadId) ??
           nextThreads[0];
 
         setThreads(nextThreads);
-        setEvidenceSources(nextEvidenceSources);
+        setEvidenceSources([]);
         setActiveThreadId(preferred?.id ?? "");
         setActivePatientContextId(preferred?.patientContextId ?? "general-knowledge");
         setWorkspaceState(
@@ -124,14 +142,17 @@ export function AssistantShell() {
             ? { status: "ready", message: `Loaded ${nextThreads.length} persisted backend thread(s).` }
             : { status: "empty", message: "No persisted backend threads yet. Create a conversation to begin." },
         );
+        if (preferred) {
+          void hydrateThreadDetail(preferred.id);
+        }
       } catch (error) {
         setWorkspaceState({
           status: "error",
-          message: error instanceof Error ? error.message : "Unable to load persisted backend threads.",
+          message: safeErrorMessage(error, "Unable to load persisted backend threads."),
         });
       }
     },
-    [activeThreadId, apiConfig],
+    [activeThreadId, apiConfig, hydrateThreadDetail],
   );
 
   useEffect(() => {
@@ -140,12 +161,6 @@ export function AssistantShell() {
     }, 0);
     return () => window.clearTimeout(timerId);
   }, [loadWorkspace]);
-
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      window.localStorage.setItem(TOKEN_STORAGE_KEY, apiToken);
-    }
-  }, [apiToken]);
 
   function handleSelectThread(threadId: string) {
     const nextThread = threads.find((thread) => thread.id === threadId);
@@ -156,6 +171,7 @@ export function AssistantShell() {
 
     setActiveThreadId(nextThread.id);
     setActivePatientContextId(nextThread.patientContextId ?? "general-knowledge");
+    void hydrateThreadDetail(nextThread.id);
   }
 
   async function handleCreateThread() {
@@ -192,7 +208,7 @@ export function AssistantShell() {
     } catch (error) {
       setComposerSubmitState({
         status: "error",
-        message: error instanceof Error ? error.message : "Unable to create persisted backend thread.",
+        message: safeErrorMessage(error, "Unable to create persisted backend thread."),
       });
     } finally {
       setIsCreatingThread(false);
@@ -215,7 +231,7 @@ export function AssistantShell() {
     } catch (error) {
       setComposerSubmitState({
         status: "error",
-        message: error instanceof Error ? error.message : "Unable to rename persisted backend thread.",
+        message: safeErrorMessage(error, "Unable to rename persisted backend thread."),
       });
     }
   }
@@ -231,7 +247,7 @@ export function AssistantShell() {
     } catch (error) {
       setComposerSubmitState({
         status: "error",
-        message: error instanceof Error ? error.message : "Unable to archive persisted backend thread.",
+        message: safeErrorMessage(error, "Unable to archive persisted backend thread."),
       });
     }
   }
@@ -260,7 +276,7 @@ export function AssistantShell() {
     } catch (error) {
       setComposerSubmitState({
         status: "error",
-        message: error instanceof Error ? error.message : "Unable to share persisted backend thread.",
+        message: safeErrorMessage(error, "Unable to share persisted backend thread."),
       });
     }
   }
@@ -295,7 +311,7 @@ export function AssistantShell() {
       } catch (error) {
         setComposerSubmitState({
           status: "error",
-          message: error instanceof Error ? error.message : "Unable to save backend thread message.",
+          message: safeErrorMessage(error, "Unable to save backend thread message."),
         });
       }
     })();
@@ -389,17 +405,52 @@ export function AssistantShell() {
   );
 }
 
-function readInitialToken(): string {
-  if (typeof window === "undefined") {
-    return DEFAULT_DEV_TOKEN;
-  }
-  return window.localStorage.getItem(TOKEN_STORAGE_KEY) ?? DEFAULT_DEV_TOKEN;
-}
-
 function dedupeEvidenceSources(sources: EvidenceSource[]): EvidenceSource[] {
   const seen = new Map<string, EvidenceSource>();
   for (const source of sources) {
     seen.set(source.id, source);
   }
   return Array.from(seen.values());
+}
+
+function buildPatientContextsFromThreads(threads: ConversationThread[]): PatientContext[] {
+  const contexts = new Map<string, PatientContext>();
+  const generalContext = sampleWorkspaceState.patientContexts.find((context) => context.id === "general-knowledge");
+  if (generalContext) {
+    contexts.set(generalContext.id, generalContext);
+  }
+
+  for (const thread of threads) {
+    if (thread.scope !== "patient-linked" || !thread.patientContextId) {
+      continue;
+    }
+    contexts.set(thread.patientContextId, {
+      id: thread.patientContextId,
+      scope: "patient-linked",
+      patientId: thread.patientContextId,
+      displayLabel: `Patient ${thread.patientContextId.slice(0, 8)} from persisted threads`,
+      permissionState: "allowed",
+      permissionLabel: "Backend read allowed",
+      provenance: {
+        ...thread.provenance,
+        sourceLabel: "Persisted patient chat thread",
+        note: "This context is derived from backend threads that passed participant and patient permission checks.",
+      },
+    });
+  }
+
+  for (const context of sampleWorkspaceState.patientContexts) {
+    if (!contexts.has(context.id)) {
+      contexts.set(context.id, context);
+    }
+  }
+
+  return Array.from(contexts.values());
+}
+
+function safeErrorMessage(error: unknown, fallback: string): string {
+  if (error instanceof Error && error.message) {
+    return error.message;
+  }
+  return fallback;
 }

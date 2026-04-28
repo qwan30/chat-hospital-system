@@ -16,10 +16,11 @@ test("AssistantShell loads persisted backend threads instead of sample conversat
 
   for (const contract of [
     "listBackendChatThreads(apiConfig)",
-    "getBackendChatThread(thread.id, apiConfig)",
+    "mapBackendChatThreadToConversationThread",
+    "getBackendChatThread(threadId, apiConfig)",
     "mapBackendChatThreadDetailToWorkspaceArtifacts",
     "setThreads(nextThreads)",
-    "setEvidenceSources(nextEvidenceSources)",
+    "hydrateThreadDetail(preferred.id)",
     "Loaded ${nextThreads.length} persisted backend thread(s).",
   ]) {
     assert.ok(shell.includes(contract), `missing live workspace contract: ${contract}`);
@@ -34,14 +35,16 @@ test("AssistantShell exposes explicit runtime API configuration and token state"
 
   for (const contract of [
     "NEXT_PUBLIC_HOSPITAL_AI_API_BASE_URL",
-    "NEXT_PUBLIC_HOSPITAL_AI_DEV_TOKEN",
-    "hospital-ai.devToken",
     "Backend base URL",
     "Bearer token",
     "Enter a backend bearer token before loading persisted threads.",
   ]) {
     assert.ok(shell.includes(contract), `missing runtime config contract: ${contract}`);
   }
+
+  assert.doesNotMatch(shell, /NEXT_PUBLIC_HOSPITAL_AI_DEV_TOKEN/);
+  assert.doesNotMatch(shell, /localStorage/);
+  assert.doesNotMatch(shell, /hospital-ai\.devToken/);
 });
 
 test("AssistantShell wires persisted thread actions into sidebar controls", () => {
@@ -159,6 +162,19 @@ test("backend chat thread adapter maps persisted data into workspace artifacts",
   assert.match(types, /accessLevel: "owner" \| "write" \| "read"/);
 });
 
+test("persisted patient contexts are derived from backend threads", () => {
+  const shell = source("src/components/chat/AssistantShell.tsx");
+
+  for (const contract of [
+    "buildPatientContextsFromThreads(threads)",
+    "Patient ${thread.patientContextId.slice(0, 8)} from persisted threads",
+    "Backend read allowed",
+    "passed participant and patient permission checks",
+  ]) {
+    assert.ok(shell.includes(contract), `missing derived patient context contract: ${contract}`);
+  }
+});
+
 test("persisted thread readiness allows general mode and guards patient mode", () => {
   const api = source("src/lib/chat-assistant/api.ts");
 
@@ -190,6 +206,46 @@ test("general hospital knowledge is a verified backend contract", () => {
 
   assert.ok(api.includes("Approved general knowledge API"));
   assert.ok(api.includes("citation.metadata.approved_non_phi === true"));
+});
+
+test("backend errors are mapped to safe client messages", () => {
+  const api = source("src/lib/chat-assistant/api.ts");
+
+  for (const contract of [
+    "Hospital assistant API authentication failed. Check the bearer token.",
+    "Hospital assistant API access was denied for this request.",
+    "Hospital assistant API is unavailable. Try again later or check backend logs.",
+  ]) {
+    assert.ok(api.includes(contract), `missing safe error copy: ${contract}`);
+  }
+
+  assert.doesNotMatch(api, /payload\.message \?\? payload\.detail/);
+  assert.doesNotMatch(api, /detail\}/);
+});
+
+test("HMS appointment citations keep visible source lineage", () => {
+  const api = source("src/lib/chat-assistant/api.ts");
+  const panel = source("src/components/chat/EvidencePanel.tsx");
+
+  for (const contract of [
+    "HMS appointment evidence",
+    "citation.metadata.source_system === \"hospital-management-system\"",
+    "Appointment evidence is imported from the HMS appointment contract",
+  ]) {
+    assert.ok(api.includes(contract), `missing HMS citation lineage contract: ${contract}`);
+  }
+
+  assert.ok(panel.includes("item.metadata.source_family"));
+  assert.ok(panel.includes("item.metadata.source_record_id"));
+});
+
+test("visible controls are wired actions, not inert toggles", () => {
+  const sidebar = source("src/components/chat/ConversationSidebar.tsx");
+  const panel = source("src/components/chat/EvidencePanel.tsx");
+
+  assert.doesNotMatch(sidebar, /Toggle dark mode/);
+  assert.doesNotMatch(sidebar, /Collapse conversation panel/);
+  assert.doesNotMatch(panel, /Toggle evidence panel/);
 });
 
 test("composer uses one explicit submit path for keyboard and button activation", () => {

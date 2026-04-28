@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronDown, MessageSquarePlus, Moon, PanelLeft } from "lucide-react";
+import { ChevronDown, MessageSquarePlus } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ThreadShareControls } from "@/components/chat/ThreadShareControls";
@@ -33,14 +33,6 @@ export function ConversationSidebar({
         <div className="min-w-0">
           <p className="text-xs font-medium uppercase text-[#8a8f98]">Conversations</p>
           <h2 className="truncate text-base font-semibold text-white">Hospital Assistant</h2>
-        </div>
-        <div className="flex items-center gap-1">
-          <Button size="icon" variant="ghost" aria-label="Toggle dark mode">
-            <Moon className="size-4" />
-          </Button>
-          <Button size="icon" variant="ghost" aria-label="Collapse conversation panel">
-            <PanelLeft className="size-4" />
-          </Button>
         </div>
       </div>
 

@@ -173,6 +173,13 @@ const generalKnowledgeProvenance: DataProvenance = {
   note: "General answers use backend-approved non-PHI knowledge sources and do not require patient context.",
 };
 
+const hmsAppointmentProvenance: DataProvenance = {
+  status: "verified-backend",
+  visibleLabel: "HMS-derived",
+  sourceLabel: "HMS appointment evidence",
+  note: "Appointment evidence is imported from the HMS appointment contract and remains patient-permission gated.",
+};
+
 export function prepareVerifiedBackendChatRequest(
   context: PatientContext,
   question: string,
@@ -546,7 +553,11 @@ export function removeBackendThreadParticipant(
 
 function mapBackendCitationToEvidenceSource(citation: BackendChatCitation): EvidenceSource {
   const provenance =
-    citation.metadata.approved_non_phi === true ? generalKnowledgeProvenance : backendVerifiedProvenance;
+    citation.metadata.source_system === "hospital-management-system"
+      ? hmsAppointmentProvenance
+      : citation.metadata.approved_non_phi === true
+        ? generalKnowledgeProvenance
+        : backendVerifiedProvenance;
 
   return {
     id: citation.evidence_id,
@@ -588,13 +599,21 @@ async function requestBackendJson<T>(
 
 async function describeBackendError(response: Response): Promise<string> {
   try {
-    const payload = (await response.json()) as { message?: string; detail?: string };
-    const detail = payload.message ?? payload.detail;
-    if (detail) {
-      return `Hospital assistant API request failed with status ${response.status}: ${detail}`;
-    }
+    await response.json();
   } catch {
-    // Fall through to the status-only message.
+    // Keep raw backend details out of the rendered client error message.
+  }
+  if (response.status === 401) {
+    return "Hospital assistant API authentication failed. Check the bearer token.";
+  }
+  if (response.status === 403) {
+    return "Hospital assistant API access was denied for this request.";
+  }
+  if (response.status === 404) {
+    return "Hospital assistant API resource was not found.";
+  }
+  if (response.status >= 500) {
+    return "Hospital assistant API is unavailable. Try again later or check backend logs.";
   }
   return `Hospital assistant API request failed with status ${response.status}.`;
 }

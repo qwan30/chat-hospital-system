@@ -15,7 +15,10 @@ Next.js 16 frontend for the Hospital Knowledge Assistant.
 
 ```bash
 npm run dev
+npm run test:workspace
 npm run build
 npm run lint
 npm run typecheck
 ```
+
+The chat workspace keeps the backend bearer token in memory only. Enter a dev token such as `dev-doctor` in the runtime control after seeding the backend; do not ship bearer tokens through public `NEXT_PUBLIC_*` variables.

@@ -10,10 +10,11 @@ from hospital_ai.api.routes.chat_threads import (
     get_thread,
     list_thread_messages,
 )
-from hospital_ai.core.errors import PermissionDeniedError
+from hospital_ai.core.errors import ExternalServiceError, PermissionDeniedError
 from hospital_ai.db.migrations import DOCTOR_ID, PATIENT_ALICE_ID, RECORDS_ID
 from hospital_ai.db.models import AiQuery, AuditLog, ChatMessage, ChatThread, PatientPermission, User
 from hospital_ai.schemas.chat_threads import ChatThreadCreate, ChatThreadDetail, ChatThreadMessageRequest
+from hospital_ai.services.chat import ChatGenerator
 from tests.conftest import create_indexed_document
 
 
@@ -269,3 +270,87 @@ async def test_general_thread_message_cannot_leak_patient_chunks(session_and_set
     query_count = await session.scalar(select(func.count()).select_from(AiQuery))
     assert message_count == 2
     assert query_count == 0
+
+
+@pytest.mark.asyncio
+async def test_general_thread_invalid_citations_do_not_commit_partial_messages(
+    session_and_settings,
+    monkeypatch,
+):
+    session, settings = session_and_settings
+    doctor = await session.get(User, DOCTOR_ID)
+    thread = await create_thread(
+        payload=ChatThreadCreate(title="General invalid citation", scope="general"),
+        request=_request(),
+        session=session,
+        current_user=doctor,
+    )
+
+    async def missing_citation(_: ChatGenerator, __: str) -> str:
+        return "This answer forgot to cite evidence."
+
+    monkeypatch.setattr(ChatGenerator, "generate", missing_citation)
+
+    with pytest.raises(ExternalServiceError):
+        await ask_thread_message(
+            thread_id=thread.id,
+            payload=ChatThreadMessageRequest(question="What approval is needed for a ward transfer?", top_k=5),
+            request=_request(),
+            session=session,
+            current_user=doctor,
+            settings=settings,
+        )
+
+    await session.rollback()
+    message_count = await session.scalar(select(func.count()).select_from(ChatMessage))
+    query_count = await session.scalar(select(func.count()).select_from(AiQuery))
+    assert message_count == 0
+    assert query_count == 0
+
+
+@pytest.mark.asyncio
+async def test_patient_thread_invalid_citations_do_not_commit_orphaned_user_message(
+    session_and_settings,
+    monkeypatch,
+):
+    session, settings = session_and_settings
+    doctor = await session.get(User, DOCTOR_ID)
+    await create_indexed_document(
+        session,
+        patient_id=PATIENT_ALICE_ID,
+        uploaded_by=DOCTOR_ID,
+        title="Alice allergy note",
+        content="Alice has a documented allergy to penicillin.",
+    )
+    thread = await create_thread(
+        payload=ChatThreadCreate(
+            title="Patient invalid citation",
+            scope="patient-linked",
+            patient_id=PATIENT_ALICE_ID,
+        ),
+        request=_request(),
+        session=session,
+        current_user=doctor,
+    )
+
+    async def invalid_citation(_: ChatGenerator, __: str) -> str:
+        return "The record says this without a valid citation [E99]."
+
+    monkeypatch.setattr(ChatGenerator, "generate", invalid_citation)
+
+    with pytest.raises(ExternalServiceError):
+        await ask_thread_message(
+            thread_id=thread.id,
+            payload=ChatThreadMessageRequest(question="What allergy is documented?", top_k=5),
+            request=_request(),
+            session=session,
+            current_user=doctor,
+            settings=settings,
+        )
+
+    message_count = await session.scalar(select(func.count()).select_from(ChatMessage))
+    failed_query_count = await session.scalar(
+        select(func.count()).select_from(AiQuery).where(AiQuery.status == "failed")
+    )
+    assert message_count == 0
+    assert failed_query_count == 1

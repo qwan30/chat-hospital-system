@@ -15,9 +15,9 @@
 
 ## 1. Feature Summary
 
-The project is already past the first visible product turn: the root frontend is a Kotaemon-style chat workspace, the backend has patient-scoped permission-filtered chat, and shared chat thread APIs plus frontend API adapters exist. It is not complete because the live frontend still reads `sampleWorkspaceState`, general hospital knowledge chat has no real backend path, HMS data is not integrated, and final review/UAT has not happened.
+The project is now past the first hospital-data turn: the root frontend is a Kotaemon-style chat workspace, the backend has patient-scoped permission-filtered chat, shared chat thread APIs, safe general knowledge answers, and one HMS appointment evidence import path. Remaining work is human UAT sign-off and non-blocking follow-up hardening, not missing Phase 1-4 implementation.
 
-Completion should therefore happen in four remaining phases. First make the current chat screen use real persisted threads. Then add a safe general hospital knowledge path. Then connect the first real HMS-backed hospital data slice. Finally harden, review, document, and run UAT so the project can be called finished without pretending mocks are production behavior.
+Completion happened through four phases: persisted thread wiring, safe general knowledge, HMS appointment evidence, and automated hardening/docs verification. The project still must not be described as production-ready until human UAT and production auth/session work are handled.
 
 ---
 
@@ -31,8 +31,8 @@ Completion should therefore happen in four remaining phases. First make the curr
 | Shared chat thread backend | Mostly complete | `/api/v1/chat-threads` supports create/list/read/update/archive, messages, participants, audit, and patient permission guards |
 | Frontend persisted-thread adapter | Complete and used by the shell | `AssistantShell` loads backend threads and calls typed thread/message/participant API helpers |
 | General hospital knowledge chat | Complete for approved non-PHI sources | General chat-thread messages use `GeneralKnowledgeService` and safety tests prove patient chunks are not returned |
-| HMS integration | Not complete | HMS remains a domain/reference source, not a connected data source |
-| Release review/UAT | Not complete | Phase 1 UAT is still pending and no final P1/P2/P3 review has passed |
+| HMS integration | Complete for first appointment slice | `POST /api/v1/hms/appointments/import` indexes synthetic/de-identified appointment summaries as patient-linked evidence |
+| Release review/UAT | Complete for automated Phase 4 gate; human UAT sign-off still external | Backend/frontend verification and release docs are recorded in `phase-3-4-verification.md` |
 
 ---
 
@@ -121,9 +121,9 @@ Completion should therefore happen in four remaining phases. First make the curr
 
 ## 7. Approval Summary
 
-- **Current phase to prepare next:** `Phase 3 - Connect the first HMS-backed data slice`
-- **What the user should picture after Phase 1 and 2:** the chat workspace uses real backend thread data, saved patient-linked answers, and safe general hospital knowledge answers from approved non-PHI sources.
-- **What will not happen until later phases:** HMS data integration and final UAT/release hardening.
+- **Current phase status:** Phase 1 through Phase 4 automated execution is complete.
+- **What the user should picture now:** the chat workspace uses real backend thread data, saved patient-linked answers, safe general hospital knowledge answers, and one HMS appointment summary evidence path with permission-filtered citations.
+- **What remains outside code execution:** human UAT sign-off, production auth/session replacement for dev bearer tokens, and non-blocking source-provider follow-up work.
 
 Planning has broken the remaining work into phases and stories. Phase 1 and Phase 2 have now been executed from this plan.
 
@@ -132,5 +132,15 @@ Planning has broken the remaining work into phases and stories. Phase 1 and Phas
 - [x] Phase 1 complete: the frontend shell now loads persisted backend threads, exposes runtime backend URL and bearer-token configuration, creates/renames/archives/shares threads, and submits questions through `askBackendThreadMessage`.
 - [x] Phase 2 complete: general chat-thread messages now use approved non-PHI general hospital knowledge, return citations when evidence matches, and return an honest no-evidence answer otherwise.
 - [x] Safety verification added: backend tests prove general chat stores no patient ID, creates no `AiQuery`, marks citations as approved non-PHI, and does not return patient-linked chunks when patient documents exist.
-- [ ] Phase 3 remains next: connect one selected HMS-backed data family with permission and evidence traceability.
-- [ ] Phase 4 remains pending: final review, UAT, release docs, and P1 fix loop.
+- [x] Phase 3 complete: HMS appointment summaries are imported through an explicit backend contract, indexed as patient-linked evidence, and cited only after permission-filtered retrieval.
+- [x] Phase 4 complete for automated hardening: backend/frontend verification passed, release docs were updated, review follow-up fixes were applied, and seeded UAT steps were recorded.
+- [ ] Human UAT sign-off remains external to code execution.
+
+## 9. Execution Update - 2026-04-28 Phase 3/4
+
+- [x] Selected first HMS data family: appointment summaries from the HMS appointment API/entity surface.
+- [x] Added `POST /api/v1/hms/appointments/import` for synthetic/de-identified appointment summaries.
+- [x] Preserved source lineage in citation metadata: HMS source system, source family, source record ID, source path, lifecycle state, and permission requirement.
+- [x] Added adversarial tests for patient ownership mismatch, revoked permission, deleted HMS source records, invalid citations, and no orphaned messages.
+- [x] Hardened frontend token handling, thread detail loading, derived patient contexts, safe client errors, and inert controls.
+- [x] Updated backend/frontend docs, API integration docs, test plan, and seeded UAT evidence.

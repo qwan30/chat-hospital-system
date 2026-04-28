@@ -55,10 +55,12 @@ erDiagram
 | API-006 | `/api/v1/documents` | POST | Upload document | Records/admin |
 | API-007 | `/api/v1/documents/search` | POST | Semantic search | Scoped user |
 | API-008 | `/api/v1/documents/{id}/pages/{page}` | GET | Source preview | Scoped user |
-| API-009 | `/api/v1/medication/check` | POST | Drug/allergy check | Doctor/pharmacist |
-| API-010 | `/api/v1/audit/events` | GET | Audit log | Security/admin |
-| API-011 | `/api/v1/metrics/productivity` | GET | Impact metrics | PM/admin |
-| API-012 | `/api/v1/admin/roles` | GET/POST | Role management | Admin |
+| API-009 | `/api/v1/chat-threads` | GET/POST/PATCH/DELETE | Persisted chat threads and messages | User + patient scope |
+| API-010 | `/api/v1/hms/appointments/import` | POST | Import synthetic/de-identified HMS appointment summary evidence | Records/admin |
+| API-011 | `/api/v1/medication/check` | POST | Drug/allergy check | Doctor/pharmacist |
+| API-012 | `/api/v1/audit/events` | GET | Audit log | Security/admin |
+| API-013 | `/api/v1/metrics/productivity` | GET | Impact metrics | PM/admin |
+| API-014 | `/api/v1/admin/roles` | GET/POST | Role management | Admin |
 
 ## 4. Example API
 ### POST `/api/v1/chat`
@@ -90,6 +92,7 @@ Errors: `400 VALIDATION_ERROR`, `403 FORBIDDEN`, `422 INSUFFICIENT_EVIDENCE`.
 | Document upload | UI | Object storage | On demand | Failed status + retry |
 | OCR | Worker | document_pages | Event-driven | Retry, mark failed |
 | Embedding | Worker | document_chunks | Event-driven | Retry/reindex |
+| HMS appointments | Synthetic/de-identified appointment summary import | documents/document_pages/document_chunks | Manual/dev seed | Reject patient mismatch, preserve source lineage, retrieve only after patient permission |
 | LLM | RAG service | Ollama/vLLM | Per query | Timeout + safe error |
 | Graph sync | PostgreSQL | graph_edges/Neo4j | Scheduled | Rebuild from source |
 | Monitoring | Services | OTel stack | Realtime | Alert thresholds |
@@ -100,6 +103,7 @@ Errors: `400 VALIDATION_ERROR`, `403 FORBIDDEN`, `422 INSUFFICIENT_EVIDENCE`.
 | Authentication | Local auth/OIDC |
 | Authorization | RBAC + ABAC + patient scope |
 | Retrieval safety | Permission filters before vector/graph retrieval |
+| HMS evidence safety | Appointment import requires records/admin, matching patient ownership, source lineage metadata, and existing patient permission filters before retrieval |
 | Data protection | TLS, encryption at rest where possible |
 | Secrets | `.env.example`, secret scan, Vault/SOPS later |
 | Audit | Immutable `audit_events` |

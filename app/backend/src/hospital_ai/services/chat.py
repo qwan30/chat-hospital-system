@@ -242,5 +242,6 @@ def to_evidence_schema(item: RetrievedChunk) -> EvidenceRead:
         page=item.page,
         chunk_id=item.chunk_id,
         score=item.score,
+        content=item.content,
         metadata=dict(item.metadata),
     )

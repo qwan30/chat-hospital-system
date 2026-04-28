@@ -485,6 +485,15 @@ class ChatThreadService:
         if thread.scope != "patient-linked":
             raise ValidationAppError("Unsupported chat thread scope.")
 
+        response = await ChatService(self.session, settings).answer(
+            user=user,
+            patient_id=thread.patient_id,
+            question=payload.question,
+            top_k=payload.top_k,
+            trace_id=trace_id,
+            ip_address=ip_address,
+        )
+
         now = datetime.now(timezone.utc)
         user_message = ChatMessage(
             thread_id=thread.id,
@@ -499,18 +508,6 @@ class ChatThreadService:
             trace_id=trace_id,
             created_at=now,
         )
-        self.session.add(user_message)
-        await self.session.flush()
-
-        response = await ChatService(self.session, settings).answer(
-            user=user,
-            patient_id=thread.patient_id,
-            question=payload.question,
-            top_k=payload.top_k,
-            trace_id=trace_id,
-            ip_address=ip_address,
-        )
-
         assistant_message = ChatMessage(
             thread_id=thread.id,
             ai_query_id=response.query_id,
@@ -525,6 +522,7 @@ class ChatThreadService:
             created_at=datetime.now(timezone.utc),
         )
         thread.last_message_at = assistant_message.created_at
+        self.session.add(user_message)
         self.session.add(assistant_message)
         await AuditService(self.session).record(
             actor_user_id=user.id,
@@ -552,6 +550,10 @@ class ChatThreadService:
         trace_id: str,
         ip_address: Optional[str],
     ) -> tuple[ChatMessage, ChatMessage]:
+        response = await GeneralKnowledgeService(settings).answer(
+            question=payload.question,
+            top_k=payload.top_k,
+        )
         now = datetime.now(timezone.utc)
         user_message = ChatMessage(
             thread_id=thread.id,
@@ -565,13 +567,6 @@ class ChatThreadService:
             meta={"top_k": payload.top_k},
             trace_id=trace_id,
             created_at=now,
-        )
-        self.session.add(user_message)
-        await self.session.flush()
-
-        response = await GeneralKnowledgeService(settings).answer(
-            question=payload.question,
-            top_k=payload.top_k,
         )
         assistant_message = ChatMessage(
             thread_id=thread.id,
@@ -591,6 +586,7 @@ class ChatThreadService:
             created_at=datetime.now(timezone.utc),
         )
         thread.last_message_at = assistant_message.created_at
+        self.session.add(user_message)
         self.session.add(assistant_message)
         await AuditService(self.session).record(
             actor_user_id=user.id,

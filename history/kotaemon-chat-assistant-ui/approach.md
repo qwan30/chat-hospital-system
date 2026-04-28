@@ -3,7 +3,7 @@
 **Feature:** kotaemon-chat-assistant-ui
 **Date:** 2026-04-28
 **Skill:** khuym:planning
-**Status:** Phase 1 and Phase 2 execution complete
+**Status:** Phase 1 through Phase 4 automated execution complete
 
 ## Completion Planning Refresh - 2026-04-28
 
@@ -24,7 +24,7 @@ The original approach correctly moved the project away from dashboard-first UI a
 
 ### Updated Recommended Approach
 
-The first two completion phases are now implemented. The remaining approach is to choose one HMS-backed data family, map its permission/evidence lineage, then run final review/UAT and release-doc hardening.
+All four automated completion phases are now implemented. Phase 3 chose HMS appointment summaries as the first HMS-backed data family and mapped them into permission-filtered evidence. Phase 4 applied hardening, verification, release docs, and seeded UAT evidence. The remaining approach is final Khuym review plus human UAT sign-off.
 
 ### Updated HIGH-Risk Summary For Validating
 
@@ -94,7 +94,7 @@ The executable frontend inventory lives in `app/frontend/src/lib/chat-assistant/
 |---|---|---|---|
 | Shared conversation threads | High | New persistence and sharing can leak patient-linked evidence if scoped badly | Spike thread/message contract and access rules before backend implementation |
 | General plus patient-scoped chat contract | High | Current backend requires `patient_id`, while the product needs general hospital knowledge too | Spike API shape for general scope vs patient scope |
-| HMS data integration | High | Separate system, different domain model, removed AI endpoints, possible PHI exposure | Map first supported HMS data families and permissions before implementation |
+| HMS data integration | Medium | First appointment summary slice is implemented; broader HMS families still carry PHI and lineage risk | Keep future HMS slices behind explicit import/API contracts and permission/evidence tests |
 | Kotaemon-to-React translation | High | Interaction model is useful but implementation stack differs | Prototype component map and asset reuse list |
 | Patient evidence display | Medium | Backend safety exists, UI must not imply unauthorized source availability | Add denied/no-evidence/loading states and tests |
 | Docs alignment | Low | Docs are now corrected for the two primary UI docs | Keep future docs updated when backend contracts are prepared |

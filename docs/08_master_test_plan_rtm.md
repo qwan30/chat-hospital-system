@@ -54,6 +54,9 @@
 | TC-014 | Timeline filters | FR-013 | P2 | Correct entries displayed |
 | TC-015 | Local stack on 16GB | NFR-COST-001 | P1 | Local Lite runs |
 | TC-016 | Unauthorized chunks not passed to LLM | NFR-SEC-002 | P1 | 0 leakage |
+| TC-017 | HMS appointment evidence import | FR-004/005 | P1 | Imported appointment summary cites only after patient permission |
+| TC-018 | HMS appointment ownership mismatch blocked | NFR-SEC-002 | P1 | Import rejected before indexing |
+| TC-019 | Deleted HMS source excluded | NFR-SEC-002 | P1 | Archived/deleted HMS-derived document is not retrieved |
 
 ## 5. RTM
 | Req ID | Design Ref | API/DB Ref | Test Cases | Status |
@@ -61,6 +64,7 @@
 | FR-001 | Auth component | API-001, users | TC-001 | Covered |
 | FR-002 | Permission service | roles, access matrix | TC-002, TC-003, TC-016 | Covered |
 | FR-004/005 | Chat + citation UI | API-005, retrieved_evidence | TC-004, TC-005 | Covered |
+| FR-004/005-HMS | HMS appointment evidence | API-010, documents, document_chunks | TC-017, TC-018, TC-019 | Covered |
 | FR-006/007 | OCR/doc search | API-006/007, document_chunks | TC-006, TC-007 | Covered |
 | FR-008 | Patient summary | API-004 | TC-008, TC-009 | Covered |
 | FR-009 | Metrics dashboard | API-011, metric_events | TC-010 | Covered |

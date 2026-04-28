@@ -2,9 +2,9 @@
   "schema_version": "1.0",
   "feature_slug": "kotaemon-chat-assistant-ui",
   "mode": "standard_feature",
-  "active_skill": "khuym:reviewing",
-  "phase": "reviewing-p2-p3-followups-created",
-  "phase_number": 13,
+  "active_skill": "khuym:executing",
+  "phase": "phase-3-4-executed",
+  "phase_number": 14,
   "epic_id": "br-dyy",
   "approved_gates": {
     "context": true,
@@ -37,19 +37,28 @@
     "br-22l",
     "br-qql",
     "br-mu0",
-    "br-200"
+    "br-200",
+    "br-bhm",
+    "br-d0q",
+    "br-1kq",
+    "br-9e6",
+    "br-760",
+    "br-9kw",
+    "br-epf"
   ],
   "completed_phases": [
     "Phase 1 - Wire persisted chat threads into the frontend",
-    "Phase 2 - Add safe general hospital knowledge chat"
+    "Phase 2 - Add safe general hospital knowledge chat",
+    "Phase 3 - Connect HMS appointment summary evidence",
+    "Phase 4 - Automated hardening, verification, and release docs"
   ],
   "active_workers": [],
   "blockers": [
     "gkg command is unavailable on PATH; direct file inspection was used",
     "br ready --json fails with JSON_ERROR missing field jsonl_export",
-    "HMS integration remains unimplemented and must start with one selected data family",
-    "Human UAT, release docs, and final epic close remain pending",
-    "Production auth/session handling is separate from the current dev bearer-token flow"
+    "Human UAT sign-off and final epic close remain pending",
+    "Production auth/session handling is separate from the current memory-only dev bearer-token flow",
+    "P3 br-2o5 remains open for a general knowledge source provider abstraction"
   ],
   "tooling": {
     "agent_mail_url": "http://127.0.0.1:8765/api/",
@@ -69,17 +78,19 @@
   ],
   "review_findings": {
     "p1": [],
-    "p2": [
+    "closed_p2": [
       "br-bhm",
       "br-d0q",
       "br-1kq",
       "br-9e6",
       "br-760"
     ],
-    "p3": [
-      "br-2o5",
+    "closed_p3": [
       "br-9kw",
       "br-epf"
+    ],
+    "open_p3": [
+      "br-2o5"
     ],
     "known_pattern_matches": [
       "RAG Evidence Requires Full Join-Chain Authorization"
@@ -87,14 +98,14 @@
     "artifact_verification": "all changed artifacts passed L1/L2/L3"
   },
   "latest_verification": [
-    "python -m pytest: 48 passed, 2 skipped",
+    "python -m pytest: 55 passed, 2 skipped",
     "python -m compileall src tests: passed",
-    "npm run test:workspace: 12 passed",
+    "npm run test:workspace: 16 passed",
     "npm run typecheck: passed",
     "npm run lint: passed",
     "npm run build: passed",
-    "Playwright http://localhost:3000 smoke: no console warnings or errors"
+    "Playwright http://localhost:3000 smoke after storage clear: no console warnings or errors"
   ],
-  "next_action": "Human UAT Item 1: verify D2/D5 chat-first workspace layout before proceeding.",
-  "last_updated": "2026-04-28T23:08:00+07:00"
+  "next_action": "Run final khuym:reviewing, then complete human UAT using history/kotaemon-chat-assistant-ui/phase-3-4-verification.md.",
+  "last_updated": "2026-04-28T23:35:39+07:00"
 }

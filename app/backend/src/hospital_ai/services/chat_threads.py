@@ -8,10 +8,16 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from hospital_ai.core.config import Settings
-from hospital_ai.core.errors import PermissionDeniedError, ValidationAppError
+from hospital_ai.core.errors import NotFoundError, PermissionDeniedError, ValidationAppError
 from hospital_ai.core.security import PATIENT_READ_SCOPES
 from hospital_ai.db.models import ChatMessage, ChatThread, ChatThreadParticipant, User
-from hospital_ai.schemas.chat_threads import ChatThreadCreate, ChatThreadMessageRequest, ChatThreadUpdate
+from hospital_ai.schemas.chat_threads import (
+    ChatThreadCreate,
+    ChatThreadMessageRequest,
+    ChatThreadParticipantCreate,
+    ChatThreadParticipantUpdate,
+    ChatThreadUpdate,
+)
 from hospital_ai.services.audit import AuditService
 from hospital_ai.services.chat import ChatService
 from hospital_ai.services.permissions import PermissionService, active_patient_permission_exists
@@ -225,6 +231,213 @@ class ChatThreadService:
         await self.session.refresh(thread)
         return thread
 
+    async def list_participants(
+        self,
+        *,
+        user: User,
+        thread_id: uuid.UUID,
+        trace_id: str,
+        ip_address: Optional[str] = None,
+    ) -> list[ChatThreadParticipant]:
+        thread = await self._get_accessible_thread(
+            user=user,
+            thread_id=thread_id,
+            allowed_access=("owner",),
+            action="chat_thread.participants.read",
+            trace_id=trace_id,
+            ip_address=ip_address,
+        )
+        await self._require_patient_read_if_needed(
+            user=user,
+            thread=thread,
+            action="chat_thread.participants.read",
+            trace_id=trace_id,
+            ip_address=ip_address,
+        )
+        stmt = (
+            select(ChatThreadParticipant)
+            .where(ChatThreadParticipant.thread_id == thread.id, ChatThreadParticipant.deleted_at.is_(None))
+            .order_by(ChatThreadParticipant.created_at)
+        )
+        result = await self.session.execute(stmt)
+        return list(result.scalars().all())
+
+    async def add_participant(
+        self,
+        *,
+        user: User,
+        thread_id: uuid.UUID,
+        payload: ChatThreadParticipantCreate,
+        trace_id: str,
+        ip_address: Optional[str] = None,
+    ) -> ChatThreadParticipant:
+        if payload.access_level == "owner":
+            raise ValidationAppError("New participants cannot be added as owners.")
+
+        thread = await self._get_accessible_thread(
+            user=user,
+            thread_id=thread_id,
+            allowed_access=("owner",),
+            action="chat_thread.participant.add",
+            trace_id=trace_id,
+            ip_address=ip_address,
+        )
+        await self._require_patient_read_if_needed(
+            user=user,
+            thread=thread,
+            action="chat_thread.participant.add",
+            trace_id=trace_id,
+            ip_address=ip_address,
+        )
+        target_user = await self.session.get(User, payload.user_id)
+        if target_user is None or target_user.deleted_at is not None or not target_user.is_active:
+            raise NotFoundError("Target user was not found or is inactive.")
+
+        await self._require_target_patient_read(
+            actor=user,
+            target_user=target_user,
+            thread=thread,
+            action="chat_thread.participant.add",
+            trace_id=trace_id,
+            ip_address=ip_address,
+        )
+
+        existing_result = await self.session.execute(
+            select(ChatThreadParticipant).where(
+                ChatThreadParticipant.thread_id == thread.id,
+                ChatThreadParticipant.user_id == target_user.id,
+            )
+        )
+        participant = existing_result.scalar_one_or_none()
+        if participant is not None and participant.deleted_at is None:
+            raise ValidationAppError("User is already a participant in this chat thread.")
+        if participant is None:
+            participant = ChatThreadParticipant(
+                thread_id=thread.id,
+                user_id=target_user.id,
+                access_level=payload.access_level,
+                can_share=payload.can_share,
+                added_by_user_id=user.id,
+                created_trace_id=trace_id,
+            )
+            self.session.add(participant)
+        else:
+            participant.deleted_at = None
+            participant.access_level = payload.access_level
+            participant.can_share = payload.can_share
+            participant.added_by_user_id = user.id
+            participant.created_trace_id = trace_id
+        thread.visibility = "shared"
+
+        await AuditService(self.session).record(
+            actor_user_id=user.id,
+            action="chat_thread.participant.add",
+            object_type="chat_thread",
+            object_id=thread.id,
+            patient_id=thread.patient_id,
+            outcome="allowed",
+            trace_id=trace_id,
+            ip_address=ip_address,
+            metadata={"target_user_id": str(target_user.id), "access_level": payload.access_level},
+        )
+        await self.session.commit()
+        await self.session.refresh(participant)
+        return participant
+
+    async def update_participant(
+        self,
+        *,
+        user: User,
+        thread_id: uuid.UUID,
+        participant_id: uuid.UUID,
+        payload: ChatThreadParticipantUpdate,
+        trace_id: str,
+        ip_address: Optional[str] = None,
+    ) -> ChatThreadParticipant:
+        thread = await self._get_accessible_thread(
+            user=user,
+            thread_id=thread_id,
+            allowed_access=("owner",),
+            action="chat_thread.participant.update",
+            trace_id=trace_id,
+            ip_address=ip_address,
+        )
+        await self._require_patient_read_if_needed(
+            user=user,
+            thread=thread,
+            action="chat_thread.participant.update",
+            trace_id=trace_id,
+            ip_address=ip_address,
+        )
+        participant = await self._get_active_participant(thread_id=thread_id, participant_id=participant_id)
+        if participant.access_level == "owner":
+            raise ValidationAppError("Owner participant access cannot be changed.")
+
+        changes = payload.dict(exclude_unset=True)
+        if changes.get("access_level") == "owner":
+            raise ValidationAppError("Participant access cannot be promoted to owner.")
+        for field, value in changes.items():
+            setattr(participant, field, value)
+
+        await AuditService(self.session).record(
+            actor_user_id=user.id,
+            action="chat_thread.participant.update",
+            object_type="chat_thread",
+            object_id=thread_id,
+            patient_id=thread.patient_id,
+            outcome="allowed",
+            trace_id=trace_id,
+            ip_address=ip_address,
+            metadata={"participant_id": str(participant.id), "fields": sorted(changes.keys())},
+        )
+        await self.session.commit()
+        await self.session.refresh(participant)
+        return participant
+
+    async def remove_participant(
+        self,
+        *,
+        user: User,
+        thread_id: uuid.UUID,
+        participant_id: uuid.UUID,
+        trace_id: str,
+        ip_address: Optional[str] = None,
+    ) -> ChatThreadParticipant:
+        thread = await self._get_accessible_thread(
+            user=user,
+            thread_id=thread_id,
+            allowed_access=("owner",),
+            action="chat_thread.participant.remove",
+            trace_id=trace_id,
+            ip_address=ip_address,
+        )
+        await self._require_patient_read_if_needed(
+            user=user,
+            thread=thread,
+            action="chat_thread.participant.remove",
+            trace_id=trace_id,
+            ip_address=ip_address,
+        )
+        participant = await self._get_active_participant(thread_id=thread.id, participant_id=participant_id)
+        if participant.access_level == "owner" or participant.user_id == thread.owner_user_id:
+            raise ValidationAppError("Owner participant cannot be removed.")
+
+        participant.deleted_at = datetime.now(timezone.utc)
+        await AuditService(self.session).record(
+            actor_user_id=user.id,
+            action="chat_thread.participant.remove",
+            object_type="chat_thread",
+            object_id=thread.id,
+            patient_id=thread.patient_id,
+            outcome="allowed",
+            trace_id=trace_id,
+            ip_address=ip_address,
+            metadata={"participant_id": str(participant.id), "target_user_id": str(participant.user_id)},
+        )
+        await self.session.commit()
+        await self.session.refresh(participant)
+        return participant
+
     async def ask_thread_message(
         self,
         *,
@@ -434,3 +647,57 @@ class ChatThreadService:
         )
         await self.session.commit()
         raise PermissionDeniedError("Archived chat threads cannot accept new messages.")
+
+    async def _require_target_patient_read(
+        self,
+        *,
+        actor: User,
+        target_user: User,
+        thread: ChatThread,
+        action: str,
+        trace_id: str,
+        ip_address: Optional[str],
+    ) -> None:
+        if thread.scope != "patient-linked":
+            return
+        has_scope = await PermissionService(self.session).has_patient_scope(
+            user_id=target_user.id,
+            patient_id=thread.patient_id,
+            accepted_scopes=PATIENT_READ_SCOPES,
+        )
+        if has_scope:
+            return
+        await AuditService(self.session).record(
+            actor_user_id=actor.id,
+            action=action,
+            object_type="chat_thread",
+            object_id=thread.id,
+            patient_id=thread.patient_id,
+            outcome="denied",
+            trace_id=trace_id,
+            ip_address=ip_address,
+            metadata={
+                "reason": "target_missing_patient_read_scope",
+                "target_user_id": str(target_user.id),
+            },
+        )
+        await self.session.commit()
+        raise PermissionDeniedError("Cannot share patient-linked thread with a user missing patient read permission.")
+
+    async def _get_active_participant(
+        self,
+        *,
+        thread_id: uuid.UUID,
+        participant_id: uuid.UUID,
+    ) -> ChatThreadParticipant:
+        result = await self.session.execute(
+            select(ChatThreadParticipant).where(
+                ChatThreadParticipant.id == participant_id,
+                ChatThreadParticipant.thread_id == thread_id,
+                ChatThreadParticipant.deleted_at.is_(None),
+            )
+        )
+        participant = result.scalar_one_or_none()
+        if participant is None:
+            raise NotFoundError("Chat thread participant was not found.")
+        return participant

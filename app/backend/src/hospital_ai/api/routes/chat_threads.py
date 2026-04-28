@@ -14,6 +14,10 @@ from hospital_ai.schemas.chat_threads import (
     ChatThreadMessageListResponse,
     ChatThreadMessageRequest,
     ChatThreadMessageResponse,
+    ChatThreadParticipantCreate,
+    ChatThreadParticipantListResponse,
+    ChatThreadParticipantRead,
+    ChatThreadParticipantUpdate,
     ChatThreadRead,
     ChatThreadUpdate,
 )
@@ -88,6 +92,91 @@ async def list_thread_messages(
         ip_address=get_request_ip(request),
     )
     return ChatThreadMessageListResponse(items=messages)
+
+
+@router.get(
+    "/{thread_id}/participants",
+    response_model=ChatThreadParticipantListResponse,
+    response_model_by_alias=False,
+)
+async def list_thread_participants(
+    thread_id: uuid.UUID,
+    request: Request,
+    session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(get_current_user),
+) -> ChatThreadParticipantListResponse:
+    participants = await ChatThreadService(session).list_participants(
+        user=current_user,
+        thread_id=thread_id,
+        trace_id=new_trace_id(),
+        ip_address=get_request_ip(request),
+    )
+    return ChatThreadParticipantListResponse(items=participants)
+
+
+@router.post(
+    "/{thread_id}/participants",
+    response_model=ChatThreadParticipantRead,
+    response_model_by_alias=False,
+)
+async def add_thread_participant(
+    thread_id: uuid.UUID,
+    payload: ChatThreadParticipantCreate,
+    request: Request,
+    session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(get_current_user),
+) -> ChatThreadParticipantRead:
+    return await ChatThreadService(session).add_participant(
+        user=current_user,
+        thread_id=thread_id,
+        payload=payload,
+        trace_id=new_trace_id(),
+        ip_address=get_request_ip(request),
+    )
+
+
+@router.patch(
+    "/{thread_id}/participants/{participant_id}",
+    response_model=ChatThreadParticipantRead,
+    response_model_by_alias=False,
+)
+async def update_thread_participant(
+    thread_id: uuid.UUID,
+    participant_id: uuid.UUID,
+    payload: ChatThreadParticipantUpdate,
+    request: Request,
+    session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(get_current_user),
+) -> ChatThreadParticipantRead:
+    return await ChatThreadService(session).update_participant(
+        user=current_user,
+        thread_id=thread_id,
+        participant_id=participant_id,
+        payload=payload,
+        trace_id=new_trace_id(),
+        ip_address=get_request_ip(request),
+    )
+
+
+@router.delete(
+    "/{thread_id}/participants/{participant_id}",
+    response_model=ChatThreadParticipantRead,
+    response_model_by_alias=False,
+)
+async def remove_thread_participant(
+    thread_id: uuid.UUID,
+    participant_id: uuid.UUID,
+    request: Request,
+    session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(get_current_user),
+) -> ChatThreadParticipantRead:
+    return await ChatThreadService(session).remove_participant(
+        user=current_user,
+        thread_id=thread_id,
+        participant_id=participant_id,
+        trace_id=new_trace_id(),
+        ip_address=get_request_ip(request),
+    )
 
 
 @router.get("/{thread_id}", response_model=ChatThreadDetail, response_model_by_alias=False)

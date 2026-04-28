@@ -61,6 +61,11 @@ class ChatThreadParticipantCreate(ApiSchema):
     can_share: bool = False
 
 
+class ChatThreadParticipantUpdate(ApiSchema):
+    access_level: Optional[ParticipantAccessLevel] = None
+    can_share: Optional[bool] = None
+
+
 class ChatThreadParticipantRead(ApiSchema):
     id: UUID
     thread_id: UUID
@@ -98,6 +103,10 @@ class ChatThreadDetail(ChatThreadRead):
 
 class ChatThreadListResponse(ApiSchema):
     items: List[ChatThreadRead]
+
+
+class ChatThreadParticipantListResponse(ApiSchema):
+    items: List[ChatThreadParticipantRead]
 
 
 class ChatThreadMessageRequest(ApiSchema):

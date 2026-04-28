@@ -56,3 +56,56 @@ test("sidebar, transcript, context gate, composer, and evidence panel receive ex
   assert.match(source("src/components/chat/ChatComposer.tsx"), /activeContext: PatientContext \| undefined/);
   assert.match(source("src/components/chat/EvidencePanel.tsx"), /evidenceSources: EvidenceSource\[\]/);
 });
+
+test("patient permission states have explicit blocked and allowed copy", () => {
+  const gate = source("src/components/chat/PatientContextGate.tsx");
+  const mockData = source("src/lib/chat-assistant/mock-data.ts");
+
+  assert.match(gate, /Permission pending/);
+  assert.match(gate, /Patient-linked answers stay blocked until the backend confirms read access\./);
+  assert.match(gate, /Permission denied/);
+  assert.match(gate, /Patient-linked evidence and citations remain hidden for this context\./);
+  assert.match(gate, /Permission allowed/);
+  assert.match(gate, /Patient-linked answers may call the verified patient-scoped backend path\./);
+
+  assert.match(mockData, /permissionState: "pending"/);
+  assert.match(mockData, /permissionState: "denied"/);
+  assert.match(mockData, /permissionState: "allowed"/);
+});
+
+test("evidence states are rendered with text labels, not color alone", () => {
+  const panel = source("src/components/chat/EvidencePanel.tsx");
+  const mockData = source("src/lib/chat-assistant/mock-data.ts");
+
+  for (const label of ["Available", "Gated", "Unavailable", "No evidence"]) {
+    assert.ok(panel.includes(`label: "${label}"`), `missing visible evidence label: ${label}`);
+  }
+
+  for (const state of ["available", "permission-gated", "unavailable", "no-evidence"]) {
+    assert.ok(mockData.includes(`availability: "${state}"`), `missing sample evidence state: ${state}`);
+  }
+});
+
+test("patient-linked sample citations are not presented as available evidence", () => {
+  const mockData = source("src/lib/chat-assistant/mock-data.ts");
+  const patientCitation = /id: "citation-patient-chart-gated"[\s\S]*?availability: "permission-gated"/;
+  const patientEvidence = /id: "evidence-patient-chart-gated"[\s\S]*?availability: "permission-gated"/;
+
+  assert.match(mockData, patientCitation);
+  assert.match(mockData, patientEvidence);
+  assert.doesNotMatch(
+    mockData,
+    /id: "citation-patient-chart-gated"[\s\S]*?availability: "available"/,
+    "patient-linked gated citation must not be marked available",
+  );
+});
+
+test("empty and unavailable evidence states have readable copy", () => {
+  const panel = source("src/components/chat/EvidencePanel.tsx");
+  const mockData = source("src/lib/chat-assistant/mock-data.ts");
+
+  assert.match(panel, /No active thread evidence/);
+  assert.match(panel, /has no cited evidence yet\./);
+  assert.match(mockData, /Unavailable until a general-scope chat API exists\./);
+  assert.match(mockData, /No source matched this part of the sample answer\./);
+});

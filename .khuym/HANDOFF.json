@@ -3,14 +3,14 @@
   "format": "khuym-swarm-handoff",
   "feature": "kotaemon-chat-assistant-ui",
   "skill": "khuym:reviewing",
-  "phase": "phase-1-complete-review-ready",
-  "next_action": "Run Khuym reviewing for Phase 1, then plan Phase 2 shared-thread persistence and backend contract work.",
-  "context_pct": 0.45,
+  "phase": "review-followups-complete-uat-pending",
+  "next_action": "Run human UAT for Phase 1 review item 1; all automated review follow-up beads are closed.",
+  "context_pct": 0.55,
   "session": {
     "id": "khuym-swarm-resume-019dd090-82f4-7a81-84a2-5f76eba805ec",
-    "paused_at": "2026-04-28T13:32:53+07:00",
-    "reason_for_pause": "phase_1_complete_review_ready",
-    "agent": "DarkGate"
+    "paused_at": "2026-04-28T15:15:23+07:00",
+    "reason_for_pause": "review_followups_complete_uat_pending",
+    "agent": "GrayHill"
   },
   "swarm": {
     "epic_id": "br-dyy",
@@ -36,9 +36,27 @@
       "br-dyy.10",
       "br-dyy.11",
       "br-dyy.12",
-      "br-dyy.13"
+      "br-dyy.13",
+      "br-9gn",
+      "br-dtm",
+      "br-ca7",
+      "br-pos",
+      "br-d99",
+      "br-54h"
     ],
     "graph_check": "npx.cmd bd graph check --json returned clean with zero cycles after Phase 1 closure."
+  },
+  "review_status": {
+    "automated_review_complete": true,
+    "p1": [],
+    "p2": [],
+    "p3": [],
+    "security_findings": 0,
+    "known_pattern_beads": [
+      "br-ca7",
+      "br-dtm"
+    ],
+    "compounding_candidates": ".khuym/findings/learnings-candidates.md"
   },
   "active_workers": [
     {
@@ -58,7 +76,7 @@
     }
   ],
   "resume_instructions": {
-    "priority_next": "Run Khuym reviewing for Phase 1, then plan Phase 2 shared-thread persistence and backend contract work.",
+    "priority_next": "Run human UAT for Phase 1 review item 1; all automated review follow-up beads are closed.",
     "read_first": [
       "AGENTS.md",
       ".khuym/STATE.md",
@@ -66,14 +84,22 @@
       ".khuym/HANDOFF.json",
       "history/kotaemon-chat-assistant-ui/CONTEXT.md",
       "history/kotaemon-chat-assistant-ui/phase-1-browser-review.md",
-      "history/learnings/critical-patterns.md"
+      "history/kotaemon-chat-assistant-ui/phase-1-artifact-verification.md",
+      "history/kotaemon-chat-assistant-ui/br-9gn-verification.md",
+      "history/kotaemon-chat-assistant-ui/br-dtm-verification.md",
+      "history/kotaemon-chat-assistant-ui/br-ca7-verification.md",
+      "history/kotaemon-chat-assistant-ui/br-pos-verification.md",
+      "history/kotaemon-chat-assistant-ui/br-d99-verification.md",
+      "history/kotaemon-chat-assistant-ui/br-54h-verification.md",
+      "history/learnings/critical-patterns.md",
+      ".khuym/findings/learnings-candidates.md"
     ],
     "check_mail": true,
     "bead_check": "npx.cmd bd ready --json",
-    "restore_confirmation": "Phase 1 should remain closed; do not reopen or add Phase 1 scope unless the user explicitly requests a fix."
+    "restore_confirmation": "Phase 1 epic remains closed. Review follow-ups are external-ref beads, not children of br-dyy. Do not reopen Phase 1 unless the user explicitly requests a fix."
   },
   "context_at_pause": {
-    "tokens_used_pct": 0.45,
+    "tokens_used_pct": 0.55,
     "agent_mail_thread": "br-dyy"
   }
 }

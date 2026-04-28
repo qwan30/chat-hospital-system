@@ -56,6 +56,9 @@ dolt-server.activity
 # Backup data (auto-exported JSONL, local-only)
 backup/
 
+# Beads Viewer bridge export from `bd export --no-memories`.
+beads.jsonl
+
 # Per-project environment file (Dolt connection config, GH#2520)
 .env
 

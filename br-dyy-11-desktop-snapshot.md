@@ -1,0 +1,19 @@
+- generic [active] [ref=e1] [box=0,0,1425,938]:
+  - main [ref=e2] [box=0,0,1425,938]:
+    - generic [ref=e3] [box=0,0,1425,938]:
+      - complementary [ref=e4] [box=0,0,280,938]:
+        - generic [ref=e5] [box=0,0,279,64]
+        - button "New conversation" [ref=e17] [box=12,76,255,36]
+        - navigation "Conversation threads" [ref=e23] [box=0,125,279,718]
+        - generic [ref=e39] [box=0,843,279,95]
+      - generic [ref=e60] [box=280,0,785,938]:
+        - generic [ref=e61] [box=280,0,785,77]
+        - region "Question scope" [ref=e68] [box=280,77,785,258]
+        - generic [ref=e114] [box=300,354,745,466]
+        - generic [ref=e157] [box=280,840,785,98]
+      - complementary [ref=e173] [box=1065,0,360,938]:
+        - generic [ref=e174] [box=1066,0,359,64]
+        - generic [ref=e182] [box=1066,64,359,762]
+  - button "Open Next.js Dev Tools" [ref=e240] [cursor=pointer] [box=22,846,32,32]:
+    - img [ref=e241] [box=22,842,40,40]
+  - alert [ref=e244] [box=-1,937,1,1]

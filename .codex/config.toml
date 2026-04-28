@@ -24,6 +24,15 @@ After completing these steps, briefly confirm what context you restored and only
 [features]
 codex_hooks = true
 
+[mcp_servers.mcp_agent_mail]
+url = "http://127.0.0.1:8765/api/"
+
+[mcp_servers.mcp_agent_mail.tools.fetch_topic]
+approval_mode = "approve"
+
+[mcp_servers.mcp_agent_mail.tools.macro_start_session]
+approval_mode = "approve"
+
 [history]
 persistence = "save-all"
 max_bytes = 10485760

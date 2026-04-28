@@ -2,8 +2,8 @@
   "schema_version": "1.0",
   "feature_slug": "kotaemon-chat-assistant-ui",
   "mode": "standard_feature",
-  "active_skill": "khuym:reviewing",
-  "phase": "phase-1-complete-review-ready",
+  "active_skill": "khuym:executing",
+  "phase": "review-followups-complete-uat-pending",
   "phase_number": 9,
   "epic_id": "br-dyy",
   "approved_gates": {
@@ -13,6 +13,16 @@
     "review": false
   },
   "active_beads": [],
+  "review_followups": {
+    "p1": [],
+    "p2": [],
+    "p3": [],
+    "external_ref": "br-dyy",
+    "known_pattern_beads": [
+      "br-ca7",
+      "br-dtm"
+    ]
+  },
   "completed_beads": [
     "br-dyy",
     "br-dyy.2",
@@ -26,14 +36,20 @@
     "br-dyy.10",
     "br-dyy.11",
     "br-dyy.12",
-    "br-dyy.13"
+    "br-dyy.13",
+    "br-9gn",
+    "br-dtm",
+    "br-ca7",
+    "br-pos",
+    "br-d99",
+    "br-54h"
   ],
   "active_workers": [
     {
       "codex_nickname": "ParentResume",
       "codex_agent_id": "019dd090-82f4-7a81-84a2-5f76eba805ec",
       "agent_mail_name": "DarkGate",
-      "status": "completed-phase-1-and-closed-epic",
+      "status": "completed-review-followups-all",
       "current_bead": null
     }
   ],
@@ -55,9 +71,20 @@
   "validation_artifacts": [
     "history/kotaemon-chat-assistant-ui/phase-1-validation.md",
     "history/kotaemon-chat-assistant-ui/phase-1-build-verification.md",
-    "history/kotaemon-chat-assistant-ui/phase-1-browser-review.md"
+    "history/kotaemon-chat-assistant-ui/phase-1-browser-review.md",
+    "history/kotaemon-chat-assistant-ui/phase-1-artifact-verification.md",
+    "history/kotaemon-chat-assistant-ui/br-9gn-verification.md",
+    "history/kotaemon-chat-assistant-ui/br-dtm-verification.md",
+    "history/kotaemon-chat-assistant-ui/br-ca7-verification.md",
+    "history/kotaemon-chat-assistant-ui/br-pos-verification.md",
+    "history/kotaemon-chat-assistant-ui/br-d99-verification.md",
+    "history/kotaemon-chat-assistant-ui/br-54h-verification.md",
+    ".khuym/findings/learnings-candidates.md"
   ],
   "latest_commits": [
+    "18807ca refactor(br-54h): consolidate chat contract types",
+    "8f293dd fix(br-d99): wire safe composer submit",
+    "d0476ae fix(br-pos): validate patient chat requests",
     "2c98107 chore(br-dyy): close phase 1 epic",
     "b07020b test(br-dyy.11): record browser review",
     "e9d2d9c test(br-dyy.10): record frontend build verification",
@@ -66,6 +93,6 @@
     "6767905 feat(br-dyy.8): add patient context gate",
     "f60d62c feat(br-dyy.6): add typed assistant sample data"
   ],
-  "next_action": "Run Khuym reviewing for Phase 1, then plan Phase 2 shared-thread persistence and backend contract work.",
-  "last_updated": "2026-04-28T13:32:53+07:00"
+  "next_action": "Run human UAT for Phase 1 review item 1; all automated review follow-up beads are closed.",
+  "last_updated": "2026-04-28T15:15:23+07:00"
 }

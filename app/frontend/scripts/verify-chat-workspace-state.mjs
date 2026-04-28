@@ -31,6 +31,8 @@ test("AssistantShell wires one active model into all chat workspace children", (
   assert.ok(shell.includes("activeContextId={activePatientContextId}"));
   assert.ok(shell.includes("onSelectContext={setActivePatientContextId}"));
   assert.ok(shell.includes("evidenceSources={activeEvidenceSources}"));
+  assert.ok(shell.includes("onSubmitQuestion={handleSubmitQuestion}"));
+  assert.ok(shell.includes("submitState={composerSubmitState}"));
 });
 
 test("child workspace components do not own disconnected sample workspace state", () => {
@@ -146,6 +148,8 @@ test("backend chat request helper rejects unsafe patient submission states", () 
     "context.scope !== \"patient-linked\"",
     "General hospital knowledge has no verified backend chat contract yet.",
     "context.permissionState !== \"allowed\"",
+    "Patient-linked chat is blocked while permission validation is pending.",
+    "Patient-linked chat is blocked because permission was denied.",
     "Patient-linked chat requires allowed permission before sending patient_id.",
     "!context.patientId",
     "Patient-linked chat requires a selected patient_id.",
@@ -170,5 +174,51 @@ test("backend chat request helper normalizes ready requests and preserves respon
     "return \"unknown\";",
   ]) {
     assert.ok(api.includes(contract), `missing backend chat adapter contract: ${contract}`);
+  }
+});
+
+test("composer uses one explicit submit path for keyboard and button activation", () => {
+  const composer = source("src/components/chat/ChatComposer.tsx");
+
+  for (const contract of [
+    "onSubmit={handleSubmit}",
+    "event.preventDefault();",
+    "type=\"submit\"",
+    "value={question}",
+    "setQuestion(event.target.value)",
+    "disabled={submitDisabled}",
+  ]) {
+    assert.ok(composer.includes(contract), `missing composer submit contract: ${contract}`);
+  }
+
+  assert.doesNotMatch(
+    composer,
+    /aria-label="Submit question"[\s\S]*?type="button"/,
+    "submit button must not bypass the form submit path",
+  );
+});
+
+test("composer readiness flow covers blocked, loading, ready, and rejected states", () => {
+  const shell = source("src/components/chat/AssistantShell.tsx");
+  const composer = source("src/components/chat/ChatComposer.tsx");
+
+  for (const contract of [
+    "Enter a question before submitting.",
+    "isSubmitting",
+    "Preparing patient chat request...",
+    "aria-live=\"polite\"",
+  ]) {
+    assert.ok(composer.includes(contract), `missing composer readiness contract: ${contract}`);
+  }
+
+  for (const contract of [
+    "prepareVerifiedBackendChatRequest(activePatientContext, question)",
+    "setComposerSubmitState({ status: \"blocked\", message: readiness.reason })",
+    "setComposerSubmitState({ status: \"error\", message: readiness.reason })",
+    "status: \"ready\"",
+    "request: readiness.request",
+    "Backend-ready patient chat request prepared.",
+  ]) {
+    assert.ok(shell.includes(contract), `missing shell readiness contract: ${contract}`);
   }
 });

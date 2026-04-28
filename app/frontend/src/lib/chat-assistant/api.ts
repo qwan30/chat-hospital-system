@@ -63,9 +63,16 @@ export function prepareVerifiedBackendChatRequest(
   }
 
   if (context.permissionState !== "allowed") {
+    const permissionReason =
+      context.permissionState === "pending"
+        ? "Patient-linked chat is blocked while permission validation is pending."
+        : context.permissionState === "denied"
+          ? "Patient-linked chat is blocked because permission was denied."
+          : "Patient-linked chat requires allowed permission before sending patient_id.";
+
     return {
       ready: false,
-      reason: "Patient-linked chat requires allowed permission before sending patient_id.",
+      reason: permissionReason,
       scope: context.scope,
     };
   }

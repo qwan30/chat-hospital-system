@@ -2,16 +2,20 @@
 
 import { useMemo, useState } from "react";
 import { Badge } from "@/components/ui/badge";
-import { ChatComposer } from "@/components/chat/ChatComposer";
+import { ChatComposer, type ComposerSubmitState } from "@/components/chat/ChatComposer";
 import { ChatTranscript } from "@/components/chat/ChatTranscript";
 import { ConversationSidebar } from "@/components/chat/ConversationSidebar";
 import { EvidencePanel } from "@/components/chat/EvidencePanel";
 import { PatientContextGate } from "@/components/chat/PatientContextGate";
-import { sampleWorkspaceState } from "@/lib/chat-assistant";
+import { prepareVerifiedBackendChatRequest, sampleWorkspaceState, type ChatSubmitReadiness } from "@/lib/chat-assistant";
 
 export function AssistantShell() {
   const [activeThreadId, setActiveThreadId] = useState(sampleWorkspaceState.activeThreadId);
   const [activePatientContextId, setActivePatientContextId] = useState(sampleWorkspaceState.activePatientContextId);
+  const [composerSubmitState, setComposerSubmitState] = useState<ComposerSubmitState>({
+    status: "idle",
+    message: "Submit a question to validate whether the selected scope can use the patient chat backend.",
+  });
 
   const activeThread = useMemo(
     () => sampleWorkspaceState.threads.find((thread) => thread.id === activeThreadId) ?? sampleWorkspaceState.threads[0],
@@ -50,6 +54,32 @@ export function AssistantShell() {
     handleSelectThread(sampleWorkspaceState.activeThreadId);
   }
 
+  function handleSubmitQuestion(question: string): ChatSubmitReadiness {
+    if (!activePatientContext) {
+      const readiness: ChatSubmitReadiness = {
+        ready: false,
+        reason: "Select a chat scope before submitting a question.",
+        scope: "general-knowledge",
+      };
+
+      setComposerSubmitState({ status: "error", message: readiness.reason });
+      return readiness;
+    }
+
+    const readiness = prepareVerifiedBackendChatRequest(activePatientContext, question);
+    if (!readiness.ready) {
+      setComposerSubmitState({ status: "blocked", message: readiness.reason });
+      return readiness;
+    }
+
+    setComposerSubmitState({
+      status: "ready",
+      message: "Backend-ready patient chat request prepared. API submission remains deferred until live wiring.",
+      request: readiness.request,
+    });
+    return readiness;
+  }
+
   return (
     <main className="min-h-dvh bg-[#08090a] text-[#f7f8f8]">
       <div className="grid min-h-dvh grid-cols-1 lg:grid-cols-[280px_minmax(0,1fr)_360px]">
@@ -80,7 +110,12 @@ export function AssistantShell() {
             onSelectContext={setActivePatientContextId}
           />
           <ChatTranscript activeThread={activeThread} />
-          <ChatComposer activeContext={activePatientContext} />
+          <ChatComposer
+            activeContext={activePatientContext}
+            isSubmitting={composerSubmitState.status === "loading"}
+            onSubmitQuestion={handleSubmitQuestion}
+            submitState={composerSubmitState}
+          />
         </section>
 
         <EvidencePanel

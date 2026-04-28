@@ -94,3 +94,7 @@ class ChatMessageRead(ChatMessageCreate):
 class ChatThreadDetail(ChatThreadRead):
     participants: List[ChatThreadParticipantRead] = Field(default_factory=list)
     messages: List[ChatMessageRead] = Field(default_factory=list)
+
+
+class ChatThreadListResponse(ApiSchema):
+    items: List[ChatThreadRead]

@@ -1,10 +1,11 @@
-# Top-level Docker Compose for the AI-Powered Hospital Knowledge Assistant
-# Runs: chatbot backend, PostgreSQL+pgvector, Redis, and optionally HMS.
+# Docker Compose for the AI-Powered Hospital Knowledge Assistant
+# Local Lite stack (16GB RAM) — doc 07 §3
+# Usage: docker-compose up --build
 
 services:
-  # ── Shared database ──────────────────────────────────────────────
+  # ── PostgreSQL 16 + pgvector ────────────────────────────────────
   postgres:
-    image: pgvector/pgvector:pg15
+    image: pgvector/pgvector:pg16
     environment:
       POSTGRES_DB: hospital_ai
       POSTGRES_USER: hospital_ai
@@ -13,33 +14,37 @@ services:
       - "5432:5432"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U hospital_ai -d hospital_ai"]
-      interval: 10s
+      interval: 5s
       timeout: 5s
       retries: 10
     volumes:
       - postgres-data:/var/lib/postgresql/data
 
-  # ── Redis ────────────────────────────────────────────────────────
+  # ── Redis 7 ─────────────────────────────────────────────────────
   redis:
     image: redis:7-alpine
     ports:
       - "6379:6379"
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
-      interval: 10s
-      timeout: 5s
+      interval: 5s
+      timeout: 3s
       retries: 5
 
   # ── Chatbot Backend (FastAPI) ────────────────────────────────────
   backend:
     build:
-      context: ./app/backend
+      context: .
+      dockerfile: Dockerfile.backend
     environment:
       HOSPITAL_AI_DATABASE_URL: postgresql+asyncpg://hospital_ai:hospital_ai@postgres:5432/hospital_ai
       HOSPITAL_AI_REDIS_URL: redis://redis:6379/0
+      HOSPITAL_AI_STORAGE_ROOT: /data/storage
       HOSPITAL_AI_CORS_ORIGINS: http://localhost:3000,http://127.0.0.1:3000
+      HOSPITAL_AI_ENVIRONMENT: local
       HOSPITAL_AI_EMBEDDING_PROVIDER: deterministic
       HOSPITAL_AI_CHAT_PROVIDER: stub
+      HOSPITAL_AI_WORKER_INLINE: "true"
       HOSPITAL_AI_HMS_BASE_URL: http://host.docker.internal:8080/api/v1
       HOSPITAL_AI_HMS_SYNC_ENABLED: "false"
     depends_on:
@@ -49,6 +54,8 @@ services:
         condition: service_healthy
     ports:
       - "8000:8000"
+    volumes:
+      - storage-data:/data/storage
 
   # ── Chatbot Frontend (Next.js) ───────────────────────────────────
   frontend:
@@ -56,6 +63,7 @@ services:
       context: ./app/frontend
     environment:
       NODE_ENV: production
+      NEXT_PUBLIC_API_URL: http://localhost:8000/api/v1
     depends_on:
       - backend
     ports:
@@ -63,3 +71,4 @@ services:
 
 volumes:
   postgres-data:
+  storage-data:

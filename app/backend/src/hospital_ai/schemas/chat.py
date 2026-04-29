@@ -14,6 +14,16 @@ class ChatRequest(BaseModel):
     pipeline: str = Field(default="auto", description="Reasoning pipeline: auto, simple, decompose, patient_summary")
 
 
+class DrugWarningSchema(BaseModel):
+    """A drug interaction warning surfaced during query processing."""
+    drug_name: str
+    interacting_entity: str
+    interaction_type: str
+    severity: str
+    evidence_chunk_id: UUID
+    message: str
+
+
 class ChatResponse(BaseModel):
     query_id: UUID
     answer: str
@@ -22,6 +32,7 @@ class ChatResponse(BaseModel):
     disclaimer: str = "AI output must be verified by clinical staff."
     thread_id: Optional[UUID] = None
     pipeline: Optional[str] = None
+    warnings: List[DrugWarningSchema] = []
 
 
 class RagTraceEvidence(BaseModel):

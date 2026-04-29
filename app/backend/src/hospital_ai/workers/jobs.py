@@ -117,6 +117,9 @@ async def process_document(
         await session.flush()
         await _populate_tsvectors(session, document.id)
 
+        # Extract entities and relations for graph RAG
+        await _index_graph_entities(session, document)
+
         document.status = "indexed"
         document.ocr_error = None
         document.index_generation = start_generation + 1
@@ -165,6 +168,51 @@ async def _populate_tsvectors(
         logging.getLogger(__name__).debug(
             "tsvector population skipped for document %s (column may not exist)",
             document_id,
+        )
+
+
+async def _index_graph_entities(
+    session: AsyncSession,
+    document: Document,
+) -> None:
+    """Extract medical entities and relations from document chunks for graph RAG.
+
+    Silently skips on failure to avoid blocking the main indexing pipeline.
+    """
+    import logging
+
+    logger = logging.getLogger(__name__)
+    try:
+        from hospital_ai.services.graph_rag import index_chunk_entities
+
+        result = await session.execute(
+            select(DocumentChunk).where(DocumentChunk.document_id == document.id)
+        )
+        chunks = list(result.scalars().all())
+
+        total_entities = 0
+        total_relations = 0
+        for chunk in chunks:
+            entities, relations = await index_chunk_entities(
+                session,
+                chunk_id=chunk.id,
+                document_id=document.id,
+                content=chunk.content,
+            )
+            total_entities += len(entities)
+            total_relations += len(relations)
+
+        logger.info(
+            "Graph RAG indexed %d entities, %d relations for document %s",
+            total_entities,
+            total_relations,
+            document.id,
+        )
+    except Exception:
+        logger.debug(
+            "Graph entity indexing skipped for document %s",
+            document.id,
+            exc_info=True,
         )
 
 

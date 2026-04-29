@@ -151,6 +151,67 @@ class RetrievalService:
 
         return fused
 
+    async def get_chunks_by_ids(
+        self,
+        chunk_ids: List[uuid.UUID],
+        *,
+        user_id: uuid.UUID,
+        patient_id: uuid.UUID,
+    ) -> List[RetrievedChunk]:
+        """Fetch specific chunks by ID, applying permission checks.
+
+        Used by graph RAG to retrieve evidence discovered through
+        entity relationship traversal.
+        """
+        if not chunk_ids:
+            return []
+
+        # Verify permission using PermissionService
+        from hospital_ai.services.permissions import PermissionService
+        has_access = await PermissionService(self.session).has_patient_scope(
+            user_id=user_id,
+            patient_id=patient_id,
+            accepted_scopes=PATIENT_READ_SCOPES,
+        )
+        if not has_access:
+            return []
+
+        result = await self.session.execute(
+            select(
+                DocumentChunk.id,
+                DocumentChunk.document_id,
+                DocumentChunk.content,
+                DocumentChunk.meta,
+                DocumentPage.page_number,
+                Document.title,
+            )
+            .join(Document, Document.id == DocumentChunk.document_id)
+            .join(DocumentPage, DocumentPage.id == DocumentChunk.page_id)
+            .where(
+                DocumentChunk.id.in_(chunk_ids),
+                DocumentChunk.patient_id == patient_id,
+                Document.status == "indexed",
+                DocumentChunk.deleted_at.is_(None),
+                Document.deleted_at.is_(None),
+            )
+        )
+
+        chunks = []
+        for idx, row in enumerate(result.all(), start=1):
+            chunks.append(
+                RetrievedChunk(
+                    evidence_id=f"G{idx}",
+                    document_id=row.document_id,
+                    document_title=row.title,
+                    page=row.page_number,
+                    chunk_id=row.id,
+                    score=0.3,  # lower score for graph-discovered evidence
+                    content=row.content,
+                    metadata=row[3] if row[3] else {},
+                )
+            )
+        return chunks
+
     async def _bm25_search(
         self,
         *,

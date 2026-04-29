@@ -1,3 +1,4 @@
+import logging
 import time
 from typing import Dict, List, Optional
 from uuid import UUID
@@ -9,10 +10,13 @@ from hospital_ai.core.config import Settings
 from hospital_ai.core.errors import ExternalServiceError, PermissionDeniedError
 from hospital_ai.core.security import PATIENT_READ_SCOPES
 from hospital_ai.db.models import AiQuery, ChatMessage, ChatThread, RetrievedEvidence, User
-from hospital_ai.schemas.chat import ChatResponse
+from hospital_ai.schemas.chat import ChatResponse, DrugWarningSchema
 from hospital_ai.schemas.documents import EvidenceRead
 from hospital_ai.services.audit import AuditService
+from hospital_ai.services.drug_check import DrugCheckService, DrugWarning
 from hospital_ai.services.embeddings import EmbeddingService
+from hospital_ai.services.graph_rag import extract_entities, find_related_entities
+from hospital_ai.services.metrics import MetricsService, TimingBreakdown
 from hospital_ai.services.permissions import PermissionService
 from hospital_ai.services.reasoning import (
     DecomposeQAPipeline,
@@ -34,6 +38,8 @@ from hospital_ai.services.chat_utils import (  # noqa: F401
     CITATION_PATTERN,
     MAX_HISTORY_MESSAGES,
 )
+
+logger = logging.getLogger(__name__)
 
 SAFE_NO_EVIDENCE_ANSWER = (
     "I could not find authorized evidence for this question. "
@@ -93,7 +99,13 @@ class ChatService:
         # Gather conversation history if thread is provided
         conversation_history = await self._get_conversation_history(thread_id) if thread_id else []
 
+        # ── Timing: embedding ────────────────────────────────────────
+        t_embed_start = time.perf_counter()
         query_embedding = await EmbeddingService(self.settings).embed(question)
+        t_embed_ms = int((time.perf_counter() - t_embed_start) * 1000)
+
+        # ── Timing: retrieval ────────────────────────────────────────
+        t_retrieval_start = time.perf_counter()
         retrieval_svc = RetrievalService(self.session)
         retrieval_mode = self.settings.retrieval_mode
 
@@ -113,6 +125,32 @@ class ChatService:
                 query_embedding=query_embedding,
                 top_k=top_k,
             )
+
+        # ── Graph RAG: boost evidence with entity relationships ──────
+        try:
+            query_entities = extract_entities(question)
+            if query_entities:
+                entity_names = [e.name for e in query_entities]
+                graph_ctx = await find_related_entities(
+                    self.session, entity_names, max_hops=2
+                )
+                if graph_ctx.related_chunk_ids:
+                    existing_ids = {e.chunk_id for e in evidence}
+                    graph_only_ids = graph_ctx.related_chunk_ids - existing_ids
+                    # Add graph-discovered chunks to evidence (with lower score)
+                    if graph_only_ids:
+                        graph_evidence = await retrieval_svc.get_chunks_by_ids(
+                            list(graph_only_ids)[:top_k],
+                            user_id=user.id,
+                            patient_id=patient_id,
+                        )
+                        for ge in graph_evidence:
+                            ge.metadata["retrieval_method"] = "graph"
+                        evidence.extend(graph_evidence)
+        except Exception:
+            logger.debug("Graph RAG enrichment skipped", exc_info=True)
+
+        t_retrieval_ms = int((time.perf_counter() - t_retrieval_start) * 1000)
 
         if not evidence or evidence[0].score < self.settings.evidence_threshold:
             ai_query.status = "no_evidence"
@@ -139,8 +177,19 @@ class ChatService:
                 pipeline="simple_qa",
             )
 
-        # Select and run reasoning pipeline
+        # ── Drug interaction check ───────────────────────────────────
+        drug_warnings: List[DrugWarning] = []
+        try:
+            drug_warnings = await DrugCheckService(self.session).check_interactions(
+                query_text=question,
+                patient_id=patient_id,
+            )
+        except Exception:
+            logger.debug("Drug interaction check skipped", exc_info=True)
+
+        # ── Timing: generation ───────────────────────────────────────
         selected_pipeline = _select_pipeline(pipeline, question)
+        t_gen_start = time.perf_counter()
         try:
             reasoning_result = await self._run_pipeline(
                 selected_pipeline, question, evidence, conversation_history
@@ -150,6 +199,7 @@ class ChatService:
             ai_query.latency_ms = elapsed_ms(started)
             await self.session.commit()
             raise
+        t_gen_ms = int((time.perf_counter() - t_gen_start) * 1000)
 
         # Store retrieved evidence records with trace data
         for index, item in enumerate(evidence, start=1):
@@ -172,6 +222,27 @@ class ChatService:
         ai_query.status = "completed"
         ai_query.answer = reasoning_result.answer
         ai_query.latency_ms = elapsed_ms(started)
+
+        # ── Record impact metrics ────────────────────────────────────
+        try:
+            timing = TimingBreakdown(
+                total_ms=elapsed_ms(started),
+                retrieval_ms=t_retrieval_ms,
+                generation_ms=t_gen_ms,
+                embedding_ms=t_embed_ms,
+            )
+            await MetricsService(self.session).record_query_metrics(
+                query_id=ai_query.id,
+                user_id=user.id,
+                task_type=selected_pipeline,
+                timing=timing,
+                documents_retrieved=len(evidence),
+                citations_count=len(reasoning_result.citations),
+                thread_id=thread_id,
+            )
+        except Exception:
+            logger.debug("Metrics recording failed", exc_info=True)
+
         await AuditService(self.session).record(
             actor_user_id=user.id,
             action="chat.ask",
@@ -185,9 +256,23 @@ class ChatService:
                 "result": "completed",
                 "evidence_count": len(evidence),
                 "pipeline": reasoning_result.pipeline,
+                "drug_warnings": len(drug_warnings),
             },
         )
         await self.session.commit()
+
+        # Convert drug warnings to schema
+        warning_schemas = [
+            DrugWarningSchema(
+                drug_name=w.drug_name,
+                interacting_entity=w.interacting_entity,
+                interaction_type=w.interaction_type,
+                severity=w.severity,
+                evidence_chunk_id=w.evidence_chunk_id,
+                message=w.message,
+            )
+            for w in drug_warnings
+        ]
 
         return ChatResponse(
             query_id=ai_query.id,
@@ -197,6 +282,7 @@ class ChatService:
             disclaimer=reasoning_result.disclaimer,
             thread_id=thread_id,
             pipeline=reasoning_result.pipeline,
+            warnings=warning_schemas,
         )
 
     async def _get_conversation_history(self, thread_id: UUID) -> List[Dict[str, str]]:

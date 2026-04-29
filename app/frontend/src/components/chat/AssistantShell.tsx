@@ -1,18 +1,17 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { RefreshCw } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ChatComposer, type ComposerSubmitState } from "@/components/chat/ChatComposer";
-import { ChatTranscript } from "@/components/chat/ChatTranscript";
+import { ChatTranscript, type StreamingState } from "@/components/chat/ChatTranscript";
 import { ConversationSidebar } from "@/components/chat/ConversationSidebar";
 import { EvidencePanel } from "@/components/chat/EvidencePanel";
 import { PatientContextGate } from "@/components/chat/PatientContextGate";
 import {
   addBackendThreadParticipant,
   archiveBackendChatThread,
-  askBackendThreadMessage,
   createBackendChatThread,
   getBackendChatThread,
   listBackendChatThreads,
@@ -27,6 +26,7 @@ import {
   type PatientContext,
   type ThreadMessageSubmitReadiness,
 } from "@/lib/chat-assistant";
+import { streamChat, type StreamCitationItem, type StreamMetadataEvent } from "@/lib/chat-assistant/stream-client";
 
 const DEFAULT_API_BASE_URL = process.env.NEXT_PUBLIC_HOSPITAL_AI_API_BASE_URL ?? "http://localhost:8000";
 
@@ -54,6 +54,15 @@ export function AssistantShell() {
     status: "idle",
     message: "Create or select a persisted backend thread before asking a question.",
   });
+
+  // Streaming state
+  const [streamingState, setStreamingState] = useState<StreamingState>({
+    content: "",
+    citations: [],
+    metadata: null,
+    isStreaming: false,
+  });
+  const abortControllerRef = useRef<AbortController | null>(null);
 
   const patientContexts = useMemo(() => buildPatientContextsFromThreads(threads), [threads]);
   const apiConfig = useMemo<BackendThreadApiConfig>(
@@ -296,6 +305,18 @@ export function AssistantShell() {
     }
   }
 
+  function handleStopStreaming() {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+      abortControllerRef.current = null;
+    }
+    setStreamingState((prev) => ({ ...prev, isStreaming: false }));
+    setComposerSubmitState({
+      status: "idle",
+      message: "Streaming stopped by user.",
+    });
+  }
+
   function handleSubmitQuestion(question: string): ThreadMessageSubmitReadiness {
     const readiness = prepareBackendThreadMessageRequest(activeThread, activePatientContext, question);
     if (!readiness.ready) {
@@ -313,21 +334,189 @@ export function AssistantShell() {
       return blocked;
     }
 
-    setComposerSubmitState({ status: "loading", message: "Saving question and backend answer to the active thread." });
+    // Add user message immediately for responsiveness
+    const userMessageId = `user-${Date.now()}`;
+    setThreads((currentThreads) =>
+      currentThreads.map((thread) => {
+        if (thread.id !== activeThread.id) return thread;
+        return {
+          ...thread,
+          messages: [
+            ...thread.messages,
+            {
+              id: userMessageId,
+              role: "staff" as const,
+              content: question,
+              createdAt: new Date().toISOString(),
+              scope: activeThread.scope,
+              patientContextId: activeThread.patientContextId,
+              citations: [],
+              confidence: "unknown" as const,
+              disclaimer: null,
+              provenance: {
+                status: "verified-backend" as const,
+                visibleLabel: "User",
+                sourceLabel: "User input",
+                note: "User submitted question",
+              },
+            },
+          ],
+        };
+      }),
+    );
+
+    // Use streaming endpoint
+    const abortController = new AbortController();
+    abortControllerRef.current = abortController;
+
+    setStreamingState({
+      content: "",
+      citations: [],
+      metadata: null,
+      isStreaming: true,
+    });
+    setComposerSubmitState({ status: "streaming", message: "Streaming response from assistant..." });
+
     void (async () => {
+      let streamedCitations: StreamCitationItem[] = [];
+      let streamedMetadata: StreamMetadataEvent | null = null;
+      let streamedContent = "";
+
       try {
-        await askBackendThreadMessage(activeThread.id, readiness.request, apiConfig);
-        await loadWorkspace(activeThread.id);
+        await streamChat({
+          baseUrl: apiConfig.baseUrl,
+          token: apiConfig.token,
+          patientId: activeThread.patientContextId ?? "general",
+          question,
+          topK: readiness.request.top_k ?? 5,
+          threadId: activeThread.id,
+          onToken: (token) => {
+            streamedContent += token;
+            setStreamingState((prev) => ({
+              ...prev,
+              content: streamedContent,
+            }));
+          },
+          onCitations: (citations) => {
+            streamedCitations = citations;
+            setStreamingState((prev) => ({
+              ...prev,
+              citations,
+            }));
+          },
+          onMetadata: (meta) => {
+            streamedMetadata = meta;
+            setStreamingState((prev) => ({
+              ...prev,
+              metadata: meta,
+            }));
+          },
+          onDone: () => {
+            // Stream complete — will be handled in finally block
+          },
+          onError: (message) => {
+            setComposerSubmitState({
+              status: "error",
+              message: `Streaming error: ${message}`,
+            });
+          },
+          signal: abortController.signal,
+        });
+
+        // Streaming completed — add assistant message to thread
+        if (streamedContent) {
+          setThreads((currentThreads) =>
+            currentThreads.map((thread) => {
+              if (thread.id !== activeThread.id) return thread;
+              return {
+                ...thread,
+                messages: [
+                  ...thread.messages,
+                  {
+                    id: `assistant-${Date.now()}`,
+                    role: "assistant" as const,
+                    content: streamedContent,
+                    createdAt: new Date().toISOString(),
+                    scope: activeThread.scope,
+                    patientContextId: activeThread.patientContextId,
+                    citations: streamedCitations.map((c) => ({
+                      id: c.evidence_id,
+                      label: `${c.document_title} p. ${c.page}`,
+                      evidenceSourceId: c.evidence_id,
+                      availability: "available" as const,
+                      provenance: {
+                        status: "verified-backend" as const,
+                        visibleLabel: "Backend verified",
+                        sourceLabel: "Streaming evidence",
+                        note: "Citation from streaming response",
+                      },
+                    })),
+                    confidence: (streamedMetadata?.confidence as "low" | "medium" | "high") ?? "unknown",
+                    disclaimer: "AI-assisted retrieval; clinical staff must verify before making decisions.",
+                    provenance: {
+                      status: "verified-backend" as const,
+                      visibleLabel: "Backend verified",
+                      sourceLabel: "Streaming chat API",
+                      note: `Pipeline: ${streamedMetadata?.pipeline ?? "unknown"}, Model: ${streamedMetadata?.model ?? "unknown"}`,
+                    },
+                  },
+                ],
+              };
+            }),
+          );
+
+          // Add evidence sources from citations
+          if (streamedCitations.length > 0) {
+            setEvidenceSources((currentSources) =>
+              dedupeEvidenceSources([
+                ...currentSources,
+                ...streamedCitations.map((c) => ({
+                  id: c.evidence_id,
+                  documentId: c.document_id,
+                  title: c.document_title,
+                  page: c.page,
+                  chunkId: null,
+                  excerpt: c.content,
+                  score: c.score,
+                  availability: "available" as const,
+                  metadata: {},
+                  provenance: {
+                    status: "verified-backend" as const,
+                    visibleLabel: "Backend verified",
+                    sourceLabel: "Streaming evidence",
+                    note: "Evidence from streaming response",
+                  },
+                })),
+              ]),
+            );
+          }
+        }
+
         setComposerSubmitState({
           status: "ready",
-          message: "Persisted backend answer saved to this thread.",
+          message: "Streaming response complete.",
           request: readiness.request,
         });
       } catch (error) {
-        setComposerSubmitState({
-          status: "error",
-          message: safeErrorMessage(error, "Unable to save backend thread message."),
+        if ((error as Error).name === "AbortError") {
+          setComposerSubmitState({
+            status: "idle",
+            message: "Streaming stopped by user.",
+          });
+        } else {
+          setComposerSubmitState({
+            status: "error",
+            message: safeErrorMessage(error, "Streaming request failed."),
+          });
+        }
+      } finally {
+        setStreamingState({
+          content: "",
+          citations: [],
+          metadata: null,
+          isStreaming: false,
         });
+        abortControllerRef.current = null;
       }
     })();
 
@@ -358,7 +547,7 @@ export function AssistantShell() {
               </div>
               <div className="flex flex-wrap gap-2">
                 <Badge>Persisted threads</Badge>
-                <Badge className="border-[#34d399]/30 text-[#34d399]">General knowledge backend</Badge>
+                <Badge className="border-[#34d399]/30 text-[#34d399]">Streaming enabled</Badge>
               </div>
             </div>
 
@@ -401,17 +590,22 @@ export function AssistantShell() {
             contexts={patientContexts}
             onSelectContext={setActivePatientContextId}
           />
-          {activeThread && activeThread.messages.length === 0 && (
+          {activeThread && activeThread.messages.length === 0 && !streamingState.isStreaming && (
             <SuggestedPrompts
               scope={activePatientContext?.scope ?? "general-knowledge"}
               onSelect={(prompt) => handleSubmitQuestion(prompt)}
             />
           )}
-          <ChatTranscript activeThread={activeThread} />
+          <ChatTranscript
+            activeThread={activeThread}
+            streamingState={streamingState}
+          />
           <ChatComposer
             activeContext={activePatientContext}
             isSubmitting={composerSubmitState.status === "loading"}
+            isStreaming={streamingState.isStreaming}
             onSubmitQuestion={handleSubmitQuestion}
+            onStopStreaming={handleStopStreaming}
             submitState={composerSubmitState}
           />
         </section>

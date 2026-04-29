@@ -180,10 +180,54 @@ async def _mark_failed_if_current(
 
 
 def process_document_job(document_id: str) -> None:
+    """Entry point called by rq workers.
+
+    On final failure (after all retries exhausted), the document is moved
+    to the dead-letter queue for manual inspection.
+    """
+    import logging
+
+    logger = logging.getLogger(__name__)
+    logger.info("Starting document processing job for %s", document_id)
+
     async def _run() -> None:
         settings = get_settings()
         session_factory = get_session_factory()
         async with session_factory() as session:
-            await process_document(session, uuid.UUID(document_id), settings)
+            try:
+                await process_document(session, uuid.UUID(document_id), settings)
+                logger.info("Document %s processed successfully.", document_id)
+            except Exception as exc:
+                logger.exception("Document %s processing failed: %s", document_id, exc)
+                # Attempt to move to dead-letter queue on final failure
+                try:
+                    from hospital_ai.workers.queue import enqueue_to_dead_letter
+                    enqueue_to_dead_letter(
+                        uuid.UUID(document_id),
+                        settings,
+                        str(exc),
+                    )
+                except Exception:
+                    logger.error(
+                        "Failed to move document %s to dead-letter queue.",
+                        document_id,
+                    )
+                raise  # Re-raise so rq marks the job as failed
 
     asyncio.run(_run())
+
+
+def dead_letter_handler(document_id: str, error_message: str) -> None:
+    """Handler for dead-letter queue items.
+
+    Logs the failure for monitoring.  A future admin dashboard or
+    alerting hook can subscribe to this queue for notifications.
+    """
+    import logging
+
+    logger = logging.getLogger(__name__)
+    logger.error(
+        "DEAD-LETTER: Document %s permanently failed: %s",
+        document_id,
+        error_message,
+    )

@@ -1,8 +1,8 @@
 """Admin settings API — runtime-configurable RAG & LLM parameters.
 
 Allows admin users to view and modify LLM/embedding/RAG settings
-without restarting the server.  Persists to an in-memory snapshot
-(production would use a DB or config store).
+without restarting the server.  Persists overrides to the ``system_settings``
+database table so they survive restarts.
 """
 
 from __future__ import annotations
@@ -11,10 +11,13 @@ from typing import List, Optional
 
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel, Field
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from hospital_ai.api.deps import get_current_user
 from hospital_ai.core.config import Settings, get_settings
 from hospital_ai.db.models import User
+from hospital_ai.db.session import get_session
+from hospital_ai.db.settings_store import effective_value, get_all_overrides, upsert_many
 from hospital_ai.services.llm.manager import LLMManager
 
 router = APIRouter()
@@ -72,19 +75,6 @@ class SettingsUpdateRequest(BaseModel):
     chunk_overlap: Optional[int] = Field(None, ge=0, le=512)
 
 
-# ── In-memory overrides (production: persist to DB) ──────────────────
-
-
-_overrides: dict = {}
-
-
-def _effective_value(field: str, settings: Settings) -> object:
-    """Return the override if set, else the default from env/settings."""
-    if field in _overrides:
-        return _overrides[field]
-    return getattr(settings, field)
-
-
 # ── Routes ───────────────────────────────────────────────────────────
 
 
@@ -92,32 +82,37 @@ def _effective_value(field: str, settings: Settings) -> object:
 async def get_admin_settings(
     current_user: User = Depends(get_current_user),
     settings: Settings = Depends(get_settings),
+    session: AsyncSession = Depends(get_session),
 ) -> SettingsResponse:
     """Return the current LLM, embedding, and RAG settings."""
+    overrides = await get_all_overrides(session)
     manager = LLMManager(settings)
+
+    def _ev(key: str) -> object:
+        return effective_value(key, overrides, settings)
 
     return SettingsResponse(
         llm=LLMSettingsResponse(
-            chat_provider=str(_effective_value("chat_provider", settings)),
-            chat_model=str(_effective_value("chat_model", settings)),
-            openai_chat_model=str(_effective_value("openai_chat_model", settings)),
-            openai_base_url=str(_effective_value("openai_base_url", settings)),
-            ollama_base_url=str(_effective_value("ollama_base_url", settings)),
-            system_prompt=str(_effective_value("system_prompt", settings)),
-            streaming_enabled=bool(_effective_value("streaming_enabled", settings)),
+            chat_provider=str(_ev("chat_provider")),
+            chat_model=str(_ev("chat_model")),
+            openai_chat_model=str(_ev("openai_chat_model")),
+            openai_base_url=str(_ev("openai_base_url")),
+            ollama_base_url=str(_ev("ollama_base_url")),
+            system_prompt=str(_ev("system_prompt")),
+            streaming_enabled=bool(_ev("streaming_enabled")),
             available_providers=manager.list_providers(),
         ),
         embedding=EmbeddingSettingsResponse(
-            embedding_provider=str(_effective_value("embedding_provider", settings)),
-            embedding_model=str(_effective_value("embedding_model", settings)),
-            embedding_dimensions=int(_effective_value("embedding_dimensions", settings)),  # type: ignore[arg-type]
-            openai_embedding_model=str(_effective_value("openai_embedding_model", settings)),
+            embedding_provider=str(_ev("embedding_provider")),
+            embedding_model=str(_ev("embedding_model")),
+            embedding_dimensions=int(_ev("embedding_dimensions")),  # type: ignore[arg-type]
+            openai_embedding_model=str(_ev("openai_embedding_model")),
         ),
         rag=RAGSettingsResponse(
-            retrieval_top_k=int(_effective_value("retrieval_top_k", settings)),  # type: ignore[arg-type]
-            evidence_threshold=float(_effective_value("evidence_threshold", settings)),  # type: ignore[arg-type]
-            chunk_size=int(_effective_value("chunk_size", settings)),  # type: ignore[arg-type]
-            chunk_overlap=int(_effective_value("chunk_overlap", settings)),  # type: ignore[arg-type]
+            retrieval_top_k=int(_ev("retrieval_top_k")),  # type: ignore[arg-type]
+            evidence_threshold=float(_ev("evidence_threshold")),  # type: ignore[arg-type]
+            chunk_size=int(_ev("chunk_size")),  # type: ignore[arg-type]
+            chunk_overlap=int(_ev("chunk_overlap")),  # type: ignore[arg-type]
         ),
     )
 
@@ -127,12 +122,19 @@ async def update_admin_settings(
     payload: SettingsUpdateRequest,
     current_user: User = Depends(get_current_user),
     settings: Settings = Depends(get_settings),
+    session: AsyncSession = Depends(get_session),
 ) -> SettingsResponse:
     """Update configurable settings (admin only).
 
     Only non-null fields in the payload are applied as overrides.
+    Changes are persisted to the ``system_settings`` database table.
     """
     updates = payload.dict(exclude_none=True)
-    _overrides.update(updates)
+    if updates:
+        await upsert_many(session, updates, user_id=current_user.id)
 
-    return await get_admin_settings(current_user=current_user, settings=settings)
+    return await get_admin_settings(
+        current_user=current_user,
+        settings=settings,
+        session=session,
+    )

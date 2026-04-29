@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from "react";
-import { ArrowUp, Search, ShieldCheck } from "lucide-react";
+import { ArrowUp, Search, ShieldCheck, Square } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { BackendThreadMessageRequest, ThreadMessageSubmitReadiness, PatientContext } from "@/lib/chat-assistant";
 
@@ -7,30 +7,42 @@ export type ComposerSubmitState =
   | { status: "idle"; message: string }
   | { status: "blocked"; message: string }
   | { status: "loading"; message: string }
+  | { status: "streaming"; message: string }
   | { status: "ready"; message: string; request: BackendThreadMessageRequest }
   | { status: "error"; message: string };
 
 type ChatComposerProps = {
   activeContext: PatientContext | undefined;
   isSubmitting: boolean;
+  isStreaming?: boolean;
   onSubmitQuestion: (question: string) => ThreadMessageSubmitReadiness;
+  onStopStreaming?: () => void;
   submitState: ComposerSubmitState;
 };
 
-export function ChatComposer({ activeContext, isSubmitting, onSubmitQuestion, submitState }: ChatComposerProps) {
+export function ChatComposer({
+  activeContext,
+  isSubmitting,
+  isStreaming = false,
+  onSubmitQuestion,
+  onStopStreaming,
+  submitState,
+}: ChatComposerProps) {
   const [question, setQuestion] = useState("");
   const [localError, setLocalError] = useState<string | null>(null);
   const scopeLabel = activeContext
     ? `${activeContext.displayLabel} / ${activeContext.permissionLabel}`
     : "No active scope selected";
-  const submitDisabled = isSubmitting || !activeContext;
+  const submitDisabled = isSubmitting || isStreaming || !activeContext;
   const statusMessage = localError ?? submitState.message;
   const statusClassName =
     localError || submitState.status === "blocked" || submitState.status === "error"
       ? "text-[#fca5a5]"
       : submitState.status === "ready"
         ? "text-[#86efac]"
-        : "text-[#9ca3af]";
+        : submitState.status === "streaming"
+          ? "text-[#93c5fd]"
+          : "text-[#9ca3af]";
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -59,17 +71,20 @@ export function ChatComposer({ activeContext, isSubmitting, onSubmitQuestion, su
             <>
               <button 
                 type="button"
-                className="inline-flex items-center rounded-md border border-white/20 bg-transparent px-2 py-1 text-xs font-medium text-[#9ca3af] cursor-pointer hover:bg-white/10 transition-colors" 
+                className="inline-flex items-center rounded-md border border-white/20 bg-transparent px-2 py-1 text-xs font-medium text-[#9ca3af] cursor-pointer hover:bg-white/10 transition-colors disabled:opacity-50 disabled:cursor-not-allowed" 
+                disabled={submitDisabled}
                 onClick={() => setQuestion("Summarize recent lab results")}
               >Summarize recent lab results</button>
               <button 
                 type="button"
-                className="inline-flex items-center rounded-md border border-white/20 bg-transparent px-2 py-1 text-xs font-medium text-[#9ca3af] cursor-pointer hover:bg-white/10 transition-colors" 
+                className="inline-flex items-center rounded-md border border-white/20 bg-transparent px-2 py-1 text-xs font-medium text-[#9ca3af] cursor-pointer hover:bg-white/10 transition-colors disabled:opacity-50 disabled:cursor-not-allowed" 
+                disabled={submitDisabled}
                 onClick={() => setQuestion("What are the active medications?")}
               >What are the active medications?</button>
               <button 
                 type="button"
-                className="inline-flex items-center rounded-md border border-white/20 bg-transparent px-2 py-1 text-xs font-medium text-[#9ca3af] cursor-pointer hover:bg-white/10 transition-colors" 
+                className="inline-flex items-center rounded-md border border-white/20 bg-transparent px-2 py-1 text-xs font-medium text-[#9ca3af] cursor-pointer hover:bg-white/10 transition-colors disabled:opacity-50 disabled:cursor-not-allowed" 
+                disabled={submitDisabled}
                 onClick={() => setQuestion("Show recent clinical notes")}
               >Show recent clinical notes</button>
             </>
@@ -77,17 +92,20 @@ export function ChatComposer({ activeContext, isSubmitting, onSubmitQuestion, su
             <>
               <button 
                 type="button"
-                className="inline-flex items-center rounded-md border border-white/20 bg-transparent px-2 py-1 text-xs font-medium text-[#9ca3af] cursor-pointer hover:bg-white/10 transition-colors" 
+                className="inline-flex items-center rounded-md border border-white/20 bg-transparent px-2 py-1 text-xs font-medium text-[#9ca3af] cursor-pointer hover:bg-white/10 transition-colors disabled:opacity-50 disabled:cursor-not-allowed" 
+                disabled={submitDisabled}
                 onClick={() => setQuestion("What are the standard protocols for sepsis?")}
               >What are the standard protocols for sepsis?</button>
               <button 
                 type="button"
-                className="inline-flex items-center rounded-md border border-white/20 bg-transparent px-2 py-1 text-xs font-medium text-[#9ca3af] cursor-pointer hover:bg-white/10 transition-colors" 
+                className="inline-flex items-center rounded-md border border-white/20 bg-transparent px-2 py-1 text-xs font-medium text-[#9ca3af] cursor-pointer hover:bg-white/10 transition-colors disabled:opacity-50 disabled:cursor-not-allowed" 
+                disabled={submitDisabled}
                 onClick={() => setQuestion("How to handle a code blue?")}
               >How to handle a code blue?</button>
               <button 
                 type="button"
-                className="inline-flex items-center rounded-md border border-white/20 bg-transparent px-2 py-1 text-xs font-medium text-[#9ca3af] cursor-pointer hover:bg-white/10 transition-colors" 
+                className="inline-flex items-center rounded-md border border-white/20 bg-transparent px-2 py-1 text-xs font-medium text-[#9ca3af] cursor-pointer hover:bg-white/10 transition-colors disabled:opacity-50 disabled:cursor-not-allowed" 
+                disabled={submitDisabled}
                 onClick={() => setQuestion("Find guidelines for administering vancomycin")}
               >Find guidelines for administering vancomycin</button>
             </>
@@ -98,7 +116,7 @@ export function ChatComposer({ activeContext, isSubmitting, onSubmitQuestion, su
             <Search className="size-4 shrink-0 text-[#8a8f98]" />
             <input
               aria-describedby="assistant-submit-status"
-              className="min-w-0 flex-1 bg-transparent text-sm text-white outline-none placeholder:text-[#6f747d]"
+              className="min-w-0 flex-1 bg-transparent text-sm text-white outline-none placeholder:text-[#6f747d] disabled:opacity-50"
               disabled={submitDisabled}
               id="assistant-question"
               onChange={(event) => {
@@ -107,7 +125,7 @@ export function ChatComposer({ activeContext, isSubmitting, onSubmitQuestion, su
                   setLocalError(null);
                 }
               }}
-              placeholder="Ask general knowledge, or select patient context first..."
+              placeholder={isStreaming ? "Waiting for response..." : "Ask general knowledge, or select patient context first..."}
               type="text"
               value={question}
             />
@@ -117,13 +135,27 @@ export function ChatComposer({ activeContext, isSubmitting, onSubmitQuestion, su
               <ShieldCheck className="size-4" />
               <span className="max-w-[180px] truncate">{scopeLabel}</span>
             </Button>
-            <Button disabled={submitDisabled} size="icon" type="submit" aria-label="Submit question">
-              <ArrowUp className="size-4" />
-            </Button>
+            {isStreaming ? (
+              <Button
+                size="sm"
+                variant="secondary"
+                type="button"
+                aria-label="Stop generating"
+                onClick={onStopStreaming}
+                className="gap-1.5 border-red-500/30 text-red-400 hover:bg-red-500/10"
+              >
+                <Square className="size-3" />
+                Stop
+              </Button>
+            ) : (
+              <Button disabled={submitDisabled} size="icon" type="submit" aria-label="Submit question">
+                <ArrowUp className="size-4" />
+              </Button>
+            )}
           </div>
         </div>
         <p aria-live="polite" className={`text-xs ${statusClassName}`} id="assistant-submit-status">
-          {isSubmitting ? "Preparing patient chat request..." : statusMessage}
+          {isStreaming ? "Streaming response..." : isSubmitting ? "Preparing patient chat request..." : statusMessage}
         </p>
       </div>
     </form>

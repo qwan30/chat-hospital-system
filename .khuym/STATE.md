@@ -1,17 +1,23 @@
 # STATE
-focus: Kotaemon-first chat assistant UI completion
-phase: compounding-complete-human-signoff-pending
+focus: Streaming RAG and Persistent Settings implementation
+phase: compounding-complete-committed
 last_updated: 2026-04-29
 
 ## Current State
 
 Skill: compounding
-Feature: kotaemon-chat-assistant-ui
-Epic: `br-dyy`
-Plan Gate: approved by user in the 2026-04-28 execution request
-Execution Gate: Phase 1 through Phase 4 automated execution complete
-Review Gate: agent-run product UAT complete after one P1 fix; manual end-user P2 feedback fixed with targeted regression coverage
-Current Phase To Prepare Next: get explicit human UAT sign-off, then final epic close if approved
+Feature: streaming-rag-and-persistent-settings
+Epic: `br-dyy` (continued)
+Plan Gate: implemented and committed
+Execution Gate: code committed, GitNexus indexed
+Review Gate: Session learnings captured in history/learnings/20260429-streaming-and-persistent-settings.md
+Current Phase To Prepare Next: transition to next feature or final project hardening
+
+Phase 1 streaming is complete: SSE support added to frontend and backend reasoning chains with explicit AbortController lifecycle management.
+
+Phase 2 persistent settings is complete: SQL-backed SettingsStore with Alembic migrations replaces environment-only configuration for clinical tuning.
+
+Phase 3 hardening is complete: GraphRAG service implemented, and worker queue enhanced with retry/DLQ support for clinical data stability.
 
 Phase 1 live frontend wiring is complete: the root chat workspace loads persisted backend threads, uses explicit backend URL and bearer-token controls, maps thread details into one active workspace state, and wires create, rename, archive, share, and thread-message submission actions.
 

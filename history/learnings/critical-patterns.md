@@ -6,6 +6,17 @@ most to learn and save the most by knowing.
 
 ---
 
+## [20260429] Streaming RAG Requires Explicit Client-Side Abort Contracts
+**Category:** pattern
+**Feature:** streaming-rag-and-persistent-settings
+**Tags:** [streaming, frontend, abort-controller, reliability]
+
+Streaming chat responses (SSE) without explicit client-side lifecycle management lead to orphaned backend context and stale UI "ghost" messages. Every streaming frontend component MUST use an `AbortController` linked to the component lifecycle or user "Stop" action, and the backend MUST monitor the connection close event to terminate reasoning chains.
+
+**Full entry:** history/learnings/20260429-streaming-and-persistent-settings.md
+
+---
+
 ## [20260428] RAG Evidence Requires Full Join-Chain Authorization
 **Category:** failure
 **Feature:** backend-permission-filtered-rag

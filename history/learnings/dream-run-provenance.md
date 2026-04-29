@@ -6,6 +6,16 @@ source_window: last 7 days, up to 20 sessions via history.jsonl
 
 # Dream Run Provenance
 
+## 2026-04-29T13:45:00+07:00
+
+- Mode: session-compounding
+- Source window: current session and immediate history
+- Scope: `D:\projects\chatbot-hospital-system`, Streaming RAG, Persistent Settings, GraphRAG implementation.
+- Existing learning owner updated: `history/learnings/20260429-streaming-and-persistent-settings.md`
+- Files created: none (compounding file already created).
+- Skipped candidates: transient git commit and status prompts.
+- Critical-pattern edits: 1 (Promoted "Streaming RAG Abort Contracts" to `critical-patterns.md`).
+
 ## 2026-04-29T01:07:29+07:00
 
 - Mode: recurring

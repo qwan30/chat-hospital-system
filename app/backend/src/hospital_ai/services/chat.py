@@ -94,12 +94,25 @@ class ChatService:
         conversation_history = await self._get_conversation_history(thread_id) if thread_id else []
 
         query_embedding = await EmbeddingService(self.settings).embed(question)
-        evidence = await RetrievalService(self.session).search(
-            user_id=user.id,
-            patient_id=patient_id,
-            query_embedding=query_embedding,
-            top_k=top_k,
-        )
+        retrieval_svc = RetrievalService(self.session)
+        retrieval_mode = self.settings.retrieval_mode
+
+        if retrieval_mode in ("bm25", "hybrid"):
+            evidence = await retrieval_svc.hybrid_search(
+                user_id=user.id,
+                patient_id=patient_id,
+                query_embedding=query_embedding,
+                query_text=question,
+                top_k=top_k,
+                retrieval_mode=retrieval_mode,
+            )
+        else:
+            evidence = await retrieval_svc.search(
+                user_id=user.id,
+                patient_id=patient_id,
+                query_embedding=query_embedding,
+                top_k=top_k,
+            )
 
         if not evidence or evidence[0].score < self.settings.evidence_threshold:
             ai_query.status = "no_evidence"
@@ -138,8 +151,11 @@ class ChatService:
             await self.session.commit()
             raise
 
-        # Store retrieved evidence records
+        # Store retrieved evidence records with trace data
         for index, item in enumerate(evidence, start=1):
+            retrieval_method = item.metadata.get("retrieval_method", retrieval_mode)
+            rerank_method = item.metadata.get("rerank_method", "")
+            rerank_score_val = item.metadata.get("rerank_original_score")
             self.session.add(
                 RetrievedEvidence(
                     ai_query_id=ai_query.id,
@@ -147,6 +163,9 @@ class ChatService:
                     rank=index,
                     score=item.score,
                     citation_label=item.evidence_id,
+                    rerank_score=float(rerank_score_val) if rerank_score_val is not None else None,
+                    retrieval_method=retrieval_method,
+                    rerank_method=rerank_method or None,
                 )
             )
 

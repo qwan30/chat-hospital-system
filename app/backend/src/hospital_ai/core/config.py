@@ -49,6 +49,18 @@ class Settings(BaseSettings):
     )
     streaming_enabled: bool = True
 
+    # Reranker settings
+    reranker_provider: str = "keyword"  # keyword | cross_encoder | tei | cohere
+    reranker_model: str = "BAAI/bge-reranker-v2-m3"
+    reranker_top_k: int = 5
+    reranker_tei_url: str = ""
+    cohere_api_key: str = ""
+
+    # Hybrid search settings
+    retrieval_mode: str = "vector"  # vector | bm25 | hybrid
+    bm25_weight: float = 0.4
+    vector_weight: float = 0.6
+
     # HMS integration
     hms_base_url: str = "http://localhost:8080/api/v1"
     hms_api_key: str = ""

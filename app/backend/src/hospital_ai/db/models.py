@@ -239,6 +239,11 @@ class RetrievedEvidence(Base):
     score: Mapped[float] = mapped_column(Numeric, nullable=False)
     citation_label: Mapped[str] = mapped_column(String(16), nullable=False)
 
+    # RAG trace observability fields
+    rerank_score: Mapped[Optional[float]] = mapped_column(Numeric, nullable=True)
+    retrieval_method: Mapped[Optional[str]] = mapped_column(String(32), nullable=True)
+    rerank_method: Mapped[Optional[str]] = mapped_column(String(32), nullable=True)
+
     query: Mapped[AiQuery] = relationship(back_populates="evidence")
 
 

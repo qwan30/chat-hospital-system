@@ -108,9 +108,15 @@ async def process_document(
                         "page_number": chunk.page_number,
                         "start_offset": chunk.start_offset,
                         "end_offset": chunk.end_offset,
+                        "chunk_type": chunk.chunk_type,
                     },
                 )
             )
+
+        # Populate tsvector column for BM25 search (PostgreSQL only)
+        await session.flush()
+        await _populate_tsvectors(session, document.id)
+
         document.status = "indexed"
         document.ocr_error = None
         document.index_generation = start_generation + 1
@@ -125,6 +131,40 @@ async def process_document(
             preserve_existing_index,
             "index_failed",
             str(exc),
+        )
+
+
+async def _populate_tsvectors(
+    session: AsyncSession,
+    document_id: uuid.UUID,
+) -> None:
+    """Populate tsvector column for newly indexed chunks (PostgreSQL only).
+
+    Uses to_tsvector('english', content) to generate the search_vector.
+    Silently skips on non-PostgreSQL dialects.
+    """
+    from sqlalchemy import text as sql_text
+
+    bind = session.get_bind()
+    if bind.dialect.name != "postgresql":
+        return
+
+    try:
+        await session.execute(
+            sql_text("""
+                UPDATE document_chunks
+                SET search_vector = to_tsvector('english', content)
+                WHERE document_id = :doc_id
+                  AND search_vector IS NULL
+            """),
+            {"doc_id": document_id},
+        )
+    except Exception:
+        # search_vector column may not exist yet (pre-migration)
+        import logging
+        logging.getLogger(__name__).debug(
+            "tsvector population skipped for document %s (column may not exist)",
+            document_id,
         )
 
 

@@ -37,6 +37,15 @@ postgres = [
 ocr = [
   "paddleocr>=3.0.0"
 ]
+tables = [
+  "pdfplumber>=0.10.0"
+]
+reranker = [
+  "sentence-transformers>=2.2.0"
+]
+cohere = [
+  "cohere>=5.0.0"
+]
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/hospital_ai"]

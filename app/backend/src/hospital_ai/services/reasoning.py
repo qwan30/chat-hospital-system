@@ -55,7 +55,7 @@ class SimpleQAPipeline:
 
     def __init__(self, settings: Settings) -> None:
         self.settings = settings
-        self.reranker = RerankerService()
+        self.reranker = RerankerService(settings)
 
     async def run(
         self,
@@ -129,7 +129,7 @@ class DecomposeQAPipeline:
 
         # For each sub-question, score the evidence and pick best matches.
         all_cited: List[RetrievedChunk] = []
-        reranker = RerankerService()
+        reranker = RerankerService(self.settings)
         for sub_q in sub_questions:
             reranked = reranker.rerank(sub_q, evidence, top_k=3)
             all_cited.extend(reranked)
@@ -176,7 +176,7 @@ class PatientSummaryPipeline:
 
     def __init__(self, settings: Settings) -> None:
         self.settings = settings
-        self.reranker = RerankerService()
+        self.reranker = RerankerService(settings)
 
     async def run(
         self,

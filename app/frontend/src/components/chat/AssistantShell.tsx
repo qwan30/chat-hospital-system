@@ -401,6 +401,12 @@ export function AssistantShell() {
             contexts={patientContexts}
             onSelectContext={setActivePatientContextId}
           />
+          {activeThread && activeThread.messages.length === 0 && (
+            <SuggestedPrompts
+              scope={activePatientContext?.scope ?? "general-knowledge"}
+              onSelect={(prompt) => handleSubmitQuestion(prompt)}
+            />
+          )}
           <ChatTranscript activeThread={activeThread} />
           <ChatComposer
             activeContext={activePatientContext}
@@ -468,4 +474,58 @@ function safeErrorMessage(error: unknown, fallback: string): string {
     return error.message;
   }
   return fallback;
+}
+
+// ── Suggested Prompts ────────────────────────────────────────────────────
+
+const GENERAL_PROMPTS = [
+  { icon: "🏥", label: "Hospital policies", prompt: "What are the hospital's visiting hours and patient safety policies?" },
+  { icon: "💊", label: "Medication info", prompt: "What are the common drug interactions I should be aware of for elderly patients?" },
+  { icon: "📋", label: "Clinical guidelines", prompt: "Summarize the latest clinical guidelines for hypertension management." },
+  { icon: "🔬", label: "Lab reference", prompt: "What are the normal reference ranges for a complete blood count (CBC)?" },
+];
+
+const PATIENT_PROMPTS = [
+  { icon: "📊", label: "Patient summary", prompt: "Give me a comprehensive summary of this patient's medical history." },
+  { icon: "💉", label: "Recent labs", prompt: "What are the most recent lab results for this patient?" },
+  { icon: "📅", label: "Appointments", prompt: "List all upcoming and recent appointments for this patient." },
+  { icon: "💊", label: "Medications", prompt: "What medications is this patient currently taking and are there any interactions?" },
+];
+
+function SuggestedPrompts({
+  scope,
+  onSelect,
+}: {
+  scope: string;
+  onSelect: (prompt: string) => void;
+}) {
+  const prompts = scope === "patient-linked" ? PATIENT_PROMPTS : GENERAL_PROMPTS;
+
+  return (
+    <div className="mx-auto w-full max-w-2xl px-4 py-6">
+      <p className="mb-3 text-center text-xs font-medium uppercase tracking-wider text-[#8a8f98]">
+        Suggested questions
+      </p>
+      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+        {prompts.map((item) => (
+          <button
+            key={item.prompt}
+            type="button"
+            onClick={() => onSelect(item.prompt)}
+            className="group flex items-start gap-3 rounded-lg border border-white/10 bg-white/[0.02] px-3.5 py-3 text-left transition-all hover:border-white/20 hover:bg-white/[0.05]"
+          >
+            <span className="mt-0.5 text-base">{item.icon}</span>
+            <div className="min-w-0">
+              <span className="block text-sm font-medium text-[#e5e7eb] group-hover:text-white">
+                {item.label}
+              </span>
+              <span className="mt-0.5 block text-xs leading-snug text-[#6f747d] group-hover:text-[#9ca3af]">
+                {item.prompt}
+              </span>
+            </div>
+          </button>
+        ))}
+      </div>
+    </div>
+  );
 }

@@ -54,6 +54,45 @@ export function ChatComposer({ activeContext, isSubmitting, onSubmitQuestion, su
         Ask the hospital assistant
       </label>
       <div className="mx-auto flex w-full max-w-4xl flex-col gap-3 rounded-md border border-white/10 bg-[#08090a] p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
+        <div className="flex flex-wrap gap-2 mb-2">
+          {activeContext?.scope === "patient-linked" ? (
+            <>
+              <button 
+                type="button"
+                className="inline-flex items-center rounded-md border border-white/20 bg-transparent px-2 py-1 text-xs font-medium text-[#9ca3af] cursor-pointer hover:bg-white/10 transition-colors" 
+                onClick={() => setQuestion("Summarize recent lab results")}
+              >Summarize recent lab results</button>
+              <button 
+                type="button"
+                className="inline-flex items-center rounded-md border border-white/20 bg-transparent px-2 py-1 text-xs font-medium text-[#9ca3af] cursor-pointer hover:bg-white/10 transition-colors" 
+                onClick={() => setQuestion("What are the active medications?")}
+              >What are the active medications?</button>
+              <button 
+                type="button"
+                className="inline-flex items-center rounded-md border border-white/20 bg-transparent px-2 py-1 text-xs font-medium text-[#9ca3af] cursor-pointer hover:bg-white/10 transition-colors" 
+                onClick={() => setQuestion("Show recent clinical notes")}
+              >Show recent clinical notes</button>
+            </>
+          ) : (
+            <>
+              <button 
+                type="button"
+                className="inline-flex items-center rounded-md border border-white/20 bg-transparent px-2 py-1 text-xs font-medium text-[#9ca3af] cursor-pointer hover:bg-white/10 transition-colors" 
+                onClick={() => setQuestion("What are the standard protocols for sepsis?")}
+              >What are the standard protocols for sepsis?</button>
+              <button 
+                type="button"
+                className="inline-flex items-center rounded-md border border-white/20 bg-transparent px-2 py-1 text-xs font-medium text-[#9ca3af] cursor-pointer hover:bg-white/10 transition-colors" 
+                onClick={() => setQuestion("How to handle a code blue?")}
+              >How to handle a code blue?</button>
+              <button 
+                type="button"
+                className="inline-flex items-center rounded-md border border-white/20 bg-transparent px-2 py-1 text-xs font-medium text-[#9ca3af] cursor-pointer hover:bg-white/10 transition-colors" 
+                onClick={() => setQuestion("Find guidelines for administering vancomycin")}
+              >Find guidelines for administering vancomycin</button>
+            </>
+          )}
+        </div>
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
           <div className="flex min-h-10 min-w-0 flex-1 items-center gap-3">
             <Search className="size-4 shrink-0 text-[#8a8f98]" />

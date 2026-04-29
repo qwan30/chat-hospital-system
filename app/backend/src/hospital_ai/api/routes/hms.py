@@ -1,4 +1,8 @@
+from typing import Dict
+from uuid import UUID
+
 from fastapi import APIRouter, Depends, Request
+from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from hospital_ai.api.deps import get_current_user, get_request_ip, get_session
@@ -11,8 +15,12 @@ from hospital_ai.services.hms_appointments import (
     HMS_SOURCE_SYSTEM,
     HmsAppointmentEvidenceImporter,
 )
+from hospital_ai.services.hms_sync import HmsSyncService
 
 router = APIRouter()
+
+
+# ── Existing manual import endpoint ───────────────────────────────
 
 
 @router.post(
@@ -41,4 +49,124 @@ async def import_hms_appointment_summary(
         source_family=HMS_APPOINTMENT_SOURCE_FAMILY,
         source_system=HMS_SOURCE_SYSTEM,
         status=document.status,
+    )
+
+
+# ── HMS sync endpoints (pull from HMS REST API) ───────────────────
+
+
+class HmsSyncRequest(BaseModel):
+    patient_id: UUID
+
+
+class HmsSyncResponse(BaseModel):
+    patient_id: UUID
+    synced: Dict[str, int] = Field(default_factory=dict)
+    message: str = "Sync completed."
+
+
+@router.post("/sync/appointments", response_model=HmsSyncResponse)
+async def sync_appointments(
+    payload: HmsSyncRequest,
+    request: Request,
+    session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(get_current_user),
+    settings: Settings = Depends(get_settings),
+) -> HmsSyncResponse:
+    service = HmsSyncService(session, settings)
+    docs = await service.sync_appointments(
+        patient_id=payload.patient_id,
+        actor_user_id=current_user.id,
+        trace_id=new_trace_id(),
+        ip_address=get_request_ip(request),
+    )
+    return HmsSyncResponse(
+        patient_id=payload.patient_id,
+        synced={"appointments": len(docs)},
+        message=f"Synced {len(docs)} appointment(s).",
+    )
+
+
+@router.post("/sync/lab-results", response_model=HmsSyncResponse)
+async def sync_lab_results(
+    payload: HmsSyncRequest,
+    request: Request,
+    session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(get_current_user),
+    settings: Settings = Depends(get_settings),
+) -> HmsSyncResponse:
+    service = HmsSyncService(session, settings)
+    docs = await service.sync_lab_results(
+        patient_id=payload.patient_id,
+        actor_user_id=current_user.id,
+        trace_id=new_trace_id(),
+        ip_address=get_request_ip(request),
+    )
+    return HmsSyncResponse(
+        patient_id=payload.patient_id,
+        synced={"lab_results": len(docs)},
+        message=f"Synced {len(docs)} lab result(s).",
+    )
+
+
+@router.post("/sync/medical-records", response_model=HmsSyncResponse)
+async def sync_medical_records(
+    payload: HmsSyncRequest,
+    request: Request,
+    session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(get_current_user),
+    settings: Settings = Depends(get_settings),
+) -> HmsSyncResponse:
+    service = HmsSyncService(session, settings)
+    docs = await service.sync_medical_records(
+        patient_id=payload.patient_id,
+        actor_user_id=current_user.id,
+        trace_id=new_trace_id(),
+        ip_address=get_request_ip(request),
+    )
+    return HmsSyncResponse(
+        patient_id=payload.patient_id,
+        synced={"medical_records": len(docs)},
+        message=f"Synced {len(docs)} medical record(s).",
+    )
+
+
+@router.post("/sync/full", response_model=HmsSyncResponse)
+async def sync_full(
+    payload: HmsSyncRequest,
+    request: Request,
+    session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(get_current_user),
+    settings: Settings = Depends(get_settings),
+) -> HmsSyncResponse:
+    service = HmsSyncService(session, settings)
+    result = await service.sync_full(
+        patient_id=payload.patient_id,
+        actor_user_id=current_user.id,
+        trace_id=new_trace_id(),
+        ip_address=get_request_ip(request),
+    )
+    return HmsSyncResponse(
+        patient_id=payload.patient_id,
+        synced=result,
+        message=f"Full sync completed — {result['total']} record(s).",
+    )
+
+
+class HmsHealthResponse(BaseModel):
+    hms_reachable: bool
+    hms_url: str
+
+
+@router.get("/health", response_model=HmsHealthResponse)
+async def hms_health(
+    settings: Settings = Depends(get_settings),
+) -> HmsHealthResponse:
+    from hospital_ai.services.hms_connector import HmsApiClient
+
+    client = HmsApiClient(settings)
+    reachable = await client.health_check()
+    return HmsHealthResponse(
+        hms_reachable=reachable,
+        hms_url=settings.hms_base_url,
     )

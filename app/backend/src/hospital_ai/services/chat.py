@@ -1,23 +1,40 @@
-import re
 import time
-from typing import Dict, List, Sequence, Set
+from typing import Dict, List, Optional
 from uuid import UUID
 
-import httpx
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from hospital_ai.core.config import Settings
 from hospital_ai.core.errors import ExternalServiceError, PermissionDeniedError
 from hospital_ai.core.security import PATIENT_READ_SCOPES
-from hospital_ai.db.models import AiQuery, RetrievedEvidence, User
+from hospital_ai.db.models import AiQuery, ChatMessage, ChatThread, RetrievedEvidence, User
 from hospital_ai.schemas.chat import ChatResponse
 from hospital_ai.schemas.documents import EvidenceRead
 from hospital_ai.services.audit import AuditService
 from hospital_ai.services.embeddings import EmbeddingService
 from hospital_ai.services.permissions import PermissionService
+from hospital_ai.services.reasoning import (
+    DecomposeQAPipeline,
+    PatientSummaryPipeline,
+    ReasoningResult,
+    SimpleQAPipeline,
+)
 from hospital_ai.services.retrieval import RetrievedChunk, RetrievalService
 
-CITATION_PATTERN = re.compile(r"\[(E\d+)\]")
+# Re-export shared utilities for backward compatibility
+from hospital_ai.services.chat_utils import (  # noqa: F401
+    ChatGenerator,
+    build_grounded_prompt,
+    build_stub_answer,
+    citations_are_valid,
+    confidence_from_score,
+    extract_citation_ids,
+    to_evidence_schema,
+    CITATION_PATTERN,
+    MAX_HISTORY_MESSAGES,
+)
+
 SAFE_NO_EVIDENCE_ANSWER = (
     "I could not find authorized evidence for this question. "
     "Please review the patient record directly or ask a records user to index the relevant document."
@@ -38,6 +55,8 @@ class ChatService:
         top_k: int,
         trace_id: str,
         ip_address: str,
+        thread_id: Optional[UUID] = None,
+        pipeline: str = "auto",
     ) -> ChatResponse:
         started = time.perf_counter()
         ai_query = AiQuery(
@@ -71,6 +90,9 @@ class ChatService:
             await self.session.commit()
             raise PermissionDeniedError("User is not authorized for this patient.")
 
+        # Gather conversation history if thread is provided
+        conversation_history = await self._get_conversation_history(thread_id) if thread_id else []
+
         query_embedding = await EmbeddingService(self.settings).embed(question)
         evidence = await RetrievalService(self.session).search(
             user_id=user.id,
@@ -100,30 +122,23 @@ class ChatService:
                 answer=SAFE_NO_EVIDENCE_ANSWER,
                 citations=[],
                 confidence="low",
+                thread_id=thread_id,
+                pipeline="simple_qa",
             )
 
-        prompt = build_grounded_prompt(question, evidence)
-        answer = await ChatGenerator(self.settings).generate(prompt)
-        citation_ids = extract_citation_ids(answer)
-        allowed_ids = {item.evidence_id for item in evidence}
-        if not citation_ids or not citation_ids.issubset(allowed_ids):
+        # Select and run reasoning pipeline
+        selected_pipeline = _select_pipeline(pipeline, question)
+        try:
+            reasoning_result = await self._run_pipeline(
+                selected_pipeline, question, evidence, conversation_history
+            )
+        except Exception:
             ai_query.status = "failed"
             ai_query.latency_ms = elapsed_ms(started)
-            await AuditService(self.session).record(
-                actor_user_id=user.id,
-                action="chat.ask",
-                object_type="ai_query",
-                object_id=ai_query.id,
-                patient_id=patient_id,
-                outcome="failed",
-                trace_id=trace_id,
-                ip_address=ip_address,
-                metadata={"reason": "invalid_citations", "citations": sorted(citation_ids)},
-            )
             await self.session.commit()
-            raise ExternalServiceError("Generated answer included invalid or missing citations.")
+            raise
 
-        cited_evidence = [item for item in evidence if item.evidence_id in citation_ids]
+        # Store retrieved evidence records
         for index, item in enumerate(evidence, start=1):
             self.session.add(
                 RetrievedEvidence(
@@ -136,7 +151,7 @@ class ChatService:
             )
 
         ai_query.status = "completed"
-        ai_query.answer = answer
+        ai_query.answer = reasoning_result.answer
         ai_query.latency_ms = elapsed_ms(started)
         await AuditService(self.session).record(
             actor_user_id=user.id,
@@ -147,149 +162,89 @@ class ChatService:
             outcome="allowed",
             trace_id=trace_id,
             ip_address=ip_address,
-            metadata={"result": "completed", "evidence_count": len(evidence)},
+            metadata={
+                "result": "completed",
+                "evidence_count": len(evidence),
+                "pipeline": reasoning_result.pipeline,
+            },
         )
         await self.session.commit()
 
         return ChatResponse(
             query_id=ai_query.id,
-            answer=answer,
-            citations=[to_evidence_schema(item) for item in cited_evidence],
-            confidence=confidence_from_score(evidence[0].score),
+            answer=reasoning_result.answer,
+            citations=reasoning_result.citations,
+            confidence=reasoning_result.confidence,
+            disclaimer=reasoning_result.disclaimer,
+            thread_id=thread_id,
+            pipeline=reasoning_result.pipeline,
         )
 
-
-class ChatGenerator:
-    def __init__(self, settings: Settings) -> None:
-        self.settings = settings
-
-    async def generate(self, prompt: str) -> str:
-        if self.settings.chat_provider == "ollama":
-            return await self._generate_ollama(prompt)
-        return build_stub_answer(prompt)
-
-    async def _generate_ollama(self, prompt: str) -> str:
-        url = f"{self.settings.ollama_base_url.rstrip('/')}/api/chat"
-        payload = {
-            "model": self.settings.chat_model,
-            "stream": False,
-            "messages": [
-                {
-                    "role": "system",
-                    "content": (
-                        "You are a hospital knowledge assistant. Answer only from the evidence. "
-                        "Cite every factual claim using evidence IDs like [E1]."
-                    ),
-                },
-                {"role": "user", "content": prompt},
-            ],
-        }
-        try:
-            async with httpx.AsyncClient(timeout=120) as client:
-                response = await client.post(url, json=payload)
-                response.raise_for_status()
-        except httpx.HTTPError as exc:
-            raise ExternalServiceError("Local Ollama chat request failed.") from exc
-        data = response.json()
-        message = data.get("message") or {}
-        content = message.get("content")
-        if not content:
-            raise ExternalServiceError("Ollama chat response did not include message content.")
-        return str(content)
-
-
-def build_grounded_prompt(question: str, evidence: Sequence[RetrievedChunk]) -> str:
-    blocks = []
-    for item in evidence:
-        blocks.append(
-            f"[{item.evidence_id}] Document: {item.document_title}; page: {item.page}\n{item.content}"
+    async def _get_conversation_history(self, thread_id: UUID) -> List[Dict[str, str]]:
+        """Fetch recent messages from a chat thread for conversation context."""
+        result = await self.session.execute(
+            select(ChatMessage)
+            .where(
+                ChatMessage.thread_id == thread_id,
+            )
+            .order_by(ChatMessage.created_at.desc())
+            .limit(MAX_HISTORY_MESSAGES)
         )
-    return (
-        "Question:\n"
-        f"{question}\n\n"
-        "Authorized evidence:\n"
-        + "\n\n".join(blocks)
-        + "\n\nAnswer using only the evidence. Include citations like [E1]."
-    )
+        messages = list(result.scalars().all())
+        messages.reverse()  # oldest first
+
+        history = []
+        for msg in messages:
+            history.append({
+                "role": msg.role,
+                "content": msg.content,
+            })
+        return history
+
+    async def _run_pipeline(
+        self,
+        pipeline_name: str,
+        question: str,
+        evidence: List[RetrievedChunk],
+        conversation_history: List[Dict[str, str]],
+    ) -> ReasoningResult:
+        """Run the selected reasoning pipeline."""
+        if pipeline_name == "patient_summary":
+            return await PatientSummaryPipeline(self.settings).run(
+                patient_name="Patient",
+                evidence=evidence,
+            )
+        elif pipeline_name == "decompose":
+            return await DecomposeQAPipeline(self.settings).run(
+                question=question,
+                evidence=evidence,
+                conversation_history=conversation_history,
+            )
+        else:
+            return await SimpleQAPipeline(self.settings).run(
+                question=question,
+                evidence=evidence,
+                conversation_history=conversation_history,
+            )
 
 
-def build_stub_answer(prompt: str) -> str:
-    evidence = parse_prompt_evidence(prompt)
-    if not evidence:
-        return "Based on the authorized evidence, the record contains relevant clinical details [E1]."
+def _select_pipeline(requested: str, question: str) -> str:
+    """Auto-detect the best pipeline if 'auto' is requested."""
+    if requested != "auto":
+        return requested
 
-    evidence_id, content = evidence[0]
-    status = line_value(content, "Status")
-    vital_signs = line_value(content, "Vital signs")
-    if status or vital_signs:
-        parts = []
-        if status:
-            parts.append(f"The appointment status is {status} [{evidence_id}].")
-        if vital_signs:
-            parts.append(f"Vital signs: {trim_sentence(vital_signs)} [{evidence_id}].")
-        return " ".join(parts)
+    q = question.lower()
+    summary_indicators = ["summarize", "summary", "overview", "all results", "patient summary"]
+    if any(indicator in q for indicator in summary_indicators):
+        return "patient_summary"
 
-    first_fact = first_evidence_fact(content)
-    return f"Based on the authorized evidence, {trim_sentence(first_fact)} [{evidence_id}]."
+    complex_indicators = [" and ", " also ", " as well as ", " what are ", " compare "]
+    if any(indicator in q for indicator in complex_indicators) and len(question) > 60:
+        return "decompose"
 
+    return "simple"
 
-def parse_prompt_evidence(prompt: str) -> List[tuple[str, str]]:
-    pattern = re.compile(
-        r"\[(E\d+)\] Document:.*?\n(?P<content>.*?)(?=\n\n\[E\d+\] Document:|\n\nAnswer using only the evidence\.|$)",
-        re.DOTALL,
-    )
-    return [(match.group(1), match.group("content").strip()) for match in pattern.finditer(prompt)]
-
-
-def line_value(content: str, label: str) -> str:
-    prefix = f"{label}:"
-    for line in content.splitlines():
-        if line.startswith(prefix):
-            return line[len(prefix) :].strip()
-    return ""
-
-
-def first_evidence_fact(content: str) -> str:
-    for line in content.splitlines():
-        normalized = line.strip()
-        if normalized and normalized.lower() != "hms appointment summary":
-            return normalized
-    return "the record contains relevant clinical details"
-
-
-def trim_sentence(value: str) -> str:
-    return value.rstrip(".")
-
-
-def extract_citation_ids(answer: str) -> Set[str]:
-    return set(CITATION_PATTERN.findall(answer))
-
-
-def citations_are_valid(answer: str, allowed_evidence_ids: Set[str]) -> bool:
-    citation_ids = extract_citation_ids(answer)
-    return bool(citation_ids) and citation_ids.issubset(allowed_evidence_ids)
-
-
-def confidence_from_score(score: float) -> str:
-    if score >= 0.78:
-        return "high"
-    if score >= 0.55:
-        return "medium"
-    return "low"
 
 
 def elapsed_ms(started: float) -> int:
     return int((time.perf_counter() - started) * 1000)
-
-
-def to_evidence_schema(item: RetrievedChunk) -> EvidenceRead:
-    return EvidenceRead(
-        evidence_id=item.evidence_id,
-        document_id=item.document_id,
-        document_title=item.document_title,
-        page=item.page,
-        chunk_id=item.chunk_id,
-        score=item.score,
-        content=item.content,
-        metadata=dict(item.metadata),
-    )

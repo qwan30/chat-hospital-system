@@ -1,10 +1,22 @@
 ---
-last_dream_consolidated_at: 2026-04-28T15:35:44+07:00
+last_dream_consolidated_at: 2026-04-29T01:07:29+07:00
 mode: recurring
-source_window: last 7 days, up to 20 sessions via history.jsonl; Khuym findings cross-check
+source_window: last 7 days, up to 20 sessions via history.jsonl
 ---
 
 # Dream Run Provenance
+
+## 2026-04-29T01:07:29+07:00
+
+- Mode: recurring
+- Source window: last 7 days, up to 20 sessions from `~/.codex/history.jsonl`.
+- Scope: `D:\projects\chatbot-hospital-system`, Kotaemon-first chat workspace UAT feedback and compounding follow-up.
+- Existing learning owner updated: `history/learnings/20260429-chat-uat-feedback-contracts.md` (set dream consolidation marker; no content rewrite needed because the fresh compounding file already owned the UAT contract lessons).
+- Files created: none.
+- Skipped candidates:
+  - Resume, continue, commit, and Khuym routing prompts from the bounded history window: transient workflow noise.
+  - Earlier Phase 1/2/3/4 execution and review prompts already covered by existing learning files and feature history artifacts.
+- Critical-pattern edits: none; existing compounding promotion left unchanged and no new dream promotion requested.
 
 ## 2026-04-28T15:35:44+07:00
 

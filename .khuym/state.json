@@ -2,9 +2,9 @@
   "schema_version": "1.0",
   "feature_slug": "kotaemon-chat-assistant-ui",
   "mode": "standard_feature",
-  "active_skill": "khuym:reviewing",
-  "phase": "manual-uat-p2-fixed-human-signoff-pending",
-  "phase_number": 16,
+  "active_skill": "khuym:compounding",
+  "phase": "compounding-complete-human-signoff-pending",
+  "phase_number": 17,
   "epic_id": "br-dyy",
   "approved_gates": {
     "context": true,
@@ -21,5 +21,5 @@
     "gkg command is unavailable on PATH; direct file inspection was used",
     "br ready --json fails with JSON_ERROR missing field jsonl_export"
   ],
-  "last_updated": "2026-04-29T00:52:43+07:00"
+  "last_updated": "2026-04-29T01:04:00+07:00"
 }

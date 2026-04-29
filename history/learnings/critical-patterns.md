@@ -15,6 +15,15 @@ RAG retrieval is not protected by a single patient permission check. Any evidenc
 
 **Full entry:** history/learnings/20260428-backend-permission-rag-safety.md
 
+## [20260429] Cited RAG Answers Need Answer-Usefulness Assertions
+**Category:** failure
+**Feature:** kotaemon-chat-assistant-ui
+**Tags:** [rag, uat, testing, hms]
+
+A RAG answer can be safe, permission-filtered, and correctly cited while still failing the user's task if it does not summarize the exact facts requested. Manual UAT exposed this when HMS appointment evidence was cited but the answer text stayed generic. For every seeded RAG acceptance question, assert both evidence fidelity and answer usefulness by checking that requested fields from the cited evidence appear in the answer.
+
+**Full entry:** history/learnings/20260429-chat-uat-feedback-contracts.md
+
 ## [20260428] Raw SQL Permission Policy Needs an Executable Contract
 **Category:** pattern
 **Feature:** backend-permission-filtered-rag

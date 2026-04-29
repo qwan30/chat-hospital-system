@@ -68,9 +68,27 @@ export function EvidencePanel({
           </article>
         ) : null}
 
+        {/* Low evidence quality warning */}
+        {evidenceSources.length > 0 && evidenceSources.every((s) => (s.score ?? 0) < 0.55) ? (
+          <div className="flex items-start gap-2.5 rounded-md border border-[#fbbf24]/30 bg-[#fbbf24]/10 p-3">
+            <ShieldAlert className="mt-0.5 size-4 shrink-0 text-[#fbbf24]" />
+            <div>
+              <p className="text-xs font-medium text-[#fde68a]">Low Evidence Quality</p>
+              <p className="mt-0.5 text-xs text-[#d4a574]">
+                All retrieved evidence scores are below the medium threshold (0.55).
+                The AI answer may be less reliable. Consider refining your query.
+              </p>
+            </div>
+          </div>
+        ) : null}
+
         {evidenceSources.map((item) => {
           const style = evidenceStyles[item.availability];
           const Icon = style.icon;
+          const score = item.score ?? 0;
+          const scoreColor = score >= 0.78 ? "#34d399" : score >= 0.55 ? "#fbbf24" : "#f87171";
+          const scoreLabel = score >= 0.78 ? "High" : score >= 0.55 ? "Medium" : "Low";
+          const scorePercent = Math.min(Math.max(score * 100, 0), 100);
 
           return (
           <article key={item.id} id={item.id} className={`scroll-mt-4 rounded-md border p-4 ${style.className}`}>
@@ -82,9 +100,30 @@ export function EvidencePanel({
               <Badge className="shrink-0">{style.label}</Badge>
             </div>
             <p className="text-sm leading-5 text-[#a3a7ad]">{item.excerpt}</p>
+
+            {/* Relevance score bar */}
+            {item.score !== null && (
+              <div className="mt-3">
+                <div className="mb-1 flex items-center justify-between">
+                  <span className="text-xs text-[#8a8f98]">Relevance</span>
+                  <span className="text-xs font-medium" style={{ color: scoreColor }}>
+                    {scoreLabel} ({(score * 100).toFixed(0)}%)
+                  </span>
+                </div>
+                <div className="h-1.5 w-full overflow-hidden rounded-full bg-white/10">
+                  <div
+                    className="h-full rounded-full transition-all duration-300"
+                    style={{
+                      width: `${scorePercent}%`,
+                      backgroundColor: scoreColor,
+                    }}
+                  />
+                </div>
+              </div>
+            )}
+
             <div className="mt-3 flex flex-wrap gap-2 text-xs text-[#8a8f98]">
               {item.page ? <span>Page {item.page}</span> : null}
-              {item.score !== null ? <span>Score {item.score.toFixed(2)}</span> : null}
               <span>{item.provenance.visibleLabel}</span>
               {typeof item.metadata.source_family === "string" ? <span>{item.metadata.source_family}</span> : null}
               {typeof item.metadata.source_record_id === "string" ? (

@@ -26,4 +26,6 @@ async def chat(
         top_k=payload.top_k,
         trace_id=new_trace_id(),
         ip_address=get_request_ip(request),
+        thread_id=payload.thread_id,
+        pipeline=payload.pipeline,
     )

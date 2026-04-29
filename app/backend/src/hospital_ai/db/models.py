@@ -335,3 +335,32 @@ class ChatMessage(Base):
     sender: Mapped[Optional[User]] = relationship()
     ai_query: Mapped[Optional[AiQuery]] = relationship(back_populates="messages")
     patient: Mapped[Optional[Patient]] = relationship()
+
+
+class HmsSyncLog(TimestampMixin, Base):
+    """Track HMS synchronization operations."""
+    __tablename__ = "hms_sync_logs"
+    __table_args__ = (
+        CheckConstraint(
+            "status in ('pending','running','completed','failed','partial')",
+            name="ck_hms_sync_logs_status",
+        ),
+        CheckConstraint(
+            "sync_type in ('appointments','lab_results','medical_records','full')",
+            name="ck_hms_sync_logs_sync_type",
+        ),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    patient_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("patients.id"), nullable=False, index=True)
+    initiated_by: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"), nullable=False, index=True)
+    sync_type: Mapped[str] = mapped_column(String(32), nullable=False)
+    status: Mapped[str] = mapped_column(String(32), nullable=False, default="pending")
+    records_synced: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    records_skipped: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    records_failed: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    error_message: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    trace_id: Mapped[str] = mapped_column(String(64), nullable=False)
+    started_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    completed_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    meta: Mapped[Dict[str, Any]] = mapped_column("metadata", JSON, nullable=False, default=dict)

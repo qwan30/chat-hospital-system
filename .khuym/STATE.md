@@ -1,17 +1,17 @@
 # STATE
 focus: Kotaemon-first chat assistant UI completion
-phase: manual-uat-p2-fixed-human-signoff-pending
+phase: compounding-complete-human-signoff-pending
 last_updated: 2026-04-29
 
 ## Current State
 
-Skill: reviewing
+Skill: compounding
 Feature: kotaemon-chat-assistant-ui
 Epic: `br-dyy`
 Plan Gate: approved by user in the 2026-04-28 execution request
 Execution Gate: Phase 1 through Phase 4 automated execution complete
 Review Gate: agent-run product UAT complete after one P1 fix; manual end-user P2 feedback fixed with targeted regression coverage
-Current Phase To Prepare Next: get explicit human UAT sign-off, then final epic close and compounding if approved
+Current Phase To Prepare Next: get explicit human UAT sign-off, then final epic close if approved
 
 Phase 1 live frontend wiring is complete: the root chat workspace loads persisted backend threads, uses explicit backend URL and bearer-token controls, maps thread details into one active workspace state, and wires create, rename, archive, share, and thread-message submission actions.
 
@@ -103,4 +103,11 @@ Remaining open follow-up: P3 `br-2o5` - move general knowledge sources behind a 
 
 ## Next
 
-Get explicit human UAT sign-off against the seeded Phase 3/4 scenario in `history/kotaemon-chat-assistant-ui/phase-3-4-verification.md`, then run final Khuym closeout and compounding if approved.
+Get explicit human UAT sign-off against the seeded Phase 3/4 scenario in `history/kotaemon-chat-assistant-ui/phase-3-4-verification.md`, then run final Khuym closeout. Compounding for the review/UAT fix loop is already recorded below.
+
+## Last Compounding Run
+
+- Feature: kotaemon-chat-assistant-ui
+- Date: 2026-04-29
+- Learnings file: `history/learnings/20260429-chat-uat-feedback-contracts.md`
+- Critical promotions: 1

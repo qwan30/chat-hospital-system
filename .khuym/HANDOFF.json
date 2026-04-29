@@ -2,9 +2,9 @@
   "schema_version": "1.0",
   "format": "khuym-review-handoff",
   "feature": "kotaemon-chat-assistant-ui",
-  "skill": "khuym:reviewing",
-  "phase": "manual-uat-p2-fixed-human-signoff-pending",
-  "next_action": "Get explicit human UAT sign-off. After approval, run final Khuym finishing/epic close and then compounding.",
+  "skill": "khuym:compounding",
+  "phase": "compounding-complete-human-signoff-pending",
+  "next_action": "Get explicit human UAT sign-off. After approval, run final Khuym finishing/epic close.",
   "context_pct": 0.62,
   "session": {
     "paused_at": "2026-04-28T17:20:00Z",
@@ -37,6 +37,10 @@
     {
       "phase": "P2 UAT fix",
       "summary": "Fixed the four manual P2 findings: archived threads are hidden from the default active list, stub HMS appointment answers state status and vitals, allowed patient evidence uses allowed-state copy, and patient-linked thread creation requires explicit confirmation."
+    },
+    {
+      "phase": "Compounding",
+      "summary": "Captured review/UAT loop learnings in history/learnings/20260429-chat-uat-feedback-contracts.md and promoted one critical RAG answer-usefulness pattern."
     }
   ],
   "verification": {

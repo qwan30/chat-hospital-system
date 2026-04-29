@@ -34,6 +34,27 @@ class Settings(BaseSettings):
     evidence_threshold: float = 0.2
     max_upload_bytes: int = Field(default=10 * 1024 * 1024, ge=1)
 
+    # OpenAI / OpenAI-compatible provider
+    openai_api_key: str = ""
+    openai_base_url: str = "https://api.openai.com/v1"
+    openai_chat_model: str = "gpt-4o-mini"
+    openai_embedding_model: str = "text-embedding-3-small"
+
+    # RAG tuning
+    chunk_size: int = Field(default=512, ge=64, le=4096)
+    chunk_overlap: int = Field(default=64, ge=0, le=512)
+    system_prompt: str = (
+        "You are a hospital knowledge assistant. Answer only from the evidence. "
+        "Cite every factual claim using evidence IDs like [E1]."
+    )
+    streaming_enabled: bool = True
+
+    # HMS integration
+    hms_base_url: str = "http://localhost:8080/api/v1"
+    hms_api_key: str = ""
+    hms_sync_enabled: bool = False
+    hms_sync_timeout_seconds: int = 30
+
     @validator("api_v1_prefix")
     def normalize_api_prefix(cls, value: str) -> str:
         if not value.startswith("/"):

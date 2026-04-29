@@ -1,0 +1,67 @@
+name: Backend Tests
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "app/backend/**"
+      - ".github/workflows/test-backend.yaml"
+  pull_request:
+    branches: [main]
+    paths:
+      - "app/backend/**"
+      - ".github/workflows/test-backend.yaml"
+
+defaults:
+  run:
+    working-directory: app/backend
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.11", "3.12"]
+
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: hospital_ai
+          POSTGRES_PASSWORD: hospital_ai
+          POSTGRES_DB: hospital_ai_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+          cache-dependency-path: app/backend/pyproject.toml
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev,postgres]"
+
+      - name: Run tests
+        env:
+          HOSPITAL_AI_DATABASE_URL: "postgresql+asyncpg://hospital_ai:hospital_ai@localhost:5432/hospital_ai_test"
+          HOSPITAL_AI_CHAT_PROVIDER: "stub"
+          HOSPITAL_AI_EMBEDDING_PROVIDER: "deterministic"
+        run: |
+          python -m pytest tests/ -v --tb=short -q
+
+      - name: Run type check (ruff)
+        run: |
+          pip install ruff
+          ruff check src/ tests/

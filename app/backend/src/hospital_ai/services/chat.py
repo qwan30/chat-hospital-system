@@ -34,6 +34,7 @@ from hospital_ai.services.chat_utils import (  # noqa: F401
     citations_are_valid,
     confidence_from_score,
     extract_citation_ids,
+    meets_evidence_threshold,
     to_evidence_schema,
     CITATION_PATTERN,
     MAX_HISTORY_MESSAGES,
@@ -132,7 +133,7 @@ class ChatService:
             if query_entities:
                 entity_names = [e.name for e in query_entities]
                 graph_ctx = await find_related_entities(
-                    self.session, entity_names, max_hops=2
+                    self.session, entity_names, max_hops=2, patient_id=patient_id
                 )
                 if graph_ctx.related_chunk_ids:
                     existing_ids = {e.chunk_id for e in evidence}
@@ -148,11 +149,13 @@ class ChatService:
                             ge.metadata["retrieval_method"] = "graph"
                         evidence.extend(graph_evidence)
         except Exception:
-            logger.debug("Graph RAG enrichment skipped", exc_info=True)
+            logger.warning("Graph RAG enrichment skipped", exc_info=True)
 
         t_retrieval_ms = int((time.perf_counter() - t_retrieval_start) * 1000)
 
-        if not evidence or evidence[0].score < self.settings.evidence_threshold:
+        if not evidence or not meets_evidence_threshold(
+            evidence[0], retrieval_mode, self.settings.evidence_threshold
+        ):
             ai_query.status = "no_evidence"
             ai_query.answer = SAFE_NO_EVIDENCE_ANSWER
             ai_query.latency_ms = elapsed_ms(started)
@@ -185,7 +188,7 @@ class ChatService:
                 patient_id=patient_id,
             )
         except Exception:
-            logger.debug("Drug interaction check skipped", exc_info=True)
+            logger.warning("Drug interaction check skipped", exc_info=True)
 
         # ── Timing: generation ───────────────────────────────────────
         selected_pipeline = _select_pipeline(pipeline, question)
@@ -200,6 +203,26 @@ class ChatService:
             await self.session.commit()
             raise
         t_gen_ms = int((time.perf_counter() - t_gen_start) * 1000)
+
+        # F-RAG-005: defense-in-depth citation validation.  Each pipeline
+        # already enforces this internally, but a service-level re-check
+        # makes it impossible for a future pipeline (or refactor) to skip
+        # the contract.
+        allowed_evidence_ids = {item.evidence_id for item in evidence}
+        answer_citation_ids = extract_citation_ids(reasoning_result.answer)
+        if answer_citation_ids and not answer_citation_ids.issubset(allowed_evidence_ids):
+            logger.warning(
+                "Answer rejected at service boundary: invalid_citation "
+                "query_id=%s allowed=%s answer_cited=%s",
+                ai_query.id, sorted(allowed_evidence_ids), sorted(answer_citation_ids),
+            )
+            ai_query.status = "failed"
+            ai_query.latency_ms = elapsed_ms(started)
+            await self.session.commit()
+            from hospital_ai.core.errors import ExternalServiceError
+            raise ExternalServiceError(
+                "Generated answer contains citations not in the retrieved evidence."
+            )
 
         # Store retrieved evidence records with trace data
         for index, item in enumerate(evidence, start=1):
@@ -241,7 +264,7 @@ class ChatService:
                 thread_id=thread_id,
             )
         except Exception:
-            logger.debug("Metrics recording failed", exc_info=True)
+            logger.warning("Metrics recording failed", exc_info=True)
 
         await AuditService(self.session).record(
             actor_user_id=user.id,

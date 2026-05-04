@@ -17,6 +17,11 @@ class Settings(BaseSettings):
         "http://localhost:3001,http://127.0.0.1:3001"
     )
 
+    # Default tokens are convenience shortcuts for `environment == "local"` only.
+    # `token_user_map` refuses to surface them in any other environment unless
+    # the operator explicitly overrides via HOSPITAL_AI_DEV_BEARER_TOKENS, so a
+    # forgotten env-var in production cannot silently grant high-privilege
+    # access via the seeded dev users.  See audit finding F-SEC-001.
     dev_bearer_tokens: str = (
         "dev-doctor:doctor@example.test,"
         "dev-records:records@example.test,"
@@ -75,6 +80,17 @@ class Settings(BaseSettings):
 
     @property
     def token_user_map(self) -> Dict[str, str]:
+        # F-SEC-001: refuse the committed default in any non-local
+        # environment unless the operator explicitly overrode the value.
+        # If the operator sets dev_bearer_tokens to anything (including the
+        # default value verbatim) via the env-var, the value is treated as
+        # an explicit acknowledgment and accepted.
+        if (
+            self.environment != "local"
+            and self.dev_bearer_tokens == self.__class__.__fields__["dev_bearer_tokens"].default
+        ):
+            return {}
+
         mapping: Dict[str, str] = {}
         for item in self.dev_bearer_tokens.split(","):
             token_pair = item.strip()

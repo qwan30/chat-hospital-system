@@ -79,18 +79,26 @@ test("AssistantShell wires persisted thread actions into sidebar controls", () =
   assert.match(sidebar, /isCreatingThread: boolean/);
 });
 
-test("AssistantShell submits questions through persisted thread message API", () => {
+test("AssistantShell submits questions through the streaming thread message API", () => {
   const shell = source("src/components/chat/AssistantShell.tsx");
   const composer = source("src/components/chat/ChatComposer.tsx");
 
+  // The streaming path is the canonical submit contract.  Server-side
+  // persistence of `ChatMessage` rows is enforced in chat_stream.py and
+  // covered by the backend regression
+  // `test_apply_stream_completion_persists_thread_messages_on_success`.
   for (const contract of [
     "prepareBackendThreadMessageRequest(activeThread, activePatientContext, question)",
-    "askBackendThreadMessage(activeThread.id, readiness.request, apiConfig)",
-    "Saving question and backend answer to the active thread.",
-    "Persisted backend answer saved to this thread.",
+    "streamChat({",
+    "threadId: activeThread.id",
+    "abortControllerRef",
   ]) {
-    assert.ok(shell.includes(contract), `missing persisted submit contract: ${contract}`);
+    assert.ok(shell.includes(contract), `missing streaming submit contract: ${contract}`);
   }
+
+  // Stop button must be wired to abort an in-flight stream.
+  assert.match(shell, /handleStopStreaming/);
+  assert.match(shell, /abortControllerRef\.current\.abort\(\)/);
 
   assert.match(composer, /ThreadMessageSubmitReadiness/);
   assert.match(composer, /BackendThreadMessageRequest/);

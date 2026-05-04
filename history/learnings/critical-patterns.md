@@ -53,6 +53,24 @@ Preserving old derived data after a failed replacement job is safe only when the
 
 **Full entry:** history/learnings/20260428-backend-permission-rag-safety.md
 
+## [20260502] Streaming Endpoints Must Re-Implement RAG Safety Contracts End-to-End
+**Category:** failure
+**Feature:** codebase-audit-2026-05
+**Tags:** [rag, streaming, citations, phi, safety]
+
+A non-streaming `/chat` endpoint can correctly enforce citation validation, evidence filtering, retrieval audit, and rag-trace persistence while an SSE `/chat/stream` endpoint built later silently bypasses every one of those contracts. The streaming endpoint emitted raw LLM tokens with no citation check, dumped all retrieved chunks (not only the cited ones), wrote no `RetrievedEvidence` rows, recorded no success audit, and surfaced raw exception strings to the client. Whenever a parallel transport is added (SSE, WebSocket, gRPC), enumerate every safety contract enforced in the canonical handler and mirror it — citation validation, cited-only evidence, audit-on-success, rag-trace persistence, sanitized error events, and threshold logic. Keep that enumeration in the handler's docstring so the next audit catches drift.
+
+**Full entry:** history/codebase-audit-2026-05/findings.md (F-RAG-001, F-RAG-004, F-SEC-004)
+
+## [20260502] Score-Based Thresholds Must Be Tagged With Their Scoring Scale
+**Category:** failure
+**Feature:** codebase-audit-2026-05
+**Tags:** [rag, retrieval, hybrid, configuration]
+
+`evidence_threshold = 0.2` was correct for cosine and BM25 scores in `[0, 1]` but silently broke the moment Reciprocal Rank Fusion was introduced — RRF produces `~0.03` ceilings, so every hybrid query routed to "no evidence". Mixing scoring scales under one threshold is a silent-correctness bug class: the system returns clinically-safe refusals while RAG quietly stops working. Whenever a new retrieval mode is added, either (a) normalize all paths to a comparable score scale, or (b) make the threshold check mode-aware via a helper that consults the scoring scale used to produce each result, and add a regression test asserting the threshold passes a representative high-quality result for that mode.
+
+**Full entry:** history/codebase-audit-2026-05/findings.md (F-RAG-002)
+
 ## [20260428] Migration Chains Need One Schema Source of Truth
 **Category:** failure
 **Feature:** backend-permission-filtered-rag

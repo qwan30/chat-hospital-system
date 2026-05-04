@@ -126,7 +126,15 @@ export default function AdminSettingsPage() {
   }, [token]);
 
   useEffect(() => {
-    fetchSettings();
+    let cancelled = false;
+    void Promise.resolve().then(() => {
+      if (!cancelled) {
+        void fetchSettings();
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
   }, [fetchSettings]);
 
   const handleSave = async () => {

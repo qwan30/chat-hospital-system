@@ -136,6 +136,36 @@ def confidence_from_score(score: float) -> str:
     return "low"
 
 
+def meets_evidence_threshold(item: RetrievedChunk, retrieval_mode: str, threshold: float) -> bool:
+    """Return True if `item` clears `threshold` under the active retrieval mode.
+
+    Vector and BM25 modes return scores on `[0, 1]` and are compared directly
+    against `threshold`.  Hybrid mode uses Reciprocal Rank Fusion which
+    produces tiny scores (typically `<= 0.06`); comparing them to a 0.2
+    threshold would silently mark every hybrid query as "no evidence".
+
+    For hybrid we look at `metadata["score_list_*"]` (preserved by RRF) and
+    require at least one underlying retriever to clear `threshold`.
+    """
+    if retrieval_mode != "hybrid":
+        return item.score >= threshold
+
+    underlying_scores: List[float] = []
+    for key, value in (item.metadata or {}).items():
+        if not isinstance(key, str) or not key.startswith("score_list_"):
+            continue
+        try:
+            underlying_scores.append(float(value))
+        except (TypeError, ValueError):
+            continue
+
+    if not underlying_scores:
+        # No score_list_* metadata — fall back to any non-zero RRF score.
+        return item.score > 0.0
+
+    return max(underlying_scores) >= threshold
+
+
 def to_evidence_schema(item: RetrievedChunk) -> EvidenceRead:
     return EvidenceRead(
         evidence_id=item.evidence_id,

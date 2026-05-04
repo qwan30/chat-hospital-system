@@ -40,8 +40,8 @@ ALLOWED_MIME_TYPES = {
 async def upload_document(
     request: Request,
     patient_id: uuid.UUID = Form(...),
-    title: str = Form(...),
-    document_type: str = Form(...),
+    title: str = Form(..., min_length=1, max_length=255),
+    document_type: str = Form(..., min_length=1, max_length=64),
     file: UploadFile = File(...),
     session: AsyncSession = Depends(get_session),
     current_user: User = Depends(get_current_user),
@@ -55,6 +55,13 @@ async def upload_document(
         trace_id=trace_id,
         ip_address=get_request_ip(request),
     )
+
+    # F-SEC-005: enforce length limits even though Form already validates
+    # so that early rejection happens before any storage IO.
+    title = title.strip()
+    document_type = document_type.strip()
+    if not title or not document_type:
+        raise ValidationAppError("Title and document_type must not be blank.")
 
     mime_type = file.content_type or "application/octet-stream"
     if mime_type not in ALLOWED_MIME_TYPES:

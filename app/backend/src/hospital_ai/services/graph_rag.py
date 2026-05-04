@@ -239,18 +239,55 @@ async def find_related_entities(
     entity_names: List[str],
     *,
     max_hops: int = 2,
+    patient_id: Optional[uuid.UUID] = None,
 ) -> GraphContext:
-    """Find entities related to the given names via graph traversal."""
+    """Find entities related to the given names via graph traversal.
+
+    F-RAG-003: when ``patient_id`` is provided every seed lookup, relation
+    traversal, and entity expansion is restricted to chunks owned by that
+    patient, so the returned ``GraphContext`` (including its summary and
+    entity list) cannot leak data sourced from another patient's records.
+
+    ``patient_id=None`` returns a cross-patient view and is intended only
+    for offline analytics. Caller paths that surface ``GraphContext``
+    fields to a user (summary, entities, relations) MUST pass a non-None
+    ``patient_id``.
+    """
     if not entity_names:
         return GraphContext(entities=[], relations=[], related_chunk_ids=set(), summary="No entities to query.")
 
     # Normalize
     normalized = [name.lower() for name in entity_names]
 
-    # Find seed entities
+    # Lazy import to avoid a circular dependency between the graph_rag
+    # module (registered against `Base`) and the wider models module that
+    # imports services for relationship targets.
+    from hospital_ai.db.models import DocumentChunk
+
+    def _scope_to_patient(stmt):
+        if patient_id is None:
+            return stmt
+        allowed_chunks = (
+            select(DocumentChunk.id)
+            .where(DocumentChunk.patient_id == patient_id)
+            .scalar_subquery()
+        )
+        return stmt.where(GraphEntity.source_chunk_id.in_(allowed_chunks))
+
+    def _scope_relations_to_patient(stmt):
+        if patient_id is None:
+            return stmt
+        allowed_chunks = (
+            select(DocumentChunk.id)
+            .where(DocumentChunk.patient_id == patient_id)
+            .scalar_subquery()
+        )
+        return stmt.where(GraphRelation.source_chunk_id.in_(allowed_chunks))
+
+    # Find seed entities (patient-scoped).
     result = await session.execute(
-        select(GraphEntity).where(
-            func.lower(GraphEntity.name).in_(normalized)
+        _scope_to_patient(
+            select(GraphEntity).where(func.lower(GraphEntity.name).in_(normalized))
         )
     )
     seed_entities = list(result.scalars().all())
@@ -263,7 +300,7 @@ async def find_related_entities(
             summary=f"No graph entities found for: {', '.join(entity_names)}",
         )
 
-    # BFS traversal
+    # BFS traversal (patient-scoped at every hop).
     visited_ids: Set[uuid.UUID] = {e.id for e in seed_entities}
     all_entities = list(seed_entities)
     all_relations: List[GraphRelation] = []
@@ -273,19 +310,19 @@ async def find_related_entities(
         if not frontier_ids:
             break
 
-        # Find relations from frontier
         result = await session.execute(
-            select(GraphRelation).where(
-                or_(
-                    GraphRelation.source_entity_id.in_(frontier_ids),
-                    GraphRelation.target_entity_id.in_(frontier_ids),
+            _scope_relations_to_patient(
+                select(GraphRelation).where(
+                    or_(
+                        GraphRelation.source_entity_id.in_(frontier_ids),
+                        GraphRelation.target_entity_id.in_(frontier_ids),
+                    )
                 )
             )
         )
         relations = list(result.scalars().all())
         all_relations.extend(relations)
 
-        # Collect new entity IDs
         next_frontier: Set[uuid.UUID] = set()
         for rel in relations:
             for eid in (rel.source_entity_id, rel.target_entity_id):
@@ -295,7 +332,9 @@ async def find_related_entities(
 
         if next_frontier:
             result = await session.execute(
-                select(GraphEntity).where(GraphEntity.id.in_(next_frontier))
+                _scope_to_patient(
+                    select(GraphEntity).where(GraphEntity.id.in_(next_frontier))
+                )
             )
             new_entities = list(result.scalars().all())
             all_entities.extend(new_entities)

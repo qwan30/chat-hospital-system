@@ -17,16 +17,25 @@ export default function DocumentDetailPage({ params }: { params: { id: string } 
   useEffect(() => {
     if (!apiUrl || !token) return;
 
-    setLoading(true);
-    getDocument({ apiUrl, token }, params.id)
-      .then((doc) => {
-        setDocument(doc);
-        setLoading(false);
-      })
-      .catch((err: unknown) => {
-        setError(err instanceof Error ? err.message : "Failed to load document details");
-        setLoading(false);
-      });
+    let cancelled = false;
+    void Promise.resolve().then(() => {
+      if (cancelled) return;
+      setLoading(true);
+      getDocument({ apiUrl, token }, params.id)
+        .then((doc) => {
+          if (cancelled) return;
+          setDocument(doc);
+          setLoading(false);
+        })
+        .catch((err: unknown) => {
+          if (cancelled) return;
+          setError(err instanceof Error ? err.message : "Failed to load document details");
+          setLoading(false);
+        });
+    });
+    return () => {
+      cancelled = true;
+    };
   }, [params.id, apiUrl, token]);
 
   const statusColor: Record<string, string> = {

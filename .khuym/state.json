@@ -1,25 +1,37 @@
 {
   "schema_version": "1.0",
-  "feature_slug": "kotaemon-chat-assistant-ui",
+  "feature_slug": "codebase-audit-2026-05",
   "mode": "standard_feature",
   "active_skill": "khuym:compounding",
-  "phase": "compounding-complete-human-signoff-pending",
-  "phase_number": 17,
-  "epic_id": "br-dyy",
+  "phase": "compounding-complete-priority-fixes-landed",
+  "phase_number": 7,
+  "epic_id": null,
   "approved_gates": {
     "context": true,
     "phase_plan": true,
     "execution": true,
-    "review": false
+    "review": true
   },
   "active_beads": [],
   "active_workers": [],
-  "blockers": [
-    "Human UAT sign-off and final epic close remain pending",
-    "Production auth/session handling is separate from the current memory-only dev bearer-token flow",
-    "P3 br-2o5 remains open for a general knowledge source provider abstraction",
-    "gkg command is unavailable on PATH; direct file inspection was used",
-    "br ready --json fails with JSON_ERROR missing field jsonl_export"
+  "paused_features": [
+    {
+      "feature_slug": "kotaemon-chat-assistant-ui",
+      "epic_id": "br-dyy",
+      "phase": "compounding-complete-human-signoff-pending",
+      "handoff_ref": ".khuym/HANDOFF.json",
+      "reason": "paused to run standalone codebase audit"
+    }
   ],
-  "last_updated": "2026-04-29T01:04:00+07:00"
+  "deferred_findings": {
+    "ref": "history/codebase-audit-2026-05/findings.md",
+    "p1_remaining": 0,
+    "p2_remaining": 6,
+    "p3_remaining": 9
+  },
+  "blockers": [
+    "gkg command is unavailable on PATH; GitNexus MCP + direct inspection were used",
+    "br ready --json still fails with JSON_ERROR missing field jsonl_export"
+  ],
+  "last_updated": "2026-05-04T16:40:00+07:00"
 }

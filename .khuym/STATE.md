@@ -1,9 +1,51 @@
 # STATE
-focus: Streaming RAG and Persistent Settings implementation
-phase: compounding-complete-committed
-last_updated: 2026-04-29
+focus: Codebase audit 2026-05 — 3 priority fixes landed, 15 findings deferred
+phase: compounding-complete-priority-fixes-landed
+last_updated: 2026-05-04
 
-## Current State
+## Active Feature
+
+Skill: compounding (audit closeout complete)
+Feature: codebase-audit-2026-05
+Epic: standalone
+Context: `history/codebase-audit-2026-05/CONTEXT.md`
+Findings: `history/codebase-audit-2026-05/findings.md`
+Review: `history/codebase-audit-2026-05/review.md`
+
+### Audit Summary
+
+- **Scope:** `app/backend/` (full backend code path + tests). Frontend not audited.
+- **Tooling deviation:** GitNexus MCP not exposed to Cascade in this session. Used `code_search`, `grep_search`, `read_file` directly. CLI-side `npx gitnexus analyze` is up to date.
+- **Findings:** 18 total (2 P1, 7 P2, 9 P3).
+- **Closed this session:** F-RAG-001 (P1, SSE citation validation), F-RAG-002 (P1, hybrid threshold scale), F-SEC-004 (P2, SSE error sanitization).
+- **Deferred:** 15 findings, full triage in `findings.md`. Recommended bead slicing in `review.md`.
+- **Backend tests:** 238 passed, 2 skipped. 8 new regression tests in `tests/test_audit_2026_05.py`.
+- **Compile:** `python -m compileall src tests scripts` clean.
+
+### Files Touched
+
+- `app/backend/src/hospital_ai/services/chat_utils.py` — new `meets_evidence_threshold` helper.
+- `app/backend/src/hospital_ai/services/chat.py` — wired helper.
+- `app/backend/src/hospital_ai/api/routes/chat_stream.py` — buffer/validate citations, sanitize errors, mode-aware threshold, mirror retrieval-mode dispatch.
+- `app/backend/tests/test_audit_2026_05.py` — new (8 tests).
+- `history/codebase-audit-2026-05/findings.md` + `review.md` — full audit report.
+- `history/learnings/critical-patterns.md` — promoted two new entries (streaming contract drift, threshold scale mismatch).
+
+## Paused Feature
+
+- `kotaemon-chat-assistant-ui` (epic `br-dyy`) — phase `compounding-complete-human-signoff-pending`. Handoff preserved at `.khuym/HANDOFF.json`. Pending: human UAT sign-off + final epic close. Resume by re-reading `.khuym/HANDOFF.json` and `history/kotaemon-chat-assistant-ui/`.
+
+## Recommended Next Beads
+
+1. `hospital-bead-audit-P2-stream-audit` — F-RAG-004 (persist `RetrievedEvidence` + emit success audit on `/chat/stream`).
+2. `hospital-bead-audit-P2-dev-tokens` — F-SEC-001 (refuse default `dev_bearer_tokens` when `environment != "local"`).
+3. `hospital-bead-audit-P2-graph-rag-patient-isolation` — F-RAG-003 + F-STRUCT-001 (filter `find_related_entities` by `patient_id`; delete or fix `GraphEnhancedQAPipeline`).
+4. `hospital-bead-audit-P2-streaming-e2e-tests` — F-TEST-001 (real httpx-driven SSE tests; folds into bead 1).
+5. `hospital-bead-audit-P3-cleanup` — batch the remaining P3s.
+
+Beads 1 and 3 should run in Codex CLI where `gitnexus_impact` is available before editing the SSE handler and `find_related_entities`.
+
+## Prior State (archived below for reference)
 
 Skill: compounding
 Feature: streaming-rag-and-persistent-settings

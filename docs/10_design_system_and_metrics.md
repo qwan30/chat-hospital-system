@@ -56,6 +56,18 @@ Local variables have been created under the **Design Tokens** collection using s
 | `AppError` | `APP_ERROR` | 500 | `semantic.danger` (#f87171) | Catch-all server failure. Sanitized in UI to avoid leaking stack traces. |
 | Successful request | - | 200 / 201 | `semantic.success` (#34d399) | Successful patient queries, uploads, settings updates, and sync actions. |
 
+### Typography System
+
+We pair **Figtree** (headings) with **Noto Sans** (body text) to optimize legibility, visual trust, and inclusive accessibility (WCAG AAA alignment).
+
+* **Heading/H1** (32px, Bold, line height 40px): Main dashboard and page titles.
+* **Heading/H2** (24px, Bold, line height 32px): Primary sections and sidebar headers.
+* **Heading/H3** (18px, Medium, line height 24px): Card titles, modals, and thread group headers.
+* **Body/Bold** (14px, Bold, line height 22px): Table headers, buttons, and emphasized labels.
+* **Body/Medium** (14px, Medium, line height 22px): Chat input fields, selected dropdown labels, and active navigation states.
+* **Body/Regular** (14px, Regular, line height 22px): Main chat bubbles, document summary text, and paragraphs.
+* **Body/Muted** (12px, Regular, line height 18px): Timestamp records, metadata items, and audit trace logs.
+
 ## 4. Core Components
 
 | Component | Purpose | Must Have |

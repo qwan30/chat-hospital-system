@@ -127,17 +127,6 @@ The base visual direction is Kotaemon structure with a Linear-like dark product 
 | Warning | #fbbf24 |
 | Danger | #f87171 |
 
-### Figma Mockups & Wireframes
-The visual designs and interactive desktop wireframe have been drawn directly in the Figma workspace:
-[Hospital AI Assistant Desktop Workspace Mockup](https://www.figma.com/design/QucDTsPwShazdDCLLqUHHW/Untitled?node-id=43-69&t=WBFw6pS24Jjm5WB4-1)
-
-Key mockups implemented:
-* **UX-001 (Chat Workspace)**: Desktop shell layout (`43:69`) displaying three principal areas: Sidebar (left), Main Chat (center), and Evidence Panel (right).
-* **UX-002 (Conversation Sidebar)**: Sidebar widget showing New Thread triggers and active/inactive conversation status list.
-* **UX-003 (Patient Context Gate)**: Context bar at the top displaying current patient name and permission badge (`semantic.success` color indicating allowed state).
-* **UX-005 (AI Answer Block)**: Central card rendering answers, citation chips, trace IDs, confidence scores, and safety disclaimers.
-* **UX-006 (Evidence Panel)**: Side panel with scrollable source citation cards showing metadata, page numbers, and snippet previews.
-
 Use Inter or the existing system font stack. Keep panels dense and readable. Avoid dashboard cards as the opening experience.
 
 ## 9. AI Answer Pattern

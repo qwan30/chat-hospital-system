@@ -1,7 +1,7 @@
 # Repository Guidelines
 
 ## Project Structure & Module Organization
-This repository contains the Sprint 0 documentation pack and application workspace for the AI-Powered Hospital Knowledge Assistant. The main project docs live in `docs/`, ordered from `00_template_usage_guide.md` through `10_design_system_and_metrics.md`.
+This repository contains the Sprint 0 documentation pack and application workspace for the AI-Powered Hospital Knowledge Assistant. The main project docs live in the hierarchical directories under `docs/` (such as `docs/00-overview/` through `docs/12-handover/`).
 
 Application code lives under `app/`. The runnable Next.js frontend is in `app/frontend`; planned backend work belongs in `app/backend`. Frontend App Router pages are in `app/frontend/src/app`, reusable UI components are in `app/frontend/src/components`, and shared helpers are in `app/frontend/src/lib`. Design references live in `docs/design/`: Linear for core UI, Vercel for dashboards, and Notion-lite for document surfaces.
 
@@ -15,12 +15,12 @@ Use npm for the frontend workflow:
 - `cd app/frontend && npm run lint` - run the configured Next.js lint command.
 
 ## Coding Style & Naming Conventions
-Markdown files use ATX headings, short paragraphs, and pipe tables. Preserve numeric doc prefixes in `docs/` because they define the review sequence. Use lowercase filenames with underscores for new docs, for example `11_security_runbook.md`.
+Markdown files use ATX headings, short paragraphs, and pipe tables. Use lowercase filenames with hyphens/underscores for new docs under their respective domain folders.
 
 For frontend code, use TypeScript, React function components, `PascalCase` component filenames, and `camelCase` local variables. Keep shadcn-style primitives in `app/frontend/src/components/ui` and compose feature components outside that folder.
 
 ## Testing Guidelines
-`docs/08_master_test_plan_rtm.md` defines the target strategy: unit, integration, permission, OCR, RAG evaluation, system, UAT, and performance testing. Quality targets include citation rate, retrieval quality, safe refusals, zero unauthorized chunks passed to the LLM, and summary latency under 30 seconds for MVP data.
+`docs/09-testing/test-plan.md` defines the target strategy: unit, integration, permission, OCR, RAG evaluation, system, UAT, and performance testing. Quality targets include citation rate, retrieval quality, safe refusals, zero unauthorized chunks passed to the LLM, and summary latency under 30 seconds for MVP data.
 
 When code exists, name tests by behavior, such as `test_unauthorized_patient_is_blocked`, and keep permission/RAG leakage tests high priority.
 

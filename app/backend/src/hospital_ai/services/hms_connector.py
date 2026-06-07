@@ -50,14 +50,29 @@ class HmsApiClient:
             return data["data"]
         return data
 
-    # ── Patient endpoints ──────────────────────────────────────────
+    # ── Patient integration endpoints ──────────────────────────────
 
     async def get_patient(self, patient_id: str, *, jwt_token: Optional[str] = None) -> Dict[str, Any]:
-        return await self._get(f"/patients/{patient_id}", jwt_token=jwt_token)
+        # Keeps legacy compatibility mapping but routes to snapshot
+        return await self.get_patient_snapshot(patient_id, jwt_token=jwt_token)
 
     async def search_patients(self, query: str, *, jwt_token: Optional[str] = None) -> List[Dict[str, Any]]:
-        result = await self._get("/patients", jwt_token=jwt_token, params={"search": query})
+        result = await self._get("/ai/patients", jwt_token=jwt_token, params={"query": query})
         return result if isinstance(result, list) else []
+
+    async def get_patient_snapshot(self, patient_id: str, *, jwt_token: Optional[str] = None) -> Dict[str, Any]:
+        return await self._get(f"/ai/patients/{patient_id}/snapshot", jwt_token=jwt_token)
+
+    async def get_patient_timeline(self, patient_id: str, *, jwt_token: Optional[str] = None) -> List[Dict[str, Any]]:
+        result = await self._get(f"/ai/patients/{patient_id}/timeline", jwt_token=jwt_token)
+        return result if isinstance(result, list) else []
+
+    async def check_clinician_permissions(self, patient_id: str, user_id: str, *, jwt_token: Optional[str] = None) -> Dict[str, Any]:
+        return await self._get(f"/ai/patients/{patient_id}/permissions", jwt_token=jwt_token, params={"userId": user_id})
+
+    async def get_incremental_changes(self, since: Optional[str] = None, *, jwt_token: Optional[str] = None) -> Dict[str, Any]:
+        params = {"since": since} if since else {}
+        return await self._get("/ai/changes", jwt_token=jwt_token, params=params)
 
     # ── Appointment endpoints ──────────────────────────────────────
 
@@ -123,7 +138,7 @@ class HmsApiClient:
     async def health_check(self) -> bool:
         try:
             async with httpx.AsyncClient(timeout=5) as client:
-                response = await client.get(f"{self.base_url}/health")
+                response = await client.get(f"{self.base_url}/ai/health")
                 return response.status_code == 200
         except httpx.HTTPError:
             return False

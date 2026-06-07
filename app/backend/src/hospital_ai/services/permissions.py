@@ -67,6 +67,19 @@ class PermissionService:
         patient_id: uuid.UUID,
         accepted_scopes: Iterable[str],
     ) -> bool:
+        # Check permissions with HMS first if sync integration is active
+        from hospital_ai.core.config import get_settings
+        settings = get_settings()
+        if settings.hms_sync_enabled:
+            from hospital_ai.services.hms_connector import HmsApiClient
+            hms_client = HmsApiClient(settings)
+            try:
+                hms_perms = await hms_client.check_clinician_permissions(str(patient_id), str(user_id))
+                if hms_perms.get("has_access") or hms_perms.get("hasAccess"):
+                    return True
+            except Exception:
+                pass
+
         stmt = select(
             active_patient_permission_exists(
                 user_id=user_id,

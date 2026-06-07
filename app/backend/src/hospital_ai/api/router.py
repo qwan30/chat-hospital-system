@@ -1,6 +1,6 @@
 from fastapi import APIRouter
 
-from hospital_ai.api.routes import audit, auth, chat, chat_stream, chat_threads, documents, feedback, hms, patients, rag_trace, settings
+from hospital_ai.api.routes import audit, auth, chat, chat_stream, chat_threads, dashboard, documents, feedback, hms, patients, rag_trace, search, settings
 
 api_router = APIRouter()
 
@@ -21,3 +21,6 @@ api_router.include_router(chat_threads.router, prefix="/chat-threads", tags=["ch
 api_router.include_router(hms.router, prefix="/hms", tags=["hms"])
 api_router.include_router(audit.router, prefix="/audit", tags=["audit"])
 api_router.include_router(settings.router, prefix="/settings", tags=["settings"])
+api_router.include_router(dashboard.router, prefix="/dashboard", tags=["dashboard"])
+api_router.include_router(search.router, prefix="/search", tags=["search"])
+

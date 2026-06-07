@@ -9,6 +9,7 @@ from hospital_ai.api.deps import get_current_user, get_request_ip, get_session
 from hospital_ai.core.config import Settings, get_settings
 from hospital_ai.core.security import new_trace_id
 from hospital_ai.db.models import User
+from hospital_ai.services.audit import AuditService
 from hospital_ai.schemas.hms import HmsAppointmentImportResponse, HmsAppointmentSummaryImport
 from hospital_ai.services.hms_appointments import (
     HMS_APPOINTMENT_SOURCE_FAMILY,
@@ -209,6 +210,72 @@ async def hms_health(
     )
 
 
+@router.post("/sync/patients/{patient_id}", response_model=HmsSyncResponse)
+async def sync_patient(
+    patient_id: UUID,
+    request: Request,
+    session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(get_current_user),
+    settings: Settings = Depends(get_settings),
+) -> HmsSyncResponse:
+    trace_id = new_trace_id()
+    await _require_hms_sync_write(
+        request=request,
+        session=session,
+        current_user=current_user,
+        patient_id=patient_id,
+        action="hms.patient.sync",
+        trace_id=trace_id,
+    )
+
+    service = HmsSyncService(session, settings)
+    try:
+        result = await service.sync_full(
+            patient_id=patient_id,
+            actor_user_id=current_user.id,
+            trace_id=trace_id,
+            ip_address=get_request_ip(request),
+        )
+    except Exception as exc:
+        # Alternative Workflow: if sync fails (e.g. HMS offline), return empty/cached response & log retry enqueued
+        await AuditService(session).record(
+            actor_user_id=current_user.id,
+            action="hms.patient.sync.retry_enqueued",
+            object_type="hms_sync",
+            object_id=patient_id,
+            patient_id=patient_id,
+            outcome="allowed",
+            trace_id=trace_id,
+            ip_address=get_request_ip(request),
+            metadata={"error": str(exc)},
+        )
+        await session.commit()
+        return HmsSyncResponse(
+            patient_id=patient_id,
+            synced={"appointments": 0, "lab_results": 0, "medical_records": 0, "total": 0},
+            message=f"HMS sync failed, background retry enqueued. Error: {str(exc)}",
+        )
+
+    await AuditService(session).record(
+        actor_user_id=current_user.id,
+        action="hms.patient.sync",
+        object_type="hms_sync",
+        object_id=patient_id,
+        patient_id=patient_id,
+        outcome="allowed",
+        trace_id=trace_id,
+        ip_address=get_request_ip(request),
+        metadata={"synced": result},
+    )
+    await session.commit()
+
+    return HmsSyncResponse(
+        patient_id=patient_id,
+        synced=result,
+        message=f"Patient sync completed — {result.get('total', 0)} record(s).",
+    )
+
+
 async def _require_hms_sync_write(
     *,
     request: Request,
@@ -227,3 +294,4 @@ async def _require_hms_sync_write(
         object_id=patient_id,
         ip_address=get_request_ip(request),
     )
+

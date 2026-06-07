@@ -1,0 +1,49 @@
+name: CD
+
+on:
+  workflow_run:
+    workflows: ["Docker Build"]
+    types:
+      - completed
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Copy docker-compose configuration to Server
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          source: "docker-compose.yml"
+          target: "~/apps/chatbot-hospital"
+
+      - name: SSH and deploy via Docker Compose
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          script: |
+            cd ~/apps/chatbot-hospital
+            # Log in to GHCR on the target machine
+            echo "${{ secrets.GHCR_PAT || secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+            
+            # Pull new images
+            docker compose pull
+            
+            # Run migrations (Alembic) inside backend container before app startup (optional but recommended)
+            # docker compose run --entrypoint "alembic upgrade head" backend-service
+            
+            # Restart containers
+            docker compose up -d --remove-orphans
+            
+            # Clean up old images
+            docker image prune -f

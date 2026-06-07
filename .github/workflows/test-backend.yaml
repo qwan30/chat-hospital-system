@@ -61,7 +61,12 @@ jobs:
         run: |
           python -m pytest tests/ -v --tb=short -q
 
+      - name: Verify API contracts
+        run: |
+          python scripts/verify_contracts.py
+
       - name: Run type check (ruff)
         run: |
           pip install ruff
           ruff check src/ tests/
+

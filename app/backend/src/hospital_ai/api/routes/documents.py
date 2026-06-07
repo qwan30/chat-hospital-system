@@ -1,15 +1,17 @@
 import uuid
+from typing import Optional
 
-from fastapi import APIRouter, Depends, File, Form, Request, UploadFile
+from fastapi import APIRouter, Depends, File, Form, Query, Request, UploadFile
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from hospital_ai.api.deps import get_current_user, get_request_ip, get_session
 from hospital_ai.core.config import Settings, get_settings
 from hospital_ai.core.errors import NotFoundError, ValidationAppError
-from hospital_ai.core.security import new_trace_id
+from hospital_ai.core.security import PATIENT_READ_SCOPES, PATIENT_UPLOAD_SCOPES, new_trace_id
 from hospital_ai.db.models import Document, DocumentPage, User
 from hospital_ai.schemas.documents import (
+    DocumentListResponse,
     DocumentPageRead,
     DocumentRead,
     DocumentSearchRequest,
@@ -18,7 +20,7 @@ from hospital_ai.schemas.documents import (
 )
 from hospital_ai.services.audit import AuditService
 from hospital_ai.services.embeddings import EmbeddingService
-from hospital_ai.services.permissions import PermissionService
+from hospital_ai.services.permissions import PermissionService, active_patient_permission_exists
 from hospital_ai.services.retrieval import RetrievalService
 from hospital_ai.services.storage import LocalStorageService
 from hospital_ai.workers.jobs import process_document
@@ -114,6 +116,44 @@ async def upload_document(
         )
         await session.commit()
     return document
+
+
+@router.get("", response_model=DocumentListResponse)
+async def list_documents(
+    request: Request,
+    patient_id: Optional[uuid.UUID] = None,
+    status: Optional[str] = Query(default=None, min_length=1, max_length=32),
+    limit: int = Query(default=50, ge=1, le=200),
+    session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(get_current_user),
+) -> DocumentListResponse:
+    stmt = select(Document).where(Document.deleted_at.is_(None)).order_by(Document.created_at.desc())
+    if patient_id is not None:
+        stmt = stmt.where(Document.patient_id == patient_id)
+    if status is not None:
+        stmt = stmt.where(Document.status == status)
+    if current_user.role != "admin":
+        stmt = stmt.where(
+            active_patient_permission_exists(
+                user_id=current_user.id,
+                patient_id=Document.patient_id,
+                accepted_scopes=set(PATIENT_READ_SCOPES) | set(PATIENT_UPLOAD_SCOPES),
+            )
+        )
+    result = await session.execute(stmt.limit(limit))
+    documents = list(result.scalars().all())
+    await AuditService(session).record(
+        actor_user_id=current_user.id,
+        action="document.list",
+        object_type="document",
+        patient_id=patient_id,
+        outcome="allowed",
+        trace_id=new_trace_id(),
+        ip_address=get_request_ip(request),
+        metadata={"result_count": len(documents), "status": status},
+    )
+    await session.commit()
+    return DocumentListResponse(items=documents)
 
 
 @router.get("/{document_id}", response_model=DocumentRead)

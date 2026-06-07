@@ -15,6 +15,8 @@ router = APIRouter()
 
 async def _list_logs(
     patient_id: Optional[uuid.UUID],
+    action: Optional[str],
+    outcome: Optional[str],
     limit: int,
     session: AsyncSession,
     current_user: User,
@@ -25,6 +27,10 @@ async def _list_logs(
     stmt = select(AuditLog).order_by(AuditLog.created_at.desc()).limit(limit)
     if patient_id is not None:
         stmt = stmt.where(AuditLog.patient_id == patient_id)
+    if action:
+        stmt = stmt.where(AuditLog.action == action)
+    if outcome:
+        stmt = stmt.where(AuditLog.outcome == outcome)
     result = await session.execute(stmt)
     return AuditLogList(items=list(result.scalars().all()))
 
@@ -32,18 +38,22 @@ async def _list_logs(
 @router.get("/logs", response_model=AuditLogList)
 async def list_logs(
     patient_id: Optional[uuid.UUID] = None,
+    action: Optional[str] = None,
+    outcome: Optional[str] = None,
     limit: int = Query(default=50, ge=1, le=200),
     session: AsyncSession = Depends(get_session),
     current_user: User = Depends(get_current_user),
 ) -> AuditLogList:
-    return await _list_logs(patient_id, limit, session, current_user)
+    return await _list_logs(patient_id, action, outcome, limit, session, current_user)
 
 
 @router.get("/events", response_model=AuditLogList)
 async def list_events_alias(
     patient_id: Optional[uuid.UUID] = None,
+    action: Optional[str] = None,
+    outcome: Optional[str] = None,
     limit: int = Query(default=50, ge=1, le=200),
     session: AsyncSession = Depends(get_session),
     current_user: User = Depends(get_current_user),
 ) -> AuditLogList:
-    return await _list_logs(patient_id, limit, session, current_user)
+    return await _list_logs(patient_id, action, outcome, limit, session, current_user)

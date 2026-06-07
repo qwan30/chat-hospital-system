@@ -48,6 +48,38 @@ test("AssistantShell exposes explicit runtime API configuration and token state"
   assert.doesNotMatch(shell, /hospital-ai\.devToken/);
 });
 
+test("AuthProvider persists API URL only and keeps bearer tokens in memory", () => {
+  const auth = source("src/lib/auth-context.tsx");
+
+  assert.match(auth, /API_URL_STORAGE_KEY = "hospital_ai_api_url"/);
+  assert.match(auth, /localStorage\.setItem\(API_URL_STORAGE_KEY, apiUrl\)/);
+  assert.doesNotMatch(auth, /localStorage\.setItem\([^)]*token/);
+  assert.doesNotMatch(auth, /parsed\.token/);
+  assert.doesNotMatch(auth, /hospital_ai_auth/);
+});
+
+test("Central API client uses canonical backend routes and list envelopes", () => {
+  const client = source("src/lib/api-client.ts");
+
+  for (const contract of [
+    "\"/patients/search\"",
+    "`/documents${params}`",
+    "}/documents`",
+    "`/audit/logs${qs}`",
+    "\"/feedback/metrics/summary\"",
+    "ListEnvelope<Patient>",
+    "ListEnvelope<DocumentItem>",
+    "ListEnvelope<AuditEntry>",
+    "formData.append(\"document_type\"",
+  ]) {
+    assert.ok(client.includes(contract), `missing API client contract: ${contract}`);
+  }
+
+  assert.doesNotMatch(client, /\/documents\/upload/);
+  assert.doesNotMatch(client, /apiFetch<Patient\[\]>\("\/patients"/);
+  assert.doesNotMatch(client, /apiFetch<AuditEntry\[\]>\(`\/audit/);
+});
+
 test("AssistantShell wires persisted thread actions into sidebar controls", () => {
   const shell = source("src/components/chat/AssistantShell.tsx");
   const sidebar = source("src/components/chat/ConversationSidebar.tsx");

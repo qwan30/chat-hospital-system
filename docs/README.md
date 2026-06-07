@@ -1,6 +1,6 @@
 # AI-Powered Hospital Knowledge Assistant Documentation Pack
 
-Generated Markdown files for the hospital AI Agent + Graph RAG project. Application code is organized under `app/`, with the Next.js frontend in `app/frontend` and backend work reserved for `app/backend`.
+Generated Markdown files for the hospital AI Agent + Graph RAG project. Application code is organized under `app/`, with the Next.js frontend in `app/frontend` and the FastAPI backend in `app/backend`.
 
 - `00_template_usage_guide.md`
 - `01_business_case_brd.md`
@@ -13,6 +13,8 @@ Generated Markdown files for the hospital AI Agent + Graph RAG project. Applicat
 - `08_master_test_plan_rtm.md`
 - `09_ready_to_code_go_nogo_checklist.md`
 - `10_design_system_and_metrics.md`
+- `11_project_evidence_sheet.md`
+- `12_portfolio_case_study.md`
 - `design/README.md`
 - `design/core-ui-linear.md`
 - `design/dashboard-vercel.md`

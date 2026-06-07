@@ -48,3 +48,7 @@ class EvidenceRead(BaseModel):
 
 class DocumentSearchResponse(BaseModel):
     items: List[EvidenceRead]
+
+
+class DocumentListResponse(ApiSchema):
+    items: List[DocumentRead]

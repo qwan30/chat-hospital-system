@@ -7,7 +7,7 @@
 [![Next.js 16](https://img.shields.io/badge/Next.js-16-black?style=for-the-badge&logo=nextdotjs)](https://nextjs.org/)
 [![React 19](https://img.shields.io/badge/React-19-blue?style=for-the-badge&logo=react)](https://react.dev/)
 
-Một hệ thống trợ lý tri thức AI toàn diện (AI Agent) dành cho cán bộ nhân viên y tế (bác sĩ, điều dưỡng, dược sĩ). Hệ thống cho phép tra cứu nhanh chính sách bệnh viện, quy trình vận hành và bệnh án bệnh nhân dựa trên kiến trúc **RAG (Retrieval-Augmented Generation) phân quyền**. Dự án được thiết kế đặt tiêu chuẩn bảo mật dữ liệu sức khỏe (PHI) làm trọng tâm, ngăn ngừa rò rỉ thông tin y khoa giữa các phòng ban.
+Một hệ thống trợ lý tri thức AI dạng MVP/demo dành cho cán bộ nhân viên y tế (bác sĩ, điều dưỡng, dược sĩ). Hệ thống cho phép tra cứu nhanh chính sách bệnh viện, quy trình vận hành và hồ sơ bệnh nhân tổng hợp dựa trên kiến trúc **RAG (Retrieval-Augmented Generation) phân quyền**. Dự án dùng dữ liệu synthetic/de-identified, đặt bảo mật dữ liệu sức khỏe (PHI) làm trọng tâm, và chưa nên được mô tả là triển khai production hoặc đạt chứng nhận tuân thủ chính thức.
 
 ---
 
@@ -20,7 +20,7 @@ Một hệ thống trợ lý tri thức AI toàn diện (AI Agent) dành cho cá
 | **Streaming Buffer an toàn** | Luồng Streaming SSE được lưu trữ tạm trong buffer để xác thực tính hợp lệ của nguồn trích dẫn trước khi đẩy ra màn hình client. | Tránh hiện tượng rò rỉ thông tin chưa được kiểm chứng ra giao diện người dùng. |
 | **Xử lý tài liệu nền (Async Ingestion)** | Tách biệt API tải lên và tiến trình index thông qua **Redis/RQ Worker**, hỗ trợ phân tích định dạng PDF/docx và OCR (PaddleOCR). | Tối ưu hóa hiệu năng, giảm thời gian phản hồi API khi nhân viên tải tài liệu y khoa dung lượng lớn. |
 | **Đồng bộ hóa Hệ Thống HMS** | Cổng API import và sync đồng bộ dữ liệu lịch khám, kết quả xét nghiệm y khoa trực tiếp từ HMS thành dữ liệu RAG. | Cung cấp ngữ cảnh thời gian thực về hồ sơ điều trị bệnh nhân cho trợ lý AI. |
-| **Audit Trails & Logs** | Lưu vết toàn bộ các sự kiện truy cập dữ liệu, từ chối quyền truy cập y khoa, truy vấn AI phục vụ thanh tra. | Đảm bảo tính tuân thủ pháp lý về an toàn thông tin y tế (giống như HIPAA/SOC2). |
+| **Audit Trails & Logs** | Lưu vết các sự kiện truy cập dữ liệu, từ chối quyền truy cập y khoa, truy vấn AI và thay đổi cấu hình phục vụ kiểm toán nội bộ. | Tạo bằng chứng kiểm soát quyền và truy vết; không thay thế chứng nhận HIPAA/SOC2 hoặc audit tuân thủ chính thức. |
 
 ---
 
@@ -46,11 +46,13 @@ flowchart TD
 
 ## 📊 Số Liệu Kỹ Thuật Dự Án (Project Metrics)
 
-* **Backend API Surface**: **34 REST API endpoints** (FastAPI) quản lý phân quyền, chatbot, tài liệu, và đồng bộ dữ liệu.
+* **Backend API Surface**: **35 route decorators / 28 OpenAPI paths** (FastAPI) quản lý phân quyền, chatbot, tài liệu, audit, metrics, settings, và đồng bộ dữ liệu.
 * **Cấu Trúc Bảng DB**: **13 lớp mô hình cơ sở dữ liệu** (SQLAlchemy Async ORM), kiểm soát phiên bản qua **6 Alembic migrations** (hỗ trợ lưu trữ Vector qua pgvector).
 * **Kiểm Thử Chất Lượng (Quality Gates)**:
-  - **245 Test Cases Pytest** (Backend) chạy kiểm thử tích hợp tự động với database Docker PostgreSQL/pgvector.
-  - **16 TAP-style Contract Tests** (Frontend) xác minh tính nhất quán cấu hình luồng chat, hiển thị citation và xử lý ngoại lệ.
+  - **250 Pytest tests passed, 2 skipped** (Backend) trong lần kiểm tra local mới nhất.
+  - **18 TAP-style Contract Tests** (Frontend) xác minh cấu hình chat, token memory-only, route API canonical, citation và xử lý ngoại lệ.
+  - **Synthetic RAG Eval**: `6/6` ca synthetic passed cho cited answer, no-evidence refusal, denied patient, HMS appointment, general knowledge và graph relation (`app/backend/scripts/run_rag_eval.py`).
+  - **API UAT Evidence**: live local API UAT passed cho auth, general chat, HMS import allow/deny, patient-linked HMS answer, audit trace, và shared thread lifecycle (`history/portfolio-hardening-2026-06/api-uat/20260607T110018Z/api-uat-summary.md`).
   - Tích hợp công cụ **Ruff** kiểm tra định dạng và chất lượng mã nguồn Python.
 
 ---
@@ -96,7 +98,7 @@ pip install -e ".[dev,postgres]"
 # Thực hiện migrations
 alembic upgrade head
 # Khởi chạy ứng dụng
-uvicorn hospital_ai.main:app --host 0.0.0.5 --port 8000 --reload
+uvicorn "hospital_ai.main:create_app" --factory --host 0.0.0.0 --port 8000 --reload
 ```
 *Tài liệu Swagger API: `http://localhost:8000/docs`*
 

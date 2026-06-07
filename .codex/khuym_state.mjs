@@ -5,7 +5,7 @@ import path from "node:path";
 import { execFileSync } from "node:child_process";
 import { buildKhuymDependencyReport } from "./khuym_dependencies.mjs";
 
-export const STATE_SCHEMA_VERSION = "1.0";
+export const STATE_SCHEMA_VERSION = "1.1";
 
 const GKG_SERVER_URL = "http://127.0.0.1:27495";
 const SUPPORTED_GKG_LANGUAGE_EXTENSIONS = {
@@ -68,6 +68,7 @@ const WALK_SKIP_DIRS = new Set([
 
 const DEFAULT_APPROVED_GATES = {
   context: false,
+  work_shape: false,
   phase_plan: false,
   execution: false,
   review: false,
@@ -359,8 +360,12 @@ function normalizeActiveWorkers(value) {
     .filter((item) => item && typeof item === "object" && !Array.isArray(item))
     .map((worker) => ({
       codex_name: typeof worker.codex_name === "string" ? worker.codex_name : "",
-      agent_mail_name:
-        typeof worker.agent_mail_name === "string" ? worker.agent_mail_name : "",
+      agent_id:
+        typeof worker.agent_id === "string"
+          ? worker.agent_id
+          : typeof worker.agent_mail_name === "string"
+            ? worker.agent_mail_name
+            : "",
       status: typeof worker.status === "string" ? worker.status : "",
       bead_id: typeof worker.bead_id === "string" ? worker.bead_id : "",
     }));
@@ -370,9 +375,34 @@ function normalizeApprovedGates(value) {
   const gates = value && typeof value === "object" && !Array.isArray(value) ? value : {};
   return {
     context: Boolean(gates.context),
+    work_shape: Boolean(gates.work_shape),
     phase_plan: Boolean(gates.phase_plan),
     execution: Boolean(gates.execution),
     review: Boolean(gates.review),
+  };
+}
+
+function normalizeOptionalString(value) {
+  return typeof value === "string" ? value : "";
+}
+
+function normalizeLastCompoundingRun(value) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return {
+      feature: "",
+      date: "",
+      learnings_file: "",
+      critical_promotions: 0,
+    };
+  }
+
+  return {
+    feature: normalizeOptionalString(value.feature),
+    date: normalizeOptionalString(value.date),
+    learnings_file: normalizeOptionalString(value.learnings_file),
+    critical_promotions: Number.isFinite(value.critical_promotions)
+      ? value.critical_promotions
+      : 0,
   };
 }
 
@@ -420,6 +450,11 @@ export function buildDefaultState(overrides = {}) {
     active_beads: normalizeStringArray(overrides.active_beads),
     active_workers: normalizeActiveWorkers(overrides.active_workers),
     blockers: normalizeStringArray(overrides.blockers),
+    focus: normalizeOptionalString(overrides.focus),
+    summary: normalizeOptionalString(overrides.summary),
+    next_action: normalizeOptionalString(overrides.next_action),
+    deferred_beads: normalizeStringArray(overrides.deferred_beads),
+    last_compounding_run: normalizeLastCompoundingRun(overrides.last_compounding_run),
     last_updated:
       typeof overrides.last_updated === "string" && overrides.last_updated
         ? overrides.last_updated
@@ -441,7 +476,6 @@ export function getKhuymStatePaths(repoRoot) {
   return {
     onboarding: path.join(repoRoot, ".khuym", "onboarding.json"),
     stateJson: path.join(repoRoot, ".khuym", "state.json"),
-    stateMarkdown: path.join(repoRoot, ".khuym", "STATE.md"),
     handoff: path.join(repoRoot, ".khuym", "HANDOFF.json"),
     config: path.join(repoRoot, ".khuym", "config.json"),
     agents: path.join(repoRoot, "AGENTS.md"),
@@ -462,27 +496,8 @@ export function writeKhuymState(repoRoot, nextState) {
   return normalized;
 }
 
-function parseLooseKeyValueMarkdown(text) {
-  const parsed = {};
-  for (const line of text.split("\n")) {
-    const match = line.match(/^([A-Za-z][A-Za-z0-9 _/-]+):\s*(.+)$/);
-    if (!match) {
-      continue;
-    }
-    const key = match[1].trim().toLowerCase().replace(/[^a-z0-9]+/g, "_");
-    parsed[key] = match[2].trim();
-  }
-  return parsed;
-}
-
 function deriveFeatureSlug(status) {
-  return (
-    status.state_json.feature_slug ||
-    status.handoff.feature ||
-    status.state_markdown.feature ||
-    status.state_markdown.focus ||
-    ""
-  );
+  return status.state_json.feature_slug || status.handoff.feature || "";
 }
 
 function buildNextReads(status) {
@@ -494,10 +509,6 @@ function buildNextReads(status) {
 
   if (status.state_json.exists) {
     reads.push(".khuym/state.json");
-  }
-
-  if (status.state_markdown.exists) {
-    reads.push(".khuym/STATE.md");
   }
 
   const featureSlug = deriveFeatureSlug(status);
@@ -541,8 +552,8 @@ function buildRecommendedActions(status) {
     ];
   }
 
-  const activeSkill = status.state_json.active_skill || status.state_markdown.skill || "";
-  const phase = status.state_json.phase || status.state_markdown.phase || "";
+  const activeSkill = status.state_json.active_skill || "";
+  const phase = status.state_json.phase || "";
   if (activeSkill || (phase && phase !== "idle")) {
     return [
       `Resume by reopening the active context for ${activeSkill || "the current skill"}.`,
@@ -561,8 +572,6 @@ export function readKhuymStatus(repoRoot) {
   const onboarding = readJsonIfExists(paths.onboarding);
   const stateJson = readJsonIfExists(paths.stateJson);
   const handoff = readJsonIfExists(paths.handoff);
-  const stateMarkdownText = fileTextIfExists(paths.stateMarkdown);
-  const stateMarkdown = parseLooseKeyValueMarkdown(stateMarkdownText);
   const dependencyHealth = readDependencyHealth(repoRoot);
   const gkgReadiness = readGkgReadiness(repoRoot);
 
@@ -576,10 +585,6 @@ export function readKhuymStatus(repoRoot) {
     state_json: {
       exists: Boolean(stateJson),
       ...normalizeKhuymState(stateJson),
-    },
-    state_markdown: {
-      exists: stateMarkdownText.trim() !== "",
-      ...stateMarkdown,
     },
     handoff: {
       exists: Boolean(handoff),
@@ -720,14 +725,16 @@ function renderGkgReadinessLines(status) {
 
 export function renderKhuymStatus(status) {
   const feature = deriveFeatureSlug(status) || "(none)";
-  const skill = status.state_json.active_skill || status.state_markdown.skill || "(none)";
-  const phase = status.state_json.phase || status.state_markdown.phase || "(none)";
+  const skill = status.state_json.active_skill || "(none)";
+  const phase = status.state_json.phase || "(none)";
   const mode = status.state_json.mode || "(unspecified)";
-  const epicId = status.state_json.epic_id || status.state_markdown.epic || "(none)";
+  const epicId = status.state_json.epic_id || "(none)";
   const handoff = status.handoff.exists ? "present" : "absent";
   const onboarding = status.onboarding.exists
     ? `${status.onboarding.status || "installed"}${status.onboarding.plugin_version ? ` (${status.onboarding.plugin_version})` : ""}`
     : "missing";
+  const focus = status.state_json.focus || "(none)";
+  const nextAction = status.state_json.next_action || "(none)";
 
   return [
     "Khuym Status",
@@ -738,6 +745,8 @@ export function renderKhuymStatus(status) {
     `Skill: ${skill}`,
     `Phase: ${phase}`,
     `Epic: ${epicId}`,
+    `Focus: ${focus}`,
+    `Next action: ${nextAction}`,
     `Handoff: ${handoff}`,
     "",
     ...renderGkgReadinessLines(status),

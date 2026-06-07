@@ -314,8 +314,8 @@ class UatApiRunner:
             result.fail("Denied patient-linked response exposed seeded patient evidence.")
             return result
 
-        audit = self.request("security-audit-events", "GET", "/audit/events?limit=20", token="dev-security")
-        doctor_audit = self.request("doctor-audit-denied", "GET", "/audit/events?limit=5", token="dev-doctor")
+        audit = self.request("security-audit-events", "GET", "/audit/logs?limit=20", token="dev-security")
+        doctor_audit = self.request("doctor-audit-denied", "GET", "/audit/logs?limit=5", token="dev-doctor")
         result.evidence_labels.extend(["security-audit-events", "doctor-audit-denied"])
         if audit.status_code != 200:
             result.fail(f"Security audit request returned status {audit.status_code}.")

@@ -1,15 +1,20 @@
 "use client";
 
 import { useAuth } from "@/lib/auth-context";
-import { listDocuments, listAuditLogs, hmsHealthCheck, type AuditEntry } from "@/lib/api-client";
+import {
+  getMetricsSummary,
+  hmsHealthCheck,
+  listAuditLogs,
+  type AuditEntry,
+  type MetricsSummary,
+} from "@/lib/api-client";
 import { useState, useMemo } from "react";
 
 export default function MetricsPage() {
   const { apiUrl, token } = useAuth();
   const opts = useMemo(() => ({ apiUrl, token }), [apiUrl, token]);
 
-  const [docCount, setDocCount] = useState<number>(0);
-  const [auditCount, setAuditCount] = useState<number>(0);
+  const [metrics, setMetrics] = useState<MetricsSummary | null>(null);
   const [hmsOk, setHmsOk] = useState<boolean | null>(null);
   const [recentAudits, setRecentAudits] = useState<AuditEntry[]>([]);
   const [loading, setLoading] = useState(true);
@@ -21,13 +26,12 @@ export default function MetricsPage() {
     setLoading(true);
 
     Promise.allSettled([
-      listDocuments(opts),
+      getMetricsSummary(opts),
       listAuditLogs(opts),
       hmsHealthCheck(opts),
-    ]).then(([docs, audits, health]) => {
-      if (docs.status === "fulfilled") setDocCount(docs.value.length);
+    ]).then(([summary, audits, health]) => {
+      if (summary.status === "fulfilled") setMetrics(summary.value);
       if (audits.status === "fulfilled") {
-        setAuditCount(audits.value.length);
         setRecentAudits(audits.value.slice(0, 10));
       }
       if (health.status === "fulfilled") setHmsOk(health.value.hms_reachable);
@@ -36,8 +40,38 @@ export default function MetricsPage() {
   }
 
   const cards = [
-    { label: "Documents Indexed", value: docCount, icon: "📄", color: "#60a5fa" },
-    { label: "Audit Events", value: auditCount, icon: "🔒", color: "#a78bfa" },
+    { label: "Queries", value: metrics?.total_queries ?? 0, icon: "💬", color: "#60a5fa" },
+    {
+      label: "Avg Latency",
+      value: `${Math.round(metrics?.avg_latency_ms ?? 0)} ms`,
+      icon: "⏱️",
+      color: "#34d399",
+    },
+    {
+      label: "Time Saved",
+      value: `${Math.round((metrics?.total_time_saved_sec ?? 0) / 60)} min`,
+      icon: "⏳",
+      color: "#f59e0b",
+    },
+    {
+      label: "Cost Saved",
+      value: `$${(metrics?.total_cost_saved ?? 0).toFixed(2)}`,
+      icon: "💵",
+      color: "#22c55e",
+    },
+    {
+      label: "Helpful Rate",
+      value: `${Math.round((metrics?.helpful_rate ?? 0) * 100)}%`,
+      icon: "👍",
+      color: "#a78bfa",
+    },
+    {
+      label: "No Evidence",
+      value: `${Math.round((metrics?.no_evidence_rate ?? 0) * 100)}%`,
+      icon: "🧭",
+      color: "#f87171",
+    },
+    { label: "Denied Events", value: metrics?.audit_deny_count ?? 0, icon: "🔒", color: "#fb7185" },
     {
       label: "HMS Connection",
       value: hmsOk === null ? "—" : hmsOk ? "Connected" : "Unreachable",
@@ -57,7 +91,7 @@ export default function MetricsPage() {
       ) : (
         <>
           {/* Stat cards */}
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 16, marginBottom: "2rem" }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 16, marginBottom: "2rem" }}>
             {cards.map((card) => (
               <div key={card.label} style={{
                 padding: "1.25rem 1rem",

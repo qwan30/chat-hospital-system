@@ -1,37 +1,32 @@
 {
-  "schema_version": "1.0",
-  "feature_slug": "codebase-audit-2026-05",
+  "schema_version": "1.1",
+  "feature_slug": "portfolio-hardening-2026-06",
   "mode": "standard_feature",
-  "active_skill": "khuym:compounding",
-  "phase": "compounding-complete-priority-fixes-landed",
+  "active_skill": "khuym:reviewing",
+  "phase": "implementation-verified",
   "phase_number": 7,
-  "epic_id": null,
+  "epic_id": "",
   "approved_gates": {
     "context": true,
+    "work_shape": true,
     "phase_plan": true,
     "execution": true,
     "review": true
   },
   "active_beads": [],
   "active_workers": [],
-  "paused_features": [
-    {
-      "feature_slug": "kotaemon-chat-assistant-ui",
-      "epic_id": "br-dyy",
-      "phase": "compounding-complete-human-signoff-pending",
-      "handoff_ref": ".khuym/HANDOFF.json",
-      "reason": "paused to run standalone codebase audit"
-    }
-  ],
-  "deferred_findings": {
-    "ref": "history/codebase-audit-2026-05/findings.md",
-    "p1_remaining": 0,
-    "p2_remaining": 6,
-    "p3_remaining": 9
-  },
   "blockers": [
-    "gkg command is unavailable on PATH; GitNexus MCP + direct inspection were used",
-    "br ready --json still fails with JSON_ERROR missing field jsonl_export"
+    "gkg command is unavailable on PATH; GitNexus MCP + direct inspection fallback in use"
   ],
-  "last_updated": "2026-05-04T16:40:00+07:00"
+  "focus": "history/portfolio-hardening-2026-06/CONTEXT.md",
+  "summary": "Portfolio hardening slice implemented and verified: API contracts, memory-only token handling, settings/HMS guards, metrics, synthetic RAG eval, API UAT, login screenshots, tests, and portfolio docs.",
+  "next_action": "Human review/sign-off; optional follow-up is authenticated browser workflow screenshots and live demo UAT.",
+  "deferred_beads": [],
+  "last_compounding_run": {
+    "feature": "",
+    "date": "",
+    "learnings_file": "",
+    "critical_promotions": 0
+  },
+  "last_updated": "2026-06-07T18:05:00+07:00"
 }

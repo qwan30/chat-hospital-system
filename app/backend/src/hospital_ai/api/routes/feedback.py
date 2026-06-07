@@ -11,11 +11,11 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from hospital_ai.api.routes.auth import get_current_user
-from hospital_ai.db.models import AiQuery, User
+from hospital_ai.db.models import AiQuery, AuditLog, User
 from hospital_ai.db.session import get_session
 from hospital_ai.services.metrics import MetricsService, UserFeedback
 
@@ -44,6 +44,7 @@ class MetricsSummaryResponse(BaseModel):
     total_cost_saved: float
     helpful_rate: float
     no_evidence_rate: float = 0.0
+    audit_deny_count: int = 0
 
 
 # ── Routes ───────────────────────────────────────────────────────────────
@@ -106,6 +107,9 @@ async def get_metrics_summary(
 ) -> MetricsSummaryResponse:
     """Get aggregated impact metrics. Available to all authenticated users."""
     summary = await MetricsService(session).get_summary()
+    denied_result = await session.execute(
+        select(func.count(AuditLog.id)).where(AuditLog.outcome == "denied")
+    )
     return MetricsSummaryResponse(
         total_queries=summary.total_queries,
         avg_latency_ms=summary.avg_latency_ms,
@@ -113,4 +117,5 @@ async def get_metrics_summary(
         total_cost_saved=summary.total_cost_saved,
         helpful_rate=summary.helpful_rate,
         no_evidence_rate=summary.no_evidence_rate,
+        audit_deny_count=int(denied_result.scalar() or 0),
     )

@@ -16,6 +16,7 @@ from hospital_ai.services.hms_appointments import (
     HmsAppointmentEvidenceImporter,
 )
 from hospital_ai.services.hms_sync import HmsSyncService
+from hospital_ai.services.permissions import PermissionService
 
 router = APIRouter()
 
@@ -73,11 +74,20 @@ async def sync_appointments(
     current_user: User = Depends(get_current_user),
     settings: Settings = Depends(get_settings),
 ) -> HmsSyncResponse:
+    trace_id = new_trace_id()
+    await _require_hms_sync_write(
+        request=request,
+        session=session,
+        current_user=current_user,
+        patient_id=payload.patient_id,
+        action="hms.appointments.sync",
+        trace_id=trace_id,
+    )
     service = HmsSyncService(session, settings)
     docs = await service.sync_appointments(
         patient_id=payload.patient_id,
         actor_user_id=current_user.id,
-        trace_id=new_trace_id(),
+        trace_id=trace_id,
         ip_address=get_request_ip(request),
     )
     return HmsSyncResponse(
@@ -95,11 +105,20 @@ async def sync_lab_results(
     current_user: User = Depends(get_current_user),
     settings: Settings = Depends(get_settings),
 ) -> HmsSyncResponse:
+    trace_id = new_trace_id()
+    await _require_hms_sync_write(
+        request=request,
+        session=session,
+        current_user=current_user,
+        patient_id=payload.patient_id,
+        action="hms.lab_results.sync",
+        trace_id=trace_id,
+    )
     service = HmsSyncService(session, settings)
     docs = await service.sync_lab_results(
         patient_id=payload.patient_id,
         actor_user_id=current_user.id,
-        trace_id=new_trace_id(),
+        trace_id=trace_id,
         ip_address=get_request_ip(request),
     )
     return HmsSyncResponse(
@@ -117,11 +136,20 @@ async def sync_medical_records(
     current_user: User = Depends(get_current_user),
     settings: Settings = Depends(get_settings),
 ) -> HmsSyncResponse:
+    trace_id = new_trace_id()
+    await _require_hms_sync_write(
+        request=request,
+        session=session,
+        current_user=current_user,
+        patient_id=payload.patient_id,
+        action="hms.medical_records.sync",
+        trace_id=trace_id,
+    )
     service = HmsSyncService(session, settings)
     docs = await service.sync_medical_records(
         patient_id=payload.patient_id,
         actor_user_id=current_user.id,
-        trace_id=new_trace_id(),
+        trace_id=trace_id,
         ip_address=get_request_ip(request),
     )
     return HmsSyncResponse(
@@ -139,11 +167,20 @@ async def sync_full(
     current_user: User = Depends(get_current_user),
     settings: Settings = Depends(get_settings),
 ) -> HmsSyncResponse:
+    trace_id = new_trace_id()
+    await _require_hms_sync_write(
+        request=request,
+        session=session,
+        current_user=current_user,
+        patient_id=payload.patient_id,
+        action="hms.full.sync",
+        trace_id=trace_id,
+    )
     service = HmsSyncService(session, settings)
     result = await service.sync_full(
         patient_id=payload.patient_id,
         actor_user_id=current_user.id,
-        trace_id=new_trace_id(),
+        trace_id=trace_id,
         ip_address=get_request_ip(request),
     )
     return HmsSyncResponse(
@@ -169,4 +206,24 @@ async def hms_health(
     return HmsHealthResponse(
         hms_reachable=reachable,
         hms_url=settings.hms_base_url,
+    )
+
+
+async def _require_hms_sync_write(
+    *,
+    request: Request,
+    session: AsyncSession,
+    current_user: User,
+    patient_id: UUID,
+    action: str,
+    trace_id: str,
+) -> None:
+    await PermissionService(session).require_upload_or_admin_role(
+        user=current_user,
+        patient_id=patient_id,
+        action=action,
+        trace_id=trace_id,
+        object_type="hms_sync",
+        object_id=patient_id,
+        ip_address=get_request_ip(request),
     )

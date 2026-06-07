@@ -9,15 +9,18 @@ from __future__ import annotations
 
 from typing import List, Optional
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Request
 from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from hospital_ai.api.deps import get_current_user
+from hospital_ai.api.deps import get_current_user, get_request_ip
 from hospital_ai.core.config import Settings, get_settings
+from hospital_ai.core.errors import PermissionDeniedError
+from hospital_ai.core.security import new_trace_id
 from hospital_ai.db.models import User
 from hospital_ai.db.session import get_session
 from hospital_ai.db.settings_store import effective_value, get_all_overrides, upsert_many
+from hospital_ai.services.audit import AuditService
 from hospital_ai.services.llm.manager import LLMManager
 
 router = APIRouter()
@@ -80,11 +83,19 @@ class SettingsUpdateRequest(BaseModel):
 
 @router.get("", response_model=SettingsResponse)
 async def get_admin_settings(
+    request: Request,
     current_user: User = Depends(get_current_user),
     settings: Settings = Depends(get_settings),
     session: AsyncSession = Depends(get_session),
 ) -> SettingsResponse:
     """Return the current LLM, embedding, and RAG settings."""
+    await _require_settings_role(
+        request=request,
+        session=session,
+        current_user=current_user,
+        action="settings.read",
+        allowed_roles={"admin", "security"},
+    )
     overrides = await get_all_overrides(session)
     manager = LLMManager(settings)
 
@@ -120,6 +131,7 @@ async def get_admin_settings(
 @router.put("", response_model=SettingsResponse)
 async def update_admin_settings(
     payload: SettingsUpdateRequest,
+    request: Request,
     current_user: User = Depends(get_current_user),
     settings: Settings = Depends(get_settings),
     session: AsyncSession = Depends(get_session),
@@ -129,12 +141,54 @@ async def update_admin_settings(
     Only non-null fields in the payload are applied as overrides.
     Changes are persisted to the ``system_settings`` database table.
     """
+    await _require_settings_role(
+        request=request,
+        session=session,
+        current_user=current_user,
+        action="settings.update",
+        allowed_roles={"admin"},
+    )
     updates = payload.dict(exclude_none=True)
     if updates:
         await upsert_many(session, updates, user_id=current_user.id)
 
     return await get_admin_settings(
+        request=request,
         current_user=current_user,
         settings=settings,
         session=session,
     )
+
+
+async def _require_settings_role(
+    *,
+    request: Request,
+    session: AsyncSession,
+    current_user: User,
+    action: str,
+    allowed_roles: set[str],
+) -> None:
+    trace_id = new_trace_id()
+    if current_user.role in allowed_roles:
+        await AuditService(session).record(
+            actor_user_id=current_user.id,
+            action=action,
+            object_type="system_setting",
+            outcome="allowed",
+            trace_id=trace_id,
+            ip_address=get_request_ip(request),
+            metadata={"role": current_user.role},
+        )
+        await session.commit()
+        return
+    await AuditService(session).record(
+        actor_user_id=current_user.id,
+        action=action,
+        object_type="system_setting",
+        outcome="denied",
+        trace_id=trace_id,
+        ip_address=get_request_ip(request),
+        metadata={"role": current_user.role, "allowed_roles": sorted(allowed_roles)},
+    )
+    await session.commit()
+    raise PermissionDeniedError("User is not authorized to manage system settings.")

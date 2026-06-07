@@ -1,0 +1,701 @@
+{
+  "generated_at": "2026-06-07T11:00:19.753789+00:00",
+  "base_url": "http://127.0.0.1:8000",
+  "results": [
+    {
+      "name": "auth and no-token boundary",
+      "severity_on_fail": "P1 block",
+      "passed": true,
+      "expected": "Known dev tokens resolve to seeded users; no token and wrong token are blocked without PHI.",
+      "actual": "All seeded tokens authenticated; anonymous and wrong-token requests returned 401.",
+      "evidence_labels": [
+        "auth-anonymous",
+        "auth-wrong-token",
+        "auth-dev-doctor",
+        "auth-dev-records",
+        "auth-dev-security",
+        "auth-dev-admin"
+      ]
+    },
+    {
+      "name": "general knowledge thread answer",
+      "severity_on_fail": "P2 fix before sign-off",
+      "passed": true,
+      "expected": "A general thread answers from approved non-PHI evidence with no patient_id.",
+      "actual": "General thread returned an approved non-PHI citation and no patient context.",
+      "evidence_labels": [
+        "general-thread-create",
+        "general-thread-message"
+      ]
+    },
+    {
+      "name": "HMS appointment import role boundary",
+      "severity_on_fail": "P1 block",
+      "passed": true,
+      "expected": "Records staff or admin can import appointment summaries; doctor import is denied.",
+      "actual": "Records import succeeded with appointments lineage; doctor import was denied.",
+      "evidence_labels": [
+        "hms-import-records",
+        "hms-import-doctor-denied"
+      ]
+    },
+    {
+      "name": "doctor patient-linked HMS appointment answer",
+      "severity_on_fail": "P1 block",
+      "passed": true,
+      "expected": "Doctor asks about Alice and receives appointment evidence with source_family appointments.",
+      "actual": "Doctor answer cited HMS appointment evidence with source_family appointments.",
+      "evidence_labels": [
+        "patient-thread-create",
+        "patient-thread-message"
+      ]
+    },
+    {
+      "name": "denied patient access and audit trace",
+      "severity_on_fail": "P1 block",
+      "passed": true,
+      "expected": "A role without Alice read access is denied before evidence; security can review denial logs.",
+      "actual": "Records access was denied, and security could review a denied audit event.",
+      "evidence_labels": [
+        "records-patient-thread-denied",
+        "security-audit-events",
+        "doctor-audit-denied"
+      ]
+    },
+    {
+      "name": "shared thread rename, share, reload, archive",
+      "severity_on_fail": "P2 fix before sign-off",
+      "passed": true,
+      "expected": "Doctor can rename/share/archive a thread; admin sees shared persisted thread after reload.",
+      "actual": "Rename, share, reload, and archive all persisted through backend APIs.",
+      "evidence_labels": [
+        "shared-thread-create",
+        "shared-thread-rename",
+        "shared-thread-share-admin",
+        "shared-thread-admin-reload",
+        "shared-thread-archive",
+        "shared-thread-archived-detail"
+      ]
+    }
+  ],
+  "requests": [
+    {
+      "label": "auth-anonymous",
+      "method": "GET",
+      "path": "/auth/me",
+      "status_code": 401,
+      "response": {
+        "detail": "Missing bearer token."
+      },
+      "role": "anonymous"
+    },
+    {
+      "label": "auth-wrong-token",
+      "method": "GET",
+      "path": "/auth/me",
+      "status_code": 401,
+      "response": {
+        "detail": "Unknown bearer token."
+      },
+      "role": "wrong-token"
+    },
+    {
+      "label": "auth-dev-doctor",
+      "method": "GET",
+      "path": "/auth/me",
+      "status_code": 200,
+      "response": {
+        "id": "10000000-0000-0000-0000-000000000001",
+        "email": "doctor@example.test",
+        "full_name": "Dr. Dev Doctor",
+        "department": "Internal Medicine",
+        "role": "doctor",
+        "is_active": true
+      },
+      "role": "dev-doctor"
+    },
+    {
+      "label": "auth-dev-records",
+      "method": "GET",
+      "path": "/auth/me",
+      "status_code": 200,
+      "response": {
+        "id": "10000000-0000-0000-0000-000000000002",
+        "email": "records@example.test",
+        "full_name": "Riley Records",
+        "department": "Medical Records",
+        "role": "records_staff",
+        "is_active": true
+      },
+      "role": "dev-records"
+    },
+    {
+      "label": "auth-dev-security",
+      "method": "GET",
+      "path": "/auth/me",
+      "status_code": 200,
+      "response": {
+        "id": "10000000-0000-0000-0000-000000000003",
+        "email": "security@example.test",
+        "full_name": "Sam Security",
+        "department": "Compliance",
+        "role": "security",
+        "is_active": true
+      },
+      "role": "dev-security"
+    },
+    {
+      "label": "auth-dev-admin",
+      "method": "GET",
+      "path": "/auth/me",
+      "status_code": 200,
+      "response": {
+        "id": "10000000-0000-0000-0000-000000000004",
+        "email": "admin@example.test",
+        "full_name": "Alex Admin",
+        "department": "IT",
+        "role": "admin",
+        "is_active": true
+      },
+      "role": "dev-admin"
+    },
+    {
+      "label": "general-thread-create",
+      "method": "POST",
+      "path": "/chat-threads",
+      "status_code": 200,
+      "response": {
+        "scope": "general",
+        "patient_id": null,
+        "id": "d51289af-ba4c-4e37-b73f-390a57cdaa49",
+        "title": "UAT general knowledge 97284711",
+        "visibility": "private",
+        "status": "active",
+        "owner_user_id": "10000000-0000-0000-0000-000000000001",
+        "created_trace_id": "7aff8eb2-91e0-4c0c-aa4a-fcc136ef1c9e",
+        "last_message_at": null,
+        "created_at": "2026-06-07T11:00:19",
+        "updated_at": "2026-06-07T11:00:19"
+      },
+      "role": "dev-doctor"
+    },
+    {
+      "label": "general-thread-message",
+      "method": "POST",
+      "path": "/chat-threads/d51289af-ba4c-4e37-b73f-390a57cdaa49/messages",
+      "status_code": 200,
+      "response": {
+        "user_message": {
+          "scope": "general",
+          "patient_id": null,
+          "role": "user",
+          "content": "What should a ward transfer request include?",
+          "patient_permission_state": "not-required",
+          "citations": [],
+          "metadata": {
+            "top_k": 5
+          },
+          "id": "15c6a031-f2a7-42d9-8ea5-030e0b5dcc60",
+          "thread_id": "d51289af-ba4c-4e37-b73f-390a57cdaa49",
+          "sender_user_id": "10000000-0000-0000-0000-000000000001",
+          "ai_query_id": null,
+          "trace_id": "23babe24-babb-4092-b590-e370bf97ed40",
+          "created_at": "2026-06-07T11:00:19.346814"
+        },
+        "assistant_message": {
+          "scope": "general",
+          "patient_id": null,
+          "role": "assistant",
+          "content": "Based on the authorized evidence, Ward transfer requests should include receiving unit confirmation, attending approval, current observation needs, isolation precautions, and the latest medication administration status [E1].",
+          "patient_permission_state": "not-required",
+          "citations": [
+            {
+              "evidence_id": "E1",
+              "document_id": "90000000-0000-0000-0000-000000000001",
+              "document_title": "Approved ward transfer policy",
+              "page": 12,
+              "chunk_id": "91000000-0000-0000-0000-000000000001",
+              "score": 0.7357142857142858,
+              "content": "Ward transfer requests should include receiving unit confirmation, attending approval, current observation needs, isolation precautions, and the latest medication administration status.",
+              "metadata": {
+                "source_scope": "general-hospital-knowledge",
+                "approved_non_phi": true,
+                "contains_phi": false
+              }
+            }
+          ],
+          "metadata": {
+            "confidence": "medium",
+            "disclaimer": "General hospital knowledge must be verified against current local policy before use.",
+            "source_scope": "general-hospital-knowledge"
+          },
+          "id": "c46de8ee-34e5-45c9-952b-9b210435660e",
+          "thread_id": "d51289af-ba4c-4e37-b73f-390a57cdaa49",
+          "sender_user_id": null,
+          "ai_query_id": null,
+          "trace_id": "23babe24-babb-4092-b590-e370bf97ed40",
+          "created_at": "2026-06-07T11:00:19.347813"
+        }
+      },
+      "role": "dev-doctor"
+    },
+    {
+      "label": "hms-import-records",
+      "method": "POST",
+      "path": "/hms/appointments/import",
+      "status_code": 200,
+      "response": {
+        "document_id": "c3324379-f785-4689-8966-8bc1271ff46b",
+        "patient_id": "20000000-0000-0000-0000-000000000001",
+        "source_appointment_id": "17ace3cf-ced4-43a2-8952-e905b550306d",
+        "document_title": "HMS appointment summary 17ace3cf-ced4-43a2-8952-e905b550306d",
+        "source_family": "appointments",
+        "source_system": "hospital-management-system",
+        "status": "indexed"
+      },
+      "role": "dev-records"
+    },
+    {
+      "label": "hms-import-doctor-denied",
+      "method": "POST",
+      "path": "/hms/appointments/import",
+      "status_code": 403,
+      "response": {
+        "error": "FORBIDDEN",
+        "message": "Only records staff or admins can upload documents.",
+        "metadata": {}
+      },
+      "role": "dev-doctor"
+    },
+    {
+      "label": "patient-thread-create",
+      "method": "POST",
+      "path": "/chat-threads",
+      "status_code": 200,
+      "response": {
+        "scope": "patient-linked",
+        "patient_id": "20000000-0000-0000-0000-000000000001",
+        "id": "8a278b26-4c30-4872-ae0f-919c3c3121af",
+        "title": "UAT Alice appointment 212dbd19",
+        "visibility": "private",
+        "status": "active",
+        "owner_user_id": "10000000-0000-0000-0000-000000000001",
+        "created_trace_id": "af79c8a6-439e-4d60-8642-cd2d06ba630d",
+        "last_message_at": null,
+        "created_at": "2026-06-07T11:00:19",
+        "updated_at": "2026-06-07T11:00:19"
+      },
+      "role": "dev-doctor"
+    },
+    {
+      "label": "patient-thread-message",
+      "method": "POST",
+      "path": "/chat-threads/8a278b26-4c30-4872-ae0f-919c3c3121af/messages",
+      "status_code": 200,
+      "response": {
+        "user_message": {
+          "scope": "patient-linked",
+          "patient_id": "20000000-0000-0000-0000-000000000001",
+          "role": "user",
+          "content": "What is the appointment status and vital signs?",
+          "patient_permission_state": "allowed",
+          "citations": [],
+          "metadata": {
+            "top_k": 5
+          },
+          "id": "68de0ef6-b317-4dec-8c18-53325002ff7c",
+          "thread_id": "8a278b26-4c30-4872-ae0f-919c3c3121af",
+          "sender_user_id": "10000000-0000-0000-0000-000000000001",
+          "ai_query_id": null,
+          "trace_id": "9a393400-2928-42d4-924e-c2ec60b1c5e4",
+          "created_at": "2026-06-07T11:00:19.531545"
+        },
+        "assistant_message": {
+          "scope": "patient-linked",
+          "patient_id": "20000000-0000-0000-0000-000000000001",
+          "role": "assistant",
+          "content": "The appointment status is CHECKED_IN [E1]. Vital signs: Blood pressure 128/78, heart rate 78, oxygen saturation 98% [E1].",
+          "patient_permission_state": "allowed",
+          "citations": [
+            {
+              "evidence_id": "E1",
+              "document_id": "24b66a3b-74cd-475c-a1d2-a74da8c124ff",
+              "document_title": "HMS appointment summary 30000000-0000-0000-0000-000000000001",
+              "page": 1,
+              "chunk_id": "d189aecd-15de-4155-8729-18283662be89",
+              "score": 0.4547,
+              "content": "HMS appointment summary\nAppointment ID: 30000000-0000-0000-0000-000000000001\nAppointment date: 2026-04-28\nStatus: CHECKED_IN\nDepartment: Internal Medicine\nDoctor: Dr. Dev Doctor\nStart time: 09:00\nEnd time: 09:30\nReason: Synthetic follow-up visit\nSymptoms: Synthetic dizziness and medication review notes.\nVital signs: Blood pressure 128/78, heart rate 78, oxygen saturation 98%.\nFollow-up: Review symptoms and medication reconciliation at discharge planning.",
+              "metadata": {
+                "source_system": "hospital-management-system",
+                "source_family": "appointments",
+                "source_record_id": "30000000-0000-0000-0000-000000000001",
+                "source_path": "/api/v1/appointments/30000000-0000-0000-0000-000000000001",
+                "source_patient_id": "20000000-0000-0000-0000-000000000001",
+                "import_contract": "phase3-hms-appointments-v1",
+                "source_lifecycle_state": "active",
+                "approval_state": "synthetic_or_deidentified_only",
+                "contains_phi": true,
+                "patient_permission_required": true,
+                "appointment_date": "2026-04-28",
+                "appointment_status": "CHECKED_IN",
+                "imported_at": "2026-06-07T10:59:31.463139+00:00",
+                "retrieval_method": "vector",
+                "rerank_original_score": 0.3411441196105065
+              }
+            }
+          ],
+          "metadata": {
+            "confidence": "low",
+            "disclaimer": "AI-assisted retrieval; clinical staff must verify before making decisions."
+          },
+          "id": "8de4a573-8230-458e-ab2d-2ef89dd8b3fd",
+          "thread_id": "8a278b26-4c30-4872-ae0f-919c3c3121af",
+          "sender_user_id": null,
+          "ai_query_id": "3cebdf7f-d3d1-4746-8e86-553693757e92",
+          "trace_id": "9a393400-2928-42d4-924e-c2ec60b1c5e4",
+          "created_at": "2026-06-07T11:00:19.531545"
+        }
+      },
+      "role": "dev-doctor"
+    },
+    {
+      "label": "records-patient-thread-denied",
+      "method": "POST",
+      "path": "/chat-threads",
+      "status_code": 403,
+      "response": {
+        "error": "FORBIDDEN",
+        "message": "User is not authorized for this patient.",
+        "metadata": {}
+      },
+      "role": "dev-records"
+    },
+    {
+      "label": "security-audit-events",
+      "method": "GET",
+      "path": "/audit/logs?limit=20",
+      "status_code": 200,
+      "response": {
+        "items": [
+          {
+            "id": "13d6d7b5-9a70-4622-97ab-06e6307bbc46",
+            "actor_user_id": "10000000-0000-0000-0000-000000000001",
+            "action": "chat_thread.create",
+            "object_type": "chat_thread",
+            "object_id": "d51289af-ba4c-4e37-b73f-390a57cdaa49",
+            "patient_id": null,
+            "outcome": "allowed",
+            "trace_id": "7aff8eb2-91e0-4c0c-aa4a-fcc136ef1c9e",
+            "ip_address": "127.0.0.1",
+            "meta": {
+              "scope": "general",
+              "visibility": "private"
+            },
+            "created_at": "2026-06-07T11:00:19"
+          },
+          {
+            "id": "e0b6b59e-660b-4254-ae77-1e2229644e91",
+            "actor_user_id": "10000000-0000-0000-0000-000000000001",
+            "action": "chat_thread.message.create",
+            "object_type": "chat_thread",
+            "object_id": "d51289af-ba4c-4e37-b73f-390a57cdaa49",
+            "patient_id": null,
+            "outcome": "allowed",
+            "trace_id": "23babe24-babb-4092-b590-e370bf97ed40",
+            "ip_address": "127.0.0.1",
+            "meta": {
+              "result": "general_knowledge",
+              "evidence_count": 1,
+              "source_scope": "general-hospital-knowledge"
+            },
+            "created_at": "2026-06-07T11:00:19"
+          },
+          {
+            "id": "9ff3d564-a549-4ce9-bb84-20af63ebd1f4",
+            "actor_user_id": "10000000-0000-0000-0000-000000000002",
+            "action": "hms.appointment.import",
+            "object_type": "document",
+            "object_id": "c3324379-f785-4689-8966-8bc1271ff46b",
+            "patient_id": "20000000-0000-0000-0000-000000000001",
+            "outcome": "allowed",
+            "trace_id": "b4251070-d8cb-431f-bebc-8a10a9936890",
+            "ip_address": "127.0.0.1",
+            "meta": {
+              "source_system": "hospital-management-system",
+              "source_family": "appointments",
+              "source_record_id": "17ace3cf-ced4-43a2-8952-e905b550306d",
+              "import_contract": "phase3-hms-appointments-v1"
+            },
+            "created_at": "2026-06-07T11:00:19"
+          },
+          {
+            "id": "6e16a83e-cb40-4ccb-a300-58bfdce3d711",
+            "actor_user_id": "10000000-0000-0000-0000-000000000001",
+            "action": "hms.appointment.import",
+            "object_type": "hms_appointment",
+            "object_id": "71aa389f-15da-4b90-9744-1c53149e71f1",
+            "patient_id": "20000000-0000-0000-0000-000000000001",
+            "outcome": "denied",
+            "trace_id": "9fd4aeec-aa76-4acd-8b51-a23a02ac26f7",
+            "ip_address": "127.0.0.1",
+            "meta": {
+              "reason": "role_not_allowed",
+              "role": "doctor"
+            },
+            "created_at": "2026-06-07T11:00:19"
+          },
+          {
+            "id": "13eeccb5-78aa-484e-8c96-0354894d1c97",
+            "actor_user_id": "10000000-0000-0000-0000-000000000001",
+            "action": "chat_thread.create",
+            "object_type": "chat_thread",
+            "object_id": "8a278b26-4c30-4872-ae0f-919c3c3121af",
+            "patient_id": "20000000-0000-0000-0000-000000000001",
+            "outcome": "allowed",
+            "trace_id": "af79c8a6-439e-4d60-8642-cd2d06ba630d",
+            "ip_address": "127.0.0.1",
+            "meta": {
+              "scope": "patient-linked",
+              "visibility": "private"
+            },
+            "created_at": "2026-06-07T11:00:19"
+          },
+          {
+            "id": "5168379d-8673-4829-9a60-0499c1cdf703",
+            "actor_user_id": "10000000-0000-0000-0000-000000000001",
+            "action": "chat.ask",
+            "object_type": "ai_query",
+            "object_id": "3cebdf7f-d3d1-4746-8e86-553693757e92",
+            "patient_id": "20000000-0000-0000-0000-000000000001",
+            "outcome": "allowed",
+            "trace_id": "9a393400-2928-42d4-924e-c2ec60b1c5e4",
+            "ip_address": "127.0.0.1",
+            "meta": {
+              "result": "completed",
+              "evidence_count": 2,
+              "pipeline": "simple_qa",
+              "drug_warnings": 0
+            },
+            "created_at": "2026-06-07T11:00:19"
+          },
+          {
+            "id": "d4590348-0d17-453a-a983-55b1a34e6861",
+            "actor_user_id": "10000000-0000-0000-0000-000000000001",
+            "action": "chat_thread.message.create",
+            "object_type": "chat_thread",
+            "object_id": "8a278b26-4c30-4872-ae0f-919c3c3121af",
+            "patient_id": "20000000-0000-0000-0000-000000000001",
+            "outcome": "allowed",
+            "trace_id": "9a393400-2928-42d4-924e-c2ec60b1c5e4",
+            "ip_address": "127.0.0.1",
+            "meta": {
+              "ai_query_id": "3cebdf7f-d3d1-4746-8e86-553693757e92"
+            },
+            "created_at": "2026-06-07T11:00:19"
+          },
+          {
+            "id": "25ce4ca8-763a-485a-88c9-358f60119395",
+            "actor_user_id": "10000000-0000-0000-0000-000000000002",
+            "action": "chat_thread.create",
+            "object_type": "chat_thread",
+            "object_id": null,
+            "patient_id": "20000000-0000-0000-0000-000000000001",
+            "outcome": "denied",
+            "trace_id": "7759a80c-5c3c-487b-a4e7-488bb3faf1df",
+            "ip_address": "127.0.0.1",
+            "meta": {
+              "required_scopes": [
+                "admin",
+                "medication",
+                "read",
+                "summary"
+              ]
+            },
+            "created_at": "2026-06-07T11:00:19"
+          },
+          {
+            "id": "c0680519-17e0-4d2a-b14d-70acf60128d1",
+            "actor_user_id": "10000000-0000-0000-0000-000000000004",
+            "action": "hms.appointment.import",
+            "object_type": "document",
+            "object_id": "24b66a3b-74cd-475c-a1d2-a74da8c124ff",
+            "patient_id": "20000000-0000-0000-0000-000000000001",
+            "outcome": "allowed",
+            "trace_id": "e1764d9a-1ac6-4f26-a1a3-8db42f61f02f",
+            "ip_address": "seed_dev",
+            "meta": {
+              "source_system": "hospital-management-system",
+              "source_family": "appointments",
+              "source_record_id": "30000000-0000-0000-0000-000000000001",
+              "import_contract": "phase3-hms-appointments-v1"
+            },
+            "created_at": "2026-06-07T10:59:31"
+          }
+        ]
+      },
+      "role": "dev-security"
+    },
+    {
+      "label": "doctor-audit-denied",
+      "method": "GET",
+      "path": "/audit/logs?limit=5",
+      "status_code": 403,
+      "response": {
+        "error": "FORBIDDEN",
+        "message": "Only security or admin users can view audit logs.",
+        "metadata": {}
+      },
+      "role": "dev-doctor"
+    },
+    {
+      "label": "shared-thread-create",
+      "method": "POST",
+      "path": "/chat-threads",
+      "status_code": 200,
+      "response": {
+        "scope": "general",
+        "patient_id": null,
+        "id": "f9d85fc2-ab97-408d-84a4-69d1cf6e035f",
+        "title": "UAT shared thread 0002a414",
+        "visibility": "private",
+        "status": "active",
+        "owner_user_id": "10000000-0000-0000-0000-000000000001",
+        "created_trace_id": "ebb42241-d526-4028-8b67-78db5243bc2d",
+        "last_message_at": null,
+        "created_at": "2026-06-07T11:00:19",
+        "updated_at": "2026-06-07T11:00:19"
+      },
+      "role": "dev-doctor"
+    },
+    {
+      "label": "shared-thread-rename",
+      "method": "PATCH",
+      "path": "/chat-threads/f9d85fc2-ab97-408d-84a4-69d1cf6e035f",
+      "status_code": 200,
+      "response": {
+        "scope": "general",
+        "patient_id": null,
+        "id": "f9d85fc2-ab97-408d-84a4-69d1cf6e035f",
+        "title": "UAT renamed shared thread 8dbe3f12",
+        "visibility": "private",
+        "status": "active",
+        "owner_user_id": "10000000-0000-0000-0000-000000000001",
+        "created_trace_id": "ebb42241-d526-4028-8b67-78db5243bc2d",
+        "last_message_at": null,
+        "created_at": "2026-06-07T11:00:19",
+        "updated_at": "2026-06-07T11:00:19"
+      },
+      "role": "dev-doctor"
+    },
+    {
+      "label": "shared-thread-share-admin",
+      "method": "POST",
+      "path": "/chat-threads/f9d85fc2-ab97-408d-84a4-69d1cf6e035f/participants",
+      "status_code": 200,
+      "response": {
+        "id": "5cb005d6-f6c1-4e53-a9ab-620d8ae874df",
+        "thread_id": "f9d85fc2-ab97-408d-84a4-69d1cf6e035f",
+        "user_id": "10000000-0000-0000-0000-000000000004",
+        "access_level": "read",
+        "can_share": false,
+        "added_by_user_id": "10000000-0000-0000-0000-000000000001",
+        "created_trace_id": "a8dbf91f-dd8d-452d-9ffb-ea5dcf84f1e0",
+        "last_read_at": null,
+        "created_at": "2026-06-07T11:00:19",
+        "updated_at": "2026-06-07T11:00:19"
+      },
+      "role": "dev-doctor"
+    },
+    {
+      "label": "shared-thread-admin-reload",
+      "method": "GET",
+      "path": "/chat-threads",
+      "status_code": 200,
+      "response": {
+        "items": [
+          {
+            "scope": "general",
+            "patient_id": null,
+            "id": "f9d85fc2-ab97-408d-84a4-69d1cf6e035f",
+            "title": "UAT renamed shared thread 8dbe3f12",
+            "visibility": "shared",
+            "status": "active",
+            "owner_user_id": "10000000-0000-0000-0000-000000000001",
+            "created_trace_id": "ebb42241-d526-4028-8b67-78db5243bc2d",
+            "last_message_at": null,
+            "created_at": "2026-06-07T11:00:19",
+            "updated_at": "2026-06-07T11:00:19"
+          }
+        ]
+      },
+      "role": "dev-admin"
+    },
+    {
+      "label": "shared-thread-archive",
+      "method": "DELETE",
+      "path": "/chat-threads/f9d85fc2-ab97-408d-84a4-69d1cf6e035f",
+      "status_code": 200,
+      "response": {
+        "scope": "general",
+        "patient_id": null,
+        "id": "f9d85fc2-ab97-408d-84a4-69d1cf6e035f",
+        "title": "UAT renamed shared thread 8dbe3f12",
+        "visibility": "shared",
+        "status": "archived",
+        "owner_user_id": "10000000-0000-0000-0000-000000000001",
+        "created_trace_id": "ebb42241-d526-4028-8b67-78db5243bc2d",
+        "last_message_at": null,
+        "created_at": "2026-06-07T11:00:19",
+        "updated_at": "2026-06-07T11:00:19"
+      },
+      "role": "dev-doctor"
+    },
+    {
+      "label": "shared-thread-archived-detail",
+      "method": "GET",
+      "path": "/chat-threads/f9d85fc2-ab97-408d-84a4-69d1cf6e035f",
+      "status_code": 200,
+      "response": {
+        "scope": "general",
+        "patient_id": null,
+        "id": "f9d85fc2-ab97-408d-84a4-69d1cf6e035f",
+        "title": "UAT renamed shared thread 8dbe3f12",
+        "visibility": "shared",
+        "status": "archived",
+        "owner_user_id": "10000000-0000-0000-0000-000000000001",
+        "created_trace_id": "ebb42241-d526-4028-8b67-78db5243bc2d",
+        "last_message_at": null,
+        "created_at": "2026-06-07T11:00:19",
+        "updated_at": "2026-06-07T11:00:19",
+        "participants": [
+          {
+            "id": "3c7dbbde-6004-445f-8573-39338cc6638d",
+            "thread_id": "f9d85fc2-ab97-408d-84a4-69d1cf6e035f",
+            "user_id": "10000000-0000-0000-0000-000000000001",
+            "access_level": "owner",
+            "can_share": true,
+            "added_by_user_id": "10000000-0000-0000-0000-000000000001",
+            "created_trace_id": "ebb42241-d526-4028-8b67-78db5243bc2d",
+            "last_read_at": null,
+            "created_at": "2026-06-07T11:00:19",
+            "updated_at": "2026-06-07T11:00:19"
+          },
+          {
+            "id": "5cb005d6-f6c1-4e53-a9ab-620d8ae874df",
+            "thread_id": "f9d85fc2-ab97-408d-84a4-69d1cf6e035f",
+            "user_id": "10000000-0000-0000-0000-000000000004",
+            "access_level": "read",
+            "can_share": false,
+            "added_by_user_id": "10000000-0000-0000-0000-000000000001",
+            "created_trace_id": "a8dbf91f-dd8d-452d-9ffb-ea5dcf84f1e0",
+            "last_read_at": null,
+            "created_at": "2026-06-07T11:00:19",
+            "updated_at": "2026-06-07T11:00:19"
+          }
+        ],
+        "messages": []
+      },
+      "role": "dev-doctor"
+    }
+  ]
+}

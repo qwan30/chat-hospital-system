@@ -63,8 +63,8 @@ khuym:using-khuym
 1. Never execute without validating.
 2. `CONTEXT.md` is the source of truth for locked decisions.
 3. If context usage passes roughly 65%, write `.khuym/HANDOFF.json` and pause cleanly.
-4. Treat `.khuym/state.json` as the routing mirror and `.khuym/STATE.md` as the human-readable narrative; keep them aligned.
-5. After compaction, re-read `AGENTS.md`, run `node .codex/khuym_status.mjs --json` if present, then re-open `.khuym/HANDOFF.json`, `.khuym/state.json`, `.khuym/STATE.md`, and the active feature context before more work.
+4. Treat `.khuym/state.json` as the single runtime state file for routing, current focus, and operator notes.
+5. After compaction, re-read `AGENTS.md`, run `node .codex/khuym_status.mjs --json` if present, then re-open `.khuym/HANDOFF.json`, `.khuym/state.json`, and the active feature context before more work.
 6. P1 review findings block merge.
 
 ## Working Files
@@ -72,9 +72,9 @@ khuym:using-khuym
 ```
 .khuym/
   onboarding.json     ← onboarding state for the Khuym plugin
-  state.json          ← machine-readable routing snapshot for agents and tools
-  STATE.md            ← current phase and focus
+  state.json          ← single runtime state file for agents, tools, and humans
   HANDOFF.json        ← pause/resume artifact
+  reservations.json   ← local file reservations for same-session Codex swarms
 
 history/<feature>/
   CONTEXT.md          ← locked decisions
@@ -91,6 +91,7 @@ history/learnings/
 .codex/
   khuym_status.mjs    ← read-only scout command for onboarding, state, and handoff
   khuym_state.mjs     ← shared state helpers used by the scout command
+  khuym_reservations.mjs ← local reservation helper used by swarming, executing, and hooks
 
 ## Codex Guardrails
 
@@ -105,14 +106,14 @@ history/learnings/
 Before ending a substantial Khuym work chunk:
 
 1. Update or close the active bead/task if one exists.
-2. Leave `.khuym/state.json`, `.khuym/STATE.md`, and `.khuym/HANDOFF.json` consistent with the current pause/resume state.
+2. Leave `.khuym/state.json` and `.khuym/HANDOFF.json` consistent with the current pause/resume state.
 3. Mention any remaining blockers, open questions, or next actions in the final response.
 <!-- KHUYM:END -->
 
 <!-- gitnexus:start -->
 # GitNexus — Code Intelligence
 
-This project is indexed by GitNexus as **chatbot-hospital-system** (2392 symbols, 6488 relationships, 197 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
+This project is indexed by GitNexus as **chatbot-hospital-system** (2541 symbols, 6778 relationships, 210 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
 
 > If any GitNexus tool warns the index is stale, run `npx gitnexus analyze` in terminal first.
 

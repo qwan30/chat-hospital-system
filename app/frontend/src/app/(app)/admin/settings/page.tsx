@@ -84,7 +84,7 @@ const buttonStyle: React.CSSProperties = {
 };
 
 export default function AdminSettingsPage() {
-  const { token } = useAuth();
+  const { apiUrl, token } = useAuth();
   const [settings, setSettings] = useState<AllSettings | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -95,7 +95,7 @@ export default function AdminSettingsPage() {
 
   const fetchSettings = useCallback(async () => {
     try {
-      const res = await fetch("/api/v1/settings", {
+      const res = await fetch(`${apiUrl.replace(/\/+$/, "")}/settings`, {
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
       if (!res.ok) throw new Error(`Failed: ${res.status}`);
@@ -123,7 +123,7 @@ export default function AdminSettingsPage() {
     } finally {
       setLoading(false);
     }
-  }, [token]);
+  }, [apiUrl, token]);
 
   useEffect(() => {
     let cancelled = false;
@@ -141,7 +141,7 @@ export default function AdminSettingsPage() {
     setSaving(true);
     setMessage(null);
     try {
-      const res = await fetch("/api/v1/settings", {
+      const res = await fetch(`${apiUrl.replace(/\/+$/, "")}/settings`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",

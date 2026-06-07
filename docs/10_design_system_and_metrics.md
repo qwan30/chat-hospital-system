@@ -39,6 +39,23 @@ Phase 1 components must distinguish verified backend-backed data from local/samp
 
 Keep semantic colors meaningful. Do not use medical colors as decoration.
 
+### Figma Design System & Tokens
+The design system, tokens, and variables are maintained in the Figma file at:
+[Hospital AI Assistant Design System Specs](https://www.figma.com/design/QucDTsPwShazdDCLLqUHHW/Untitled?node-id=43-16&t=WBFw6pS24Jjm5WB4-1)
+
+Local variables have been created under the **Design Tokens** collection using slash notation (e.g. `bg/app`, `surface/shell`, `semantic/danger`).
+
+### Application Error & HTTP Status Code Mappings
+
+| Error Class | Code | HTTP Status | Color Token | UX Context / Presentation |
+|---|---|---|---|---|
+| `PermissionDeniedError` | `FORBIDDEN` | 403 | `semantic.danger` (#f87171) | Accessing unauthorized patient context, sync, or settings writes. Logs a denied audit event. |
+| `NotFoundError` | `NOT_FOUND` | 404 | `semantic.warning` (#fbbf24) | Requested thread, document, or trace record not found. Displays warning alert or fallback message. |
+| `ValidationAppError` | `VALIDATION_ERROR` | 422 | `semantic.warning` (#fbbf24) | Upload payload or composer query parameter issues. Renders direct inline validation hints. |
+| `ExternalServiceError` | `EXTERNAL_SERVICE_ERROR` | 502 | `semantic.danger` (#f87171) | Failure connecting to external HMS API. Prompts user to check integration status. |
+| `AppError` | `APP_ERROR` | 500 | `semantic.danger` (#f87171) | Catch-all server failure. Sanitized in UI to avoid leaking stack traces. |
+| Successful request | - | 200 / 201 | `semantic.success` (#34d399) | Successful patient queries, uploads, settings updates, and sync actions. |
+
 ## 4. Core Components
 
 | Component | Purpose | Must Have |

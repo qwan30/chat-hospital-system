@@ -433,25 +433,25 @@ This story answers: "Tell me about a time you designed for flexibility" and "How
 
 ## F. Resume Bullets
 
-1. **Architected a permission-aware RAG system enforcing RBAC/ABAC before retrieval, guaranteeing 0% unauthorized context passed to LLM—critical for HIPAA-compliant healthcare AI.**
+1. **Built a privacy-aware hospital assistant MVP with permission-filtered RAG, citation validation, audit logs, and synthetic evidence checks for unauthorized-context prevention.**
 
-2. **Designed and implemented async OCR/embedding pipeline using Redis queues and PaddleOCR, processing 50–100 page hospital documents in 10–30 seconds without blocking API (est. 3,000–8,600 docs/month per worker).**
+2. **Implemented a document ingestion and evidence pipeline with upload, lifecycle status, patient scoping, OCR/embedding hooks, and permission-filtered document listing.**
 
-3. **Engineered end-to-end citation validation system extracting LLM-generated citations and cross-referencing against actually-retrieved evidence chunks, reducing hallucination risk by ~80% vs. unconstrained RAG (est.).**
+3. **Added citation validation that cross-checks generated citations against retrieved evidence before returning clinical-context answers.**
 
-4. **Built comprehensive Requirements Traceability Matrix linking 15 functional + 9 non-functional requirements to design, API, database, and 19+ test cases—enabling audit-ready compliance for healthcare regulators.**
+4. **Maintained a requirements traceability pack connecting functional requirements, API contracts, database design, security expectations, and local verification artifacts.**
 
-5. **Implemented multi-environment LLM abstraction (Ollama local, vLLM production, Cohere optional, Stub for CI) supporting resource-constrained 16GB MVP while remaining flexible for production scaling.**
+5. **Implemented a multi-provider LLM abstraction for local/dev workflows with stubbed CI behavior and documented production-auth limitations.**
 
-6. **Developed 26+ integration test files with explicit permission boundary tests, RAG correctness verification, and safe-refusal validation—ensuring zero unauthorized retrieval leakage and 95%+ citation accuracy.**
+6. **Expanded backend and frontend regression checks for permission boundaries, safe refusals, route contracts, metrics, settings access, and memory-only bearer-token handling.**
 
-7. **Designed permission service with canonical SQL predicates for RBAC/ABAC, patient scope, and expiring permissions—reducing authorization bugs and enabling forensic audit trails per sensitive access.**
+7. **Designed permission services and shared predicates for RBAC/ABAC, patient scope, expiring permissions, and denial audit events before PHI-adjacent retrieval.**
 
-8. **Created multi-state document lifecycle (Uploaded → OCR Processing → Indexed/Failed) with retry logic and confidence tracking, allowing graceful degradation and human review of low-confidence OCR results.**
+8. **Created a multi-state document lifecycle with retry-oriented processing hooks and low-confidence review fields for safer document handling.**
 
-9. **Specified and implemented 14-endpoint REST API with formal contracts (request/response schemas, error codes, permission gates) enabling contract-driven frontend development and OpenAPI documentation.**
+9. **Specified REST API contracts with request/response schemas, error codes, and permission gates for contract-driven frontend integration.**
 
-10. **Instrumentmented system with audit logging (trace ID per query), metrics collection (latency, retrieval quality, time saved), and observability hooks—enabling production monitoring and compliance audits.**
+10. **Instrumented local audit and metrics surfaces with trace IDs, latency, retrieval-quality indicators, and demo evidence reporting.**
 
 11. **Designed UI/UX workflow (Kotaemon-style chat + evidence panel + patient context gate) prioritizing clinician safety: citation verification, permission-gated PHI, and explicit safe refusal states.**
 

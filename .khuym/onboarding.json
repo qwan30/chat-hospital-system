@@ -1,20 +1,16 @@
 {
   "schema_version": "1.0",
   "plugin": "khuym",
-  "plugin_version": "2.4.11",
-  "installed_at": "2026-04-27T15:31:49.401Z",
+  "plugin_version": "3.0.8",
+  "installed_at": "2026-06-07T10:25:53.414Z",
   "status": "complete",
   "managed_assets": {
-    "agents_mode": "appended_managed_block",
+    "agents_mode": "updated_managed_block",
     "config_changes": [
-      "set_project_doc_max_bytes",
-      "compact_prompt_installed"
+      "enable_hooks_feature",
+      "compact_prompt_managed"
     ],
-    "hook_changes": [
-      "upsert_SessionStart",
-      "upsert_PreToolUse",
-      "upsert_Stop"
-    ],
+    "hook_changes": [],
     "hook_scripts": [
       ".codex\\hooks\\khuym_session_start.mjs",
       ".codex\\hooks\\khuym_pre_tool_use.mjs",
@@ -23,7 +19,8 @@
     "support_scripts": [
       ".codex\\khuym_status.mjs",
       ".codex\\khuym_state.mjs",
-      ".codex\\khuym_dependencies.mjs"
+      ".codex\\khuym_dependencies.mjs",
+      ".codex\\khuym_reservations.mjs"
     ],
     "state_file": ".khuym\\state.json"
   },

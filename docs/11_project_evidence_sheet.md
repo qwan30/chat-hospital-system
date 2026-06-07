@@ -16,11 +16,11 @@ Source template: `evidence-sheet.md`
 | Problem it targets | Hospital staff need faster access to policy, clinical, patient, and operational knowledge while preventing unauthorized PHI exposure. | VERIFIED from docs |
 | Primary users | Doctors, nurses, pharmacists, records staff, admin/IT, and product/project stakeholders. | VERIFIED from docs |
 | Main stack | FastAPI, SQLAlchemy, Alembic, PostgreSQL/pgvector, Redis/RQ, Next.js 16, React 19, TypeScript, Tailwind CSS, shadcn-style UI, Vitest/TAP tests, Pytest. | VERIFIED |
-| Current strongest evidence | Backend test suite passes `245 passed, 2 skipped`; frontend workspace tests pass `16` TAP tests; frontend typecheck, lint, and production build pass; Docker/GitHub Actions workflow files exist. | VERIFIED |
+| Current strongest evidence | Backend test suite passes `250 passed, 2 skipped`; frontend workspace tests pass `18` TAP checks; API contract verifier passes; synthetic RAG eval and live API UAT reports exist; Docker/GitHub Actions workflow files exist. | VERIFIED |
 | Deployment status | Docker Compose and GitHub Actions workflows are configured, but no live deployment URL or successful CI run was verified in this audit. | VERIFIED plus MISSING |
 | Adoption evidence | Public GitHub repo exists with 0 stars, 0 forks, 0 open issues, one public branch, and no open PR evidence. No user/adoption analytics found. | VERIFIED |
 | Best resume angle | Full-stack security-conscious AI app: permission-first RAG, citation validation, audit trails, streaming chat, shared threads, document/HMS evidence ingestion, and tested backend/frontend contracts. | INFERRED |
-| Main risk to avoid | Do not claim production deployment, real hospital adoption, measured time savings, HIPAA compliance, or token memory-only auth across the whole app without more proof. | VERIFIED |
+| Main risk to avoid | Do not claim production deployment, real hospital adoption, measured time savings, HIPAA compliance, or production-grade auth without more proof. | VERIFIED |
 
 Overall assessment: the repository has strong implementation and test evidence for a full-stack AI assistant demo/MVP. It does not yet have enough evidence for production impact, public adoption, audited compliance, or measured business outcomes.
 
@@ -42,6 +42,8 @@ Overall assessment: the repository has strong implementation and test evidence f
 | Dirty worktree before report | `M app/frontend/next-env.d.ts`, `?? HIRING_SIGNALS_ANALYSIS.md`, `?? evidence-sheet.md`, `?? package-lock.json`. | VERIFIED |
 | Workflow state | Khuym onboarding complete; existing Khuym handoff belongs to prior `kotaemon-chat-assistant-ui` UAT signoff and was not resumed. | VERIFIED |
 | Tool limitation | `gkg` is not available on PATH; Khuym status also reported GKG server not reachable/project not indexed. | VERIFIED |
+| Portfolio hardening API UAT | Live local API UAT passed against a temporary SQLite-backed FastAPI server. Report: `history/portfolio-hardening-2026-06/api-uat/20260607T110018Z/api-uat-summary.md`. | VERIFIED |
+| Portfolio hardening browser smoke | Login page screenshots captured at desktop and mobile sizes in `history/portfolio-hardening-2026-06/screenshots/`. | PARTIAL |
 
 ## 3. Technology Verification Matrix
 
@@ -80,7 +82,7 @@ Overall assessment: the repository has strong implementation and test evidence f
 | Document workflow | Upload/ingest document, split pages/chunks, embed/index evidence, retrieve by permission and patient context. | VERIFIED in backend |
 | HMS workflow | Import/sync HMS appointments, lab results, or records into indexed evidence with patient metadata and audit. | VERIFIED in backend |
 | Shared thread workflow | Threads can be created, renamed, archived, shared, and constrained by patient permissions. | VERIFIED in backend/frontend/tests |
-| Admin/settings workflow | Settings route and UI exist, but production-grade admin authorization is not fully proven. | VERIFIED plus MISSING |
+| Admin/settings workflow | Settings UI uses configured backend URL; settings reads are admin/security only and settings writes are admin-only with denial audit coverage. | VERIFIED |
 | Metrics workflow | Backend records metric events and user feedback; frontend has metrics page. Measured real-world impact is not present. | VERIFIED plus MISSING |
 
 ## 5. Feature and Scope Inventory
@@ -102,9 +104,9 @@ Overall assessment: the repository has strong implementation and test evidence f
 | Audit logs | Access denial, query, document, and event audit paths exist. | Implemented and tested | VERIFIED |
 | Metrics and feedback | MetricEvent/UserFeedback models, summary route, and frontend metrics screen exist. | Implemented | VERIFIED |
 | Frontend chat workspace | Chat shell, thread sidebar, patient linking, streaming controls, evidence panel, runtime API config. | Implemented and tested | VERIFIED |
-| Frontend document page | UI exists, but some frontend API paths do not match backend routes. | Partially implemented | CONTRADICTED |
-| Frontend audit/metrics calls | UI exists, but `listAuditLogs` calls `/audit` while backend exposes `/audit/logs` and `/audit/events`. | Contract mismatch | CONTRADICTED |
-| Frontend auth storage | Docs claim runtime token memory behavior in places, but app-wide login context stores token in localStorage. | Needs correction or scoping | CONTRADICTED |
+| Frontend document page | UI calls canonical patient/document endpoints, including `GET /documents` and `POST /documents`; list responses unwrap `{items}`. | Implemented | VERIFIED |
+| Frontend audit/metrics calls | UI calls `/audit/logs` and `/feedback/metrics/summary`; backend contract verification passes. | Implemented | VERIFIED |
+| Frontend auth storage | App-wide login context keeps bearer token in React state only and persists only the API URL. | Implemented | VERIFIED |
 
 ## 6. Architecture and Design Decisions
 
@@ -148,7 +150,7 @@ Resume-safe ownership wording should say "built" or "implemented" only if the us
 | Turning HMS records into RAG evidence | HMS import/sync services render records into documents/pages/chunks with source metadata and audit events. | VERIFIED |
 | Document indexing reliability | Worker job tracks source hash, OCR/chunking/embedding stages, failure states, retries, and dead-letter queue config. | VERIFIED |
 | Frontend contract stability | Workspace verification script checks thread state, streaming controls, safe errors, HMS citations, and canonical type literals. | VERIFIED |
-| Frontend/backend route drift | Some non-chat pages call endpoint paths that do not match backend routes. | CONTRADICTED |
+| Frontend/backend route drift | `verify_contracts.py` passes for the centralized frontend API client and backend OpenAPI paths. | VERIFIED |
 | Production authentication | Local/dev bearer token flow exists; production auth/session model is explicitly separate/pending in Khuym handoff. | MISSING |
 | Live performance validation | Docs define targets, but no load test or real latency dataset was verified. | MISSING |
 
@@ -156,9 +158,9 @@ Resume-safe ownership wording should say "built" or "implemented" only if the us
 
 | Metric / result | Value | Source | Resume-safe? | Classification |
 |---|---:|---|---|---|
-| Backend pytest result | `245 passed, 2 skipped, 1 warning` | `python -m pytest -q` in `app/backend` | Yes, as test coverage evidence | VERIFIED |
+| Backend pytest result | `250 passed, 2 skipped, 1 warning` | `python -m pytest -q` in `app/backend` | Yes, as test coverage evidence | VERIFIED |
 | Backend compile check | Passed | `python -m compileall src tests scripts` | Yes | VERIFIED |
-| Frontend workspace tests | `16` TAP tests passed | `npm run test:workspace` in `app/frontend` | Yes | VERIFIED |
+| Frontend workspace tests | `18` TAP checks passed | `npm run test:workspace` in `app/frontend` | Yes | VERIFIED |
 | Frontend typecheck | Passed | `npm run typecheck` | Yes | VERIFIED |
 | Frontend lint | Passed | `npm run lint` | Yes | VERIFIED |
 | Frontend production build | Passed | `npm run build` | Yes | VERIFIED |
@@ -174,7 +176,7 @@ Resume-safe ownership wording should say "built" or "implemented" only if the us
 | Public GitHub forks | `0` | GitHub API | No positive adoption claim | VERIFIED |
 | Public open issues | `0` | GitHub API | Neutral only | VERIFIED |
 | Lookup time target | `<30 seconds` target | BRD/test plan docs | Not as achieved impact | USER-PROVIDED target |
-| Citation rate target | `>=95%` target | BRD/test plan docs | Not as achieved impact | USER-PROVIDED target |
+| Citation validity synthetic eval | `1.0` on 3 citation/evidence cases | `history/portfolio-hardening-2026-06/rag-eval-report.json` | Yes, synthetic/local only | VERIFIED synthetic only |
 | Document review reduction | `~80%` target/assumption | docs | Not as achieved impact | USER-PROVIDED target |
 
 No measured production latency, real user count, hospital deployment, dollars saved, or clinician time-savings dataset was found.
@@ -185,11 +187,11 @@ No measured production latency, real user count, hospital deployment, dollars sa
 |---|---:|---|---|
 | Backend API route decorators | 34 | Static scan of `@router.get/post/patch/delete` in route files | VERIFIED |
 | Alembic migrations | 6 | Files under `app/backend/alembic/versions` | VERIFIED |
-| Backend pytest tests executed | 245 passed, 2 skipped | Pytest collection/result, includes parametrization | VERIFIED |
+| Backend pytest tests executed | 250 passed, 2 skipped | Pytest collection/result, includes parametrization | VERIFIED |
 | Backend source/test/docs subset files | 72 | `git ls-files` subset for backend models/migrations/tests and frontend TS/TSX files | VERIFIED |
 | Frontend App Router page files | 9 | Files named `page.tsx` under frontend app route tree | VERIFIED |
 | Frontend component files | 16 | Static count under `app/frontend/src/components` | VERIFIED |
-| Frontend workspace contract checks | 16 | TAP output from `npm run test:workspace` | VERIFIED |
+| Frontend workspace contract checks | 18 | TAP output from `npm run test:workspace` | VERIFIED |
 | Git commits by main author | 45 | `git shortlog -sne --all` | VERIFIED |
 | GitHub public branches | 1 | GitHub branches API | VERIFIED |
 
@@ -209,8 +211,8 @@ These counts are suitable for evidence inventory. They should not be inflated in
 | Worker reliability | Retry/dead-letter queue code exists; local worker runtime was not tested in this audit. | VERIFIED as code/config |
 | Compliance | Docs are privacy-aware, but no formal HIPAA/SOC2/security audit evidence found. | MISSING |
 | Production auth | Pending/separate from dev bearer-token flow. | MISSING |
-| Frontend token storage | App-wide login context persists token in localStorage, contradicting broad memory-only token wording. | CONTRADICTED |
-| Endpoint contract health | Chat workspace is tested, but documents/audit/list-patient frontend API paths have backend route mismatches. | CONTRADICTED |
+| Frontend token storage | Static workspace check verifies bearer tokens are not persisted to `localStorage`; only API URL is stored. | VERIFIED |
+| Endpoint contract health | API contract verifier passes for centralized frontend client paths, including patients, documents, audit, HMS, chat, and metrics. | VERIFIED |
 
 ## 12. Delivery and Deployment Evidence
 
@@ -239,9 +241,9 @@ These counts are suitable for evidence inventory. They should not be inflated in
 | Pull requests | No PRs returned in sampled API query. | VERIFIED |
 | Live deployment | Not found. | MISSING |
 | Real users | No analytics, user count, or hospital pilot data found. | MISSING |
-| Clinical validation | UAT/product-test documents exist, but human signoff is pending in Khuym handoff. | MISSING |
+| Clinical validation | API UAT now passes for synthetic workflows, and login screenshots exist; authenticated workflow screenshots and human signoff are still pending. | PARTIAL |
 | Measured time saved | Not measured; only target assumptions in docs. | MISSING |
-| Measured retrieval quality | Targets exist, but no evaluated dataset/results file was verified. | MISSING |
+| Synthetic retrieval quality | `scripts/run_rag_eval.py` generated `6/6` passing synthetic cases with citation validity `1.0`, safe refusal `1.0`, and unauthorized chunks to LLM `0`. | VERIFIED synthetic only |
 
 Adoption claims should remain neutral: "built a public full-stack project" is supported; "used by hospital staff" is not supported.
 
@@ -258,7 +260,7 @@ These are evidence-safe claim ingredients, not final resume bullets.
 | Integrated HMS appointment/evidence import and sync services into document retrieval workflows | HMS routes/services/tests | VERIFIED |
 | Implemented document ingestion/indexing with loaders, chunking, embeddings, retry/failure states, and background queue hooks | Worker/loaders/services/migrations | VERIFIED |
 | Created frontend chat workspace with runtime API configuration, streaming controls, patient context, evidence panel, and safe error handling | AssistantShell, API adapter, stream client, frontend tests | VERIFIED |
-| Maintained backend quality gate with 245 passing tests and frontend quality gate with test/typecheck/lint/build passing | Local verification commands | VERIFIED |
+| Maintained backend quality gate with 250 passing tests and frontend workspace contract gate with 18 checks passing | Local verification commands | VERIFIED |
 | Designed project documentation covering BRD, PRD/SRS, architecture, API/integration, deployment, test plan, and design metrics | `docs/00` through `docs/10` | VERIFIED |
 | Sole/main implementer | User-provided solo role plus one-author Git shortlog | USER-PROVIDED plus VERIFIED support |
 
@@ -270,7 +272,7 @@ Good wording constraints:
 | "Reduced lookup time by 80%" | "designed around a documented target of sub-30-second lookup; measured production impact not yet available" |
 | "Used by doctors/nurses in production" | "built for doctor, nurse, pharmacist, records, and admin personas defined in the PRD" |
 | "Secure authentication" | "implemented local/dev bearer-token auth with role and patient-scope checks; production auth remains separate" |
-| "Token is memory-only" | "chat workspace supports runtime token state; app-wide login currently persists auth config in localStorage" |
+| "Token is memory-only" | "local/dev bearer token is kept in React memory; API URL is the only persisted login setting" |
 
 ## 15. Unsafe, Unsupported, or Contradicted Claims
 
@@ -279,11 +281,11 @@ Good wording constraints:
 | Deployed to production | MISSING | No live URL or production deployment evidence verified. |
 | Used by a hospital or real clinicians | MISSING | No user analytics, signoff, or pilot evidence found. |
 | Reduced lookup time by 80% | MISSING | Docs contain target/assumption, not measured result. |
-| Achieved `>=95%` citation rate | MISSING | Target exists; no evaluation result file found. |
+| Achieved production `>=95%` citation rate | MISSING | Synthetic local eval passed, but no large de-identified or production-like evaluation result exists. |
 | HIPAA compliant | MISSING | Privacy/security design exists, but no formal compliance audit evidence. |
-| All frontend pages are API-contract correct | CONTRADICTED | Documents/audit/patient list API client paths do not match backend route set. |
-| Token is memory-only across the app | CONTRADICTED | `auth-context.tsx` persists auth config/token in localStorage. |
-| HMS sync endpoints enforce the same upload/admin permission boundary as manual appointment import | MISSING | Manual import checks permissions; sync route-level permission strength needs review. |
+| All frontend pages are API-contract correct | PARTIALLY VERIFIED | Centralized API client contract now passes; full browser UAT for every page is still recommended. |
+| Token is memory-only across the app | VERIFIED for local/dev login | `auth-context.tsx` persists only API URL; production auth remains separate. |
+| HMS sync endpoints enforce upload/admin permission boundary | VERIFIED | Sync routes call the audited upload/admin permission guard; denied doctor sync is covered by regression test. |
 | Open-source adoption | CONTRADICTED for positive adoption | Public repo has 0 stars/forks and no PR evidence. |
 | Team leadership | MISSING | Solo authorship evidence exists, not team evidence. |
 | Production performance under load | MISSING | No benchmark or load-test output verified. |
@@ -296,7 +298,7 @@ Good wording constraints:
 | Critical | Production authentication/session design | Add implementation or ADR, tests for non-local auth, and update frontend storage behavior. |
 | Critical | Human UAT signoff | Close pending Khuym handoff with signed test report and final browser screenshots. |
 | Critical | Frontend/backend route contract for documents/audit/patients | Add integration tests or OpenAPI-generated client checks; fix mismatched routes. |
-| High | Retrieval quality/citation rate | Create synthetic/de-identified eval dataset; report precision/recall/citation validity and refusal correctness. |
+| High | Realistic retrieval quality/citation rate | Synthetic eval now exists; next add larger de-identified fixtures and report precision/recall/citation validity and refusal correctness. |
 | High | Latency and throughput | Run load tests for chat, retrieval, document upload/indexing; record p50/p95/p99 and hardware profile. |
 | High | PHI leakage/security regression suite | Expand permission tests, add negative retrieval fixtures, and record zero unauthorized chunk checks. |
 | High | CI run evidence | Capture GitHub Actions run URLs or artifacts for backend, frontend, and Docker workflows. |
@@ -314,8 +316,8 @@ Critical questions:
 | Can you confirm you were the only developer for implementation, docs, and tests? | Converts solo ownership from supported assumption to confirmed resume fact. |
 | Was this ever deployed outside local development? If yes, where? | Determines whether deployment claims are safe. |
 | Did any real hospital staff or classmates/instructors test it? | Determines whether user/adoption/UAT claims are safe. |
-| Should the login token persistence in localStorage be fixed before using this project in a portfolio? | Current implementation weakens "memory-only token" and security claims. |
-| Should document/audit/patient frontend API mismatches be fixed before portfolio screenshots? | Non-chat pages may fail at runtime. |
+| Should browser UAT be refreshed after portfolio hardening? | API/static contracts pass and login screenshots exist; authenticated screenshots should prove page-level behavior. |
+| Should synthetic RAG evaluation be expanded before claiming production-like citation-rate percentages? | Current eval is local and synthetic; larger de-identified fixtures are still needed for stronger metric claims. |
 
 Valuable questions:
 
@@ -344,8 +346,8 @@ Optional questions:
 | Full-stack scope | 4/5 | Backend and frontend are both substantial and verified by tests/builds. |
 | Functional completeness | 3/5 | Chat/RAG flows are strong; document/audit/admin frontend route contracts have gaps. |
 | Testing evidence | 4/5 | Strong local backend/frontend gates; no live CI run or full E2E browser run verified in this audit. |
-| Security/privacy evidence | 3/5 | Good permission/audit tests; production auth, compliance, and token storage need work. |
-| Performance evidence | 1/5 | Targets exist, but measured latency/retrieval quality/load data are missing. |
+| Security/privacy evidence | 4/5 | Good permission/audit tests, token persistence hardening, settings/HMS denial audits; production auth and compliance audit remain outside scope. |
+| Performance evidence | 2/5 | Synthetic RAG eval exists, but measured latency, load, and real-world retrieval quality data are missing. |
 | Deployment evidence | 3/5 | Docker/GitHub Actions configured and local build passes; no live deployment verified. |
 | Adoption evidence | 1/5 | Public repo exists but no stars/forks/users/signoff. |
 | Overall resume evidence strength | 3.5/5 | Strong as an implementation-heavy full-stack AI portfolio project; weak as a production impact/adoption story. |
@@ -358,12 +360,12 @@ For a recruiter, interviewer, or portfolio reviewer, prepare:
 |---|---|---|
 | Public GitHub repo link | Available | Use `https://github.com/qwan30/chat-hospital-system`. |
 | Architecture overview | Available | Summarize from `docs/05_system_architecture_sdd.md`. |
-| Demo screenshots | Missing | Capture chat, evidence panel, HMS import, denied access, metrics. |
+| Demo screenshots | Partial | Login desktop/mobile captured; still capture chat, evidence panel, HMS import, denied access, and metrics. |
 | Local run instructions | Available | Use `app/README.md`, backend/frontend READMEs, Docker Compose notes. |
 | Test proof | Available | Include latest backend/frontend command outputs from this audit. |
 | Security explanation | Available with caveats | Focus on permission-before-retrieval, citation validation, audit logs; disclose production auth gap. |
-| Known limitations | Available | Include route mismatches, no live deployment, no measured production impact, no compliance audit. |
-| Case-study narrative | Not written yet | Can be created from this sheet after claims are finalized. |
+| Known limitations | Available | Include no live deployment, no measured production impact, no compliance audit, and need for authenticated browser screenshots/human signoff. |
+| Case-study narrative | Available | See `docs/12_portfolio_case_study.md`. |
 | Resume bullets | Not written yet | Should use only claims from section 14 after user confirms ownership/deployment context. |
 
 ## Final Quality-Control Checklist
@@ -379,4 +381,3 @@ For a recruiter, interviewer, or portfolio reviewer, prepare:
 | Security/compliance claims kept conservative | Passed |
 | Adoption claims kept neutral | Passed |
 | Current verification commands included | Passed |
-

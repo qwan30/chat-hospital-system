@@ -24,21 +24,26 @@ interface AuthContextValue extends AuthState {
   setApiUrl: (url: string) => void;
 }
 
-const STORAGE_KEY = "hospital_ai_auth";
+const API_URL_STORAGE_KEY = "hospital_ai_api_url";
 const DEFAULT_API_URL = "http://localhost:8000/api/v1";
 
-function loadPersistedAuth(): { apiUrl: string; token: string } {
-  if (typeof window === "undefined") return { apiUrl: "", token: "" };
+function loadPersistedApiUrl(): string {
+  if (typeof window === "undefined") return "";
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (raw) {
-      const parsed = JSON.parse(raw);
-      return { apiUrl: parsed.apiUrl || "", token: parsed.token || "" };
-    }
+    return localStorage.getItem(API_URL_STORAGE_KEY) || DEFAULT_API_URL;
   } catch {
     // ignore
   }
-  return { apiUrl: DEFAULT_API_URL, token: "" };
+  return DEFAULT_API_URL;
+}
+
+function persistApiUrl(apiUrl: string): void {
+  if (typeof window === "undefined") return;
+  try {
+    localStorage.setItem(API_URL_STORAGE_KEY, apiUrl);
+  } catch {
+    // ignore
+  }
 }
 
 async function verifyToken(apiUrl: string, token: string): Promise<AuthUser | null> {
@@ -65,42 +70,29 @@ function AuthRestorer({ onRestored }: { onRestored: (s: AuthState) => void }) {
   const [ran, setRan] = useState(false);
   if (!ran) {
     setRan(true);
-    const { apiUrl, token } = loadPersistedAuth();
-    if (token && apiUrl) {
-      verifyToken(apiUrl, token).then((user) => {
-        onRestored({
-          apiUrl,
-          token,
-          user,
-          isAuthenticated: !!user,
-          isLoading: false,
-        });
-      });
-    } else {
-      // Immediately mark as not loading
-      Promise.resolve().then(() =>
-        onRestored({
-          apiUrl: apiUrl || DEFAULT_API_URL,
-          token: "",
-          user: null,
-          isAuthenticated: false,
-          isLoading: false,
-        })
-      );
-    }
+    const apiUrl = loadPersistedApiUrl();
+    Promise.resolve().then(() =>
+      onRestored({
+        apiUrl: apiUrl || DEFAULT_API_URL,
+        token: "",
+        user: null,
+        isAuthenticated: false,
+        isLoading: false,
+      })
+    );
   }
   return null;
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const persisted = loadPersistedAuth();
+  const persistedApiUrl = loadPersistedApiUrl();
 
   const [state, setState] = useState<AuthState>({
-    apiUrl: persisted.apiUrl || DEFAULT_API_URL,
-    token: persisted.token,
+    apiUrl: persistedApiUrl || DEFAULT_API_URL,
+    token: "",
     user: null,
     isAuthenticated: false,
-    isLoading: !!persisted.token,
+    isLoading: false,
   });
 
   const [restored, setRestored] = useState(false);
@@ -114,7 +106,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setState((prev) => ({ ...prev, isLoading: true }));
     const user = await verifyToken(apiUrl, token);
     if (user) {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify({ apiUrl, token }));
+      persistApiUrl(apiUrl);
       setState({ apiUrl, token, user, isAuthenticated: true, isLoading: false });
       return true;
     }
@@ -123,7 +115,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const logout = useCallback(() => {
-    localStorage.removeItem(STORAGE_KEY);
     setState((prev) => ({
       ...prev,
       token: "",
@@ -134,6 +125,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const setApiUrl = useCallback((url: string) => {
+    persistApiUrl(url);
     setState((prev) => ({ ...prev, apiUrl: url }));
   }, []);
 

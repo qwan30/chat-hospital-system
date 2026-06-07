@@ -1,0 +1,18 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e3]:
+    - generic [ref=e4]:
+      - generic [ref=e5]: 🏥
+      - heading "Hospital Knowledge Assistant" [level=1] [ref=e6]
+      - paragraph [ref=e7]: Sign in with your bearer token to continue
+    - generic [ref=e8]:
+      - generic [ref=e9]: API Base URL
+      - textbox "API Base URL" [ref=e10]: http://localhost:8000/api/v1
+    - generic [ref=e11]:
+      - generic [ref=e12]: Bearer Token
+      - textbox "Bearer Token" [ref=e13]:
+        - /placeholder: e.g. dev-doctor
+    - button "Sign In" [ref=e14] [cursor=pointer]
+    - generic [ref=e15]:
+      - paragraph [ref=e16]: Development Quick Access
+      - generic [ref=e17]
+  - alert [ref=e22]

@@ -72,6 +72,13 @@ function parseSkillMetadata(frontmatter) {
           continue;
         }
 
+        if ([">", "|"].includes(rawValue.trim())) {
+          metadata.dependencies = dependencies;
+          inDependencies = true;
+          current = null;
+          continue;
+        }
+
         if (!rawValue.trim()) {
           metadata.dependencies = dependencies;
           inDependencies = true;
@@ -91,6 +98,20 @@ function parseSkillMetadata(frontmatter) {
     }
 
     if (!inDependencies) {
+      continue;
+    }
+
+    const mapEntryMatch = line.match(/^\s{4}([A-Za-z0-9_-]+):\s*$/);
+    if (mapEntryMatch) {
+      current = { id: parseScalar(mapEntryMatch[1]) };
+      dependencies.push(current);
+      continue;
+    }
+
+    const emptyEntryMatch = line.match(/^\s{4}-\s*$/);
+    if (emptyEntryMatch) {
+      current = {};
+      dependencies.push(current);
       continue;
     }
 

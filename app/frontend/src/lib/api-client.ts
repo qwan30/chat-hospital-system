@@ -136,8 +136,14 @@ export interface Patient {
   department: string;
 }
 
+interface ListEnvelope<T> {
+  items: T[];
+}
+
 export function listPatients(opts: ApiClientOptions): Promise<Patient[]> {
-  return apiFetch<Patient[]>("/patients", { ...opts, method: "GET" });
+  return apiFetch<ListEnvelope<Patient>>("/patients/search", { ...opts, method: "GET" }).then(
+    (data) => data.items
+  );
 }
 
 // ── Document API ──────────────────────────────────────────────────
@@ -158,7 +164,9 @@ export interface DocumentItem {
 
 export function listDocuments(opts: ApiClientOptions, patientId?: string): Promise<DocumentItem[]> {
   const params = patientId ? `?patient_id=${patientId}` : "";
-  return apiFetch<DocumentItem[]>(`/documents${params}`, { ...opts, method: "GET" });
+  return apiFetch<ListEnvelope<DocumentItem>>(`/documents${params}`, { ...opts, method: "GET" }).then(
+    (data) => data.items
+  );
 }
 
 export function getDocument(opts: ApiClientOptions, documentId: string): Promise<DocumentItem> {
@@ -167,14 +175,15 @@ export function getDocument(opts: ApiClientOptions, documentId: string): Promise
 
 export function uploadDocument(
   opts: ApiClientOptions,
-  body: { patient_id: string; file: File; title: string }
+  body: { patient_id: string; file: File; title: string; document_type?: string }
 ): Promise<DocumentItem> {
   const { apiUrl, token } = opts;
-  const url = `${apiUrl.replace(/\/+$/, "")}/documents/upload`;
+  const url = `${apiUrl.replace(/\/+$/, "")}/documents`;
 
   const formData = new FormData();
   formData.append("patient_id", body.patient_id);
   formData.append("title", body.title);
+  formData.append("document_type", body.document_type || "clinical_note");
   formData.append("file", body.file);
 
   return fetch(url, {
@@ -223,7 +232,25 @@ export interface AuditEntry {
 
 export function listAuditLogs(opts: ApiClientOptions, params?: Record<string, string>): Promise<AuditEntry[]> {
   const qs = params ? "?" + new URLSearchParams(params).toString() : "";
-  return apiFetch<AuditEntry[]>(`/audit${qs}`, { ...opts, method: "GET" });
+  return apiFetch<ListEnvelope<AuditEntry>>(`/audit/logs${qs}`, { ...opts, method: "GET" }).then(
+    (data) => data.items
+  );
+}
+
+// ── Metrics API ───────────────────────────────────────────────────
+
+export interface MetricsSummary {
+  total_queries: number;
+  avg_latency_ms: number;
+  total_time_saved_sec: number;
+  total_cost_saved: number;
+  helpful_rate: number;
+  no_evidence_rate: number;
+  audit_deny_count: number;
+}
+
+export function getMetricsSummary(opts: ApiClientOptions): Promise<MetricsSummary> {
+  return apiFetch<MetricsSummary>("/feedback/metrics/summary", { ...opts, method: "GET" });
 }
 
 export { ApiError };

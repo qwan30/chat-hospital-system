@@ -6,9 +6,11 @@ import json
 # Ensure src is in sys.path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "../src")))
 
-from hospital_ai.main import app
+from hospital_ai.core.config import get_settings
+from hospital_ai.main import create_app
 
 def get_backend_paths():
+    app = create_app()
     openapi = app.openapi()
     paths = list(openapi.get("paths", {}).keys())
     return paths
@@ -16,10 +18,10 @@ def get_backend_paths():
 def normalize_path(path):
     # Strip query parameters if any
     path = path.split("?")[0]
-    # Replace OpenAPI parameters {param} with *
-    path = re.sub(r'\{[^}]+\}', '*', path)
     # Replace Frontend parameters ${param} with *
     path = re.sub(r'\$\{[^}]+\}', '*', path)
+    # Replace OpenAPI parameters {param} with *
+    path = re.sub(r'\{[^}]+\}', '*', path)
     # Replace double slashes and trailing slashes
     path = re.sub(r'/+', '/', path)
     if path != "/" and path.endswith("/"):
@@ -56,6 +58,10 @@ def verify():
     frontend_paths = get_frontend_paths(frontend_client_file)
     
     normalized_backend = {normalize_path(p): p for p in backend_paths}
+    api_prefix = get_settings().api_v1_prefix.rstrip("/")
+    for p in backend_paths:
+        if p.startswith(f"{api_prefix}/"):
+            normalized_backend[normalize_path(p[len(api_prefix):])] = p
     # Add default docs/openapi routes and health check aliases
     normalized_backend["/docs"] = "/docs"
     normalized_backend["/redoc"] = "/redoc"
@@ -75,6 +81,10 @@ def verify():
         matched = False
         matched_backend_path = None
         for norm_b in normalized_backend:
+            if norm_f.endswith("*") and norm_f[:-1] == norm_b:
+                matched = True
+                matched_backend_path = normalized_backend[norm_b]
+                break
             # Simple wildcard matching: replace * with .*
             pattern = re.escape(norm_b).replace(r'\*', '.*')
             if re.match(f"^{pattern}$", norm_f):
@@ -83,10 +93,10 @@ def verify():
                 break
                 
         if not matched:
-            print(f"❌ Mismatch: Frontend calls '{f_path}' (normalized: '{norm_f}') but no matching backend route exists.")
+            print(f"ERR Mismatch: Frontend calls '{f_path}' (normalized: '{norm_f}') but no matching backend route exists.")
             errors += 1
         else:
-            print(f"✅ Match: Frontend '{f_path}' -> Backend '{matched_backend_path}'")
+            print(f"OK Match: Frontend '{f_path}' -> Backend '{matched_backend_path}'")
             
     if errors > 0:
         print(f"\nVerification FAILED with {errors} contract mismatch(es).")

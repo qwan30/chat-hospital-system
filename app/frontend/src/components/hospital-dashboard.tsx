@@ -1,7 +1,7 @@
 "use client";
-
 import * as React from "react";
-import { zodResolver } from "@hookform/resolvers/zod";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   ColumnDef,
   flexRender,
@@ -9,36 +9,13 @@ import {
   useReactTable,
 } from "@tanstack/react-table";
 import { motion } from "motion/react";
-import { Activity, FileText, Search, ShieldCheck, Sparkles } from "lucide-react";
-import { useForm } from "react-hook-form";
-import { Area, AreaChart, Tooltip, XAxis, YAxis } from "recharts";
-import { z } from "zod";
+import { Activity, FileText, ShieldCheck, Sparkles, AlertCircle } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-
-type PatientRow = {
-  id: string;
-  patient: string;
-  scope: string;
-  status: "Indexed" | "OCR Pending" | "Review";
-  updated: string;
-};
-
-const querySchema = z.object({
-  query: z.string().min(8, "Enter at least 8 characters."),
-});
-
-type QueryValues = z.infer<typeof querySchema>;
-
-const patientRows: PatientRow[] = [
-  { id: "P-1042", patient: "Nguyen Minh A", scope: "Cardiology", status: "Indexed", updated: "2 min ago" },
-  { id: "P-1188", patient: "Tran Bao C", scope: "Pharmacy", status: "Review", updated: "18 min ago" },
-  { id: "P-1307", patient: "Le An K", scope: "Records", status: "OCR Pending", updated: "41 min ago" },
-];
+import { useAuth } from "@/lib/auth-context";
+import { getDashboardSummary, type DashboardSummary, type RecentPatient } from "@/lib/api-client";
 
 const chartData = [
   { day: "Mon", seconds: 142 },
@@ -48,78 +25,94 @@ const chartData = [
   { day: "Fri", seconds: 29 },
 ];
 
-const columns: ColumnDef<PatientRow>[] = [
+const columns: ColumnDef<RecentPatient>[] = [
   {
-    accessorKey: "patient",
+    accessorKey: "full_name",
     header: "Patient",
     cell: ({ row }) => (
       <div>
-        <div className="font-medium text-white">{row.original.patient}</div>
-        <div className="text-xs text-[#62666d]">{row.original.id}</div>
+        <Link href={`/patients/${row.original.id}`} style={{ textDecoration: "none" }} className="font-medium text-white hover:underline">
+          {row.original.full_name}
+        </Link>
+        <div className="text-xs text-[#62666d]">MRN: {row.original.mrn}</div>
       </div>
     ),
   },
   {
-    accessorKey: "scope",
-    header: "Scope",
-  },
-  {
-    accessorKey: "status",
-    header: "Status",
-    cell: ({ row }) => (
-      <Badge className={row.original.status === "Indexed" ? "border-[#27a644]/40 text-[#8ef0a3]" : undefined}>
-        {row.original.status}
-      </Badge>
-    ),
-  },
-  {
-    accessorKey: "updated",
-    header: "Updated",
+    accessorKey: "last_accessed",
+    header: "Last Accessed",
+    cell: ({ row }) => {
+      const val = row.original.last_accessed;
+      if (!val) return <span className="text-[#62666d]">Never</span>;
+      return <span className="text-[#8a8f98]">{new Date(val).toLocaleString()}</span>;
+    },
   },
 ];
 
 export function HospitalDashboard() {
-  const [submittedQuery, setSubmittedQuery] = React.useState("Summarize recent cardiology notes with citations");
-  const chartRef = React.useRef<HTMLDivElement>(null);
-  const [chartSize, setChartSize] = React.useState({ width: 0, height: 0 });
-  const form = useForm<QueryValues>({
-    resolver: zodResolver(querySchema),
-    defaultValues: {
-      query: submittedQuery,
-    },
-  });
+  const router = useRouter();
+  const { apiUrl, token } = useAuth();
+  const [summary, setSummary] = React.useState<DashboardSummary | null>(null);
+  const [loading, setLoading] = React.useState(true);
+  const [error, setError] = React.useState("");
 
   React.useEffect(() => {
-    const chartElement = chartRef.current;
+    if (!apiUrl || !token) return;
+    setLoading(true);
+    setError("");
+    getDashboardSummary({ apiUrl, token })
+      .then((data) => {
+        setSummary(data);
+        setLoading(false);
+      })
+      .catch((err) => {
+        setError(err instanceof Error ? err.message : "Failed to load dashboard statistics");
+        setLoading(false);
+      });
+  }, [apiUrl, token]);
 
-    if (!chartElement) {
-      return undefined;
-    }
-
-    const observer = new ResizeObserver(([entry]) => {
-      const width = Math.floor(entry.contentRect.width);
-      const height = Math.floor(entry.contentRect.height);
-
-      if (width > 0 && height > 0) {
-        setChartSize({ width, height });
-      }
-    });
-
-    observer.observe(chartElement);
-
-    return () => observer.disconnect();
-  }, []);
-
-  // eslint-disable-next-line react-hooks/incompatible-library
   const table = useReactTable({
-    data: patientRows,
+    data: summary?.recent_patients || [],
     columns,
     getCoreRowModel: getCoreRowModel(),
   });
 
-  function onSubmit(values: QueryValues) {
-    setSubmittedQuery(values.query);
+  if (loading) {
+    return (
+      <main className="min-h-screen bg-[#08090a] text-white flex items-center justify-center">
+        <div className="text-[#8a8f98] text-sm animate-pulse">Loading workspace summary…</div>
+      </main>
+    );
   }
+
+  if (error) {
+    return (
+      <main className="min-h-screen bg-[#08090a] text-white flex items-center justify-center p-6">
+        <Card className="max-w-md w-full border-red-900/40 bg-red-950/10">
+          <CardHeader>
+            <div className="flex items-center gap-2 text-[#ffb4a8]">
+              <AlertCircle className="size-5" />
+              <CardTitle>Error Loading Dashboard</CardTitle>
+            </div>
+            <CardDescription className="text-[#ffb4a8]/70">
+              The dashboard BFF summary endpoint failed to respond.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <p className="text-xs text-[#ffb4a8]/60 font-mono bg-red-950/20 p-3 rounded-md border border-red-950">
+              {error}
+            </p>
+            <Button className="w-full" onClick={() => window.location.reload()}>
+              Retry Connection
+            </Button>
+          </CardContent>
+        </Card>
+      </main>
+    );
+  }
+
+  const hmsReachable = summary?.systems_health.hms_api === "healthy";
+  const ollamaReachable = summary?.systems_health.ollama_inference === "healthy";
 
   return (
     <main className="min-h-screen bg-[#08090a] text-white">
@@ -132,12 +125,20 @@ export function HospitalDashboard() {
             </div>
             <h1 className="text-2xl font-medium tracking-normal md:text-3xl">Hospital Knowledge Assistant</h1>
           </div>
-          <div className="flex items-center gap-2">
-            <Button variant="secondary" size="sm">
+          <div className="flex flex-wrap items-center gap-3">
+            <Badge className={hmsReachable ? "bg-[#27a644]/10 border-[#27a644]/40 text-[#8ef0a3]" : "bg-red-500/10 border-red-500/40 text-[#ffb4a8]"}>
+              <span className={`inline-block size-1.5 rounded-full mr-1.5 ${hmsReachable ? "bg-[#8ef0a3] animate-ping" : "bg-red-400"}`} />
+              {hmsReachable ? "HMS Connected" : "HMS Offline"}
+            </Badge>
+            <Badge className={ollamaReachable ? "bg-[#5e6ad2]/10 border-[#5e6ad2]/40 text-[#828fff]" : "bg-red-500/10 border-red-500/40 text-[#ffb4a8]"}>
+              <span className={`inline-block size-1.5 rounded-full mr-1.5 ${ollamaReachable ? "bg-[#828fff] animate-ping" : "bg-red-400"}`} />
+              {ollamaReachable ? "Ollama Active" : "Ollama Offline"}
+            </Badge>
+            <Button variant="secondary" size="sm" onClick={() => router.push("/documents")}>
               <FileText className="size-4" />
               Documents
             </Button>
-            <Button size="sm">
+            <Button size="sm" onClick={() => router.push("/chat")}>
               <Sparkles className="size-4" />
               Ask AI
             </Button>
@@ -145,134 +146,78 @@ export function HospitalDashboard() {
         </header>
 
         <section className="grid gap-4 md:grid-cols-3">
-          {[
-            ["Lookup Time", "29 sec", "MVP target under 30 sec"],
-            ["Citation Rate", "96%", "Evidence-backed answers"],
-            ["Unauthorized Chunks", "0", "Permission filter before RAG"],
-          ].map(([title, value, detail]) => (
-            <motion.div
-              key={title}
-              initial={{ opacity: 0, y: 12 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.28 }}
-            >
-              <Card>
-                <CardHeader>
-                  <CardDescription>{title}</CardDescription>
-                  <CardTitle className="text-3xl">{value}</CardTitle>
-                </CardHeader>
-                <CardContent className="text-sm text-[#8a8f98]">{detail}</CardContent>
-              </Card>
-            </motion.div>
-          ))}
+          <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.2 }}>
+            <Card>
+              <CardHeader>
+                <CardDescription>Time Saved</CardDescription>
+                <CardTitle className="text-3xl">{(summary?.metrics.hours_saved || 0).toFixed(1)} hrs</CardTitle>
+              </CardHeader>
+              <CardContent className="text-sm text-[#8a8f98]">
+                HMS productivity hours saved via AI summary
+              </CardContent>
+            </Card>
+          </motion.div>
+          <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.25 }}>
+            <Card>
+              <CardHeader>
+                <CardDescription>Cost Optimization</CardDescription>
+                <CardTitle className="text-3xl">${(summary?.metrics.cost_saved_usd || 0).toFixed(2)}</CardTitle>
+              </CardHeader>
+              <CardContent className="text-sm text-[#8a8f98]">
+                Est. savings from clinical time reduction
+              </CardContent>
+            </Card>
+          </motion.div>
+          <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}>
+            <Card>
+              <CardHeader>
+                <CardDescription>Knowledge Base Stats</CardDescription>
+                <CardTitle className="text-3xl">{summary?.document_stats.indexed || 0} files</CardTitle>
+              </CardHeader>
+              <CardContent className="text-sm text-[#8a8f98]">
+                {summary?.document_stats.processing || 0} processing · {summary?.document_stats.failed || 0} failed to index
+              </CardContent>
+            </Card>
+          </motion.div>
         </section>
 
-        <section className="grid gap-4 lg:grid-cols-[1.1fr_0.9fr]">
+        <section className="grid gap-4">
           <Card>
             <CardHeader>
-              <CardTitle>Patient Worklist</CardTitle>
-              <CardDescription>Vercel-inspired dashboard density for high-signal clinical operations.</CardDescription>
+              <CardTitle>Recent Patients Accessed</CardTitle>
+              <CardDescription>Audited list of patients recently reviewed by clinicians in this workspace.</CardDescription>
             </CardHeader>
             <CardContent>
-              <Table>
-                <TableHeader>
-                  {table.getHeaderGroups().map((headerGroup) => (
-                    <TableRow key={headerGroup.id}>
-                      {headerGroup.headers.map((header) => (
-                        <TableHead key={header.id}>
-                          {header.isPlaceholder
-                            ? null
-                            : flexRender(header.column.columnDef.header, header.getContext())}
-                        </TableHead>
-                      ))}
-                    </TableRow>
-                  ))}
-                </TableHeader>
-                <TableBody>
-                  {table.getRowModel().rows.map((row) => (
-                    <TableRow key={row.id}>
-                      {row.getVisibleCells().map((cell) => (
-                        <TableCell key={cell.id}>{flexRender(cell.column.columnDef.cell, cell.getContext())}</TableCell>
-                      ))}
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>Lookup Performance</CardTitle>
-              <CardDescription>Recharts area view for workflow speed metrics.</CardDescription>
-            </CardHeader>
-            <CardContent className="h-64">
-              <div ref={chartRef} className="h-full min-h-[220px] w-full">
-                {chartSize.width > 0 && chartSize.height > 0 ? (
-                  <AreaChart
-                    width={chartSize.width}
-                    height={chartSize.height}
-                    data={chartData}
-                    margin={{ left: -20, right: 8, top: 8, bottom: 0 }}
-                  >
-                    <XAxis dataKey="day" stroke="#62666d" tickLine={false} axisLine={false} />
-                    <YAxis stroke="#62666d" tickLine={false} axisLine={false} />
-                    <Tooltip
-                      contentStyle={{
-                        background: "#191a1b",
-                        border: "1px solid rgba(255,255,255,0.1)",
-                        borderRadius: 8,
-                        color: "#f7f8f8",
-                      }}
-                    />
-                    <Area type="monotone" dataKey="seconds" stroke="#7170ff" fill="#5e6ad2" fillOpacity={0.25} />
-                  </AreaChart>
-                ) : (
-                  <div className="h-full rounded-md bg-white/[0.03]" />
-                )}
-              </div>
-            </CardContent>
-          </Card>
-        </section>
-
-        <section className="grid gap-4 lg:grid-cols-[0.9fr_1.1fr]">
-          <Card>
-            <CardHeader>
-              <CardTitle>Clinical Query</CardTitle>
-              <CardDescription>React Hook Form plus Zod validation.</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <form className="grid gap-3" onSubmit={form.handleSubmit(onSubmit)}>
-                <Label htmlFor="query">Question</Label>
-                <div className="flex gap-2">
-                  <Input id="query" {...form.register("query")} />
-                  <Button type="submit" size="icon" aria-label="Submit clinical query">
-                    <Search className="size-4" />
-                  </Button>
+              {summary?.recent_patients && summary.recent_patients.length > 0 ? (
+                <Table>
+                  <TableHeader>
+                    {table.getHeaderGroups().map((headerGroup) => (
+                      <TableRow key={headerGroup.id}>
+                        {headerGroup.headers.map((header) => (
+                          <TableHead key={header.id}>
+                            {header.isPlaceholder
+                              ? null
+                              : flexRender(header.column.columnDef.header, header.getContext())}
+                          </TableHead>
+                        ))}
+                      </TableRow>
+                    ))}
+                  </TableHeader>
+                  <TableBody>
+                    {table.getRowModel().rows.map((row) => (
+                      <TableRow key={row.id}>
+                        {row.getVisibleCells().map((cell) => (
+                          <TableCell key={cell.id}>{flexRender(cell.column.columnDef.cell, cell.getContext())}</TableCell>
+                        ))}
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              ) : (
+                <div className="py-8 text-center text-[#8a8f98] text-sm">
+                  No recent patient access records found.
                 </div>
-                {form.formState.errors.query ? (
-                  <p className="text-sm text-[#ffb4a8]">{form.formState.errors.query.message}</p>
-                ) : null}
-              </form>
-            </CardContent>
-          </Card>
-
-          <Card className="bg-[#f7f8f8] text-[#171717]">
-            <CardHeader>
-              <div className="mb-2 flex items-center gap-2 text-sm text-[#615d59]">
-                <Activity className="size-4" />
-                Notion-lite document surface
-              </div>
-              <CardTitle className="text-[#171717]">Cited Answer Draft</CardTitle>
-              <CardDescription className="text-[#615d59]">{submittedQuery}</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-3 text-sm leading-6 text-[#31302e]">
-              <p>
-                Recent notes indicate stable vitals, a cardiology follow-up, and medication adherence review.
-              </p>
-              <p className="rounded-md border border-black/10 bg-white p-3 text-xs text-[#615d59]">
-                Citation: Cardiology note, Lab summary, Medication reconciliation.
-              </p>
+              )}
             </CardContent>
           </Card>
         </section>

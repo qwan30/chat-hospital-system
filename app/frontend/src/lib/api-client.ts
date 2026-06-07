@@ -253,4 +253,149 @@ export function getMetricsSummary(opts: ApiClientOptions): Promise<MetricsSummar
   return apiFetch<MetricsSummary>("/feedback/metrics/summary", { ...opts, method: "GET" });
 }
 
+// ── BFF Dashboard API ──────────────────────────────────────────────
+
+export interface RecentPatient {
+  id: string;
+  full_name: string;
+  mrn: string;
+  last_accessed?: string;
+}
+
+export interface DocumentStats {
+  indexed: number;
+  processing: number;
+  failed: number;
+}
+
+export interface DashboardMetrics {
+  hours_saved: number;
+  cost_saved_usd: number;
+}
+
+export interface SystemsHealth {
+  hms_api: string;
+  ollama_inference: string;
+}
+
+export interface DashboardSummary {
+  recent_patients: RecentPatient[];
+  document_stats: DocumentStats;
+  metrics: DashboardMetrics;
+  systems_health: SystemsHealth;
+}
+
+export function getDashboardSummary(opts: ApiClientOptions): Promise<DashboardSummary> {
+  return apiFetch<DashboardSummary>("/dashboard/summary", { ...opts, method: "GET" });
+}
+
+// ── BFF Patient API ────────────────────────────────────────────────
+
+export interface PatientOverview {
+  patient_id: string;
+  full_name: string;
+  mrn: string;
+  dob?: string;
+  gender?: string;
+  cccd?: string;
+  blood_type?: string;
+  occupation?: string;
+  allergy_count: number;
+  medication_count: number;
+  lab_count: number;
+  appointment_count: number;
+  ai_summary?: string;
+  last_updated?: string;
+}
+
+export function getPatientOverview(
+  opts: ApiClientOptions,
+  patientId: string
+): Promise<PatientOverview> {
+  return apiFetch<PatientOverview>(`/patients/${patientId}/overview`, { ...opts, method: "GET" });
+}
+
+export interface PatientTimelineEvent {
+  event_id: string;
+  event_type: string;
+  title: string;
+  description?: string;
+  timestamp: string;
+}
+
+export interface PatientTimeline {
+  patient_id: string;
+  events: PatientTimelineEvent[];
+}
+
+export function getPatientTimeline(
+  opts: ApiClientOptions,
+  patientId: string
+): Promise<PatientTimeline> {
+  return apiFetch<PatientTimeline>(`/patients/${patientId}/timeline`, { ...opts, method: "GET" });
+}
+
+export function hmsSyncPatient(
+  opts: ApiClientOptions,
+  patientId: string
+): Promise<HmsSyncResult> {
+  return apiFetch<HmsSyncResult>(`/hms/sync/patients/${patientId}`, { ...opts, method: "POST", body: "{}" });
+}
+
+// ── BFF Global Search API ──────────────────────────────────────────
+
+export interface SearchPatient {
+  id: string;
+  full_name: string;
+  mrn: string;
+  dob?: string;
+  department?: string;
+  status: string;
+}
+
+export interface SearchDocument {
+  id: string;
+  title: string;
+  document_type: string;
+  patient_id: string;
+}
+
+export interface SearchThread {
+  id: string;
+  title?: string;
+  patient_id: string;
+}
+
+export interface GlobalSearchResult {
+  patients: SearchPatient[];
+  documents: SearchDocument[];
+  threads: SearchThread[];
+}
+
+export function globalSearch(
+  opts: ApiClientOptions,
+  query: string
+): Promise<GlobalSearchResult> {
+  const params = new URLSearchParams({ q: query }).toString();
+  return apiFetch<GlobalSearchResult>(`/search/global?${params}`, { ...opts, method: "GET" });
+}
+
+export interface AccessRequestResponse {
+  message: string;
+  patient_id: string;
+  expires_at: string;
+}
+
+export function createAccessRequest(
+  opts: ApiClientOptions,
+  patientId: string,
+  justification: string
+): Promise<AccessRequestResponse> {
+  return apiFetch<AccessRequestResponse>("/access-requests", {
+    ...opts,
+    method: "POST",
+    body: JSON.stringify({ patient_id: patientId, justification }),
+  });
+}
+
 export { ApiError };

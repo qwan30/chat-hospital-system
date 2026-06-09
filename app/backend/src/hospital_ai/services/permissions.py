@@ -1,18 +1,18 @@
 import logging
 import uuid
+from collections.abc import Iterable
 from datetime import datetime, timezone
-from typing import Any, Iterable, Optional, Set
+from typing import Any, Optional
 
 from sqlalchemy import exists, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
-
-logger = logging.getLogger(__name__)
 
 from hospital_ai.core.errors import PermissionDeniedError
 from hospital_ai.core.security import PATIENT_READ_SCOPES, PATIENT_UPLOAD_SCOPES
 from hospital_ai.db.models import PatientPermission, User
 from hospital_ai.services.audit import AuditService
 
+logger = logging.getLogger(__name__)
 
 ACTIVE_PATIENT_PERMISSION_SQL = """
 select 1
@@ -72,9 +72,11 @@ class PermissionService:
     ) -> bool:
         # Check permissions with HMS first if sync integration is active
         from hospital_ai.core.config import get_settings
+
         settings = get_settings()
         if settings.hms_sync_enabled:
             from hospital_ai.services.hms_connector import HmsApiClient
+
             hms_client = HmsApiClient(settings)
             try:
                 hms_perms = await hms_client.check_clinician_permissions(str(patient_id), str(user_id))
@@ -83,7 +85,9 @@ class PermissionService:
             except Exception:
                 logger.warning(
                     "HMS permission check failed for user=%s patient=%s",
-                    user_id, patient_id, exc_info=True,
+                    user_id,
+                    patient_id,
+                    exc_info=True,
                 )
 
         stmt = select(
@@ -109,7 +113,7 @@ class PermissionService:
         ip_address: Optional[str] = None,
         metadata: Optional[dict] = None,
     ) -> None:
-        accepted: Set[str] = set(accepted_scopes)
+        accepted: set[str] = set(accepted_scopes)
         if await self.has_patient_scope(
             user_id=user.id,
             patient_id=patient_id,

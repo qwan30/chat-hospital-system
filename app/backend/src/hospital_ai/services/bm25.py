@@ -9,7 +9,6 @@ from __future__ import annotations
 import logging
 import math
 import re
-from typing import List, Optional, Tuple
 
 from hospital_ai.services.retrieval import RetrievedChunk
 
@@ -33,10 +32,10 @@ class BM25Scorer:
     def score(
         self,
         query: str,
-        chunks: List[RetrievedChunk],
+        chunks: list[RetrievedChunk],
         *,
         top_k: int = 10,
-    ) -> List[RetrievedChunk]:
+    ) -> list[RetrievedChunk]:
         """Score chunks against a query using BM25.
 
         Returns chunks sorted by BM25 score (descending), limited to top_k.
@@ -51,8 +50,8 @@ class BM25Scorer:
         # Build document frequency table
         doc_count = len(chunks)
         doc_freq: dict[str, int] = {}
-        doc_lengths: List[int] = []
-        doc_term_freqs: List[dict[str, int]] = []
+        doc_lengths: list[int] = []
+        doc_term_freqs: list[dict[str, int]] = []
 
         for chunk in chunks:
             terms = _tokenize(chunk.content)
@@ -69,8 +68,8 @@ class BM25Scorer:
 
         avg_dl = sum(doc_lengths) / max(doc_count, 1)
 
-        scored: List[Tuple[float, int]] = []
-        for idx, chunk in enumerate(chunks):
+        scored: list[tuple[float, int]] = []
+        for idx, _chunk in enumerate(chunks):
             bm25_score = 0.0
             dl = doc_lengths[idx]
 
@@ -85,9 +84,7 @@ class BM25Scorer:
                 idf = math.log(1 + (doc_count - df + 0.5) / (df + 0.5))
 
                 # TF component with length normalization
-                tf_norm = (tf * (self.k1 + 1)) / (
-                    tf + self.k1 * (1 - self.b + self.b * dl / max(avg_dl, 1))
-                )
+                tf_norm = (tf * (self.k1 + 1)) / (tf + self.k1 * (1 - self.b + self.b * dl / max(avg_dl, 1)))
 
                 bm25_score += idf * tf_norm
 
@@ -101,7 +98,7 @@ class BM25Scorer:
         if max_score == 0:
             max_score = 1.0
 
-        result: List[RetrievedChunk] = []
+        result: list[RetrievedChunk] = []
         for bm25_score, idx in scored[:top_k]:
             chunk = chunks[idx]
             normalized_score = bm25_score / max_score
@@ -129,10 +126,10 @@ class BM25Scorer:
 
 
 def reciprocal_rank_fusion(
-    *ranked_lists: List[RetrievedChunk],
+    *ranked_lists: list[RetrievedChunk],
     k: int = 60,
     top_k: int = 10,
-) -> List[RetrievedChunk]:
+) -> list[RetrievedChunk]:
     """Merge multiple ranked lists using Reciprocal Rank Fusion.
 
     RRF is a simple and effective method for combining results from
@@ -173,7 +170,7 @@ def reciprocal_rank_fusion(
     # Sort by RRF score
     sorted_keys = sorted(rrf_scores.keys(), key=lambda k: rrf_scores[k], reverse=True)
 
-    result: List[RetrievedChunk] = []
+    result: list[RetrievedChunk] = []
     for key in sorted_keys[:top_k]:
         chunk = chunk_map[key]
         result.append(
@@ -216,8 +213,8 @@ async def bm25_search_postgres(
     query: str,
     *,
     top_k: int = 10,
-    scope_filter: Optional[str] = None,
-) -> List[RetrievedChunk]:
+    scope_filter: str | None = None,
+) -> list[RetrievedChunk]:
     """Execute a BM25 full-text search against PostgreSQL tsvector index.
 
     Uses ts_rank_cd() for relevance scoring with the GIN index.
@@ -258,7 +255,7 @@ async def bm25_search_postgres(
         logger.warning("BM25 PostgreSQL search failed (tsvector may not exist): %s", exc)
         return []
 
-    chunks: List[RetrievedChunk] = []
+    chunks: list[RetrievedChunk] = []
     for row in rows:
         # Normalize rank to [0, 1]
         max_rank = rows[0].rank if rows else 1.0

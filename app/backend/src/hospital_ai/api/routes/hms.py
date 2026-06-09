@@ -1,4 +1,3 @@
-from typing import Dict
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Request
@@ -9,8 +8,8 @@ from hospital_ai.api.deps import get_current_user, get_request_ip, get_session
 from hospital_ai.core.config import Settings, get_settings
 from hospital_ai.core.security import new_trace_id
 from hospital_ai.db.models import User
-from hospital_ai.services.audit import AuditService
 from hospital_ai.schemas.hms import HmsAppointmentImportResponse, HmsAppointmentSummaryImport
+from hospital_ai.services.audit import AuditService
 from hospital_ai.services.hms_appointments import (
     HMS_APPOINTMENT_SOURCE_FAMILY,
     HMS_SOURCE_SYSTEM,
@@ -63,7 +62,7 @@ class HmsSyncRequest(BaseModel):
 
 class HmsSyncResponse(BaseModel):
     patient_id: UUID
-    synced: Dict[str, int] = Field(default_factory=dict)
+    synced: dict[str, int] = Field(default_factory=dict)
     message: str = "Sync completed."
 
 
@@ -294,4 +293,3 @@ async def _require_hms_sync_write(
         object_id=patient_id,
         ip_address=get_request_ip(request),
     )
-

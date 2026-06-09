@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-from typing import Dict, List
-
 import httpx
 
 from hospital_ai.core.errors import ExternalServiceError
@@ -37,17 +35,17 @@ class OpenAIEmbedding(BaseEmbedding):
     def dimensions(self) -> int:
         return self._dims
 
-    def _headers(self) -> Dict[str, str]:
+    def _headers(self) -> dict[str, str]:
         headers = {"Content-Type": "application/json"}
         if self._api_key:
             headers["Authorization"] = f"Bearer {self._api_key}"
         return headers
 
-    async def embed(self, text: str) -> List[float]:
+    async def embed(self, text: str) -> list[float]:
         results = await self.embed_many([text])
         return results[0]
 
-    async def embed_many(self, texts: List[str]) -> List[List[float]]:
+    async def embed_many(self, texts: list[str]) -> list[list[float]]:
         if not texts:
             return []
 
@@ -67,9 +65,7 @@ class OpenAIEmbedding(BaseEmbedding):
         data = response.json()
         embeddings = data.get("data", [])
         if len(embeddings) != len(texts):
-            raise ExternalServiceError(
-                f"OpenAI returned {len(embeddings)} embeddings for {len(texts)} inputs."
-            )
+            raise ExternalServiceError(f"OpenAI returned {len(embeddings)} embeddings for {len(texts)} inputs.")
 
         # Sort by index to maintain order
         embeddings.sort(key=lambda x: x.get("index", 0))

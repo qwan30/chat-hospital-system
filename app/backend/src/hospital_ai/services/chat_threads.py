@@ -1,7 +1,8 @@
 import json
 import uuid
+from collections.abc import Iterable
 from datetime import datetime, timezone
-from typing import Iterable, Optional
+from typing import Optional
 
 from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession

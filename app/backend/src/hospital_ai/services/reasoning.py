@@ -9,14 +9,18 @@ Provides multiple strategies for answering questions:
 import re
 import uuid
 from dataclasses import dataclass
-from typing import Dict, List, Optional
+from typing import Optional
 
 from hospital_ai.core.config import Settings
 from hospital_ai.schemas.documents import EvidenceRead
-from hospital_ai.services.chat_utils import ChatGenerator, build_grounded_prompt, confidence_from_score, extract_citation_ids
+from hospital_ai.services.chat_utils import (
+    ChatGenerator,
+    build_grounded_prompt,
+    confidence_from_score,
+    extract_citation_ids,
+)
 from hospital_ai.services.reranking import RerankerService
 from hospital_ai.services.retrieval import RetrievedChunk
-
 
 PATIENT_SUMMARY_SYSTEM_PROMPT = """You are a clinical summarization assistant.
 Given retrieved evidence chunks about a patient, produce a structured summary
@@ -43,11 +47,11 @@ DISCLAIMER = "AI-assisted retrieval; clinical staff must verify before making de
 @dataclass(frozen=True)
 class ReasoningResult:
     answer: str
-    citations: List[EvidenceRead]
+    citations: list[EvidenceRead]
     confidence: str
     disclaimer: str
     pipeline: str
-    sub_questions: Optional[List[str]] = None
+    sub_questions: Optional[list[str]] = None
 
 
 class SimpleQAPipeline:
@@ -61,8 +65,8 @@ class SimpleQAPipeline:
         self,
         *,
         question: str,
-        evidence: List[RetrievedChunk],
-        conversation_history: Optional[List[Dict[str, str]]] = None,
+        evidence: list[RetrievedChunk],
+        conversation_history: Optional[list[dict[str, str]]] = None,
     ) -> ReasoningResult:
         reranked = self.reranker.rerank(question, evidence, top_k=self.settings.retrieval_top_k)
 
@@ -83,9 +87,8 @@ class SimpleQAPipeline:
         # Validate citations — reject answers that cite non-existent evidence
         if citation_ids and not citation_ids.issubset(allowed_ids):
             from hospital_ai.core.errors import ExternalServiceError
-            raise ExternalServiceError(
-                "Generated answer contains citations not in the retrieved evidence."
-            )
+
+            raise ExternalServiceError("Generated answer contains citations not in the retrieved evidence.")
 
         cited = [c for c in reranked if c.evidence_id in (citation_ids & allowed_ids)]
 
@@ -109,14 +112,16 @@ class DecomposeQAPipeline:
         self,
         *,
         question: str,
-        evidence: List[RetrievedChunk],
-        conversation_history: Optional[List[Dict[str, str]]] = None,
+        evidence: list[RetrievedChunk],
+        conversation_history: Optional[list[dict[str, str]]] = None,
     ) -> ReasoningResult:
         sub_questions = _decompose_question(question)
 
         if len(sub_questions) <= 1:
             result = await self.simple.run(
-                question=question, evidence=evidence, conversation_history=conversation_history,
+                question=question,
+                evidence=evidence,
+                conversation_history=conversation_history,
             )
             return ReasoningResult(
                 answer=result.answer,
@@ -128,7 +133,7 @@ class DecomposeQAPipeline:
             )
 
         # For each sub-question, score the evidence and pick best matches.
-        all_cited: List[RetrievedChunk] = []
+        all_cited: list[RetrievedChunk] = []
         reranker = RerankerService(self.settings)
         for sub_q in sub_questions:
             reranked = reranker.rerank(sub_q, evidence, top_k=3)
@@ -136,7 +141,7 @@ class DecomposeQAPipeline:
 
         # Deduplicate by chunk_id.
         seen: set[uuid.UUID] = set()
-        unique_evidence: List[RetrievedChunk] = []
+        unique_evidence: list[RetrievedChunk] = []
         for chunk in all_cited:
             if chunk.chunk_id not in seen:
                 seen.add(chunk.chunk_id)
@@ -182,11 +187,9 @@ class PatientSummaryPipeline:
         self,
         *,
         patient_name: str,
-        evidence: List[RetrievedChunk],
+        evidence: list[RetrievedChunk],
     ) -> ReasoningResult:
-        reranked = self.reranker.rerank(
-            f"patient summary for {patient_name}", evidence, top_k=10
-        )
+        reranked = self.reranker.rerank(f"patient summary for {patient_name}", evidence, top_k=10)
 
         if not reranked:
             return ReasoningResult(
@@ -207,7 +210,7 @@ class PatientSummaryPipeline:
             f"{PATIENT_SUMMARY_SYSTEM_PROMPT}\n\n"
             f"Patient: {patient_name}\n\n"
             f"Evidence:\n" + "\n\n".join(context_lines) + "\n\n"
-            f"Produce the structured patient summary now."
+            "Produce the structured patient summary now."
         )
 
         answer = await ChatGenerator(self.settings).generate(prompt)
@@ -224,7 +227,7 @@ class PatientSummaryPipeline:
         )
 
 
-def _decompose_question(question: str) -> List[str]:
+def _decompose_question(question: str) -> list[str]:
     """Heuristic question decomposition without calling an LLM.
 
     Splits on conjunctions and commas to find sub-questions.
@@ -246,5 +249,3 @@ def _to_evidence_schema(chunk: RetrievedChunk) -> EvidenceRead:
         content=chunk.content,
         metadata=dict(chunk.metadata),
     )
-
-

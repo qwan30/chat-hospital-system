@@ -13,23 +13,19 @@ import uuid
 import pytest
 from sqlalchemy import select
 
-from hospital_ai.db.migrations import DOCTOR_ID, PATIENT_ALICE_ID, PATIENT_BOB_ID
-from hospital_ai.db.models import Document, DocumentChunk, User
+from hospital_ai.db.migrations import DOCTOR_ID, PATIENT_ALICE_ID
+from hospital_ai.db.models import DocumentChunk
 from hospital_ai.services.drug_check import (
     DrugCheckService,
     DrugWarning,
-    SEVERITY_MAP,
     _build_message,
     _severity_for,
     check_drug_interactions_for_query,
 )
 from hospital_ai.services.graph_rag import (
-    GraphEntity,
-    GraphRelation,
     index_chunk_entities,
 )
 from tests.conftest import create_indexed_document
-
 
 # ── Unit: severity mapping ───────────────────────────────────────────
 
@@ -123,13 +119,9 @@ async def test_check_interactions_with_indexed_data(session_and_settings):
     )
 
     # Index graph entities
-    result = await session.execute(
-        select(DocumentChunk).where(DocumentChunk.document_id == doc.id)
-    )
+    result = await session.execute(select(DocumentChunk).where(DocumentChunk.document_id == doc.id))
     chunk = result.scalars().first()
-    await index_chunk_entities(
-        session, chunk_id=chunk.id, document_id=doc.id, content=chunk.content
-    )
+    await index_chunk_entities(session, chunk_id=chunk.id, document_id=doc.id, content=chunk.content)
     await session.commit()
 
     # Now query for warfarin — should find co-occurrence relations
@@ -154,13 +146,9 @@ async def test_check_interactions_sorted_by_severity(session_and_settings):
         content="Aspirin mentioned with hypertension. Warfarin mentioned with heart failure.",
     )
 
-    result = await session.execute(
-        select(DocumentChunk).where(DocumentChunk.document_id == doc.id)
-    )
+    result = await session.execute(select(DocumentChunk).where(DocumentChunk.document_id == doc.id))
     chunk = result.scalars().first()
-    await index_chunk_entities(
-        session, chunk_id=chunk.id, document_id=doc.id, content=chunk.content
-    )
+    await index_chunk_entities(session, chunk_id=chunk.id, document_id=doc.id, content=chunk.content)
     await session.commit()
 
     warnings = await DrugCheckService(session).check_interactions(
@@ -171,9 +159,7 @@ async def test_check_interactions_sorted_by_severity(session_and_settings):
     if len(warnings) >= 2:
         severity_order = ["critical", "high", "medium", "low"]
         for i in range(len(warnings) - 1):
-            assert severity_order.index(warnings[i].severity) <= severity_order.index(
-                warnings[i + 1].severity
-            )
+            assert severity_order.index(warnings[i].severity) <= severity_order.index(warnings[i + 1].severity)
 
 
 @pytest.mark.asyncio
@@ -190,13 +176,9 @@ async def test_check_interactions_deduplicates(session_and_settings):
         content="Aspirin for hypertension. Aspirin mentioned with hypertension again.",
     )
 
-    result = await session.execute(
-        select(DocumentChunk).where(DocumentChunk.document_id == doc.id)
-    )
+    result = await session.execute(select(DocumentChunk).where(DocumentChunk.document_id == doc.id))
     chunk = result.scalars().first()
-    await index_chunk_entities(
-        session, chunk_id=chunk.id, document_id=doc.id, content=chunk.content
-    )
+    await index_chunk_entities(session, chunk_id=chunk.id, document_id=doc.id, content=chunk.content)
     await session.commit()
 
     warnings = await DrugCheckService(session).check_interactions(

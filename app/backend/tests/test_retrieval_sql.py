@@ -134,9 +134,7 @@ async def test_soft_deleted_document_is_not_retrieved(session_and_settings):
         content="Deleted document content must not be retrieved.",
     )
     await session.execute(
-        update(Document)
-        .where(Document.id == document.id)
-        .values(deleted_at=datetime.now(timezone.utc))
+        update(Document).where(Document.id == document.id).values(deleted_at=datetime.now(timezone.utc))
     )
     await session.commit()
 
@@ -215,9 +213,7 @@ async def test_mismatched_chunk_document_patient_is_not_retrieved(session_and_se
         content="Bob content must not be exposed through an Alice-owned chunk.",
     )
     await session.execute(
-        update(DocumentChunk)
-        .where(DocumentChunk.document_id == document.id)
-        .values(patient_id=PATIENT_ALICE_ID)
+        update(DocumentChunk).where(DocumentChunk.document_id == document.id).values(patient_id=PATIENT_ALICE_ID)
     )
     await session.commit()
 
@@ -248,14 +244,10 @@ async def test_mismatched_chunk_page_document_is_not_retrieved(session_and_setti
         title="Bob page source",
         content="Bob page must not be cited for Alice evidence.",
     )
-    bob_page_result = await session.execute(
-        select(DocumentPage).where(DocumentPage.document_id == bob_document.id)
-    )
+    bob_page_result = await session.execute(select(DocumentPage).where(DocumentPage.document_id == bob_document.id))
     bob_page = bob_page_result.scalar_one()
     await session.execute(
-        update(DocumentChunk)
-        .where(DocumentChunk.document_id == alice_document.id)
-        .values(page_id=bob_page.id)
+        update(DocumentChunk).where(DocumentChunk.document_id == alice_document.id).values(page_id=bob_page.id)
     )
     await session.commit()
 

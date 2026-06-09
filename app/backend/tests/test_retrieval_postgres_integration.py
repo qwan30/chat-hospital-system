@@ -1,7 +1,7 @@
 import os
+from collections.abc import AsyncIterator
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from typing import AsyncIterator
 
 import pytest
 import pytest_asyncio

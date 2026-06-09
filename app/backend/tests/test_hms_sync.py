@@ -1,18 +1,15 @@
 """Tests for HMS synchronization service."""
 
 import uuid
-from typing import Tuple
 from unittest.mock import AsyncMock, patch
 
 import pytest
-import pytest_asyncio
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from hospital_ai.core.config import Settings
-from hospital_ai.db.models import Document, DocumentChunk, Patient, User
+from hospital_ai.db.models import DocumentChunk, Patient, User
 from hospital_ai.services.hms_sync import HmsSyncService
-
 
 SAMPLE_APPOINTMENTS = [
     {
@@ -66,7 +63,7 @@ def trace_id() -> str:
 
 @pytest.mark.asyncio
 async def test_sync_appointments_creates_documents(
-    session_and_settings: Tuple[AsyncSession, Settings],
+    session_and_settings: tuple[AsyncSession, Settings],
     trace_id: str,
 ) -> None:
     session, settings = session_and_settings
@@ -96,7 +93,7 @@ async def test_sync_appointments_creates_documents(
 
 @pytest.mark.asyncio
 async def test_sync_lab_results_creates_documents(
-    session_and_settings: Tuple[AsyncSession, Settings],
+    session_and_settings: tuple[AsyncSession, Settings],
     trace_id: str,
 ) -> None:
     session, settings = session_and_settings
@@ -121,7 +118,7 @@ async def test_sync_lab_results_creates_documents(
 
 @pytest.mark.asyncio
 async def test_sync_medical_records_creates_documents(
-    session_and_settings: Tuple[AsyncSession, Settings],
+    session_and_settings: tuple[AsyncSession, Settings],
     trace_id: str,
 ) -> None:
     session, settings = session_and_settings
@@ -146,7 +143,7 @@ async def test_sync_medical_records_creates_documents(
 
 @pytest.mark.asyncio
 async def test_sync_full_runs_all_sync_types(
-    session_and_settings: Tuple[AsyncSession, Settings],
+    session_and_settings: tuple[AsyncSession, Settings],
     trace_id: str,
 ) -> None:
     session, settings = session_and_settings
@@ -178,7 +175,7 @@ async def test_sync_full_runs_all_sync_types(
 
 @pytest.mark.asyncio
 async def test_sync_creates_searchable_chunks(
-    session_and_settings: Tuple[AsyncSession, Settings],
+    session_and_settings: tuple[AsyncSession, Settings],
     trace_id: str,
 ) -> None:
     """Verify that synced documents have embedded chunks with content."""
@@ -198,11 +195,7 @@ async def test_sync_creates_searchable_chunks(
         )
 
     doc = docs[0]
-    chunks = (
-        await session.execute(
-            select(DocumentChunk).where(DocumentChunk.document_id == doc.id)
-        )
-    ).scalars().all()
+    chunks = (await session.execute(select(DocumentChunk).where(DocumentChunk.document_id == doc.id))).scalars().all()
 
     assert len(chunks) >= 1
     chunk = chunks[0]
@@ -214,7 +207,7 @@ async def test_sync_creates_searchable_chunks(
 
 @pytest.mark.asyncio
 async def test_sync_skip_unchanged_content(
-    session_and_settings: Tuple[AsyncSession, Settings],
+    session_and_settings: tuple[AsyncSession, Settings],
     trace_id: str,
 ) -> None:
     """Second sync with same content should not re-index."""
@@ -249,7 +242,7 @@ async def test_sync_skip_unchanged_content(
 
 @pytest.mark.asyncio
 async def test_sync_nonexistent_patient_raises(
-    session_and_settings: Tuple[AsyncSession, Settings],
+    session_and_settings: tuple[AsyncSession, Settings],
     trace_id: str,
 ) -> None:
     session, settings = session_and_settings

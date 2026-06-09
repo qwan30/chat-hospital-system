@@ -1,7 +1,7 @@
 import hashlib
 import math
 import re
-from typing import Dict, Iterable, List, Tuple
+from collections.abc import Iterable
 
 import httpx
 
@@ -12,13 +12,13 @@ from hospital_ai.core.errors import ExternalServiceError
 class EmbeddingService:
     """Embedding service with batch support, text normalization, and in-memory cache."""
 
-    _cache: Dict[str, List[float]] = {}
+    _cache: dict[str, list[float]] = {}
     _cache_max_size: int = 2048
 
     def __init__(self, settings: Settings) -> None:
         self.settings = settings
 
-    async def embed(self, text: str) -> List[float]:
+    async def embed(self, text: str) -> list[float]:
         normalized = _normalize_text(text)
         cache_key = _cache_key(normalized, self.settings.embedding_provider)
         if cache_key in self._cache:
@@ -32,7 +32,7 @@ class EmbeddingService:
         self._put_cache(cache_key, result)
         return result
 
-    async def embed_many(self, texts: Iterable[str]) -> List[List[float]]:
+    async def embed_many(self, texts: Iterable[str]) -> list[list[float]]:
         """Batch embed with cache awareness and text normalization.
 
         For deterministic/stub providers, processes sequentially.
@@ -42,8 +42,8 @@ class EmbeddingService:
         if not text_list:
             return []
 
-        results: List[Tuple[int, List[float]]] = []
-        uncached: List[Tuple[int, str]] = []
+        results: list[tuple[int, list[float]]] = []
+        uncached: list[tuple[int, str]] = []
 
         for i, text in enumerate(text_list):
             cache_key = _cache_key(text, self.settings.embedding_provider)
@@ -71,7 +71,7 @@ class EmbeddingService:
         results.sort(key=lambda x: x[0])
         return [embedding for _, embedding in results]
 
-    def _put_cache(self, key: str, value: List[float]) -> None:
+    def _put_cache(self, key: str, value: list[float]) -> None:
         """Add to cache, evicting oldest entries if over size."""
         if len(self._cache) >= self._cache_max_size:
             # Evict oldest 25% of entries
@@ -81,7 +81,7 @@ class EmbeddingService:
                 del self._cache[k]
         self._cache[key] = value
 
-    async def _embed_ollama(self, text: str) -> List[float]:
+    async def _embed_ollama(self, text: str) -> list[float]:
         url = f"{self.settings.ollama_base_url.rstrip('/')}/api/embed"
         payload = {"model": self.settings.embedding_model, "input": text}
         try:
@@ -98,7 +98,7 @@ class EmbeddingService:
         vector = embeddings[0]
         return [float(value) for value in vector]
 
-    async def _embed_ollama_batch(self, texts: List[str]) -> List[List[float]]:
+    async def _embed_ollama_batch(self, texts: list[str]) -> list[list[float]]:
         """Batch embed using Ollama's multi-input support."""
         url = f"{self.settings.ollama_base_url.rstrip('/')}/api/embed"
         payload = {"model": self.settings.embedding_model, "input": texts}
@@ -120,7 +120,7 @@ class EmbeddingService:
 
 def _cache_key(text: str, provider: str) -> str:
     """Create a stable cache key from text and provider."""
-    return hashlib.sha256(f"{provider}:{text}".encode("utf-8")).hexdigest()
+    return hashlib.sha256(f"{provider}:{text}".encode()).hexdigest()
 
 
 _WHITESPACE_RE = re.compile(r"\s+")
@@ -138,7 +138,7 @@ def _normalize_text(text: str) -> str:
     return text
 
 
-def deterministic_embedding(text: str, dimensions: int = 1024) -> List[float]:
+def deterministic_embedding(text: str, dimensions: int = 1024) -> list[float]:
     vector = [0.0] * dimensions
     words = text.lower().split()
     if not words:

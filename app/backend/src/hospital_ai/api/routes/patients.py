@@ -4,8 +4,6 @@ from datetime import date, datetime, timezone
 from typing import Optional
 
 from fastapi import APIRouter, Depends, Query, Request
-
-logger = logging.getLogger(__name__)
 from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -23,6 +21,8 @@ from hospital_ai.services.audit import AuditService
 from hospital_ai.services.hms_connector import HmsApiClient
 from hospital_ai.services.permissions import PermissionService, active_patient_permission_exists
 
+logger = logging.getLogger(__name__)
+
 router = APIRouter()
 
 
@@ -39,11 +39,7 @@ async def search_patients(
         patient_id=Patient.id,
         accepted_scopes=PATIENT_READ_SCOPES,
     )
-    stmt = (
-        select(Patient)
-        .where(Patient.deleted_at.is_(None), permission_exists)
-        .order_by(Patient.full_name)
-    )
+    stmt = select(Patient).where(Patient.deleted_at.is_(None), permission_exists).order_by(Patient.full_name)
     if q:
         pattern = f"%{q}%"
         stmt = stmt.where(or_(Patient.full_name.ilike(pattern), Patient.mrn.ilike(pattern)))
@@ -155,37 +151,49 @@ async def get_patient_overview(
 
     # Fallback to local cached documents if live fetch fails or returns empty
     if allergy_count == 0:
-        allergy_count = await session.scalar(
-            select(func.count(Document.id)).where(
-                Document.patient_id == patient_id,
-                Document.document_type == "hms_allergy",
-                Document.deleted_at.is_(None)
+        allergy_count = (
+            await session.scalar(
+                select(func.count(Document.id)).where(
+                    Document.patient_id == patient_id,
+                    Document.document_type == "hms_allergy",
+                    Document.deleted_at.is_(None),
+                )
             )
-        ) or 0
-    if medication_count == 0:
-        medication_count = await session.scalar(
-            select(func.count(Document.id)).where(
-                Document.patient_id == patient_id,
-                Document.document_type == "hms_medical_record",
-                Document.deleted_at.is_(None)
-            )
-        ) or 0
-    if lab_count == 0:
-        lab_count = await session.scalar(
-            select(func.count(Document.id)).where(
-                Document.patient_id == patient_id,
-                Document.document_type == "hms_lab_result",
-                Document.deleted_at.is_(None)
-            )
-        ) or 0
-
-    appointment_count = await session.scalar(
-        select(func.count(Document.id)).where(
-            Document.patient_id == patient_id,
-            Document.document_type == "hms_appointment",
-            Document.deleted_at.is_(None)
+            or 0
         )
-    ) or 0
+    if medication_count == 0:
+        medication_count = (
+            await session.scalar(
+                select(func.count(Document.id)).where(
+                    Document.patient_id == patient_id,
+                    Document.document_type == "hms_medical_record",
+                    Document.deleted_at.is_(None),
+                )
+            )
+            or 0
+        )
+    if lab_count == 0:
+        lab_count = (
+            await session.scalar(
+                select(func.count(Document.id)).where(
+                    Document.patient_id == patient_id,
+                    Document.document_type == "hms_lab_result",
+                    Document.deleted_at.is_(None),
+                )
+            )
+            or 0
+        )
+
+    appointment_count = (
+        await session.scalar(
+            select(func.count(Document.id)).where(
+                Document.patient_id == patient_id,
+                Document.document_type == "hms_appointment",
+                Document.deleted_at.is_(None),
+            )
+        )
+        or 0
+    )
 
     # Retrieve local RAG evidence context to construct patient clinical AI summary
     from hospital_ai.services.reasoning import PatientSummaryPipeline
@@ -306,13 +314,15 @@ async def get_patient_timeline(
                         logger.warning("Invalid timestamp in HMS timeline: %s", ts_str, exc_info=True)
 
                 if event_id and title:
-                    events.append({
-                        "event_id": uuid.UUID(str(event_id)),
-                        "event_type": event_type,
-                        "title": title,
-                        "description": description,
-                        "timestamp": timestamp or datetime.now(timezone.utc)
-                    })
+                    events.append(
+                        {
+                            "event_id": uuid.UUID(str(event_id)),
+                            "event_type": event_type,
+                            "title": title,
+                            "description": description,
+                            "timestamp": timestamp or datetime.now(timezone.utc),
+                        }
+                    )
         except Exception:
             logger.warning("HMS timeline fetch failed for %s", patient_id, exc_info=True)
 
@@ -320,21 +330,20 @@ async def get_patient_timeline(
     if not events:
         doc_stmt = (
             select(Document)
-            .where(
-                Document.patient_id == patient_id,
-                Document.deleted_at.is_(None)
-            )
+            .where(Document.patient_id == patient_id, Document.deleted_at.is_(None))
             .order_by(Document.created_at.desc())
         )
         doc_result = await session.execute(doc_stmt)
         for doc in doc_result.scalars().all():
-            events.append({
-                "event_id": doc.id,
-                "event_type": doc.document_type,
-                "title": doc.title,
-                "description": f"Local cache entry for {doc.title}",
-                "timestamp": doc.created_at,
-            })
+            events.append(
+                {
+                    "event_id": doc.id,
+                    "event_type": doc.document_type,
+                    "title": doc.title,
+                    "description": f"Local cache entry for {doc.title}",
+                    "timestamp": doc.created_at,
+                }
+            )
 
     # Sort descending by timestamp
     events.sort(key=lambda x: x["timestamp"], reverse=True)

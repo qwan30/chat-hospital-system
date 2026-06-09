@@ -27,9 +27,10 @@ async def test_dashboard_summary_healthy_flow(session_and_settings):
     doctor = await session.get(User, DOCTOR_ID)
 
     # Mock health checks to return healthy
-    with patch.object(HmsApiClient, "health_check", return_value=True) as mock_hms_health, \
-         patch("httpx.AsyncClient.get") as mock_httpx_get:
-
+    with (
+        patch.object(HmsApiClient, "health_check", return_value=True),
+        patch("httpx.AsyncClient.get") as mock_httpx_get,
+    ):
         mock_response = AsyncMock()
         mock_response.status_code = 200
         mock_httpx_get.return_value = mock_response
@@ -55,9 +56,10 @@ async def test_dashboard_summary_unreachable_flow(session_and_settings):
     doctor = await session.get(User, DOCTOR_ID)
 
     # Mock health checks to return unreachable
-    with patch.object(HmsApiClient, "health_check", return_value=False) as mock_hms_health, \
-         patch("httpx.AsyncClient.get", side_effect=Exception("Connection refused")):
-
+    with (
+        patch.object(HmsApiClient, "health_check", return_value=False),
+        patch("httpx.AsyncClient.get", side_effect=Exception("Connection refused")),
+    ):
         response = await get_dashboard_summary(
             request=_request(),
             session=session,

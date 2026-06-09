@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import List, Set
 
 from hospital_ai.core.errors import ExternalServiceError
 from hospital_ai.services.loaders.base import BaseDocumentLoader, LoadedPage
@@ -15,10 +14,10 @@ class DocxLoader(BaseDocumentLoader):
     Treats each paragraph as content. Header/table content is also extracted.
     """
 
-    def supported_extensions(self) -> Set[str]:
+    def supported_extensions(self) -> set[str]:
         return {".docx", ".doc"}
 
-    def load(self, file_path: Path, mime_type: str = "") -> List[LoadedPage]:
+    def load(self, file_path: Path, mime_type: str = "") -> list[LoadedPage]:
         if not file_path.exists():
             raise ExternalServiceError(f"DOCX file not found: {file_path}")
 
@@ -27,14 +26,14 @@ class DocxLoader(BaseDocumentLoader):
         except ImportError:
             raise ExternalServiceError(
                 "python-docx is not installed. Install it with `pip install python-docx`."
-            )
+            ) from None
 
         try:
             doc = Document(str(file_path))
         except Exception as exc:
             raise ExternalServiceError(f"Failed to open DOCX: {exc}") from exc
 
-        text_parts: List[str] = []
+        text_parts: list[str] = []
 
         # Extract paragraphs
         for para in doc.paragraphs:

@@ -4,10 +4,22 @@ import pytest
 from sqlalchemy import select, update
 from starlette.requests import Request
 
-from hospital_ai.api.routes.chat_threads import archive_thread, create_thread, get_thread, list_threads, update_thread
+from hospital_ai.api.routes.chat_threads import (
+    archive_thread,
+    create_thread,
+    get_thread,
+    list_threads,
+    update_thread,
+)
 from hospital_ai.core.errors import PermissionDeniedError
 from hospital_ai.db.migrations import DOCTOR_ID, PATIENT_ALICE_ID, PATIENT_BOB_ID, RECORDS_ID
-from hospital_ai.db.models import AuditLog, ChatThread, ChatThreadParticipant, PatientPermission, User
+from hospital_ai.db.models import (
+    AuditLog,
+    ChatThread,
+    ChatThreadParticipant,
+    PatientPermission,
+    User,
+)
 from hospital_ai.schemas.chat_threads import ChatThreadCreate, ChatThreadUpdate
 
 

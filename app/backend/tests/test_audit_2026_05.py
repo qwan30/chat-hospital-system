@@ -5,11 +5,12 @@ Covers:
 - F-RAG-001: SSE streaming rejects answers with hallucinated citations.
 - F-SEC-004: SSE error events do not leak raw exception strings to the client.
 """
+
 from __future__ import annotations
 
 import json
 import uuid
-from typing import AsyncIterator, List, Optional
+from collections.abc import AsyncIterator
 
 import pytest
 
@@ -18,7 +19,6 @@ from hospital_ai.core.config import Settings
 from hospital_ai.services.chat_utils import meets_evidence_threshold
 from hospital_ai.services.llm.base import BaseLLM, LLMMessage, LLMResponse
 from hospital_ai.services.retrieval import RetrievedChunk
-
 
 # ── F-SEC-001: dev bearer tokens guarded by environment ─────────────────
 
@@ -123,19 +123,19 @@ class _FakeLLM(BaseLLM):
 
     async def generate(
         self,
-        messages: List[LLMMessage],
+        messages: list[LLMMessage],
         *,
         temperature: float = 0.0,
-        max_tokens: Optional[int] = None,
+        max_tokens: int | None = None,
     ) -> LLMResponse:
         return LLMResponse(text=self._answer, model=self._model, finish_reason="stop")
 
     async def stream(
         self,
-        messages: List[LLMMessage],
+        messages: list[LLMMessage],
         *,
         temperature: float = 0.0,
-        max_tokens: Optional[int] = None,
+        max_tokens: int | None = None,
     ) -> AsyncIterator[str]:
         for word in self._answer.split(" "):
             yield word + " "
@@ -146,17 +146,15 @@ class _RaisingLLM(_FakeLLM):
 
     async def stream(
         self,
-        messages: List[LLMMessage],
+        messages: list[LLMMessage],
         *,
         temperature: float = 0.0,
-        max_tokens: Optional[int] = None,
+        max_tokens: int | None = None,
     ) -> AsyncIterator[str]:
         # Yield nothing; the internal error must be sanitized before reaching client.
         if False:  # pragma: no cover - generator type stub
             yield ""
-        raise RuntimeError(
-            "internal_traceback_with_secret_path /var/secret/path/private.txt"
-        )
+        raise RuntimeError("internal_traceback_with_secret_path /var/secret/path/private.txt")
 
 
 def _settings() -> Settings:
@@ -168,7 +166,7 @@ def _settings() -> Settings:
     )
 
 
-def _make_evidence(ids: List[str]) -> List[RetrievedChunk]:
+def _make_evidence(ids: list[str]) -> list[RetrievedChunk]:
     return [
         RetrievedChunk(
             evidence_id=eid,
@@ -184,13 +182,13 @@ def _make_evidence(ids: List[str]) -> List[RetrievedChunk]:
     ]
 
 
-async def _collect(generator) -> List[dict]:
-    events: List[dict] = []
+async def _collect(generator) -> list[dict]:
+    events: list[dict] = []
     async for raw in generator:
         # Each SSE event line is "data: {json}\n\n"
         prefix = "data: "
         assert raw.startswith(prefix), raw
-        body = raw[len(prefix):].strip()
+        body = raw[len(prefix) :].strip()
         events.append(json.loads(body))
     return events
 
@@ -269,7 +267,6 @@ async def test_streaming_emits_only_cited_evidence_when_validated(monkeypatch):
 async def test_apply_stream_completion_persists_thread_messages_on_success(session_and_settings):
     """A successful streaming answer must persist `ChatMessage` user +
     assistant rows so the conversation survives a page reload."""
-    from datetime import datetime, timezone
     from sqlalchemy import select
 
     from hospital_ai.api.routes.chat_stream import (
@@ -282,11 +279,10 @@ async def test_apply_stream_completion_persists_thread_messages_on_success(sessi
         AuditLog,
         ChatMessage,
         ChatThread,
+        DocumentChunk,
         RetrievedEvidence,
         User,
     )
-    from hospital_ai.services.embeddings import deterministic_embedding
-    from hospital_ai.db.models import DocumentChunk
     from tests.conftest import create_indexed_document
 
     session, _ = session_and_settings
@@ -299,9 +295,7 @@ async def test_apply_stream_completion_persists_thread_messages_on_success(sessi
         title="Stream-persist Test Doc",
         content="The protocol is to monitor vitals every 4 hours.",
     )
-    chunk = (
-        await session.execute(select(DocumentChunk).where(DocumentChunk.document_id == doc.id))
-    ).scalar_one()
+    chunk = (await session.execute(select(DocumentChunk).where(DocumentChunk.document_id == doc.id))).scalar_one()
 
     thread = ChatThread(
         title="Stream-persist test thread",
@@ -376,18 +370,24 @@ async def test_apply_stream_completion_persists_thread_messages_on_success(sessi
 
     # RetrievedEvidence row persisted for rag_trace.
     rev_rows = (
-        await session.execute(select(RetrievedEvidence).where(RetrievedEvidence.ai_query_id == ai_query.id))
-    ).scalars().all()
+        (await session.execute(select(RetrievedEvidence).where(RetrievedEvidence.ai_query_id == ai_query.id)))
+        .scalars()
+        .all()
+    )
     assert len(rev_rows) == 1
     assert rev_rows[0].citation_label == "E1"
     assert rev_rows[0].retrieval_method == "vector"
 
     # ChatMessage user + assistant rows present so reload preserves the thread.
     msgs = (
-        await session.execute(
-            select(ChatMessage).where(ChatMessage.thread_id == thread.id).order_by(ChatMessage.created_at)
+        (
+            await session.execute(
+                select(ChatMessage).where(ChatMessage.thread_id == thread.id).order_by(ChatMessage.created_at)
+            )
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
     assert [m.role for m in msgs] == ["user", "assistant"]
     assert msgs[0].content == "What is the monitoring protocol?"
     assert "Monitor vitals" in msgs[1].content
@@ -401,13 +401,17 @@ async def test_apply_stream_completion_persists_thread_messages_on_success(sessi
 
     # chat.stream audit recorded.
     audit_rows = (
-        await session.execute(
-            select(AuditLog).where(
-                AuditLog.action == "chat.stream",
-                AuditLog.object_id == ai_query.id,
+        (
+            await session.execute(
+                select(AuditLog).where(
+                    AuditLog.action == "chat.stream",
+                    AuditLog.object_id == ai_query.id,
+                )
             )
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
     assert len(audit_rows) == 1
     assert audit_rows[0].outcome == "allowed"
 
@@ -514,10 +518,11 @@ async def test_find_related_entities_isolates_results_by_patient(session_and_set
     chunk ids sourced from a different patient's documents when called
     with `patient_id=...`.  Cross-patient drug names like 'metformin' or
     'aspirin' must stay scoped to their owner."""
-    from hospital_ai.db.migrations import DOCTOR_ID, PATIENT_ALICE_ID, PATIENT_BOB_ID
-    from hospital_ai.services.graph_rag import find_related_entities, index_chunk_entities
     from sqlalchemy import select
+
+    from hospital_ai.db.migrations import DOCTOR_ID, PATIENT_ALICE_ID, PATIENT_BOB_ID
     from hospital_ai.db.models import DocumentChunk
+    from hospital_ai.services.graph_rag import find_related_entities, index_chunk_entities
     from tests.conftest import create_indexed_document
 
     session, _ = session_and_settings
@@ -538,14 +543,10 @@ async def test_find_related_entities_isolates_results_by_patient(session_and_set
     )
 
     alice_chunk = (
-        await session.execute(
-            select(DocumentChunk).where(DocumentChunk.document_id == alice_doc.id)
-        )
+        await session.execute(select(DocumentChunk).where(DocumentChunk.document_id == alice_doc.id))
     ).scalar_one()
     bob_chunk = (
-        await session.execute(
-            select(DocumentChunk).where(DocumentChunk.document_id == bob_doc.id)
-        )
+        await session.execute(select(DocumentChunk).where(DocumentChunk.document_id == bob_doc.id))
     ).scalar_one()
 
     await index_chunk_entities(
@@ -563,9 +564,7 @@ async def test_find_related_entities_isolates_results_by_patient(session_and_set
     await session.commit()
 
     # Alice-scoped query returns only Alice's chunks.
-    alice_ctx = await find_related_entities(
-        session, ["metformin"], patient_id=PATIENT_ALICE_ID
-    )
+    alice_ctx = await find_related_entities(session, ["metformin"], patient_id=PATIENT_ALICE_ID)
     assert alice_chunk.id in alice_ctx.related_chunk_ids
     assert bob_chunk.id not in alice_ctx.related_chunk_ids
     # Bob's "aspirin" must not show up in Alice's entity list.
@@ -574,9 +573,7 @@ async def test_find_related_entities_isolates_results_by_patient(session_and_set
 
     # Bob-scoped query returns Bob's chunks (which include aspirin) and
     # NOT Alice's chunk.
-    bob_ctx = await find_related_entities(
-        session, ["metformin"], patient_id=PATIENT_BOB_ID
-    )
+    bob_ctx = await find_related_entities(session, ["metformin"], patient_id=PATIENT_BOB_ID)
     assert bob_chunk.id in bob_ctx.related_chunk_ids
     assert alice_chunk.id not in bob_ctx.related_chunk_ids
     bob_entity_names = {e.name for e in bob_ctx.entities}
@@ -587,9 +584,7 @@ async def test_find_related_entities_isolates_results_by_patient(session_and_set
 
 
 @pytest.mark.asyncio
-async def test_chat_service_rejects_invalid_citations_at_service_boundary(
-    session_and_settings, monkeypatch
-):
+async def test_chat_service_rejects_invalid_citations_at_service_boundary(session_and_settings, monkeypatch):
     """Even if a hypothetical pipeline forgot to validate, the
     ChatService.answer service boundary must reject answers whose
     citations are not in the retrieved evidence set."""
@@ -597,7 +592,7 @@ async def test_chat_service_rejects_invalid_citations_at_service_boundary(
     from hospital_ai.db.migrations import DOCTOR_ID, PATIENT_ALICE_ID
     from hospital_ai.db.models import User
     from hospital_ai.services.chat import ChatService
-    from hospital_ai.services.reasoning import ReasoningResult, DISCLAIMER
+    from hospital_ai.services.reasoning import DISCLAIMER, ReasoningResult
     from tests.conftest import create_indexed_document
 
     session, settings = session_and_settings

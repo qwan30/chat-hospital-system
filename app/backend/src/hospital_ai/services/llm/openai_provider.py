@@ -6,7 +6,7 @@ Works with OpenAI API, Azure OpenAI, and any OpenAI-compatible endpoint
 
 from __future__ import annotations
 
-from typing import AsyncIterator, Dict, List, Optional
+from collections.abc import AsyncIterator
 
 import httpx
 
@@ -38,7 +38,7 @@ class OpenAILLM(BaseLLM):
     def model_name(self) -> str:
         return self._model
 
-    def _headers(self) -> Dict[str, str]:
+    def _headers(self) -> dict[str, str]:
         headers = {"Content-Type": "application/json"}
         if self._api_key:
             headers["Authorization"] = f"Bearer {self._api_key}"
@@ -46,10 +46,10 @@ class OpenAILLM(BaseLLM):
 
     async def generate(
         self,
-        messages: List[LLMMessage],
+        messages: list[LLMMessage],
         *,
         temperature: float = 0.0,
-        max_tokens: Optional[int] = None,
+        max_tokens: int | None = None,
     ) -> LLMResponse:
         url = f"{self._base_url}/chat/completions"
         payload = self._build_payload(messages, temperature, max_tokens, stream=False)
@@ -74,10 +74,10 @@ class OpenAILLM(BaseLLM):
 
     async def stream(
         self,
-        messages: List[LLMMessage],
+        messages: list[LLMMessage],
         *,
         temperature: float = 0.0,
-        max_tokens: Optional[int] = None,
+        max_tokens: int | None = None,
     ) -> AsyncIterator[str]:
         url = f"{self._base_url}/chat/completions"
         payload = self._build_payload(messages, temperature, max_tokens, stream=True)
@@ -93,6 +93,7 @@ class OpenAILLM(BaseLLM):
                         if data_str.strip() == "[DONE]":
                             break
                         import json
+
                         try:
                             chunk = json.loads(data_str)
                             delta = chunk.get("choices", [{}])[0].get("delta", {})
@@ -106,9 +107,9 @@ class OpenAILLM(BaseLLM):
 
     def _build_payload(
         self,
-        messages: List[LLMMessage],
+        messages: list[LLMMessage],
         temperature: float,
-        max_tokens: Optional[int],
+        max_tokens: int | None,
         stream: bool,
     ) -> dict:
         payload: dict = {

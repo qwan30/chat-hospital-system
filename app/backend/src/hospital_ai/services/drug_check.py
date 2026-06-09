@@ -8,10 +8,9 @@ indexed clinical documents.
 from __future__ import annotations
 
 import uuid
-from dataclasses import dataclass, field
-from typing import List, Optional, Set
+from dataclasses import dataclass
 
-from sqlalchemy import select, or_
+from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from hospital_ai.db.models import Document
@@ -42,10 +41,17 @@ SEVERITY_MAP = {
 }
 
 # Drug-allergy interaction keywords (common clinical flags)
-ALLERGY_KEYWORDS = frozenset([
-    "allergy", "allergic", "anaphylaxis", "reaction", "hypersensitivity",
-    "contraindicated", "adverse",
-])
+ALLERGY_KEYWORDS = frozenset(
+    [
+        "allergy",
+        "allergic",
+        "anaphylaxis",
+        "reaction",
+        "hypersensitivity",
+        "contraindicated",
+        "adverse",
+    ]
+)
 
 
 def _severity_for(relation_type: str) -> str:
@@ -77,7 +83,7 @@ class DrugCheckService:
         patient_id: uuid.UUID,
         *,
         min_severity: str = "low",
-    ) -> List[DrugWarning]:
+    ) -> list[DrugWarning]:
         """Check for drug interactions relevant to the query and patient.
 
         1. Extracts drug entities from the query text.
@@ -94,9 +100,7 @@ class DrugCheckService:
         result = await self.session.execute(
             select(GraphEntity).where(
                 GraphEntity.name.in_(drug_names),
-                GraphEntity.source_document_id.in_(
-                    select(Document.id).where(Document.patient_id == patient_id)
-                ),
+                GraphEntity.source_document_id.in_(select(Document.id).where(Document.patient_id == patient_id)),
             )
         )
         patient_drug_entities = list(result.scalars().all())
@@ -122,7 +126,7 @@ class DrugCheckService:
             return []
 
         # Resolve target entities
-        related_entity_ids: Set[uuid.UUID] = set()
+        related_entity_ids: set[uuid.UUID] = set()
         for rel in relations:
             related_entity_ids.add(rel.source_entity_id)
             related_entity_ids.add(rel.target_entity_id)
@@ -130,9 +134,7 @@ class DrugCheckService:
 
         entity_name_map = dict(drug_id_to_name)
         if related_entity_ids:
-            result = await self.session.execute(
-                select(GraphEntity).where(GraphEntity.id.in_(related_entity_ids))
-            )
+            result = await self.session.execute(select(GraphEntity).where(GraphEntity.id.in_(related_entity_ids)))
             for entity in result.scalars().all():
                 entity_name_map[entity.id] = entity.name
 
@@ -140,8 +142,8 @@ class DrugCheckService:
         severity_order = ["critical", "high", "medium", "low"]
         min_idx = severity_order.index(min_severity) if min_severity in severity_order else len(severity_order)
 
-        warnings: List[DrugWarning] = []
-        seen: Set[tuple] = set()
+        warnings: list[DrugWarning] = []
+        seen: set[tuple] = set()
 
         for rel in relations:
             # Determine which end is the drug
@@ -186,7 +188,7 @@ async def check_drug_interactions_for_query(
     session: AsyncSession,
     query_text: str,
     patient_id: uuid.UUID,
-) -> List[DrugWarning]:
+) -> list[DrugWarning]:
     """Convenience function wrapping DrugCheckService."""
     return await DrugCheckService(session).check_interactions(
         query_text=query_text,

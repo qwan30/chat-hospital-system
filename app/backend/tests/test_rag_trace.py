@@ -13,12 +13,11 @@ import uuid
 import pytest
 from sqlalchemy import select
 
-from hospital_ai.db.migrations import ADMIN_ID, DOCTOR_ID, PATIENT_ALICE_ID, PATIENT_BOB_ID
+from hospital_ai.db.migrations import DOCTOR_ID, PATIENT_ALICE_ID
 from hospital_ai.db.models import AiQuery, RetrievedEvidence, User
 from hospital_ai.schemas.chat import RagTraceEvidence, RagTraceResponse
 from hospital_ai.services.chat import ChatService
 from tests.conftest import create_indexed_document
-
 
 # ── Schema tests ─────────────────────────────────────────────────────────
 
@@ -161,6 +160,7 @@ class TestRetrievedEvidenceTraceFields:
         )
 
         from sqlalchemy import select as sql_select
+
         from hospital_ai.db.models import DocumentChunk
 
         chunk_result = await session.execute(sql_select(DocumentChunk).limit(1))

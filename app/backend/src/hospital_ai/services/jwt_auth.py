@@ -50,10 +50,7 @@ class JwtAuthService:
 
     def _is_configured(self) -> bool:
         """Check whether any JWT validation settings are provided."""
-        return bool(
-            self.settings.jwt_issuer
-            and (self.settings.jwks_url or self.settings.jwt_hmac_secret)
-        )
+        return bool(self.settings.jwt_issuer and (self.settings.jwks_url or self.settings.jwt_hmac_secret))
 
     def _get_jwks_client(self) -> Optional[PyJWKClient]:
         if self._jwks_client is None and self.settings.jwks_url:
@@ -86,8 +83,7 @@ class JwtAuthService:
                     from jwt.algorithms import RSAAlgorithm  # noqa: F401
                 except ImportError:
                     logger.warning(
-                        "RS256/JWKS requires cryptography. "
-                        "Install with: pip install hospital-ai-backend[jwt-rs256]"
+                        "RS256/JWKS requires cryptography. Install with: pip install hospital-ai-backend[jwt-rs256]"
                     )
                     return None
 

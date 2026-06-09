@@ -93,14 +93,16 @@ async def test_global_search_documents_and_threads(session_and_settings):
     session.add(thread)
     await session.flush()
 
-    session.add(ChatThreadParticipant(
-        thread_id=thread.id,
-        user_id=DOCTOR_ID,
-        access_level="owner",
-        can_share=True,
-        added_by_user_id=DOCTOR_ID,
-        created_trace_id="test-trace",
-    ))
+    session.add(
+        ChatThreadParticipant(
+            thread_id=thread.id,
+            user_id=DOCTOR_ID,
+            access_level="owner",
+            can_share=True,
+            added_by_user_id=DOCTOR_ID,
+            created_trace_id="test-trace",
+        )
+    )
     await session.commit()
 
     # Search "Alice"

@@ -3,18 +3,17 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import List
 
 
 class BaseEmbedding(ABC):
     """Abstract base class for embedding providers."""
 
     @abstractmethod
-    async def embed(self, text: str) -> List[float]:
+    async def embed(self, text: str) -> list[float]:
         """Embed a single text string."""
 
     @abstractmethod
-    async def embed_many(self, texts: List[str]) -> List[List[float]]:
+    async def embed_many(self, texts: list[str]) -> list[list[float]]:
         """Embed multiple texts (batch)."""
 
     @abstractmethod

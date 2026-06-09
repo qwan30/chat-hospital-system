@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
-from typing import List, Set
 
 from hospital_ai.core.errors import ExternalServiceError
 from hospital_ai.services.loaders.base import BaseDocumentLoader, LoadedPage
@@ -23,10 +22,10 @@ class PdfLoader(BaseDocumentLoader):
     Tables are converted to markdown format and appended to page text.
     """
 
-    def supported_extensions(self) -> Set[str]:
+    def supported_extensions(self) -> set[str]:
         return {".pdf"}
 
-    def load(self, file_path: Path, mime_type: str = "") -> List[LoadedPage]:
+    def load(self, file_path: Path, mime_type: str = "") -> list[LoadedPage]:
         if not file_path.exists():
             raise ExternalServiceError(f"PDF file not found: {file_path}")
 
@@ -41,12 +40,12 @@ class PdfLoader(BaseDocumentLoader):
             raise ExternalServiceError(
                 "No PDF library available. Install PyMuPDF (`pip install pymupdf`) "
                 "or pdfplumber (`pip install pdfplumber`)."
-            )
+            ) from None
 
-    def _load_with_fitz(self, file_path: Path) -> List[LoadedPage]:
+    def _load_with_fitz(self, file_path: Path) -> list[LoadedPage]:
         import fitz  # type: ignore[import-untyped]
 
-        pages: List[LoadedPage] = []
+        pages: list[LoadedPage] = []
         try:
             doc = fitz.open(str(file_path))
         except Exception as exc:
@@ -82,12 +81,12 @@ class PdfLoader(BaseDocumentLoader):
             raise ExternalServiceError("PDF contains no pages.")
         return pages
 
-    def _load_with_pdfplumber(self, file_path: Path) -> List[LoadedPage]:
+    def _load_with_pdfplumber(self, file_path: Path) -> list[LoadedPage]:
         import pdfplumber  # type: ignore[import-untyped]
 
         from hospital_ai.services.loaders.table_parser import tables_to_markdown
 
-        pages: List[LoadedPage] = []
+        pages: list[LoadedPage] = []
         try:
             with pdfplumber.open(str(file_path)) as pdf:
                 for page_num, page in enumerate(pdf.pages, start=1):
@@ -149,7 +148,8 @@ class PdfLoader(BaseDocumentLoader):
                     except Exception as exc:
                         logger.debug(
                             "Table extraction failed for page %d: %s",
-                            page_num, exc,
+                            page_num,
+                            exc,
                         )
         except Exception as exc:
             logger.warning("pdfplumber table extraction failed entirely: %s", exc)

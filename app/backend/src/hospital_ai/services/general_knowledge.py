@@ -1,12 +1,17 @@
 import re
 import uuid
+from collections.abc import Sequence
 from dataclasses import dataclass
-from typing import FrozenSet, List, Sequence
 
 from hospital_ai.core.config import Settings
 from hospital_ai.core.errors import ExternalServiceError
 from hospital_ai.schemas.documents import EvidenceRead
-from hospital_ai.services.chat import ChatGenerator, build_grounded_prompt, confidence_from_score, extract_citation_ids
+from hospital_ai.services.chat import (
+    ChatGenerator,
+    build_grounded_prompt,
+    confidence_from_score,
+    extract_citation_ids,
+)
 from hospital_ai.services.retrieval import RetrievedChunk
 
 GENERAL_NO_EVIDENCE_ANSWER = (
@@ -23,13 +28,13 @@ class ApprovedGeneralKnowledgeSource:
     title: str
     page: int
     content: str
-    keywords: FrozenSet[str]
+    keywords: frozenset[str]
 
 
 @dataclass(frozen=True)
 class GeneralKnowledgeAnswer:
     answer: str
-    citations: List[EvidenceRead]
+    citations: list[EvidenceRead]
     confidence: str
     disclaimer: str = GENERAL_DISCLAIMER
 
@@ -138,7 +143,7 @@ class GeneralKnowledgeService:
         )
 
 
-def rank_general_knowledge(question: str, top_k: int) -> List[RetrievedChunk]:
+def rank_general_knowledge(question: str, top_k: int) -> list[RetrievedChunk]:
     query_tokens = tokenize(question)
     if not query_tokens:
         return []
@@ -171,7 +176,7 @@ def rank_general_knowledge(question: str, top_k: int) -> List[RetrievedChunk]:
     ]
 
 
-def tokenize(value: str) -> FrozenSet[str]:
+def tokenize(value: str) -> frozenset[str]:
     return frozenset(re.findall(r"[a-z0-9]+", value.lower()))
 
 

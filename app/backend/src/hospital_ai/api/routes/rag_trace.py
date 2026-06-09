@@ -10,18 +10,17 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import joinedload
 
 from hospital_ai.api.deps import get_current_user
-from hospital_ai.db.session import get_session
 from hospital_ai.db.models import (
     AiQuery,
+    Document,
     DocumentChunk,
     DocumentPage,
-    Document,
     RetrievedEvidence,
     User,
 )
+from hospital_ai.db.session import get_session
 from hospital_ai.schemas.chat import RagTraceEvidence, RagTraceResponse
 
 router = APIRouter()
@@ -46,9 +45,7 @@ async def get_rag_trace(
     Only the user who created the query (or an admin) can view the trace.
     """
     # Fetch the AI query
-    result = await db.execute(
-        select(AiQuery).where(AiQuery.id == query_id)
-    )
+    result = await db.execute(select(AiQuery).where(AiQuery.id == query_id))
     ai_query = result.scalar_one_or_none()
     if ai_query is None:
         raise HTTPException(status_code=404, detail="Query not found.")
@@ -59,9 +56,7 @@ async def get_rag_trace(
 
     # Fetch all retrieved evidence with chunk details
     evidence_result = await db.execute(
-        select(RetrievedEvidence)
-        .where(RetrievedEvidence.ai_query_id == query_id)
-        .order_by(RetrievedEvidence.rank)
+        select(RetrievedEvidence).where(RetrievedEvidence.ai_query_id == query_id).order_by(RetrievedEvidence.rank)
     )
     evidence_rows = evidence_result.scalars().all()
 

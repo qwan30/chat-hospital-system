@@ -1,6 +1,7 @@
 from datetime import datetime
-from typing import List, Optional
+from typing import Optional
 from uuid import UUID
+
 from hospital_ai.schemas.common import ApiSchema
 
 
@@ -28,7 +29,7 @@ class SystemsHealth(ApiSchema):
 
 
 class DashboardSummaryResponse(ApiSchema):
-    recent_patients: List[RecentPatient]
+    recent_patients: list[RecentPatient]
     document_stats: DocumentStats
     metrics: DashboardMetrics
     systems_health: SystemsHealth

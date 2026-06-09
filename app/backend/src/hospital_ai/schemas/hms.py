@@ -1,5 +1,5 @@
 from datetime import date, datetime
-from typing import Dict, Optional
+from typing import Optional
 from uuid import UUID
 
 from pydantic import Field, root_validator
@@ -23,10 +23,10 @@ class HmsAppointmentSummaryImport(ApiSchema):
     vital_signs_summary: Optional[str] = None
     follow_up_summary: Optional[str] = None
     source_updated_at: Optional[datetime] = None
-    metadata: Dict[str, object] = Field(default_factory=dict)
+    metadata: dict[str, object] = Field(default_factory=dict)
 
     @root_validator
-    def validate_patient_ownership(cls, values: Dict[str, object]) -> Dict[str, object]:
+    def validate_patient_ownership(cls, values: dict[str, object]) -> dict[str, object]:
         if values.get("patient_id") != values.get("source_patient_id"):
             raise ValueError("source_patient_id must match patient_id for HMS appointment import")
         return values

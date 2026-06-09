@@ -3,13 +3,14 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+from collections.abc import AsyncIterator
 from dataclasses import dataclass, field
-from typing import AsyncIterator, Dict, List, Optional
 
 
 @dataclass
 class LLMMessage:
     """A single message in a chat conversation."""
+
     role: str  # "system", "user", "assistant"
     content: str
 
@@ -17,9 +18,10 @@ class LLMMessage:
 @dataclass
 class LLMResponse:
     """Response from an LLM completion."""
+
     text: str
     model: str = ""
-    usage: Dict[str, int] = field(default_factory=dict)
+    usage: dict[str, int] = field(default_factory=dict)
     finish_reason: str = ""
 
 
@@ -29,10 +31,10 @@ class BaseLLM(ABC):
     @abstractmethod
     async def generate(
         self,
-        messages: List[LLMMessage],
+        messages: list[LLMMessage],
         *,
         temperature: float = 0.0,
-        max_tokens: Optional[int] = None,
+        max_tokens: int | None = None,
     ) -> LLMResponse:
         """Generate a chat completion.
 
@@ -48,10 +50,10 @@ class BaseLLM(ABC):
     @abstractmethod
     async def stream(
         self,
-        messages: List[LLMMessage],
+        messages: list[LLMMessage],
         *,
         temperature: float = 0.0,
-        max_tokens: Optional[int] = None,
+        max_tokens: int | None = None,
     ) -> AsyncIterator[str]:
         """Stream a chat completion token by token.
 

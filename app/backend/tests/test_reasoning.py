@@ -1,10 +1,8 @@
 """Tests for reasoning pipelines."""
 
 import uuid
-from typing import Tuple
 
 import pytest
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from hospital_ai.core.config import Settings
 from hospital_ai.services.reasoning import (
@@ -180,16 +178,12 @@ async def test_patient_summary_no_evidence(stub_settings: Settings) -> None:
 
 
 def test_decompose_question_splits_on_and() -> None:
-    parts = _decompose_question(
-        "What is the blood pressure and what medications are prescribed?"
-    )
+    parts = _decompose_question("What is the blood pressure and what medications are prescribed?")
     assert len(parts) >= 2
 
 
 def test_decompose_question_splits_on_comma() -> None:
-    parts = _decompose_question(
-        "Show hemoglobin levels, creatinine, and blood pressure"
-    )
+    parts = _decompose_question("Show hemoglobin levels, creatinine, and blood pressure")
     assert len(parts) >= 2
 
 

@@ -1,22 +1,22 @@
 import sys
 import uuid
+from collections.abc import AsyncIterator
 from pathlib import Path
-from typing import AsyncIterator, Tuple
 
 import pytest_asyncio
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT / "src"))
+sys.path.insert(0, str(ROOT / "src"))  # noqa: E402
 
-from hospital_ai.core.config import Settings
-from hospital_ai.db.migrations import seed_synthetic_data
-from hospital_ai.db.models import Base, Document, DocumentChunk, DocumentPage
-from hospital_ai.services.embeddings import deterministic_embedding
+from hospital_ai.core.config import Settings  # noqa: E402
+from hospital_ai.db.migrations import seed_synthetic_data  # noqa: E402
+from hospital_ai.db.models import Base, Document, DocumentChunk, DocumentPage  # noqa: E402
+from hospital_ai.services.embeddings import deterministic_embedding  # noqa: E402
 
 
 @pytest_asyncio.fixture
-async def session_and_settings(tmp_path: Path) -> AsyncIterator[Tuple[AsyncSession, Settings]]:
+async def session_and_settings(tmp_path: Path) -> AsyncIterator[tuple[AsyncSession, Settings]]:
     settings = Settings(
         database_url="sqlite+aiosqlite:///:memory:",
         storage_root=tmp_path / "storage",

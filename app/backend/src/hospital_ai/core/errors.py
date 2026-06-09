@@ -1,11 +1,11 @@
-from typing import Any, Dict, Optional
+from typing import Any, Optional
 
 
 class AppError(Exception):
     status_code = 500
     code = "APP_ERROR"
 
-    def __init__(self, message: str, metadata: Optional[Dict[str, Any]] = None) -> None:
+    def __init__(self, message: str, metadata: Optional[dict[str, Any]] = None) -> None:
         super().__init__(message)
         self.message = message
         self.metadata = metadata or {}

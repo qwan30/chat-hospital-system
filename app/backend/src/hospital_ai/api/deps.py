@@ -1,5 +1,5 @@
 import logging
-from typing import AsyncIterator
+from collections.abc import AsyncIterator
 
 from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
@@ -38,9 +38,7 @@ async def get_current_user(
     jwt_service = JwtAuthService(settings)
     jwt_data = await jwt_service.validate_token(credentials.credentials)
     if jwt_data is not None:
-        result = await session.execute(
-            select(User).where(User.email == jwt_data.email, User.is_active.is_(True))
-        )
+        result = await session.execute(select(User).where(User.email == jwt_data.email, User.is_active.is_(True)))
         user = result.scalar_one_or_none()
         if user is not None:
             return user

@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import List, Set
 
 from hospital_ai.core.errors import ExternalServiceError
 from hospital_ai.services.loaders.base import BaseDocumentLoader, LoadedPage
@@ -16,29 +15,27 @@ class ExcelLoader(BaseDocumentLoader):
     text format suitable for embedding and retrieval.
     """
 
-    def supported_extensions(self) -> Set[str]:
+    def supported_extensions(self) -> set[str]:
         return {".xlsx", ".xls"}
 
-    def load(self, file_path: Path, mime_type: str = "") -> List[LoadedPage]:
+    def load(self, file_path: Path, mime_type: str = "") -> list[LoadedPage]:
         if not file_path.exists():
             raise ExternalServiceError(f"Excel file not found: {file_path}")
 
         try:
             from openpyxl import load_workbook  # type: ignore[import-untyped]
         except ImportError:
-            raise ExternalServiceError(
-                "openpyxl is not installed. Install it with `pip install openpyxl`."
-            )
+            raise ExternalServiceError("openpyxl is not installed. Install it with `pip install openpyxl`.") from None
 
         try:
             wb = load_workbook(str(file_path), read_only=True, data_only=True)
         except Exception as exc:
             raise ExternalServiceError(f"Failed to open Excel file: {exc}") from exc
 
-        pages: List[LoadedPage] = []
+        pages: list[LoadedPage] = []
         for sheet_idx, sheet_name in enumerate(wb.sheetnames, start=1):
             ws = wb[sheet_name]
-            rows: List[str] = []
+            rows: list[str] = []
             for row in ws.iter_rows(values_only=True):
                 cell_values = [str(cell) if cell is not None else "" for cell in row]
                 row_text = " | ".join(cell_values).strip()

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import AsyncIterator, List, Optional
+from collections.abc import AsyncIterator
 
 from hospital_ai.services.chat_utils import build_stub_answer
 from hospital_ai.services.llm.base import BaseLLM, LLMMessage, LLMResponse
@@ -25,10 +25,10 @@ class StubLLM(BaseLLM):
 
     async def generate(
         self,
-        messages: List[LLMMessage],
+        messages: list[LLMMessage],
         *,
         temperature: float = 0.0,
-        max_tokens: Optional[int] = None,
+        max_tokens: int | None = None,
     ) -> LLMResponse:
         # Use last user message as the prompt
         prompt = ""
@@ -41,10 +41,10 @@ class StubLLM(BaseLLM):
 
     async def stream(
         self,
-        messages: List[LLMMessage],
+        messages: list[LLMMessage],
         *,
         temperature: float = 0.0,
-        max_tokens: Optional[int] = None,
+        max_tokens: int | None = None,
     ) -> AsyncIterator[str]:
         response = await self.generate(messages, temperature=temperature, max_tokens=max_tokens)
         # Simulate streaming by yielding word by word

@@ -8,10 +8,9 @@ like lab results, vital signs, and medication lists.
 from __future__ import annotations
 
 import re
-from typing import Dict, List, Optional
 
 
-def tables_to_markdown(tables: List[List[List[Optional[str]]]]) -> str:
+def tables_to_markdown(tables: list[list[list[str | None]]]) -> str:
     """Convert a list of raw tables to markdown format.
 
     Args:
@@ -24,7 +23,7 @@ def tables_to_markdown(tables: List[List[List[Optional[str]]]]) -> str:
     if not tables:
         return ""
 
-    sections: List[str] = []
+    sections: list[str] = []
     for idx, table in enumerate(tables, start=1):
         md = _single_table_to_markdown(table)
         if md.strip():
@@ -33,7 +32,7 @@ def tables_to_markdown(tables: List[List[List[Optional[str]]]]) -> str:
     return "\n\n".join(sections)
 
 
-def _single_table_to_markdown(table: List[List[Optional[str]]]) -> str:
+def _single_table_to_markdown(table: list[list[str | None]]) -> str:
     """Convert a single table to markdown format."""
     if not table:
         return ""
@@ -55,7 +54,7 @@ def _single_table_to_markdown(table: List[List[Optional[str]]]) -> str:
         padded.append(padded_row)
 
     # Build markdown table
-    lines: List[str] = []
+    lines: list[str] = []
 
     # Header row
     header = padded[0]
@@ -72,8 +71,8 @@ def _single_table_to_markdown(table: List[List[Optional[str]]]) -> str:
 
 
 def normalize_medical_table(
-    table: List[List[Optional[str]]],
-) -> List[List[str]]:
+    table: list[list[str | None]],
+) -> list[list[str]]:
     """Normalize a raw table for medical document parsing.
 
     Handles:
@@ -92,12 +91,9 @@ def normalize_medical_table(
         return []
 
     # Step 1: Replace None with empty string, strip whitespace
-    cleaned: List[List[str]] = []
+    cleaned: list[list[str]] = []
     for row in table:
-        cleaned_row = [
-            str(cell).strip() if cell is not None else ""
-            for cell in row
-        ]
+        cleaned_row = [str(cell).strip() if cell is not None else "" for cell in row]
         cleaned.append(cleaned_row)
 
     # Step 2: Remove completely empty rows
@@ -110,10 +106,7 @@ def normalize_medical_table(
     col_count = max(len(row) for row in cleaned)
     non_empty_cols = []
     for col_idx in range(col_count):
-        has_content = any(
-            col_idx < len(row) and row[col_idx].strip()
-            for row in cleaned
-        )
+        has_content = any(col_idx < len(row) and row[col_idx].strip() for row in cleaned)
         if has_content:
             non_empty_cols.append(col_idx)
 
@@ -122,16 +115,13 @@ def normalize_medical_table(
 
     result = []
     for row in cleaned:
-        filtered_row = [
-            row[col_idx] if col_idx < len(row) else ""
-            for col_idx in non_empty_cols
-        ]
+        filtered_row = [row[col_idx] if col_idx < len(row) else "" for col_idx in non_empty_cols]
         result.append(filtered_row)
 
     return result
 
 
-def extract_lab_values(table_md: str) -> Dict[str, str]:
+def extract_lab_values(table_md: str) -> dict[str, str]:
     """Extract key-value pairs from lab result tables.
 
     Looks for patterns like:
@@ -145,7 +135,7 @@ def extract_lab_values(table_md: str) -> Dict[str, str]:
     Returns:
         Dictionary mapping test names to their values.
     """
-    lab_values: Dict[str, str] = {}
+    lab_values: dict[str, str] = {}
 
     # Pattern 1: Markdown table rows — parse full rows with all columns
     for line in table_md.split("\n"):
@@ -185,12 +175,12 @@ def extract_lab_values(table_md: str) -> Dict[str, str]:
     return lab_values
 
 
-def detect_table_boundaries(text: str) -> List[tuple[int, int]]:
+def detect_table_boundaries(text: str) -> list[tuple[int, int]]:
     """Detect markdown table boundaries in text.
 
     Returns a list of (start_pos, end_pos) tuples marking table regions.
     """
-    boundaries: List[tuple[int, int]] = []
+    boundaries: list[tuple[int, int]] = []
     lines = text.split("\n")
     in_table = False
     table_start = 0
@@ -198,7 +188,7 @@ def detect_table_boundaries(text: str) -> List[tuple[int, int]]:
     for i, line in enumerate(lines):
         stripped = line.strip()
         is_table_line = stripped.startswith("|") and stripped.endswith("|")
-        is_separator = bool(re.match(r"^\|[\s\-|]+\|$", stripped))
+        bool(re.match(r"^\|[\s\-|]+\|$", stripped))
 
         if is_table_line and not in_table:
             in_table = True

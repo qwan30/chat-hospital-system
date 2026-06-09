@@ -12,16 +12,14 @@ from __future__ import annotations
 
 import json
 import uuid
-from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any
 
-from sqlalchemy import DateTime, String, Text, func, select
+from sqlalchemy import String, Text, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Mapped, mapped_column
 
 from hospital_ai.core.config import Settings
 from hospital_ai.db.models import Base, TimestampMixin
-
 
 # ── ORM Model ───────────────────────────────────────────────────────────
 
@@ -38,28 +36,26 @@ class SystemSetting(TimestampMixin, Base):
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
     key: Mapped[str] = mapped_column(String(128), unique=True, nullable=False, index=True)
     value_json: Mapped[str] = mapped_column(Text, nullable=False)
-    updated_by_user_id: Mapped[Optional[uuid.UUID]] = mapped_column(nullable=True)
-    description: Mapped[Optional[str]] = mapped_column(String(512), nullable=True)
+    updated_by_user_id: Mapped[uuid.UUID | None] = mapped_column(nullable=True)
+    description: Mapped[str | None] = mapped_column(String(512), nullable=True)
 
 
 # ── CRUD helpers ─────────────────────────────────────────────────────────
 
 
-async def get_setting(session: AsyncSession, key: str) -> Optional[Any]:
+async def get_setting(session: AsyncSession, key: str) -> Any | None:
     """Return the deserialised value for *key*, or ``None`` if unset."""
-    result = await session.execute(
-        select(SystemSetting).where(SystemSetting.key == key)
-    )
+    result = await session.execute(select(SystemSetting).where(SystemSetting.key == key))
     row = result.scalar_one_or_none()
     if row is None:
         return None
     return json.loads(row.value_json)
 
 
-async def get_all_overrides(session: AsyncSession) -> Dict[str, Any]:
+async def get_all_overrides(session: AsyncSession) -> dict[str, Any]:
     """Return every persisted override as ``{key: value}``."""
     result = await session.execute(select(SystemSetting))
-    rows: List[SystemSetting] = list(result.scalars().all())
+    rows: list[SystemSetting] = list(result.scalars().all())
     return {row.key: json.loads(row.value_json) for row in rows}
 
 
@@ -68,13 +64,11 @@ async def upsert_setting(
     key: str,
     value: Any,
     *,
-    user_id: Optional[uuid.UUID] = None,
-    description: Optional[str] = None,
+    user_id: uuid.UUID | None = None,
+    description: str | None = None,
 ) -> SystemSetting:
     """Insert or update a setting, returning the row."""
-    result = await session.execute(
-        select(SystemSetting).where(SystemSetting.key == key)
-    )
+    result = await session.execute(select(SystemSetting).where(SystemSetting.key == key))
     row = result.scalar_one_or_none()
     serialised = json.dumps(value)
     if row is None:
@@ -96,9 +90,9 @@ async def upsert_setting(
 
 async def upsert_many(
     session: AsyncSession,
-    overrides: Dict[str, Any],
+    overrides: dict[str, Any],
     *,
-    user_id: Optional[uuid.UUID] = None,
+    user_id: uuid.UUID | None = None,
 ) -> None:
     """Bulk upsert — used by the PUT settings route."""
     for key, value in overrides.items():
@@ -108,9 +102,7 @@ async def upsert_many(
 
 async def delete_setting(session: AsyncSession, key: str) -> bool:
     """Remove a single override.  Returns ``True`` if the row existed."""
-    result = await session.execute(
-        select(SystemSetting).where(SystemSetting.key == key)
-    )
+    result = await session.execute(select(SystemSetting).where(SystemSetting.key == key))
     row = result.scalar_one_or_none()
     if row is None:
         return False
@@ -121,7 +113,7 @@ async def delete_setting(session: AsyncSession, key: str) -> bool:
 
 def effective_value(
     key: str,
-    overrides: Dict[str, Any],
+    overrides: dict[str, Any],
     settings: Settings,
 ) -> Any:
     """Return the DB override if present, else the env/default value."""

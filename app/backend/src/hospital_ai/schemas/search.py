@@ -1,6 +1,7 @@
 from datetime import date
-from typing import List, Optional
+from typing import Optional
 from uuid import UUID
+
 from hospital_ai.schemas.common import ApiSchema
 
 
@@ -27,6 +28,6 @@ class SearchThread(ApiSchema):
 
 
 class GlobalSearchResponse(ApiSchema):
-    patients: List[SearchPatient]
-    documents: List[SearchDocument]
-    threads: List[SearchThread]
+    patients: list[SearchPatient]
+    documents: list[SearchDocument]
+    threads: list[SearchThread]

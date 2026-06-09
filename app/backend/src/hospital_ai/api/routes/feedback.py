@@ -6,7 +6,6 @@ GET  /api/v1/feedback/metrics/summary               — aggregated metrics
 
 from __future__ import annotations
 
-from typing import Optional
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -27,14 +26,14 @@ router = APIRouter()
 
 class FeedbackRequest(BaseModel):
     rating: int = Field(..., ge=-1, le=1, description="Thumbs down (-1), neutral (0), or thumbs up (1)")
-    comment: Optional[str] = Field(None, max_length=2000)
+    comment: str | None = Field(None, max_length=2000)
 
 
 class FeedbackResponse(BaseModel):
     id: UUID
     query_id: UUID
     rating: int
-    comment: Optional[str] = None
+    comment: str | None = None
 
 
 class MetricsSummaryResponse(BaseModel):
@@ -63,9 +62,7 @@ async def submit_feedback(
 ) -> FeedbackResponse:
     """Submit user feedback (thumbs up/down) on a query response."""
     # Verify the query exists and belongs to the user
-    result = await session.execute(
-        select(AiQuery).where(AiQuery.id == query_id)
-    )
+    result = await session.execute(select(AiQuery).where(AiQuery.id == query_id))
     query = result.scalar_one_or_none()
     if query is None:
         raise HTTPException(status_code=404, detail="Query not found.")
@@ -107,9 +104,7 @@ async def get_metrics_summary(
 ) -> MetricsSummaryResponse:
     """Get aggregated impact metrics. Available to all authenticated users."""
     summary = await MetricsService(session).get_summary()
-    denied_result = await session.execute(
-        select(func.count(AuditLog.id)).where(AuditLog.outcome == "denied")
-    )
+    denied_result = await session.execute(select(func.count(AuditLog.id)).where(AuditLog.outcome == "denied"))
     return MetricsSummaryResponse(
         total_queries=summary.total_queries,
         avg_latency_ms=summary.avg_latency_ms,

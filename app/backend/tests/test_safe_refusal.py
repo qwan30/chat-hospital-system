@@ -6,19 +6,16 @@ rather than hallucinating an answer.
 """
 
 import pytest
-import pytest_asyncio
-
-from tests.conftest import create_indexed_document
 
 from hospital_ai.services.reasoning import (
-    NO_EVIDENCE_ANSWER,
     DISCLAIMER,
-    SimpleQAPipeline,
+    NO_EVIDENCE_ANSWER,
     DecomposeQAPipeline,
     ReasoningResult,
+    SimpleQAPipeline,
 )
 from hospital_ai.services.retrieval import RetrievedChunk
-
+from tests.conftest import create_indexed_document
 
 # ── Helpers ──────────────────────────────────────────────────────────────
 
@@ -89,8 +86,9 @@ async def test_simple_qa_answer_with_valid_evidence(session_and_settings):
     pipeline = SimpleQAPipeline(settings)
 
     # Create a document with indexed content
-    from hospital_ai.db.models import User, Patient
     from sqlalchemy import select
+
+    from hospital_ai.db.models import Patient, User
 
     user = (await session.execute(select(User).limit(1))).scalar_one()
     patient = (await session.execute(select(Patient).limit(1))).scalar_one()

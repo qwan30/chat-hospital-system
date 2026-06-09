@@ -1,4 +1,4 @@
-from typing import List, Optional
+from typing import Optional
 from uuid import UUID
 
 from pydantic import BaseModel, Field
@@ -16,6 +16,7 @@ class ChatRequest(BaseModel):
 
 class DrugWarningSchema(BaseModel):
     """A drug interaction warning surfaced during query processing."""
+
     drug_name: str
     interacting_entity: str
     interaction_type: str
@@ -27,16 +28,17 @@ class DrugWarningSchema(BaseModel):
 class ChatResponse(BaseModel):
     query_id: UUID
     answer: str
-    citations: List[EvidenceRead]
+    citations: list[EvidenceRead]
     confidence: str
     disclaimer: str = "AI output must be verified by clinical staff."
     thread_id: Optional[UUID] = None
     pipeline: Optional[str] = None
-    warnings: List[DrugWarningSchema] = []
+    warnings: list[DrugWarningSchema] = []
 
 
 class RagTraceEvidence(BaseModel):
     """A single evidence chunk within a RAG trace."""
+
     evidence_id: str
     chunk_id: UUID
     rank: int
@@ -52,6 +54,7 @@ class RagTraceEvidence(BaseModel):
 
 class RagTraceResponse(BaseModel):
     """Full RAG trace for a given query — exposes the retrieval pipeline internals."""
+
     query_id: UUID
     question: str
     answer: Optional[str] = None
@@ -59,5 +62,5 @@ class RagTraceResponse(BaseModel):
     pipeline: Optional[str] = None
     model: Optional[str] = None
     latency_ms: Optional[int] = None
-    evidence: List[RagTraceEvidence]
+    evidence: list[RagTraceEvidence]
     created_at: str

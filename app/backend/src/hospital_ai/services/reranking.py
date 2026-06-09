@@ -15,7 +15,6 @@ from __future__ import annotations
 import logging
 import re
 from abc import ABC, abstractmethod
-from typing import List, Optional
 
 from hospital_ai.core.config import Settings
 from hospital_ai.services.retrieval import RetrievedChunk
@@ -30,9 +29,7 @@ class BaseReranker(ABC):
     """Base class for all reranker backends."""
 
     @abstractmethod
-    def rerank(
-        self, query: str, chunks: List[RetrievedChunk], *, top_k: int = 5
-    ) -> List[RetrievedChunk]:
+    def rerank(self, query: str, chunks: list[RetrievedChunk], *, top_k: int = 5) -> list[RetrievedChunk]:
         """Re-score and re-order chunks by relevance to the query.
 
         Args:
@@ -55,9 +52,7 @@ class KeywordReranker(BaseReranker):
     Zero external dependencies — suitable as a fallback.
     """
 
-    def rerank(
-        self, query: str, chunks: List[RetrievedChunk], *, top_k: int = 5
-    ) -> List[RetrievedChunk]:
+    def rerank(self, query: str, chunks: list[RetrievedChunk], *, top_k: int = 5) -> list[RetrievedChunk]:
         if not chunks:
             return []
 
@@ -65,7 +60,7 @@ class KeywordReranker(BaseReranker):
         if not query_tokens:
             return chunks[:top_k]
 
-        scored: List[tuple[float, RetrievedChunk]] = []
+        scored: list[tuple[float, RetrievedChunk]] = []
         for chunk in chunks:
             chunk_tokens = _tokenize(chunk.content)
             if not chunk_tokens:
@@ -122,19 +117,14 @@ class CrossEncoderReranker(BaseReranker):
                 self._model = CrossEncoder(self.model_name)
                 logger.info("Loaded cross-encoder model: %s", self.model_name)
             except ImportError:
-                logger.warning(
-                    "sentence-transformers not installed. "
-                    "Install with: pip install sentence-transformers"
-                )
+                logger.warning("sentence-transformers not installed. Install with: pip install sentence-transformers")
                 return None
             except Exception as exc:
                 logger.error("Failed to load cross-encoder model %s: %s", self.model_name, exc)
                 return None
         return self._model
 
-    def rerank(
-        self, query: str, chunks: List[RetrievedChunk], *, top_k: int = 5
-    ) -> List[RetrievedChunk]:
+    def rerank(self, query: str, chunks: list[RetrievedChunk], *, top_k: int = 5) -> list[RetrievedChunk]:
         if not chunks:
             return []
 
@@ -192,19 +182,17 @@ class TeiReranker(BaseReranker):
         self.endpoint_url = endpoint_url.rstrip("/")
         self.max_tokens = max_tokens
 
-    def rerank(
-        self, query: str, chunks: List[RetrievedChunk], *, top_k: int = 5
-    ) -> List[RetrievedChunk]:
+    def rerank(self, query: str, chunks: list[RetrievedChunk], *, top_k: int = 5) -> list[RetrievedChunk]:
         if not chunks or not self.endpoint_url:
             return chunks[:top_k] if chunks else []
 
         import httpx
 
-        texts = [chunk.content[:self.max_tokens] for chunk in chunks]
+        texts = [chunk.content[: self.max_tokens] for chunk in chunks]
 
         # Process in batches of 6 (TEI recommendation)
         batch_size = 6
-        all_scores: List[tuple[int, float]] = []
+        all_scores: list[tuple[int, float]] = []
 
         for batch_start in range(0, len(texts), batch_size):
             batch_texts = texts[batch_start : batch_start + batch_size]
@@ -267,9 +255,7 @@ class CohereReranker(BaseReranker):
         self.api_key = api_key
         self.model_name = model_name
 
-    def rerank(
-        self, query: str, chunks: List[RetrievedChunk], *, top_k: int = 5
-    ) -> List[RetrievedChunk]:
+    def rerank(self, query: str, chunks: list[RetrievedChunk], *, top_k: int = 5) -> list[RetrievedChunk]:
         if not chunks:
             return []
 
@@ -337,9 +323,9 @@ class RerankerService:
     the keyword reranker (MVP behavior).
     """
 
-    def __init__(self, settings: Optional[Settings] = None) -> None:
+    def __init__(self, settings: Settings | None = None) -> None:
         self.settings = settings
-        self._backend: Optional[BaseReranker] = None
+        self._backend: BaseReranker | None = None
 
     def _get_backend(self) -> BaseReranker:
         if self._backend is not None:
@@ -374,9 +360,7 @@ class RerankerService:
         self._backend = backend
         return self._backend
 
-    def rerank(
-        self, query: str, chunks: List[RetrievedChunk], *, top_k: int = 5
-    ) -> List[RetrievedChunk]:
+    def rerank(self, query: str, chunks: list[RetrievedChunk], *, top_k: int = 5) -> list[RetrievedChunk]:
         """Re-rank chunks using the configured backend."""
         backend = self._get_backend()
         effective_top_k = top_k
@@ -392,7 +376,7 @@ def _tokenize(text: str) -> set[str]:
     return set(re.findall(r"[a-z0-9]+", text.lower()))
 
 
-def _normalize_scores(scores: List[float]) -> List[float]:
+def _normalize_scores(scores: list[float]) -> list[float]:
     """Normalize scores to [0, 1] using min-max normalization.
 
     If all scores are the same, returns 1.0 for all.

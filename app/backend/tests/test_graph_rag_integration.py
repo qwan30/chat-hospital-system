@@ -8,16 +8,11 @@ Covers:
 - Integration with retrieval pipeline via RetrievalService.get_chunks_by_ids()
 """
 
-import uuid
-
 import pytest
 from sqlalchemy import select
 
 from hospital_ai.db.migrations import DOCTOR_ID, PATIENT_ALICE_ID
-from hospital_ai.db.models import User
 from hospital_ai.services.graph_rag import (
-    ExtractedEntity,
-    ExtractedRelation,
     GraphContext,
     GraphEntity,
     GraphRelation,
@@ -28,7 +23,6 @@ from hospital_ai.services.graph_rag import (
 )
 from hospital_ai.services.retrieval import RetrievalService
 from tests.conftest import create_indexed_document
-
 
 # ── Unit: extract_entities ────────────────────────────────────────────
 
@@ -121,9 +115,7 @@ async def test_index_chunk_entities_persists(session_and_settings):
     # Get the first chunk
     from hospital_ai.db.models import DocumentChunk
 
-    result = await session.execute(
-        select(DocumentChunk).where(DocumentChunk.document_id == doc.id)
-    )
+    result = await session.execute(select(DocumentChunk).where(DocumentChunk.document_id == doc.id))
     chunk = result.scalars().first()
     assert chunk is not None
 
@@ -139,9 +131,7 @@ async def test_index_chunk_entities_persists(session_and_settings):
     assert all(isinstance(e, GraphEntity) for e in entities)
 
     # Verify persisted in DB
-    db_entities = await session.execute(
-        select(GraphEntity).where(GraphEntity.source_chunk_id == chunk.id)
-    )
+    db_entities = await session.execute(select(GraphEntity).where(GraphEntity.source_chunk_id == chunk.id))
     persisted = list(db_entities.scalars().all())
     assert len(persisted) >= 3
 
@@ -159,9 +149,7 @@ async def test_index_chunk_entities_creates_relations(session_and_settings):
 
     from hospital_ai.db.models import DocumentChunk
 
-    result = await session.execute(
-        select(DocumentChunk).where(DocumentChunk.document_id == doc.id)
-    )
+    result = await session.execute(select(DocumentChunk).where(DocumentChunk.document_id == doc.id))
     chunk = result.scalars().first()
 
     entities, relations = await index_chunk_entities(
@@ -175,9 +163,7 @@ async def test_index_chunk_entities_creates_relations(session_and_settings):
     # Should have at least co-occurrence relations
     assert len(relations) >= 0  # relations depend on text matching
     # Verify relations are persisted
-    db_relations = await session.execute(
-        select(GraphRelation).where(GraphRelation.source_chunk_id == chunk.id)
-    )
+    db_relations = await session.execute(select(GraphRelation).where(GraphRelation.source_chunk_id == chunk.id))
     persisted_relations = list(db_relations.scalars().all())
     assert len(persisted_relations) == len(relations)
 
@@ -198,9 +184,7 @@ async def test_find_related_entities_returns_context(session_and_settings):
 
     from hospital_ai.db.models import DocumentChunk
 
-    result = await session.execute(
-        select(DocumentChunk).where(DocumentChunk.document_id == doc.id)
-    )
+    result = await session.execute(select(DocumentChunk).where(DocumentChunk.document_id == doc.id))
     chunk = result.scalars().first()
 
     await index_chunk_entities(
@@ -248,9 +232,7 @@ async def test_find_related_entities_bfs_multi_hop(session_and_settings):
 
     from hospital_ai.db.models import DocumentChunk
 
-    result = await session.execute(
-        select(DocumentChunk).where(DocumentChunk.document_id == doc.id)
-    )
+    result = await session.execute(select(DocumentChunk).where(DocumentChunk.document_id == doc.id))
     chunk = result.scalars().first()
 
     await index_chunk_entities(
@@ -284,9 +266,7 @@ async def test_retrieval_get_chunks_by_ids(session_and_settings):
 
     from hospital_ai.db.models import DocumentChunk
 
-    result = await session.execute(
-        select(DocumentChunk).where(DocumentChunk.document_id == doc.id)
-    )
+    result = await session.execute(select(DocumentChunk).where(DocumentChunk.document_id == doc.id))
     chunk = result.scalars().first()
 
     svc = RetrievalService(session)

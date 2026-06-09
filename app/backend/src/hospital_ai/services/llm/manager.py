@@ -7,7 +7,6 @@ from __future__ import annotations
 
 import logging
 from functools import lru_cache
-from typing import Dict, Optional
 
 from hospital_ai.core.config import Settings, get_settings
 from hospital_ai.services.llm.base import BaseLLM
@@ -24,10 +23,10 @@ class LLMManager:
 
     def __init__(self, settings: Settings) -> None:
         self.settings = settings
-        self._providers: Dict[str, BaseLLM] = {}
-        self._default_provider: Optional[str] = None
+        self._providers: dict[str, BaseLLM] = {}
+        self._default_provider: str | None = None
 
-    def get(self, provider_name: Optional[str] = None) -> BaseLLM:
+    def get(self, provider_name: str | None = None) -> BaseLLM:
         """Get an LLM provider instance.
 
         Args:
@@ -62,10 +61,12 @@ class LLMManager:
         """Factory method — creates a provider from settings."""
         if name == "stub":
             from hospital_ai.services.llm.stub_provider import StubLLM
+
             return StubLLM()
 
         if name == "ollama":
             from hospital_ai.services.llm.ollama_provider import OllamaLLM
+
             return OllamaLLM(
                 base_url=self.settings.ollama_base_url,
                 model=self.settings.chat_model,
@@ -73,6 +74,7 @@ class LLMManager:
 
         if name == "openai":
             from hospital_ai.services.llm.openai_provider import OpenAILLM
+
             return OpenAILLM(
                 api_key=getattr(self.settings, "openai_api_key", ""),
                 base_url=getattr(self.settings, "openai_base_url", "https://api.openai.com/v1"),
@@ -82,13 +84,10 @@ class LLMManager:
         if name in self._providers:
             return self._providers[name]
 
-        raise ValueError(
-            f"Unknown LLM provider: '{name}'. "
-            f"Available: {', '.join(self.list_providers())}"
-        )
+        raise ValueError(f"Unknown LLM provider: '{name}'. Available: {', '.join(self.list_providers())}")
 
 
 @lru_cache(maxsize=1)
-def get_llm_manager(settings: Optional[Settings] = None) -> LLMManager:
+def get_llm_manager(settings: Settings | None = None) -> LLMManager:
     """Get the singleton LLM manager instance."""
     return LLMManager(settings or get_settings())

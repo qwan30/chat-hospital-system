@@ -2,7 +2,7 @@ import asyncio
 import hashlib
 import uuid
 from pathlib import Path
-from typing import Dict, Optional
+from typing import Optional
 
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -55,9 +55,7 @@ async def process_document(
         chunks = ChunkingService().chunk_pages(pages)
         embeddings = await EmbeddingService(settings).embed_many(chunk.content for chunk in chunks)
         if len(embeddings) != len(chunks):
-            raise RuntimeError(
-                f"Embedding count mismatch: expected {len(chunks)}, received {len(embeddings)}."
-            )
+            raise RuntimeError(f"Embedding count mismatch: expected {len(chunks)}, received {len(embeddings)}.")
     except Exception as exc:
         await _mark_failed_if_current(
             session,
@@ -69,7 +67,7 @@ async def process_document(
         )
         return
 
-    page_rows: Dict[int, DocumentPage] = {}
+    page_rows: dict[int, DocumentPage] = {}
     try:
         document = await _locked_current_document(session, document_id)
         if document is None or document.index_generation != start_generation:
@@ -165,6 +163,7 @@ async def _populate_tsvectors(
     except Exception:
         # search_vector column may not exist yet (pre-migration)
         import logging
+
         logging.getLogger(__name__).debug(
             "tsvector population skipped for document %s (column may not exist)",
             document_id,
@@ -185,9 +184,7 @@ async def _index_graph_entities(
     try:
         from hospital_ai.services.graph_rag import index_chunk_entities
 
-        result = await session.execute(
-            select(DocumentChunk).where(DocumentChunk.document_id == document.id)
-        )
+        result = await session.execute(select(DocumentChunk).where(DocumentChunk.document_id == document.id))
         chunks = list(result.scalars().all())
 
         total_entities = 0
@@ -241,10 +238,7 @@ async def _locked_current_document(
     document_id: uuid.UUID,
 ) -> Optional[Document]:
     result = await session.execute(
-        select(Document)
-        .where(Document.id == document_id)
-        .with_for_update()
-        .execution_options(populate_existing=True)
+        select(Document).where(Document.id == document_id).with_for_update().execution_options(populate_existing=True)
     )
     return result.scalar_one_or_none()
 
@@ -290,6 +284,7 @@ def process_document_job(document_id: str) -> None:
                 # Attempt to move to dead-letter queue on final failure
                 try:
                     from hospital_ai.workers.queue import enqueue_to_dead_letter
+
                     enqueue_to_dead_letter(
                         uuid.UUID(document_id),
                         settings,

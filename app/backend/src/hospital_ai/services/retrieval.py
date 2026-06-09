@@ -1,7 +1,8 @@
 import math
 import uuid
+from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
-from typing import Any, Dict, Iterable, List, Optional, Sequence
+from typing import Any
 
 from sqlalchemy import and_, bindparam, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -54,7 +55,7 @@ class RetrievedChunk:
     chunk_id: uuid.UUID
     score: float
     content: str
-    metadata: Dict[str, Any]
+    metadata: dict[str, Any]
 
 
 class RetrievalService:
@@ -68,7 +69,7 @@ class RetrievalService:
         patient_id: uuid.UUID,
         query_embedding: Sequence[float],
         top_k: int,
-    ) -> List[RetrievedChunk]:
+    ) -> list[RetrievedChunk]:
         bind = self.session.get_bind()
         if bind.dialect.name == "postgresql":
             return await self._search_postgres(
@@ -93,7 +94,7 @@ class RetrievalService:
         query_text: str,
         top_k: int,
         retrieval_mode: str = "hybrid",
-    ) -> List[RetrievedChunk]:
+    ) -> list[RetrievedChunk]:
         """Execute hybrid search combining vector and BM25 retrieval.
 
         Args:
@@ -153,11 +154,11 @@ class RetrievalService:
 
     async def get_chunks_by_ids(
         self,
-        chunk_ids: List[uuid.UUID],
+        chunk_ids: list[uuid.UUID],
         *,
         user_id: uuid.UUID,
         patient_id: uuid.UUID,
-    ) -> List[RetrievedChunk]:
+    ) -> list[RetrievedChunk]:
         """Fetch specific chunks by ID, applying permission checks.
 
         Used by graph RAG to retrieve evidence discovered through
@@ -168,6 +169,7 @@ class RetrievalService:
 
         # Verify permission using PermissionService
         from hospital_ai.services.permissions import PermissionService
+
         has_access = await PermissionService(self.session).has_patient_scope(
             user_id=user_id,
             patient_id=patient_id,
@@ -219,7 +221,7 @@ class RetrievalService:
         patient_id: uuid.UUID,
         query_text: str,
         top_k: int,
-    ) -> List[RetrievedChunk]:
+    ) -> list[RetrievedChunk]:
         """BM25 full-text search using tsvector (PostgreSQL) or Python fallback."""
         bind = self.session.get_bind()
         if bind.dialect.name == "postgresql":
@@ -243,7 +245,7 @@ class RetrievalService:
         patient_id: uuid.UUID,
         query_text: str,
         top_k: int,
-    ) -> List[RetrievedChunk]:
+    ) -> list[RetrievedChunk]:
         """PostgreSQL BM25 search using tsvector + GIN index."""
         import logging
 
@@ -287,9 +289,7 @@ class RetrievalService:
             )
             rows = result.mappings().all()
         except Exception as exc:
-            logging.getLogger(__name__).warning(
-                "BM25 PostgreSQL search failed (search_vector may not exist): %s", exc
-            )
+            logging.getLogger(__name__).warning("BM25 PostgreSQL search failed (search_vector may not exist): %s", exc)
             return []
 
         if not rows:
@@ -320,7 +320,7 @@ class RetrievalService:
         patient_id: uuid.UUID,
         query_text: str,
         top_k: int,
-    ) -> List[RetrievedChunk]:
+    ) -> list[RetrievedChunk]:
         """Portable BM25 search using Python-side scoring for SQLite tests."""
         from hospital_ai.services.bm25 import BM25Scorer
 
@@ -374,7 +374,7 @@ class RetrievalService:
         patient_id: uuid.UUID,
         query_embedding: Sequence[float],
         top_k: int,
-    ) -> List[RetrievedChunk]:
+    ) -> list[RetrievedChunk]:
         result = await self.session.execute(
             text(PERMISSION_FILTERED_RETRIEVAL_SQL).bindparams(
                 bindparam("accepted_scopes", expanding=True),
@@ -409,7 +409,7 @@ class RetrievalService:
         patient_id: uuid.UUID,
         query_embedding: Sequence[float],
         top_k: int,
-    ) -> List[RetrievedChunk]:
+    ) -> list[RetrievedChunk]:
         permission_exists = active_patient_permission_exists(
             user_id=user_id,
             patient_id=patient_id,

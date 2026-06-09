@@ -1,13 +1,13 @@
 import pytest
 from pydantic import ValidationError
+from sqlalchemy import select
 from starlette.requests import Request
 
-from hospital_ai.api.routes.access_requests import create_access_request, AccessRequestCreate
+from hospital_ai.api.routes.access_requests import AccessRequestCreate, create_access_request
 from hospital_ai.api.routes.patients import get_patient_overview
 from hospital_ai.core.errors import PermissionDeniedError
 from hospital_ai.db.migrations import DOCTOR_ID, PATIENT_BOB_ID
-from hospital_ai.db.models import AuditLog, PatientPermission, User
-from sqlalchemy import select
+from hospital_ai.db.models import AuditLog, User
 
 
 def _request(method: str = "POST", path: str = "/") -> Request:
@@ -42,8 +42,7 @@ async def test_access_request_flow(session_and_settings):
 
     # Submit temporary access request justification (length >= 15)
     payload = AccessRequestCreate(
-        patient_id=PATIENT_BOB_ID,
-        justification="Attending physician reviewing cardiologist notes for consult request."
+        patient_id=PATIENT_BOB_ID, justification="Attending physician reviewing cardiologist notes for consult request."
     )
     res = await create_access_request(
         payload=payload,
@@ -79,7 +78,4 @@ async def test_access_request_flow(session_and_settings):
 async def test_access_request_validation():
     # Should raise validation error if justification < 15 characters
     with pytest.raises(ValidationError):
-        AccessRequestCreate(
-            patient_id=PATIENT_BOB_ID,
-            justification="Too short"
-        )
+        AccessRequestCreate(patient_id=PATIENT_BOB_ID, justification="Too short")

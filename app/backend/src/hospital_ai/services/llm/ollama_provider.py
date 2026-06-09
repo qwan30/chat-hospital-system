@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import json
-from typing import AsyncIterator, Dict, List, Optional
+from collections.abc import AsyncIterator
 
 import httpx
 
@@ -33,10 +33,10 @@ class OllamaLLM(BaseLLM):
 
     async def generate(
         self,
-        messages: List[LLMMessage],
+        messages: list[LLMMessage],
         *,
         temperature: float = 0.0,
-        max_tokens: Optional[int] = None,
+        max_tokens: int | None = None,
     ) -> LLMResponse:
         url = f"{self._base_url}/api/chat"
         payload = self._build_payload(messages, temperature, max_tokens, stream=False)
@@ -62,10 +62,10 @@ class OllamaLLM(BaseLLM):
 
     async def stream(
         self,
-        messages: List[LLMMessage],
+        messages: list[LLMMessage],
         *,
         temperature: float = 0.0,
-        max_tokens: Optional[int] = None,
+        max_tokens: int | None = None,
     ) -> AsyncIterator[str]:
         url = f"{self._base_url}/api/chat"
         payload = self._build_payload(messages, temperature, max_tokens, stream=True)
@@ -92,9 +92,9 @@ class OllamaLLM(BaseLLM):
 
     def _build_payload(
         self,
-        messages: List[LLMMessage],
+        messages: list[LLMMessage],
         temperature: float,
-        max_tokens: Optional[int],
+        max_tokens: int | None,
         stream: bool,
     ) -> dict:
         payload: dict = {

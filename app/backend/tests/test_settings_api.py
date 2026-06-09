@@ -8,16 +8,14 @@ Verifies that:
 """
 
 import pytest
-import pytest_asyncio
 
 from hospital_ai.db.settings_store import (
-    SystemSetting,
+    delete_setting,
     effective_value,
     get_all_overrides,
     get_setting,
     upsert_many,
     upsert_setting,
-    delete_setting,
 )
 
 

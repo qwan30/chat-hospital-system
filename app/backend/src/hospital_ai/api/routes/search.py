@@ -1,4 +1,5 @@
 from typing import Optional
+
 from fastapi import APIRouter, Depends, Query, Request
 from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -41,7 +42,7 @@ async def global_search(
         .where(
             Patient.deleted_at.is_(None),
             patient_permission_exists,
-            or_(Patient.full_name.ilike(pattern), Patient.mrn.ilike(pattern))
+            or_(Patient.full_name.ilike(pattern), Patient.mrn.ilike(pattern)),
         )
         .order_by(Patient.full_name)
     )
@@ -56,11 +57,7 @@ async def global_search(
     )
     doc_stmt = (
         select(Document)
-        .where(
-            Document.deleted_at.is_(None),
-            doc_permission_exists,
-            Document.title.ilike(pattern)
-        )
+        .where(Document.deleted_at.is_(None), doc_permission_exists, Document.title.ilike(pattern))
         .order_by(Document.title)
     )
     doc_result = await session.execute(doc_stmt)
@@ -81,7 +78,7 @@ async def global_search(
             ChatThreadParticipant.deleted_at.is_(None),
             ChatThreadParticipant.user_id == current_user.id,
             or_(ChatThread.scope == "general", thread_permission_exists),
-            ChatThread.title.ilike(pattern)
+            ChatThread.title.ilike(pattern),
         )
         .order_by(ChatThread.updated_at.desc())
     )

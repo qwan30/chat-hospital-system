@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 from uuid import UUID
 
 from pydantic import BaseModel, Field
@@ -43,12 +43,12 @@ class EvidenceRead(BaseModel):
     chunk_id: UUID
     score: float
     content: Optional[str] = None
-    metadata: Dict[str, Any] = Field(default_factory=dict)
+    metadata: dict[str, Any] = Field(default_factory=dict)
 
 
 class DocumentSearchResponse(BaseModel):
-    items: List[EvidenceRead]
+    items: list[EvidenceRead]
 
 
 class DocumentListResponse(ApiSchema):
-    items: List[DocumentRead]
+    items: list[DocumentRead]

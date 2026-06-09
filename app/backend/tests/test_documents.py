@@ -58,12 +58,8 @@ async def test_text_document_moves_to_indexed(session_and_settings, tmp_path: Pa
     refreshed = await session.get(Document, document.id)
     assert refreshed.status == "indexed"
     assert refreshed.page_count == 1
-    assert refreshed.indexed_source_sha256 == hashlib.sha256(
-        storage_file.read_bytes()
-    ).hexdigest()
-    result = await session.execute(
-        select(DocumentChunk).where(DocumentChunk.document_id == document.id)
-    )
+    assert refreshed.indexed_source_sha256 == hashlib.sha256(storage_file.read_bytes()).hexdigest()
+    result = await session.execute(select(DocumentChunk).where(DocumentChunk.document_id == document.id))
     assert len(result.scalars().all()) == 1
 
 
@@ -92,9 +88,7 @@ async def test_failed_ocr_creates_no_chunks(session_and_settings, tmp_path: Path
 
     refreshed = await session.get(Document, document.id)
     assert refreshed.status == "ocr_failed"
-    result = await session.execute(
-        select(DocumentChunk).where(DocumentChunk.document_id == document.id)
-    )
+    result = await session.execute(select(DocumentChunk).where(DocumentChunk.document_id == document.id))
     assert result.scalars().all() == []
 
 
@@ -130,16 +124,12 @@ async def test_failed_reindex_preserves_existing_searchable_chunks(
     assert refreshed.ocr_error == "ocr failed"
     assert refreshed.index_generation == 0
 
-    chunk_result = await session.execute(
-        select(DocumentChunk).where(DocumentChunk.document_id == document.id)
-    )
+    chunk_result = await session.execute(select(DocumentChunk).where(DocumentChunk.document_id == document.id))
     chunks = list(chunk_result.scalars().all())
     assert len(chunks) == 1
     assert chunks[0].content == "Original indexed content remains searchable."
 
-    page_result = await session.execute(
-        select(DocumentPage).where(DocumentPage.document_id == document.id)
-    )
+    page_result = await session.execute(select(DocumentPage).where(DocumentPage.document_id == document.id))
     assert len(page_result.scalars().all()) == 1
 
 
@@ -182,9 +172,7 @@ async def test_failed_reindex_after_ocr_preserves_existing_chunks(
     assert refreshed.ocr_error == "embedding failed"
     assert refreshed.index_generation == 0
 
-    chunk_result = await session.execute(
-        select(DocumentChunk).where(DocumentChunk.document_id == document.id)
-    )
+    chunk_result = await session.execute(select(DocumentChunk).where(DocumentChunk.document_id == document.id))
     chunks = list(chunk_result.scalars().all())
     assert len(chunks) == 1
     assert chunks[0].content == "Original indexed content survives embedding failure."
@@ -227,9 +215,7 @@ async def test_failed_reindex_for_changed_source_marks_index_failed(
     assert refreshed.ocr_error == "embedding failed"
     assert refreshed.index_generation == 0
 
-    chunk_result = await session.execute(
-        select(DocumentChunk).where(DocumentChunk.document_id == document.id)
-    )
+    chunk_result = await session.execute(select(DocumentChunk).where(DocumentChunk.document_id == document.id))
     chunks = list(chunk_result.scalars().all())
     assert len(chunks) == 1
     assert chunks[0].content == "Original indexed content should become stale."
@@ -302,9 +288,7 @@ async def test_embedding_count_mismatch_marks_index_failed(session_and_settings,
     assert refreshed.status == "index_failed"
     assert "Embedding count mismatch" in refreshed.ocr_error
 
-    chunk_result = await session.execute(
-        select(DocumentChunk).where(DocumentChunk.document_id == document.id)
-    )
+    chunk_result = await session.execute(select(DocumentChunk).where(DocumentChunk.document_id == document.id))
     assert chunk_result.scalars().all() == []
 
 
@@ -329,9 +313,7 @@ async def test_stale_reindex_attempt_does_not_overwrite_newer_generation(
     async def simulate_newer_index(self, contents):
         texts = list(contents)
         await session.execute(
-            update(Document)
-            .where(Document.id == document_id)
-            .values(index_generation=Document.index_generation + 1)
+            update(Document).where(Document.id == document_id).values(index_generation=Document.index_generation + 1)
         )
         await session.commit()
         return [deterministic_embedding(text) for text in texts]
@@ -348,9 +330,7 @@ async def test_stale_reindex_attempt_does_not_overwrite_newer_generation(
     assert refreshed.index_generation == 1
     assert refreshed.ocr_error is None
 
-    chunk_result = await session.execute(
-        select(DocumentChunk).where(DocumentChunk.document_id == document_id)
-    )
+    chunk_result = await session.execute(select(DocumentChunk).where(DocumentChunk.document_id == document_id))
     chunks = list(chunk_result.scalars().all())
     assert len(chunks) == 1
     assert chunks[0].content == "Original generation content remains authoritative."

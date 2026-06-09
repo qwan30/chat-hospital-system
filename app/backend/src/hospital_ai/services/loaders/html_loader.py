@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import List, Set
 
 from hospital_ai.core.errors import ExternalServiceError
 from hospital_ai.services.loaders.base import BaseDocumentLoader, LoadedPage
@@ -15,10 +14,10 @@ class HtmlLoader(BaseDocumentLoader):
     Strips tags and extracts meaningful text content.
     """
 
-    def supported_extensions(self) -> Set[str]:
+    def supported_extensions(self) -> set[str]:
         return {".html", ".htm", ".mhtml"}
 
-    def load(self, file_path: Path, mime_type: str = "") -> List[LoadedPage]:
+    def load(self, file_path: Path, mime_type: str = "") -> list[LoadedPage]:
         if not file_path.exists():
             raise ExternalServiceError(f"HTML file not found: {file_path}")
 

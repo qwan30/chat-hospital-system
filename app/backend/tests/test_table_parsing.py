@@ -2,17 +2,14 @@
 
 from __future__ import annotations
 
-import pytest
-
+from hospital_ai.services.chunking import ChunkingService
 from hospital_ai.services.loaders.table_parser import (
     detect_table_boundaries,
     extract_lab_values,
     normalize_medical_table,
     tables_to_markdown,
 )
-from hospital_ai.services.chunking import ChunkingService, TextChunk
 from hospital_ai.services.ocr import OcrPage
-
 
 # ── Table Parser tests ───────────────────────────────────────────────────
 
@@ -160,7 +157,7 @@ class TestTableAwareChunking:
 
         # Find the table chunk
         table_chunks = [c for c in chunks if c.chunk_type == "table"]
-        text_chunks = [c for c in chunks if c.chunk_type == "text"]
+        [c for c in chunks if c.chunk_type == "text"]
 
         # Table should be in exactly one chunk (even if > max_chars)
         assert len(table_chunks) == 1

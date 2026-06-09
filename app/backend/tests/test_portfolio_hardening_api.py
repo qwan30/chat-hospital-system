@@ -6,7 +6,11 @@ from hospital_ai.api.routes.audit import list_logs
 from hospital_ai.api.routes.documents import list_documents
 from hospital_ai.api.routes.feedback import get_metrics_summary
 from hospital_ai.api.routes.hms import HmsSyncRequest, sync_full
-from hospital_ai.api.routes.settings import SettingsUpdateRequest, get_admin_settings, update_admin_settings
+from hospital_ai.api.routes.settings import (
+    SettingsUpdateRequest,
+    get_admin_settings,
+    update_admin_settings,
+)
 from hospital_ai.core.errors import PermissionDeniedError
 from hospital_ai.db.migrations import (
     ADMIN_ID,

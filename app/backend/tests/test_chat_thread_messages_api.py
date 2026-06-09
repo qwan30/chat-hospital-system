@@ -9,13 +9,24 @@ from hospital_ai.api.routes.chat_threads import (
     ask_thread_message,
     create_thread,
     get_thread,
-    list_threads,
     list_thread_messages,
+    list_threads,
 )
 from hospital_ai.core.errors import ExternalServiceError, PermissionDeniedError
 from hospital_ai.db.migrations import DOCTOR_ID, PATIENT_ALICE_ID, RECORDS_ID
-from hospital_ai.db.models import AiQuery, AuditLog, ChatMessage, ChatThread, PatientPermission, User
-from hospital_ai.schemas.chat_threads import ChatThreadCreate, ChatThreadDetail, ChatThreadMessageRequest
+from hospital_ai.db.models import (
+    AiQuery,
+    AuditLog,
+    ChatMessage,
+    ChatThread,
+    PatientPermission,
+    User,
+)
+from hospital_ai.schemas.chat_threads import (
+    ChatThreadCreate,
+    ChatThreadDetail,
+    ChatThreadMessageRequest,
+)
 from hospital_ai.services.chat import ChatGenerator
 from tests.conftest import create_indexed_document
 

@@ -9,7 +9,6 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Dict, List, Set
 
 
 @dataclass
@@ -19,18 +18,18 @@ class LoadedPage:
     page_number: int
     text: str
     confidence: float = 1.0
-    metadata: Dict[str, str] = field(default_factory=dict)
+    metadata: dict[str, str] = field(default_factory=dict)
 
 
 class BaseDocumentLoader(ABC):
     """Abstract base class for document loaders."""
 
     @abstractmethod
-    def supported_extensions(self) -> Set[str]:
+    def supported_extensions(self) -> set[str]:
         """Return set of file extensions this loader handles (e.g. {'.pdf', '.PDF'})."""
 
     @abstractmethod
-    def load(self, file_path: Path, mime_type: str = "") -> List[LoadedPage]:
+    def load(self, file_path: Path, mime_type: str = "") -> list[LoadedPage]:
         """Extract pages/sections from the given file.
 
         Args:

@@ -8,13 +8,13 @@ import hashlib
 import logging
 import uuid
 from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from hospital_ai.core.config import Settings
-from hospital_ai.core.errors import NotFoundError, ValidationAppError
+from hospital_ai.core.errors import NotFoundError
 from hospital_ai.db.models import Document, DocumentChunk, DocumentPage, Patient
 from hospital_ai.services.audit import AuditService
 from hospital_ai.services.embeddings import EmbeddingService
@@ -42,18 +42,16 @@ class HmsSyncService:
         jwt_token: Optional[str] = None,
         trace_id: str,
         ip_address: Optional[str] = None,
-    ) -> List[Document]:
+    ) -> list[Document]:
         """Fetch appointments from HMS and ingest as evidence documents."""
         patient = await self.session.get(Patient, patient_id)
         if patient is None or patient.deleted_at is not None:
             raise NotFoundError("Patient not found for HMS appointment sync.")
 
         hms_patient_id = patient.mrn or str(patient_id)
-        raw_appointments = await self.hms.get_appointments(
-            patient_id=hms_patient_id, jwt_token=jwt_token
-        )
+        raw_appointments = await self.hms.get_appointments(patient_id=hms_patient_id, jwt_token=jwt_token)
 
-        documents: List[Document] = []
+        documents: list[Document] = []
         for appt in raw_appointments:
             doc = await self._ingest_record(
                 patient_id=patient_id,
@@ -80,18 +78,16 @@ class HmsSyncService:
         jwt_token: Optional[str] = None,
         trace_id: str,
         ip_address: Optional[str] = None,
-    ) -> List[Document]:
+    ) -> list[Document]:
         """Fetch lab results from HMS and ingest as evidence documents."""
         patient = await self.session.get(Patient, patient_id)
         if patient is None or patient.deleted_at is not None:
             raise NotFoundError("Patient not found for HMS lab result sync.")
 
         hms_patient_id = patient.mrn or str(patient_id)
-        raw_results = await self.hms.get_lab_results(
-            patient_id=hms_patient_id, jwt_token=jwt_token
-        )
+        raw_results = await self.hms.get_lab_results(patient_id=hms_patient_id, jwt_token=jwt_token)
 
-        documents: List[Document] = []
+        documents: list[Document] = []
         for lab in raw_results:
             doc = await self._ingest_record(
                 patient_id=patient_id,
@@ -118,18 +114,16 @@ class HmsSyncService:
         jwt_token: Optional[str] = None,
         trace_id: str,
         ip_address: Optional[str] = None,
-    ) -> List[Document]:
+    ) -> list[Document]:
         """Fetch medical records from HMS and ingest as evidence documents."""
         patient = await self.session.get(Patient, patient_id)
         if patient is None or patient.deleted_at is not None:
             raise NotFoundError("Patient not found for HMS medical record sync.")
 
         hms_patient_id = patient.mrn or str(patient_id)
-        raw_records = await self.hms.get_medical_records(
-            patient_id=hms_patient_id, jwt_token=jwt_token
-        )
+        raw_records = await self.hms.get_medical_records(patient_id=hms_patient_id, jwt_token=jwt_token)
 
-        documents: List[Document] = []
+        documents: list[Document] = []
         for rec in raw_records:
             doc = await self._ingest_record(
                 patient_id=patient_id,
@@ -156,7 +150,7 @@ class HmsSyncService:
         jwt_token: Optional[str] = None,
         trace_id: str,
         ip_address: Optional[str] = None,
-    ) -> Dict[str, int]:
+    ) -> dict[str, int]:
         """Run all sync operations for a patient."""
         kwargs = dict(
             patient_id=patient_id,
@@ -188,7 +182,7 @@ class HmsSyncService:
         document_type: str,
         title: str,
         content: str,
-        metadata: Dict[str, Any],
+        metadata: dict[str, Any],
         trace_id: str,
         ip_address: Optional[str] = None,
     ) -> Document:
@@ -233,12 +227,8 @@ class HmsSyncService:
             document.deleted_at = None
             document.indexed_source_sha256 = content_hash
             document.index_generation += 1
-            await self.session.execute(
-                delete(DocumentChunk).where(DocumentChunk.document_id == document.id)
-            )
-            await self.session.execute(
-                delete(DocumentPage).where(DocumentPage.document_id == document.id)
-            )
+            await self.session.execute(delete(DocumentChunk).where(DocumentChunk.document_id == document.id))
+            await self.session.execute(delete(DocumentPage).where(DocumentPage.document_id == document.id))
             await self.session.flush()
 
         page = DocumentPage(
@@ -293,7 +283,7 @@ class HmsSyncService:
 # ── Rendering helpers ──────────────────────────────────────────────
 
 
-def _render_appointment(appt: Dict[str, Any]) -> str:
+def _render_appointment(appt: dict[str, Any]) -> str:
     lines = [
         "HMS Appointment Summary",
         f"Date: {appt.get('date', appt.get('appointmentDate', 'N/A'))}",
@@ -309,7 +299,7 @@ def _render_appointment(appt: Dict[str, Any]) -> str:
     return "\n".join(lines)
 
 
-def _render_lab_result(lab: Dict[str, Any]) -> str:
+def _render_lab_result(lab: dict[str, Any]) -> str:
     lines = [
         "HMS Lab Result",
         f"Test: {lab.get('testName', lab.get('test_name', 'N/A'))}",
@@ -324,7 +314,7 @@ def _render_lab_result(lab: Dict[str, Any]) -> str:
     return "\n".join(lines)
 
 
-def _render_medical_record(rec: Dict[str, Any]) -> str:
+def _render_medical_record(rec: dict[str, Any]) -> str:
     lines = [
         "HMS Medical Record",
         f"Date: {rec.get('date', rec.get('encounter_date', rec.get('encounterDate', 'N/A')))}",
@@ -339,16 +329,16 @@ def _render_medical_record(rec: Dict[str, Any]) -> str:
     return "\n".join(lines)
 
 
-def _add_optional(lines: List[str], label: str, value: Any) -> None:
+def _add_optional(lines: list[str], label: str, value: Any) -> None:
     if value is not None:
         text = str(value).strip()
         if text:
             lines.append(f"{label}: {text}")
 
 
-def _clean_metadata(raw: Dict[str, Any]) -> Dict[str, Any]:
+def _clean_metadata(raw: dict[str, Any]) -> dict[str, Any]:
     """Pick safe metadata fields — exclude large blobs and nested objects."""
-    safe: Dict[str, Any] = {}
+    safe: dict[str, Any] = {}
     for key, value in raw.items():
         if isinstance(value, (str, int, float, bool)) and key not in {"password", "token", "secret"}:
             safe[key] = value

@@ -1,6 +1,5 @@
 from functools import lru_cache
 from pathlib import Path
-from typing import Dict, List
 
 from pydantic import BaseSettings, Field, validator
 
@@ -12,10 +11,7 @@ class Settings(BaseSettings):
     redis_url: str = "redis://localhost:6379/0"
     storage_root: Path = Path(".local_storage")
     worker_inline: bool = False
-    cors_origins: str = (
-        "http://localhost:3000,http://127.0.0.1:3000,"
-        "http://localhost:3001,http://127.0.0.1:3001"
-    )
+    cors_origins: str = "http://localhost:3000,http://127.0.0.1:3000,http://localhost:3001,http://127.0.0.1:3001"
 
     # Default tokens are convenience shortcuts for `environment == "local"` only.
     # `token_user_map` refuses to surface them in any other environment unless
@@ -89,7 +85,7 @@ class Settings(BaseSettings):
         return value.rstrip("/") or "/api/v1"
 
     @property
-    def token_user_map(self) -> Dict[str, str]:
+    def token_user_map(self) -> dict[str, str]:
         # F-SEC-001: refuse the committed default in any non-local
         # environment unless the operator explicitly overrode the value.
         # If the operator sets dev_bearer_tokens to anything (including the
@@ -101,7 +97,7 @@ class Settings(BaseSettings):
         ):
             return {}
 
-        mapping: Dict[str, str] = {}
+        mapping: dict[str, str] = {}
         for item in self.dev_bearer_tokens.split(","):
             token_pair = item.strip()
             if not token_pair:
@@ -112,7 +108,7 @@ class Settings(BaseSettings):
         return mapping
 
     @property
-    def cors_origin_list(self) -> List[str]:
+    def cors_origin_list(self) -> list[str]:
         return [origin.strip().rstrip("/") for origin in self.cors_origins.split(",") if origin.strip()]
 
     class Config:

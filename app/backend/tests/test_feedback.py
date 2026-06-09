@@ -9,15 +9,12 @@ Covers:
 - UserFeedback model constraints
 """
 
-import uuid
-
 import pytest
 from sqlalchemy import select
 
-from hospital_ai.db.migrations import DOCTOR_ID, RECORDS_ID, PATIENT_ALICE_ID
-from hospital_ai.db.models import AiQuery, User
+from hospital_ai.db.migrations import DOCTOR_ID, PATIENT_ALICE_ID, RECORDS_ID
+from hospital_ai.db.models import AiQuery
 from hospital_ai.services.metrics import MetricsService, TimingBreakdown, UserFeedback
-
 
 # ── Feedback submission ──────────────────────────────────────────────
 
@@ -138,17 +135,13 @@ async def test_feedback_linked_to_correct_query(session_and_settings):
     await session.commit()
 
     # Verify feedback is linked to q1
-    result = await session.execute(
-        select(UserFeedback).where(UserFeedback.query_id == q1.id)
-    )
+    result = await session.execute(select(UserFeedback).where(UserFeedback.query_id == q1.id))
     fb = result.scalar_one_or_none()
     assert fb is not None
     assert fb.query_id == q1.id
 
     # q2 should have no feedback
-    result = await session.execute(
-        select(UserFeedback).where(UserFeedback.query_id == q2.id)
-    )
+    result = await session.execute(select(UserFeedback).where(UserFeedback.query_id == q2.id))
     assert result.scalar_one_or_none() is None
 
 
@@ -269,9 +262,7 @@ async def test_feedback_from_different_user(session_and_settings):
     session.add(UserFeedback(query_id=ai_query.id, user_id=RECORDS_ID, rating=-1))
     await session.commit()
 
-    result = await session.execute(
-        select(UserFeedback).where(UserFeedback.query_id == ai_query.id)
-    )
+    result = await session.execute(select(UserFeedback).where(UserFeedback.query_id == ai_query.id))
     feedbacks = list(result.scalars().all())
     assert len(feedbacks) == 2
 

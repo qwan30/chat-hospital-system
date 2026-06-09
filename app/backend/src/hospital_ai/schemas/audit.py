@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 from uuid import UUID
 
 from pydantic import Field
@@ -17,9 +17,9 @@ class AuditLogRead(ApiSchema):
     outcome: str
     trace_id: str
     ip_address: Optional[str] = None
-    metadata: Dict[str, Any] = Field(default_factory=dict, alias="meta")
+    metadata: dict[str, Any] = Field(default_factory=dict, alias="meta")
     created_at: datetime
 
 
 class AuditLogList(ApiSchema):
-    items: List[AuditLogRead]
+    items: list[AuditLogRead]

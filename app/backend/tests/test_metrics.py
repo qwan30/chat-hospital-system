@@ -12,20 +12,17 @@ Covers:
 import uuid
 
 import pytest
-from sqlalchemy import select
 
 from hospital_ai.db.migrations import DOCTOR_ID, PATIENT_ALICE_ID
 from hospital_ai.db.models import AiQuery, User
 from hospital_ai.services.metrics import (
     BASELINE_MANUAL_SECONDS,
     DEFAULT_HOURLY_COST,
-    MetricEvent,
     MetricsService,
     MetricsSummary,
     TimingBreakdown,
     UserFeedback,
 )
-
 
 # ── Unit: TimingBreakdown ────────────────────────────────────────────
 
@@ -65,7 +62,7 @@ def test_default_hourly_cost():
 @pytest.mark.asyncio
 async def test_record_query_metrics_creates_event(session_and_settings):
     session, settings = session_and_settings
-    doctor = await session.get(User, DOCTOR_ID)
+    await session.get(User, DOCTOR_ID)
 
     # Create an AI query to reference
     ai_query = AiQuery(
@@ -260,12 +257,14 @@ async def test_get_summary_with_feedback(session_and_settings):
     )
 
     # Add positive feedback
-    session.add(UserFeedback(
-        query_id=ai_query.id,
-        user_id=DOCTOR_ID,
-        rating=1,
-        comment="Helpful answer",
-    ))
+    session.add(
+        UserFeedback(
+            query_id=ai_query.id,
+            user_id=DOCTOR_ID,
+            rating=1,
+            comment="Helpful answer",
+        )
+    )
     await session.commit()
 
     summary = await MetricsService(session).get_summary()
@@ -295,11 +294,13 @@ async def test_get_summary_mixed_feedback(session_and_settings):
             task_type="simple",
             timing=timing,
         )
-        session.add(UserFeedback(
-            query_id=ai_query.id,
-            user_id=DOCTOR_ID,
-            rating=rating,
-        ))
+        session.add(
+            UserFeedback(
+                query_id=ai_query.id,
+                user_id=DOCTOR_ID,
+                rating=rating,
+            )
+        )
     await session.commit()
 
     summary = await MetricsService(session).get_summary()

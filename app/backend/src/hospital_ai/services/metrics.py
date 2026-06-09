@@ -9,16 +9,12 @@ from __future__ import annotations
 import uuid
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Optional
 
-from sqlalchemy import func, select
+from sqlalchemy import DateTime, ForeignKey, Integer, Numeric, String, Text, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
-
-from hospital_ai.db.models import Base, TimestampMixin
-
-from sqlalchemy import DateTime, Integer, Numeric, String, Text, ForeignKey, Float
 from sqlalchemy.orm import Mapped, mapped_column
 
+from hospital_ai.db.models import Base
 
 # ── ORM Model ───────────────────────────────────────────────────────────
 
@@ -29,26 +25,20 @@ class MetricEvent(Base):
     __tablename__ = "metric_events"
 
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
-    query_id: Mapped[Optional[uuid.UUID]] = mapped_column(
-        ForeignKey("ai_queries.id"), nullable=True, index=True
-    )
-    user_id: Mapped[Optional[uuid.UUID]] = mapped_column(
-        ForeignKey("users.id"), nullable=True, index=True
-    )
+    query_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("ai_queries.id"), nullable=True, index=True)
+    user_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("users.id"), nullable=True, index=True)
     task_type: Mapped[str] = mapped_column(String(64), nullable=False)
-    baseline_manual_time_sec: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
-    actual_ai_time_sec: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
-    estimated_time_saved_sec: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
-    estimated_cost_saved: Mapped[Optional[float]] = mapped_column(Numeric(12, 2), nullable=True)
-    documents_retrieved: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
-    citations_count: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
-    query_latency_ms: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
-    retrieval_latency_ms: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
-    generation_latency_ms: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
-    shared_thread_id: Mapped[Optional[uuid.UUID]] = mapped_column(nullable=True)
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False, server_default=func.now()
-    )
+    baseline_manual_time_sec: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    actual_ai_time_sec: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    estimated_time_saved_sec: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    estimated_cost_saved: Mapped[float | None] = mapped_column(Numeric(12, 2), nullable=True)
+    documents_retrieved: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    citations_count: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    query_latency_ms: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    retrieval_latency_ms: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    generation_latency_ms: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    shared_thread_id: Mapped[uuid.UUID | None] = mapped_column(nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
 
 
 class UserFeedback(Base):
@@ -57,27 +47,21 @@ class UserFeedback(Base):
     __tablename__ = "user_feedback"
 
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
-    query_id: Mapped[uuid.UUID] = mapped_column(
-        ForeignKey("ai_queries.id"), nullable=False, index=True
-    )
-    user_id: Mapped[uuid.UUID] = mapped_column(
-        ForeignKey("users.id"), nullable=False, index=True
-    )
+    query_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("ai_queries.id"), nullable=False, index=True)
+    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"), nullable=False, index=True)
     rating: Mapped[int] = mapped_column(Integer, nullable=False)  # -1, 0, 1
-    comment: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False, server_default=func.now()
-    )
+    comment: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
 
 
 # ── Baseline assumptions from doc 10 §8 ────────────────────────────────
 
 BASELINE_MANUAL_SECONDS = {
-    "patient_summary": 750,   # 10-15 min → avg 12.5 min = 750 sec
-    "document_lookup": 450,   # 5-10 min → avg 7.5 min = 450 sec
+    "patient_summary": 750,  # 10-15 min → avg 12.5 min = 750 sec
+    "document_lookup": 450,  # 5-10 min → avg 7.5 min = 450 sec
     "medication_check": 240,  # 3-5 min → avg 4 min = 240 sec
-    "lab_lookup": 450,        # 5-10 min → avg 7.5 min = 450 sec
-    "general": 300,           # default 5 min
+    "lab_lookup": 450,  # 5-10 min → avg 7.5 min = 450 sec
+    "general": 300,  # default 5 min
 }
 
 DEFAULT_HOURLY_COST = 20.0  # $/hour from doc 10 §9
@@ -120,7 +104,7 @@ class MetricsService:
         timing: TimingBreakdown,
         documents_retrieved: int = 0,
         citations_count: int = 0,
-        thread_id: Optional[uuid.UUID] = None,
+        thread_id: uuid.UUID | None = None,
     ) -> MetricEvent:
         """Record impact metrics for a completed query."""
         baseline_sec = BASELINE_MANUAL_SECONDS.get(task_type, BASELINE_MANUAL_SECONDS["general"])

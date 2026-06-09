@@ -4,8 +4,8 @@ Splits document pages into chunks while respecting table boundaries,
 ensuring that markdown tables are never split across chunks.
 """
 
-from dataclasses import dataclass, field
-from typing import Iterable, List
+from collections.abc import Iterable
+from dataclasses import dataclass
 
 from hospital_ai.services.ocr import OcrPage
 
@@ -26,8 +26,8 @@ class ChunkingService:
         self.max_chars = max_chars
         self.overlap_chars = overlap_chars
 
-    def chunk_pages(self, pages: Iterable[OcrPage]) -> List[TextChunk]:
-        chunks: List[TextChunk] = []
+    def chunk_pages(self, pages: Iterable[OcrPage]) -> list[TextChunk]:
+        chunks: list[TextChunk] = []
         next_index = 0
         for page in pages:
             text = page.text.strip()
@@ -99,7 +99,7 @@ class ChunkingService:
         return chunks
 
 
-def _split_preserving_tables(text: str) -> List[dict]:
+def _split_preserving_tables(text: str) -> list[dict]:
     """Split text into segments, keeping markdown tables as atomic units.
 
     Returns a list of dicts with keys: content, type ("text" or "table"),
@@ -111,7 +111,7 @@ def _split_preserving_tables(text: str) -> List[dict]:
     if not boundaries:
         return [{"content": text, "type": "text", "start": 0, "end": len(text)}]
 
-    segments: List[dict] = []
+    segments: list[dict] = []
     prev_end = 0
 
     for table_start, table_end in boundaries:
@@ -119,22 +119,26 @@ def _split_preserving_tables(text: str) -> List[dict]:
         if table_start > prev_end:
             pre_text = text[prev_end:table_start]
             if pre_text.strip():
-                segments.append({
-                    "content": pre_text,
-                    "type": "text",
-                    "start": prev_end,
-                    "end": table_start,
-                })
+                segments.append(
+                    {
+                        "content": pre_text,
+                        "type": "text",
+                        "start": prev_end,
+                        "end": table_start,
+                    }
+                )
 
         # Add the table as an atomic segment
         table_text = text[table_start:table_end]
         if table_text.strip():
-            segments.append({
-                "content": table_text,
-                "type": "table",
-                "start": table_start,
-                "end": table_end,
-            })
+            segments.append(
+                {
+                    "content": table_text,
+                    "type": "table",
+                    "start": table_start,
+                    "end": table_end,
+                }
+            )
 
         prev_end = table_end
 
@@ -142,11 +146,13 @@ def _split_preserving_tables(text: str) -> List[dict]:
     if prev_end < len(text):
         remaining = text[prev_end:]
         if remaining.strip():
-            segments.append({
-                "content": remaining,
-                "type": "text",
-                "start": prev_end,
-                "end": len(text),
-            })
+            segments.append(
+                {
+                    "content": remaining,
+                    "type": "text",
+                    "start": prev_end,
+                    "end": len(text),
+                }
+            )
 
     return segments if segments else [{"content": text, "type": "text", "start": 0, "end": len(text)}]

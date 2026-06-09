@@ -3,14 +3,10 @@
 from __future__ import annotations
 
 import uuid
-from typing import List
 from unittest.mock import MagicMock, patch
-
-import pytest
 
 from hospital_ai.core.config import Settings
 from hospital_ai.services.reranking import (
-    BaseReranker,
     CohereReranker,
     CrossEncoderReranker,
     KeywordReranker,
@@ -20,7 +16,6 @@ from hospital_ai.services.reranking import (
     _tokenize,
 )
 from hospital_ai.services.retrieval import RetrievedChunk
-
 
 # ── Fixtures ─────────────────────────────────────────────────────────────
 

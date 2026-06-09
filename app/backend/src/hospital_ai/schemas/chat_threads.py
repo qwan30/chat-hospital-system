@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Dict, List, Literal, Optional
+from typing import Literal, Optional
 from uuid import UUID
 
 from pydantic import Field, root_validator
@@ -20,7 +20,7 @@ class PatientScopeMixin(ApiSchema):
     patient_id: Optional[UUID] = None
 
     @root_validator
-    def validate_patient_scope(cls, values: Dict[str, object]) -> Dict[str, object]:
+    def validate_patient_scope(cls, values: dict[str, object]) -> dict[str, object]:
         scope = values.get("scope")
         patient_id = values.get("patient_id")
 
@@ -83,8 +83,8 @@ class ChatMessageCreate(PatientScopeMixin):
     role: MessageRole = "user"
     content: str = Field(min_length=1)
     patient_permission_state: PatientPermissionState = "not-required"
-    citations: List[EvidenceRead] = Field(default_factory=list)
-    metadata: Dict[str, object] = Field(default_factory=dict, alias="meta")
+    citations: list[EvidenceRead] = Field(default_factory=list)
+    metadata: dict[str, object] = Field(default_factory=dict, alias="meta")
 
 
 class ChatMessageRead(ChatMessageCreate):
@@ -97,16 +97,16 @@ class ChatMessageRead(ChatMessageCreate):
 
 
 class ChatThreadDetail(ChatThreadRead):
-    participants: List[ChatThreadParticipantRead] = Field(default_factory=list)
-    messages: List[ChatMessageRead] = Field(default_factory=list)
+    participants: list[ChatThreadParticipantRead] = Field(default_factory=list)
+    messages: list[ChatMessageRead] = Field(default_factory=list)
 
 
 class ChatThreadListResponse(ApiSchema):
-    items: List[ChatThreadRead]
+    items: list[ChatThreadRead]
 
 
 class ChatThreadParticipantListResponse(ApiSchema):
-    items: List[ChatThreadParticipantRead]
+    items: list[ChatThreadParticipantRead]
 
 
 class ChatThreadMessageRequest(ApiSchema):
@@ -120,4 +120,4 @@ class ChatThreadMessageResponse(ApiSchema):
 
 
 class ChatThreadMessageListResponse(ApiSchema):
-    items: List[ChatMessageRead]
+    items: list[ChatMessageRead]

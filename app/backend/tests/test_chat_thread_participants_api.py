@@ -13,7 +13,13 @@ from hospital_ai.api.routes.chat_threads import (
 )
 from hospital_ai.core.errors import PermissionDeniedError, ValidationAppError
 from hospital_ai.db.migrations import ADMIN_ID, DOCTOR_ID, PATIENT_ALICE_ID, RECORDS_ID
-from hospital_ai.db.models import AuditLog, ChatThread, ChatThreadParticipant, PatientPermission, User
+from hospital_ai.db.models import (
+    AuditLog,
+    ChatThread,
+    ChatThreadParticipant,
+    PatientPermission,
+    User,
+)
 from hospital_ai.schemas.chat_threads import (
     ChatThreadCreate,
     ChatThreadParticipantCreate,

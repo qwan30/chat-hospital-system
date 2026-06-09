@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import logging
 from functools import lru_cache
-from typing import Dict, Optional
 
 from hospital_ai.core.config import Settings, get_settings
 from hospital_ai.services.embedding.base import BaseEmbedding
@@ -17,9 +16,9 @@ class EmbeddingManager:
 
     def __init__(self, settings: Settings) -> None:
         self.settings = settings
-        self._providers: Dict[str, BaseEmbedding] = {}
+        self._providers: dict[str, BaseEmbedding] = {}
 
-    def get(self, provider_name: Optional[str] = None) -> BaseEmbedding:
+    def get(self, provider_name: str | None = None) -> BaseEmbedding:
         """Get an embedding provider instance."""
         name = provider_name or self.settings.embedding_provider
 
@@ -42,10 +41,12 @@ class EmbeddingManager:
     def _create_provider(self, name: str) -> BaseEmbedding:
         if name == "deterministic":
             from hospital_ai.services.embedding.deterministic_provider import DeterministicEmbedding
+
             return DeterministicEmbedding(dims=self.settings.embedding_dimensions)
 
         if name == "ollama":
             from hospital_ai.services.embedding.ollama_provider import OllamaEmbedding
+
             return OllamaEmbedding(
                 base_url=self.settings.ollama_base_url,
                 model=self.settings.embedding_model,
@@ -54,6 +55,7 @@ class EmbeddingManager:
 
         if name == "openai":
             from hospital_ai.services.embedding.openai_provider import OpenAIEmbedding
+
             return OpenAIEmbedding(
                 api_key=getattr(self.settings, "openai_api_key", ""),
                 base_url=getattr(self.settings, "openai_base_url", "https://api.openai.com/v1"),
@@ -65,6 +67,6 @@ class EmbeddingManager:
 
 
 @lru_cache(maxsize=1)
-def get_embedding_manager(settings: Optional[Settings] = None) -> EmbeddingManager:
+def get_embedding_manager(settings: Settings | None = None) -> EmbeddingManager:
     """Get the singleton embedding manager instance."""
     return EmbeddingManager(settings or get_settings())

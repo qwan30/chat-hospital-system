@@ -93,13 +93,9 @@ async def test_chat_surfaces_drug_warnings_when_conflict_exists(session_and_sett
     )
 
     # Populate graph entities for the chunk
-    result = await session.execute(
-        select(DocumentChunk).where(DocumentChunk.document_id == doc.id)
-    )
+    result = await session.execute(select(DocumentChunk).where(DocumentChunk.document_id == doc.id))
     chunk = result.scalars().first()
-    await index_chunk_entities(
-        session, chunk_id=chunk.id, document_id=doc.id, content=chunk.content
-    )
+    await index_chunk_entities(session, chunk_id=chunk.id, document_id=doc.id, content=chunk.content)
     await session.commit()
 
     # Query asking about aspirin (a drug present in the graph)
@@ -121,4 +117,3 @@ async def test_chat_surfaces_drug_warnings_when_conflict_exists(session_and_sett
         assert warning.interacting_entity
         assert warning.severity in ("critical", "high", "medium", "low")
         assert warning.message
-

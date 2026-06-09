@@ -9,7 +9,6 @@ from __future__ import annotations
 
 import logging
 import uuid
-from typing import Optional
 
 from hospital_ai.core.config import Settings
 
@@ -26,7 +25,7 @@ def enqueue_document_indexing(
     settings: Settings,
     *,
     max_retries: int = DEFAULT_MAX_RETRIES,
-    retry_intervals: Optional[list[int]] = None,
+    retry_intervals: list[int] | None = None,
 ) -> str:
     """Enqueue a document for indexing with automatic retry support.
 

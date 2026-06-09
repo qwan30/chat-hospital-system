@@ -3,13 +3,9 @@
 from __future__ import annotations
 
 import uuid
-from typing import List
-
-import pytest
 
 from hospital_ai.services.bm25 import BM25Scorer, reciprocal_rank_fusion
 from hospital_ai.services.retrieval import RetrievedChunk
-
 
 # ── Fixtures ─────────────────────────────────────────────────────────────
 

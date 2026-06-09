@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-from typing import List
-
 import httpx
 
 from hospital_ai.core.errors import ExternalServiceError
@@ -35,11 +33,11 @@ class OllamaEmbedding(BaseEmbedding):
     def dimensions(self) -> int:
         return self._dims
 
-    async def embed(self, text: str) -> List[float]:
+    async def embed(self, text: str) -> list[float]:
         results = await self.embed_many([text])
         return results[0]
 
-    async def embed_many(self, texts: List[str]) -> List[List[float]]:
+    async def embed_many(self, texts: list[str]) -> list[list[float]]:
         if not texts:
             return []
 
@@ -56,7 +54,5 @@ class OllamaEmbedding(BaseEmbedding):
         data = response.json()
         embeddings = data.get("embeddings")
         if not embeddings or len(embeddings) != len(texts):
-            raise ExternalServiceError(
-                f"Ollama returned {len(embeddings or [])} embeddings for {len(texts)} inputs."
-            )
+            raise ExternalServiceError(f"Ollama returned {len(embeddings or [])} embeddings for {len(texts)} inputs.")
         return [[float(v) for v in vec] for vec in embeddings]

@@ -1,6 +1,5 @@
 from dataclasses import dataclass
 from pathlib import Path
-from typing import List
 
 from hospital_ai.core.errors import ExternalServiceError
 
@@ -17,7 +16,7 @@ class OcrService:
 
     TEXT_MIME_TYPES = {"text/plain", "text/markdown", "application/json"}
 
-    def extract_pages(self, *, storage_uri: str, mime_type: str) -> List[OcrPage]:
+    def extract_pages(self, *, storage_uri: str, mime_type: str) -> list[OcrPage]:
         path = Path(storage_uri)
         if mime_type in self.TEXT_MIME_TYPES or path.suffix.lower() in {".txt", ".md"}:
             text = path.read_text(encoding="utf-8")
@@ -32,7 +31,7 @@ class OcrService:
 
         ocr = PaddleOCR(use_doc_orientation_classify=False, use_doc_unwarping=False, use_textline_orientation=False)
         result = ocr.predict(str(path))
-        pages: List[OcrPage] = []
+        pages: list[OcrPage] = []
         for page_index, page_result in enumerate(result, start=1):
             text_lines = []
             scores = []

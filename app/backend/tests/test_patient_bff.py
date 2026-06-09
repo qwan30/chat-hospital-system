@@ -1,6 +1,5 @@
-from datetime import datetime, timezone
-from unittest.mock import AsyncMock, patch
 import uuid
+from unittest.mock import patch
 
 import pytest
 from starlette.requests import Request
@@ -129,7 +128,7 @@ async def test_patient_timeline_hms_and_fallback(session_and_settings):
             "eventType": "appointment",
             "title": "Clinical Consult",
             "description": "Routine checkup",
-            "timestamp": "2026-06-01T10:00:00Z"
+            "timestamp": "2026-06-01T10:00:00Z",
         }
     ]
 

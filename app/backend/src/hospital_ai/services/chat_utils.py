@@ -4,7 +4,8 @@ Extracted to avoid circular imports between chat.py and reasoning.py.
 """
 
 import re
-from typing import Dict, List, Optional, Sequence, Set
+from collections.abc import Sequence
+from typing import Optional
 
 from hospital_ai.core.config import Settings
 from hospital_ai.schemas.documents import EvidenceRead
@@ -47,14 +48,12 @@ class ChatGenerator:
 def build_grounded_prompt(
     question: str,
     evidence: Sequence[RetrievedChunk],
-    conversation_history: Optional[List[Dict[str, str]]] = None,
+    conversation_history: Optional[list[dict[str, str]]] = None,
 ) -> str:
     blocks = []
     for item in evidence:
-        blocks.append(
-            f"[{item.evidence_id}] Document: {item.document_title}; page: {item.page}\n{item.content}"
-        )
-    parts: List[str] = []
+        blocks.append(f"[{item.evidence_id}] Document: {item.document_title}; page: {item.page}\n{item.content}")
+    parts: list[str] = []
     if conversation_history:
         parts.append("Previous conversation:")
         for msg in conversation_history[-MAX_HISTORY_MESSAGES:]:
@@ -91,7 +90,7 @@ def build_stub_answer(prompt: str) -> str:
     return f"Based on the authorized evidence, {trim_sentence(first_fact)} [{evidence_id}]."
 
 
-def parse_prompt_evidence(prompt: str) -> List[tuple]:
+def parse_prompt_evidence(prompt: str) -> list[tuple]:
     pattern = re.compile(
         r"\[(E\d+)\] Document:.*?\n(?P<content>.*?)(?=\n\n\[E\d+\] Document:|\n\nAnswer using only the evidence\.|$)",
         re.DOTALL,
@@ -119,11 +118,11 @@ def trim_sentence(value: str) -> str:
     return value.rstrip(".")
 
 
-def extract_citation_ids(answer: str) -> Set[str]:
+def extract_citation_ids(answer: str) -> set[str]:
     return set(CITATION_PATTERN.findall(answer))
 
 
-def citations_are_valid(answer: str, allowed_evidence_ids: Set[str]) -> bool:
+def citations_are_valid(answer: str, allowed_evidence_ids: set[str]) -> bool:
     citation_ids = extract_citation_ids(answer)
     return bool(citation_ids) and citation_ids.issubset(allowed_evidence_ids)
 
@@ -150,7 +149,7 @@ def meets_evidence_threshold(item: RetrievedChunk, retrieval_mode: str, threshol
     if retrieval_mode != "hybrid":
         return item.score >= threshold
 
-    underlying_scores: List[float] = []
+    underlying_scores: list[float] = []
     for key, value in (item.metadata or {}).items():
         if not isinstance(key, str) or not key.startswith("score_list_"):
             continue

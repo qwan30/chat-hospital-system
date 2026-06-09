@@ -1,18 +1,31 @@
 import logging
 import time
-from typing import Dict, List, Optional
+from typing import Optional
 from uuid import UUID
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from hospital_ai.core.config import Settings
-from hospital_ai.core.errors import ExternalServiceError, PermissionDeniedError
+from hospital_ai.core.errors import PermissionDeniedError
 from hospital_ai.core.security import PATIENT_READ_SCOPES
-from hospital_ai.db.models import AiQuery, ChatMessage, ChatThread, RetrievedEvidence, User
+from hospital_ai.db.models import AiQuery, ChatMessage, RetrievedEvidence, User
 from hospital_ai.schemas.chat import ChatResponse, DrugWarningSchema
-from hospital_ai.schemas.documents import EvidenceRead
 from hospital_ai.services.audit import AuditService
+
+# Re-export shared utilities for backward compatibility
+from hospital_ai.services.chat_utils import (  # noqa: F401
+    CITATION_PATTERN,
+    MAX_HISTORY_MESSAGES,
+    ChatGenerator,
+    build_grounded_prompt,
+    build_stub_answer,
+    citations_are_valid,
+    confidence_from_score,
+    extract_citation_ids,
+    meets_evidence_threshold,
+    to_evidence_schema,
+)
 from hospital_ai.services.drug_check import DrugCheckService, DrugWarning
 from hospital_ai.services.embeddings import EmbeddingService
 from hospital_ai.services.graph_rag import extract_entities, find_related_entities
@@ -24,21 +37,7 @@ from hospital_ai.services.reasoning import (
     ReasoningResult,
     SimpleQAPipeline,
 )
-from hospital_ai.services.retrieval import RetrievedChunk, RetrievalService
-
-# Re-export shared utilities for backward compatibility
-from hospital_ai.services.chat_utils import (  # noqa: F401
-    ChatGenerator,
-    build_grounded_prompt,
-    build_stub_answer,
-    citations_are_valid,
-    confidence_from_score,
-    extract_citation_ids,
-    meets_evidence_threshold,
-    to_evidence_schema,
-    CITATION_PATTERN,
-    MAX_HISTORY_MESSAGES,
-)
+from hospital_ai.services.retrieval import RetrievalService, RetrievedChunk
 
 logger = logging.getLogger(__name__)
 
@@ -132,9 +131,7 @@ class ChatService:
             query_entities = extract_entities(question)
             if query_entities:
                 entity_names = [e.name for e in query_entities]
-                graph_ctx = await find_related_entities(
-                    self.session, entity_names, max_hops=2, patient_id=patient_id
-                )
+                graph_ctx = await find_related_entities(self.session, entity_names, max_hops=2, patient_id=patient_id)
                 if graph_ctx.related_chunk_ids:
                     existing_ids = {e.chunk_id for e in evidence}
                     graph_only_ids = graph_ctx.related_chunk_ids - existing_ids
@@ -153,9 +150,7 @@ class ChatService:
 
         t_retrieval_ms = int((time.perf_counter() - t_retrieval_start) * 1000)
 
-        if not evidence or not meets_evidence_threshold(
-            evidence[0], retrieval_mode, self.settings.evidence_threshold
-        ):
+        if not evidence or not meets_evidence_threshold(evidence[0], retrieval_mode, self.settings.evidence_threshold):
             ai_query.status = "no_evidence"
             ai_query.answer = SAFE_NO_EVIDENCE_ANSWER
             ai_query.latency_ms = elapsed_ms(started)
@@ -181,7 +176,7 @@ class ChatService:
             )
 
         # ── Drug interaction check ───────────────────────────────────
-        drug_warnings: List[DrugWarning] = []
+        drug_warnings: list[DrugWarning] = []
         try:
             drug_warnings = await DrugCheckService(self.session).check_interactions(
                 query_text=question,
@@ -194,9 +189,7 @@ class ChatService:
         selected_pipeline = _select_pipeline(pipeline, question)
         t_gen_start = time.perf_counter()
         try:
-            reasoning_result = await self._run_pipeline(
-                selected_pipeline, question, evidence, conversation_history
-            )
+            reasoning_result = await self._run_pipeline(selected_pipeline, question, evidence, conversation_history)
         except Exception:
             ai_query.status = "failed"
             ai_query.latency_ms = elapsed_ms(started)
@@ -212,17 +205,17 @@ class ChatService:
         answer_citation_ids = extract_citation_ids(reasoning_result.answer)
         if answer_citation_ids and not answer_citation_ids.issubset(allowed_evidence_ids):
             logger.warning(
-                "Answer rejected at service boundary: invalid_citation "
-                "query_id=%s allowed=%s answer_cited=%s",
-                ai_query.id, sorted(allowed_evidence_ids), sorted(answer_citation_ids),
+                "Answer rejected at service boundary: invalid_citation query_id=%s allowed=%s answer_cited=%s",
+                ai_query.id,
+                sorted(allowed_evidence_ids),
+                sorted(answer_citation_ids),
             )
             ai_query.status = "failed"
             ai_query.latency_ms = elapsed_ms(started)
             await self.session.commit()
             from hospital_ai.core.errors import ExternalServiceError
-            raise ExternalServiceError(
-                "Generated answer contains citations not in the retrieved evidence."
-            )
+
+            raise ExternalServiceError("Generated answer contains citations not in the retrieved evidence.")
 
         # Store retrieved evidence records with trace data
         for index, item in enumerate(evidence, start=1):
@@ -308,7 +301,7 @@ class ChatService:
             warnings=warning_schemas,
         )
 
-    async def _get_conversation_history(self, thread_id: UUID) -> List[Dict[str, str]]:
+    async def _get_conversation_history(self, thread_id: UUID) -> list[dict[str, str]]:
         """Fetch recent messages from a chat thread for conversation context."""
         result = await self.session.execute(
             select(ChatMessage)
@@ -323,18 +316,20 @@ class ChatService:
 
         history = []
         for msg in messages:
-            history.append({
-                "role": msg.role,
-                "content": msg.content,
-            })
+            history.append(
+                {
+                    "role": msg.role,
+                    "content": msg.content,
+                }
+            )
         return history
 
     async def _run_pipeline(
         self,
         pipeline_name: str,
         question: str,
-        evidence: List[RetrievedChunk],
-        conversation_history: List[Dict[str, str]],
+        evidence: list[RetrievedChunk],
+        conversation_history: list[dict[str, str]],
     ) -> ReasoningResult:
         """Run the selected reasoning pipeline."""
         if pipeline_name == "patient_summary":
@@ -371,7 +366,6 @@ def _select_pipeline(requested: str, question: str) -> str:
         return "decompose"
 
     return "simple"
-
 
 
 def elapsed_ms(started: float) -> int:

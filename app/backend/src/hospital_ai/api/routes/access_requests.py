@@ -1,5 +1,5 @@
 import logging
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timedelta, timezone
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Request
@@ -11,7 +11,7 @@ from hospital_ai.api.limiter import limiter
 from hospital_ai.core.config import Settings, get_settings
 from hospital_ai.core.errors import ExternalServiceError
 from hospital_ai.core.security import new_trace_id
-from hospital_ai.db.models import User, PatientPermission
+from hospital_ai.db.models import PatientPermission, User
 from hospital_ai.services.audit import AuditService
 from hospital_ai.services.hms_connector import HmsApiClient
 
@@ -55,15 +55,17 @@ async def create_access_request(
         except ExternalServiceError as exc:
             logger.warning(
                 "HMS access request denied for user=%s patient=%s: %s",
-                current_user.id, payload.patient_id, exc.message,
+                current_user.id,
+                payload.patient_id,
+                exc.message,
             )
             raise HTTPException(
                 status_code=502,
                 detail="HMS access request could not be processed. Try again later.",
-            )
+            ) from exc
 
     expires_at = datetime.now(timezone.utc) + timedelta(hours=1)
-    
+
     permission = PatientPermission(
         user_id=current_user.id,
         patient_id=payload.patient_id,
@@ -72,7 +74,7 @@ async def create_access_request(
         expires_at=expires_at,
     )
     session.add(permission)
-    
+
     await AuditService(session).record(
         actor_user_id=current_user.id,
         action="access_request.create",
@@ -85,7 +87,7 @@ async def create_access_request(
         metadata={"justification": payload.justification},
     )
     await session.commit()
-    
+
     return AccessRequestResponse(
         message="Temporary clinical access scope granted for 1 hour.",
         patient_id=payload.patient_id,

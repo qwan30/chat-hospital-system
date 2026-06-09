@@ -5,23 +5,20 @@ and done events in the expected order.  Uses the stub LLM provider
 and deterministic embeddings for reproducibility.
 """
 
-import json
 import uuid
 
 import pytest
-import pytest_asyncio
-from httpx import AsyncClient, ASGITransport
-
-from tests.conftest import create_indexed_document
+from sqlalchemy import select
 
 from hospital_ai.db.models import Patient, User
-from sqlalchemy import select
+from tests.conftest import create_indexed_document
 
 
 @pytest.fixture
 def app():
     """Create a test FastAPI application instance."""
     from hospital_ai.api.app import create_app
+
     from hospital_ai.core.config import Settings
 
     settings = Settings(
@@ -81,7 +78,7 @@ async def test_streaming_with_no_evidence_returns_refusal(session_and_settings):
     """When no evidence matches, streaming should still produce a response."""
     session, settings = session_and_settings
 
-    from hospital_ai.services.reasoning import SimpleQAPipeline, NO_EVIDENCE_ANSWER
+    from hospital_ai.services.reasoning import NO_EVIDENCE_ANSWER, SimpleQAPipeline
 
     pipeline = SimpleQAPipeline(settings)
     result = await pipeline.run(

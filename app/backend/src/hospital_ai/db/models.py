@@ -2,16 +2,16 @@ from __future__ import annotations
 
 import uuid
 from datetime import date, datetime
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from sqlalchemy import (
+    JSON,
     Boolean,
     CheckConstraint,
     Date,
     DateTime,
     ForeignKey,
     Integer,
-    JSON,
     Numeric,
     String,
     Text,
@@ -73,7 +73,7 @@ class TimestampMixin:
 
 
 class SoftDeleteMixin:
-    deleted_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
 
 class User(TimestampMixin, SoftDeleteMixin, Base):
@@ -88,11 +88,11 @@ class User(TimestampMixin, SoftDeleteMixin, Base):
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
     email: Mapped[str] = mapped_column(String(320), unique=True, nullable=False, index=True)
     full_name: Mapped[str] = mapped_column(String(255), nullable=False)
-    department: Mapped[Optional[str]] = mapped_column(String(128), nullable=True)
+    department: Mapped[str | None] = mapped_column(String(128), nullable=True)
     role: Mapped[str] = mapped_column(String(32), nullable=False)
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True, server_default="true")
 
-    permissions: Mapped[List["PatientPermission"]] = relationship(back_populates="user")
+    permissions: Mapped[list[PatientPermission]] = relationship(back_populates="user")
 
 
 class Patient(TimestampMixin, SoftDeleteMixin, Base):
@@ -101,20 +101,22 @@ class Patient(TimestampMixin, SoftDeleteMixin, Base):
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
     mrn: Mapped[str] = mapped_column(String(64), unique=True, nullable=False, index=True)
     full_name: Mapped[str] = mapped_column(String(255), nullable=False)
-    dob: Mapped[Optional[date]] = mapped_column(Date, nullable=True)
-    department: Mapped[Optional[str]] = mapped_column(String(128), nullable=True)
+    dob: Mapped[date | None] = mapped_column(Date, nullable=True)
+    department: Mapped[str | None] = mapped_column(String(128), nullable=True)
     status: Mapped[str] = mapped_column(String(32), nullable=False, default="active", server_default="active")
 
-    permissions: Mapped[List["PatientPermission"]] = relationship(back_populates="patient")
-    documents: Mapped[List["Document"]] = relationship(back_populates="patient")
-    chat_threads: Mapped[List["ChatThread"]] = relationship(back_populates="patient")
+    permissions: Mapped[list[PatientPermission]] = relationship(back_populates="patient")
+    documents: Mapped[list[Document]] = relationship(back_populates="patient")
+    chat_threads: Mapped[list[ChatThread]] = relationship(back_populates="patient")
 
 
 class PatientPermission(TimestampMixin, SoftDeleteMixin, Base):
     __tablename__ = "patient_permissions"
     __table_args__ = (
         UniqueConstraint("user_id", "patient_id", "scope", name="uq_patient_permission_scope"),
-        CheckConstraint("scope in ('read','summary','medication','upload','admin')", name="ck_patient_permission_scope"),
+        CheckConstraint(
+            "scope in ('read','summary','medication','upload','admin')", name="ck_patient_permission_scope"
+        ),
     )
 
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
@@ -122,7 +124,7 @@ class PatientPermission(TimestampMixin, SoftDeleteMixin, Base):
     patient_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("patients.id"), nullable=False, index=True)
     scope: Mapped[str] = mapped_column(String(32), nullable=False)
     source: Mapped[str] = mapped_column(String(64), nullable=False, default="manual", server_default="manual")
-    expires_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     user: Mapped[User] = relationship(back_populates="permissions")
     patient: Mapped[Patient] = relationship(back_populates="permissions")
@@ -146,19 +148,19 @@ class Document(TimestampMixin, SoftDeleteMixin, Base):
     storage_uri: Mapped[str] = mapped_column(Text, nullable=False)
     mime_type: Mapped[str] = mapped_column(String(128), nullable=False)
     status: Mapped[str] = mapped_column(String(32), nullable=False, default="uploaded")
-    page_count: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
-    ocr_error: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    page_count: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    ocr_error: Mapped[str | None] = mapped_column(Text, nullable=True)
     index_generation: Mapped[int] = mapped_column(
         Integer,
         nullable=False,
         default=0,
         server_default="0",
     )
-    indexed_source_sha256: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
+    indexed_source_sha256: Mapped[str | None] = mapped_column(String(64), nullable=True)
 
     patient: Mapped[Patient] = relationship(back_populates="documents")
-    pages: Mapped[List["DocumentPage"]] = relationship(back_populates="document", cascade="all, delete-orphan")
-    chunks: Mapped[List["DocumentChunk"]] = relationship(back_populates="document", cascade="all, delete-orphan")
+    pages: Mapped[list[DocumentPage]] = relationship(back_populates="document", cascade="all, delete-orphan")
+    chunks: Mapped[list[DocumentChunk]] = relationship(back_populates="document", cascade="all, delete-orphan")
 
 
 class DocumentPage(TimestampMixin, SoftDeleteMixin, Base):
@@ -169,10 +171,10 @@ class DocumentPage(TimestampMixin, SoftDeleteMixin, Base):
     document_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("documents.id"), nullable=False, index=True)
     page_number: Mapped[int] = mapped_column(Integer, nullable=False)
     ocr_text: Mapped[str] = mapped_column(Text, nullable=False)
-    ocr_confidence: Mapped[Optional[float]] = mapped_column(Numeric, nullable=True)
+    ocr_confidence: Mapped[float | None] = mapped_column(Numeric, nullable=True)
 
     document: Mapped[Document] = relationship(back_populates="pages")
-    chunks: Mapped[List["DocumentChunk"]] = relationship(back_populates="page")
+    chunks: Mapped[list[DocumentChunk]] = relationship(back_populates="page")
 
 
 class DocumentChunk(TimestampMixin, SoftDeleteMixin, Base):
@@ -185,9 +187,9 @@ class DocumentChunk(TimestampMixin, SoftDeleteMixin, Base):
     patient_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("patients.id"), nullable=False, index=True)
     chunk_index: Mapped[int] = mapped_column(Integer, nullable=False)
     content: Mapped[str] = mapped_column(Text, nullable=False)
-    token_count: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
-    embedding: Mapped[Optional[List[float]]] = mapped_column(EmbeddingVector(1024), nullable=True)
-    meta: Mapped[Dict[str, Any]] = mapped_column("metadata", JSON, nullable=False, default=dict)
+    token_count: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    embedding: Mapped[list[float] | None] = mapped_column(EmbeddingVector(1024), nullable=True)
+    meta: Mapped[dict[str, Any]] = mapped_column("metadata", JSON, nullable=False, default=dict)
 
     document: Mapped[Document] = relationship(back_populates="chunks")
     page: Mapped[DocumentPage] = relationship(back_populates="chunks")
@@ -195,20 +197,18 @@ class DocumentChunk(TimestampMixin, SoftDeleteMixin, Base):
 
 class AuditLog(Base):
     __tablename__ = "audit_logs"
-    __table_args__ = (
-        CheckConstraint("outcome in ('allowed','denied','failed')", name="ck_audit_logs_outcome"),
-    )
+    __table_args__ = (CheckConstraint("outcome in ('allowed','denied','failed')", name="ck_audit_logs_outcome"),)
 
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
-    actor_user_id: Mapped[Optional[uuid.UUID]] = mapped_column(ForeignKey("users.id"), nullable=True, index=True)
+    actor_user_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("users.id"), nullable=True, index=True)
     action: Mapped[str] = mapped_column(String(128), nullable=False)
     object_type: Mapped[str] = mapped_column(String(64), nullable=False)
-    object_id: Mapped[Optional[uuid.UUID]] = mapped_column(nullable=True)
-    patient_id: Mapped[Optional[uuid.UUID]] = mapped_column(ForeignKey("patients.id"), nullable=True, index=True)
+    object_id: Mapped[uuid.UUID | None] = mapped_column(nullable=True)
+    patient_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("patients.id"), nullable=True, index=True)
     outcome: Mapped[str] = mapped_column(String(32), nullable=False)
     trace_id: Mapped[str] = mapped_column(String(64), nullable=False)
-    ip_address: Mapped[Optional[str]] = mapped_column(InetAddress(), nullable=True)
-    meta: Mapped[Dict[str, Any]] = mapped_column("metadata", JSON, nullable=False, default=dict)
+    ip_address: Mapped[str | None] = mapped_column(InetAddress(), nullable=True)
+    meta: Mapped[dict[str, Any]] = mapped_column("metadata", JSON, nullable=False, default=dict)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
 
 
@@ -219,14 +219,14 @@ class AiQuery(Base):
     user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"), nullable=False, index=True)
     patient_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("patients.id"), nullable=False, index=True)
     question: Mapped[str] = mapped_column(Text, nullable=False)
-    answer: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    answer: Mapped[str | None] = mapped_column(Text, nullable=True)
     status: Mapped[str] = mapped_column(String(32), nullable=False)
-    latency_ms: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
-    model: Mapped[Optional[str]] = mapped_column(String(128), nullable=True)
+    latency_ms: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    model: Mapped[str | None] = mapped_column(String(128), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
 
-    evidence: Mapped[List["RetrievedEvidence"]] = relationship(back_populates="query", cascade="all, delete-orphan")
-    messages: Mapped[List["ChatMessage"]] = relationship(back_populates="ai_query")
+    evidence: Mapped[list[RetrievedEvidence]] = relationship(back_populates="query", cascade="all, delete-orphan")
+    messages: Mapped[list[ChatMessage]] = relationship(back_populates="ai_query")
 
 
 class RetrievedEvidence(Base):
@@ -240,9 +240,9 @@ class RetrievedEvidence(Base):
     citation_label: Mapped[str] = mapped_column(String(16), nullable=False)
 
     # RAG trace observability fields
-    rerank_score: Mapped[Optional[float]] = mapped_column(Numeric, nullable=True)
-    retrieval_method: Mapped[Optional[str]] = mapped_column(String(32), nullable=True)
-    rerank_method: Mapped[Optional[str]] = mapped_column(String(32), nullable=True)
+    rerank_score: Mapped[float | None] = mapped_column(Numeric, nullable=True)
+    retrieval_method: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    rerank_method: Mapped[str | None] = mapped_column(String(32), nullable=True)
 
     query: Mapped[AiQuery] = relationship(back_populates="evidence")
 
@@ -254,8 +254,7 @@ class ChatThread(TimestampMixin, SoftDeleteMixin, Base):
         CheckConstraint("visibility in ('private','shared')", name="ck_chat_threads_visibility"),
         CheckConstraint("status in ('active','archived')", name="ck_chat_threads_status"),
         CheckConstraint(
-            "(scope = 'general' and patient_id is null) or "
-            "(scope = 'patient-linked' and patient_id is not null)",
+            "(scope = 'general' and patient_id is null) or (scope = 'patient-linked' and patient_id is not null)",
             name="ck_chat_threads_patient_scope",
         ),
     )
@@ -266,17 +265,17 @@ class ChatThread(TimestampMixin, SoftDeleteMixin, Base):
     visibility: Mapped[str] = mapped_column(String(32), nullable=False, default="private")
     status: Mapped[str] = mapped_column(String(32), nullable=False, default="active")
     owner_user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"), nullable=False, index=True)
-    patient_id: Mapped[Optional[uuid.UUID]] = mapped_column(ForeignKey("patients.id"), nullable=True, index=True)
+    patient_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("patients.id"), nullable=True, index=True)
     created_trace_id: Mapped[str] = mapped_column(String(64), nullable=False)
-    last_message_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    last_message_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     owner: Mapped[User] = relationship()
-    patient: Mapped[Optional[Patient]] = relationship(back_populates="chat_threads")
-    participants: Mapped[List["ChatThreadParticipant"]] = relationship(
+    patient: Mapped[Patient | None] = relationship(back_populates="chat_threads")
+    participants: Mapped[list[ChatThreadParticipant]] = relationship(
         back_populates="thread",
         cascade="all, delete-orphan",
     )
-    messages: Mapped[List["ChatMessage"]] = relationship(
+    messages: Mapped[list[ChatMessage]] = relationship(
         back_populates="thread",
         cascade="all, delete-orphan",
     )
@@ -299,7 +298,7 @@ class ChatThreadParticipant(TimestampMixin, SoftDeleteMixin, Base):
     can_share: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     added_by_user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"), nullable=False)
     created_trace_id: Mapped[str] = mapped_column(String(64), nullable=False)
-    last_read_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    last_read_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     thread: Mapped[ChatThread] = relationship(back_populates="participants")
     user: Mapped[User] = relationship(foreign_keys=[user_id])
@@ -316,34 +315,34 @@ class ChatMessage(Base):
             name="ck_chat_messages_patient_permission_state",
         ),
         CheckConstraint(
-            "(scope = 'general' and patient_id is null) or "
-            "(scope = 'patient-linked' and patient_id is not null)",
+            "(scope = 'general' and patient_id is null) or (scope = 'patient-linked' and patient_id is not null)",
             name="ck_chat_messages_patient_scope",
         ),
     )
 
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
     thread_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("chat_threads.id"), nullable=False, index=True)
-    sender_user_id: Mapped[Optional[uuid.UUID]] = mapped_column(ForeignKey("users.id"), nullable=True, index=True)
-    ai_query_id: Mapped[Optional[uuid.UUID]] = mapped_column(ForeignKey("ai_queries.id"), nullable=True, index=True)
-    patient_id: Mapped[Optional[uuid.UUID]] = mapped_column(ForeignKey("patients.id"), nullable=True, index=True)
+    sender_user_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("users.id"), nullable=True, index=True)
+    ai_query_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("ai_queries.id"), nullable=True, index=True)
+    patient_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("patients.id"), nullable=True, index=True)
     role: Mapped[str] = mapped_column(String(32), nullable=False)
     scope: Mapped[str] = mapped_column(String(32), nullable=False)
     content: Mapped[str] = mapped_column(Text, nullable=False)
     patient_permission_state: Mapped[str] = mapped_column(String(32), nullable=False)
-    citations: Mapped[List[Dict[str, Any]]] = mapped_column(JSON, nullable=False, default=list)
-    meta: Mapped[Dict[str, Any]] = mapped_column("metadata", JSON, nullable=False, default=dict)
+    citations: Mapped[list[dict[str, Any]]] = mapped_column(JSON, nullable=False, default=list)
+    meta: Mapped[dict[str, Any]] = mapped_column("metadata", JSON, nullable=False, default=dict)
     trace_id: Mapped[str] = mapped_column(String(64), nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
 
     thread: Mapped[ChatThread] = relationship(back_populates="messages")
-    sender: Mapped[Optional[User]] = relationship()
-    ai_query: Mapped[Optional[AiQuery]] = relationship(back_populates="messages")
-    patient: Mapped[Optional[Patient]] = relationship()
+    sender: Mapped[User | None] = relationship()
+    ai_query: Mapped[AiQuery | None] = relationship(back_populates="messages")
+    patient: Mapped[Patient | None] = relationship()
 
 
 class HmsSyncLog(TimestampMixin, Base):
     """Track HMS synchronization operations."""
+
     __tablename__ = "hms_sync_logs"
     __table_args__ = (
         CheckConstraint(
@@ -364,8 +363,8 @@ class HmsSyncLog(TimestampMixin, Base):
     records_synced: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     records_skipped: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     records_failed: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
-    error_message: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
     trace_id: Mapped[str] = mapped_column(String(64), nullable=False)
-    started_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
-    completed_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
-    meta: Mapped[Dict[str, Any]] = mapped_column("metadata", JSON, nullable=False, default=dict)
+    started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    meta: Mapped[dict[str, Any]] = mapped_column("metadata", JSON, nullable=False, default=dict)

@@ -1,5 +1,5 @@
 from datetime import date, datetime
-from typing import List, Optional
+from typing import Optional
 from uuid import UUID
 
 from hospital_ai.schemas.common import ApiSchema
@@ -15,7 +15,7 @@ class PatientRead(ApiSchema):
 
 
 class PatientSearchResponse(ApiSchema):
-    items: List[PatientRead]
+    items: list[PatientRead]
 
 
 class PatientOverviewResponse(ApiSchema):
@@ -47,4 +47,4 @@ class PatientTimelineEvent(ApiSchema):
 
 class PatientTimelineResponse(ApiSchema):
     patient_id: UUID
-    events: List[PatientTimelineEvent]
+    events: list[PatientTimelineEvent]

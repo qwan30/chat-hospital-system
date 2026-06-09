@@ -1,5 +1,5 @@
 import uuid
-from typing import Any, Dict, Optional
+from typing import Any, Optional
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -21,7 +21,7 @@ class AuditService:
         object_id: Optional[uuid.UUID] = None,
         patient_id: Optional[uuid.UUID] = None,
         ip_address: Optional[str] = None,
-        metadata: Optional[Dict[str, Any]] = None,
+        metadata: Optional[dict[str, Any]] = None,
     ) -> AuditLog:
         log = AuditLog(
             actor_user_id=actor_user_id,

@@ -7,10 +7,10 @@ abstraction layer, inspired by kotaemon's generator-based streaming.
 import json
 import logging
 import time
-import uuid
+from collections.abc import AsyncIterator, Awaitable
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
-from typing import Any, AsyncIterator, Awaitable, Callable, List, Optional
+from typing import Any, Callable, Optional
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Request
@@ -32,7 +32,6 @@ from hospital_ai.services.chat_utils import (
     confidence_from_score,
     extract_citation_ids,
     meets_evidence_threshold,
-    MAX_HISTORY_MESSAGES,
 )
 from hospital_ai.services.embeddings import EmbeddingService
 from hospital_ai.services.llm import LLMManager
@@ -57,8 +56,8 @@ class StreamCompletion:
 
     validation_status: str  # "passed" | "failed"
     answer: str
-    cited_evidence: List[Any] = field(default_factory=list)
-    citations_payload: List[dict] = field(default_factory=list)
+    cited_evidence: list[Any] = field(default_factory=list)
+    citations_payload: list[dict] = field(default_factory=list)
     confidence: str = "low"
 
 
@@ -117,32 +116,38 @@ async def _generate_sse_events(
         # and every cited id must correspond to a retrieved chunk.
         if not citation_ids or not citation_ids.issubset(allowed_ids):
             logger.warning(
-                "Streaming answer rejected: citation_validation_failed query_id=%s "
-                "citation_ids=%s allowed_ids=%s",
-                query_id, sorted(citation_ids), sorted(allowed_ids),
+                "Streaming answer rejected: citation_validation_failed query_id=%s citation_ids=%s allowed_ids=%s",
+                query_id,
+                sorted(citation_ids),
+                sorted(allowed_ids),
             )
             refusal_event = json.dumps({"type": "token", "content": SAFE_NO_EVIDENCE_ANSWER})
             yield f"data: {refusal_event}\n\n"
-            done_event = json.dumps({
-                "type": "done",
-                "query_id": str(query_id),
-                "validation": "failed",
-                "reason": "invalid_citation",
-                "confidence": "low",
-            })
+            done_event = json.dumps(
+                {
+                    "type": "done",
+                    "query_id": str(query_id),
+                    "validation": "failed",
+                    "reason": "invalid_citation",
+                    "confidence": "low",
+                }
+            )
             yield f"data: {done_event}\n\n"
             if on_complete is not None:
                 try:
-                    await on_complete(StreamCompletion(
-                        validation_status="failed",
-                        answer=SAFE_NO_EVIDENCE_ANSWER,
-                        cited_evidence=[],
-                        citations_payload=[],
-                        confidence="low",
-                    ))
+                    await on_complete(
+                        StreamCompletion(
+                            validation_status="failed",
+                            answer=SAFE_NO_EVIDENCE_ANSWER,
+                            cited_evidence=[],
+                            citations_payload=[],
+                            confidence="low",
+                        )
+                    )
                 except Exception:
                     logger.exception(
-                        "Failed to persist failed-validation stream query_id=%s", query_id,
+                        "Failed to persist failed-validation stream query_id=%s",
+                        query_id,
                     )
             return
 
@@ -158,14 +163,16 @@ async def _generate_sse_events(
         cited_evidence = [item for item in evidence if item.evidence_id in citation_ids]
         citations = []
         for item in cited_evidence:
-            citations.append({
-                "evidence_id": item.evidence_id,
-                "document_id": str(item.document_id),
-                "document_title": item.document_title,
-                "page": item.page,
-                "score": item.score,
-                "content": item.content[:200],
-            })
+            citations.append(
+                {
+                    "evidence_id": item.evidence_id,
+                    "document_id": str(item.document_id),
+                    "document_title": item.document_title,
+                    "page": item.page,
+                    "score": item.score,
+                    "content": item.content[:200],
+                }
+            )
         citation_event = json.dumps({"type": "citations", "data": citations})
         yield f"data: {citation_event}\n\n"
 
@@ -175,54 +182,65 @@ async def _generate_sse_events(
         scoring_pool = cited_evidence or evidence
         avg_score = sum(e.score for e in scoring_pool) / len(scoring_pool) if scoring_pool else 0.0
         confidence = confidence_from_score(avg_score)
-        meta_event = json.dumps({
-            "type": "metadata",
-            "confidence": confidence,
-            "pipeline": pipeline_name,
-            "model": llm.model_name(),
-        })
+        meta_event = json.dumps(
+            {
+                "type": "metadata",
+                "confidence": confidence,
+                "pipeline": pipeline_name,
+                "model": llm.model_name(),
+            }
+        )
         yield f"data: {meta_event}\n\n"
 
         # Done
-        done_event = json.dumps({
-            "type": "done",
-            "query_id": str(query_id),
-            "validation": "passed",
-        })
+        done_event = json.dumps(
+            {
+                "type": "done",
+                "query_id": str(query_id),
+                "validation": "passed",
+            }
+        )
         yield f"data: {done_event}\n\n"
 
         # Persist after successful streaming so the answer survives a reload.
         if on_complete is not None:
             try:
-                await on_complete(StreamCompletion(
-                    validation_status="passed",
-                    answer=full_text,
-                    cited_evidence=cited_evidence,
-                    citations_payload=citations,
-                    confidence=confidence,
-                ))
+                await on_complete(
+                    StreamCompletion(
+                        validation_status="passed",
+                        answer=full_text,
+                        cited_evidence=cited_evidence,
+                        citations_payload=citations,
+                        confidence=confidence,
+                    )
+                )
             except Exception:
                 logger.exception(
-                    "Failed to persist completed stream query_id=%s", query_id,
+                    "Failed to persist completed stream query_id=%s",
+                    query_id,
                 )
 
     except AppError as exc:
         # Sanitized client-facing error (preserves AppError contract).
-        error_event = json.dumps({
-            "type": "error",
-            "code": exc.code,
-            "message": exc.message,
-        })
+        error_event = json.dumps(
+            {
+                "type": "error",
+                "code": exc.code,
+                "message": exc.message,
+            }
+        )
         yield f"data: {error_event}\n\n"
     except Exception:
         # F-SEC-004: Never leak internal exception strings to the client.
         # Log the full trace server-side, return a generic message.
         logger.exception("SSE chat stream failed unexpectedly query_id=%s", query_id)
-        error_event = json.dumps({
-            "type": "error",
-            "code": "INTERNAL_ERROR",
-            "message": "Stream failed due to an internal error.",
-        })
+        error_event = json.dumps(
+            {
+                "type": "error",
+                "code": "INTERNAL_ERROR",
+                "message": "Stream failed due to an internal error.",
+            }
+        )
         yield f"data: {error_event}\n\n"
 
 
@@ -260,9 +278,7 @@ async def _apply_stream_completion(
         return
 
     ai_query.answer = completion.answer
-    ai_query.status = (
-        "completed" if completion.validation_status == "passed" else "failed"
-    )
+    ai_query.status = "completed" if completion.validation_status == "passed" else "failed"
     ai_query.latency_ms = elapsed_ms(started)
 
     for index, item in enumerate(evidence, start=1):
@@ -409,6 +425,7 @@ async def chat_stream(
     conversation_history: list = []
     if payload.thread_id:
         from hospital_ai.services.chat import ChatService
+
         svc = ChatService(session, settings)
         conversation_history = await svc._get_conversation_history(payload.thread_id)
 
@@ -433,9 +450,7 @@ async def chat_stream(
             top_k=payload.top_k,
         )
 
-    if not evidence or not meets_evidence_threshold(
-        evidence[0], retrieval_mode, settings.evidence_threshold
-    ):
+    if not evidence or not meets_evidence_threshold(evidence[0], retrieval_mode, settings.evidence_threshold):
         ai_query.status = "no_evidence"
         ai_query.answer = SAFE_NO_EVIDENCE_ANSWER
         ai_query.latency_ms = elapsed_ms(started)
@@ -445,9 +460,7 @@ async def chat_stream(
         # reload.  Mirrors the parity contract above.
         if payload.thread_id is not None:
             scope = "patient-linked" if payload.patient_id is not None else "general"
-            permission_state = (
-                "allowed" if payload.patient_id is not None else "not-required"
-            )
+            permission_state = "allowed" if payload.patient_id is not None else "not-required"
             now = datetime.now(timezone.utc)
             session.add(
                 ChatMessage(

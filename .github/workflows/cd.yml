@@ -2,7 +2,7 @@ name: CD
 
 on:
   workflow_run:
-    workflows: ["Docker Build"]
+    workflows: ["CI"]
     types:
       - completed
     branches:
@@ -14,7 +14,7 @@ jobs:
     if: ${{ github.event.workflow_run.conclusion == 'success' }}
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v5
+        uses: actions/checkout@v4
 
       - name: Copy docker-compose configuration to Server
         uses: appleboy/scp-action@v0.1.7
@@ -33,17 +33,24 @@ jobs:
           key: ${{ secrets.DEPLOY_SSH_KEY }}
           script: |
             cd ~/apps/chatbot-hospital
+
             # Log in to GHCR on the target machine
             echo "${{ secrets.GHCR_PAT || secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
-            
-            # Pull new images
-            docker compose pull
-            
-            # Run migrations (Alembic) inside backend container before app startup (optional but recommended)
-            # docker compose run --entrypoint "alembic upgrade head" backend-service
-            
-            # Restart containers
+
+            # Export image prefix for docker-compose variable substitution
+            export IMAGE_PREFIX="${{ github.repository_owner }}/hospital-ai"
+
+            # Pull the pre-built backend image from GHCR
+            docker compose pull backend
+
+            # Start infrastructure services first (they must be healthy for migrations)
+            docker compose up -d --wait postgres redis
+
+            # Run database migrations
+            docker compose run --rm backend alembic upgrade head
+
+            # Bring up backend (and any remaining services)
             docker compose up -d --remove-orphans
-            
+
             # Clean up old images
             docker image prune -f

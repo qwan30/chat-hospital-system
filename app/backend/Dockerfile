@@ -1,4 +1,4 @@
-# ── Stage 1: Build dependencies ──────────────────────────────────────
+# -- Stage 1: Build dependencies --------------------------------------
 FROM python:3.11-slim AS builder
 
 WORKDIR /build
@@ -10,7 +10,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 COPY pyproject.toml .
 RUN pip install --no-cache-dir --prefix=/install ".[postgres]"
 
-# ── Stage 2: Production image ────────────────────────────────────────
+# -- Stage 2: Production image ----------------------------------------
 FROM python:3.11-slim
 
 WORKDIR /app

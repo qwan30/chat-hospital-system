@@ -1,7 +1,7 @@
 """add shared chat thread contract
 
 Revision ID: 0003_add_chat_threads
-Revises: 0002_add_document_index_generation
+Revises: 0002_add_doc_idx_gen
 Create Date: 2026-04-28
 """
 
@@ -10,7 +10,7 @@ import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
 
 revision = "0003_add_chat_threads"
-down_revision = "0002_add_document_index_generation"
+down_revision = "0002_add_doc_idx_gen"
 branch_labels = None
 depends_on = None
 

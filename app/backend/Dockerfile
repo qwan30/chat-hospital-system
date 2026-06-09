@@ -8,8 +8,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     rm -rf /var/lib/apt/lists/*
 
 COPY pyproject.toml .
-COPY src/ src/
-RUN pip install --no-cache-dir --prefix=/install '.[postgres]'
+RUN pip install --no-cache-dir --prefix=/install \
+    $(python -c "import tomllib; d=tomllib.load(open('pyproject.toml','rb')); print(' '.join(d['project']['dependencies']+d['project']['optional-dependencies']['postgres']))")
 
 # -- Stage 2: Production image ----------------------------------------
 FROM python:3.11-slim

@@ -8,7 +8,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     rm -rf /var/lib/apt/lists/*
 
 COPY pyproject.toml .
-RUN pip install --no-cache-dir --prefix=/install ".[postgres]"
+RUN pip install --no-cache-dir --prefix=/install '.[postgres]'
 
 # -- Stage 2: Production image ----------------------------------------
 FROM python:3.11-slim

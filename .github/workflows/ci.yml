@@ -223,7 +223,7 @@ jobs:
   # ===================================================================
 
   ci-summary:
-    needs: [docker-build-push, infra-validate]
+    needs: [backend-lint, backend-test, backend-security, infra-migration-check, docker-build-push, infra-validate]
     if: always()
     runs-on: ubuntu-latest
     steps:

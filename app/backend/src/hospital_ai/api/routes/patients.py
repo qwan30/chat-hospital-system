@@ -1,14 +1,17 @@
+import logging
 import uuid
 from datetime import date, datetime, timezone
 from typing import Optional
 
 from fastapi import APIRouter, Depends, Query, Request
+
+logger = logging.getLogger(__name__)
 from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from hospital_ai.api.deps import get_current_user, get_request_ip, get_session
 from hospital_ai.core.config import Settings, get_settings
-from hospital_ai.core.security import PATIENT_READ_SCOPES, new_trace_id
+from hospital_ai.core.security import PATIENT_READ_SCOPES, new_trace_id, sanitize_audit_query
 from hospital_ai.db.models import Document, DocumentChunk, DocumentPage, Patient, User
 from hospital_ai.schemas.patients import (
     PatientOverviewResponse,
@@ -54,7 +57,7 @@ async def search_patients(
         outcome="allowed",
         trace_id=new_trace_id(),
         ip_address=get_request_ip(request),
-        metadata={"q": q, "result_count": len(patients)},
+        metadata={**sanitize_audit_query(q), "result_count": len(patients)},
     )
     await session.commit()
     return PatientSearchResponse(items=patients)
@@ -138,7 +141,7 @@ async def get_patient_overview(
                     try:
                         dob = date.fromisoformat(dob_str[:10])
                     except ValueError:
-                        pass
+                        logger.warning("Invalid DOB format in HMS snapshot: %s", dob_str, exc_info=True)
                 gender = snapshot.get("gender", "Unknown")
                 cccd = snapshot.get("cccd", "0123456789")
                 blood_type = snapshot.get("blood_type", "O+")
@@ -148,7 +151,7 @@ async def get_patient_overview(
                 medication_count = len(snapshot.get("currentMedications", []))
                 lab_count = len(snapshot.get("recentLabs", []))
         except Exception:
-            pass
+            logger.warning("HMS patient snapshot fetch failed for %s", patient_id, exc_info=True)
 
     # Fallback to local cached documents if live fetch fails or returns empty
     if allergy_count == 0:
@@ -300,7 +303,7 @@ async def get_patient_timeline(
                     try:
                         timestamp = datetime.fromisoformat(ts_str.replace("Z", "+00:00"))
                     except ValueError:
-                        pass
+                        logger.warning("Invalid timestamp in HMS timeline: %s", ts_str, exc_info=True)
 
                 if event_id and title:
                     events.append({
@@ -311,7 +314,7 @@ async def get_patient_timeline(
                         "timestamp": timestamp or datetime.now(timezone.utc)
                     })
         except Exception:
-            pass
+            logger.warning("HMS timeline fetch failed for %s", patient_id, exc_info=True)
 
     # Fallback to local cached documents as timeline events if none exist or live fails
     if not events:

@@ -50,6 +50,7 @@ async def test_access_request_flow(session_and_settings):
         request=_request(path="/api/v1/access-requests"),
         session=session,
         current_user=doctor,
+        settings=settings,
     )
 
     assert "granted" in res.message.lower()

@@ -1,14 +1,21 @@
+import logging
 from datetime import datetime, timezone, timedelta
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from hospital_ai.api.deps import get_current_user, get_request_ip, get_session
+from hospital_ai.api.limiter import limiter
+from hospital_ai.core.config import Settings, get_settings
+from hospital_ai.core.errors import ExternalServiceError
 from hospital_ai.core.security import new_trace_id
 from hospital_ai.db.models import User, PatientPermission
 from hospital_ai.services.audit import AuditService
+from hospital_ai.services.hms_connector import HmsApiClient
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -25,14 +32,36 @@ class AccessRequestResponse(BaseModel):
 
 
 @router.post("", response_model=AccessRequestResponse)
+@limiter.limit("3/minute")
 async def create_access_request(
     payload: AccessRequestCreate,
     request: Request,
     session: AsyncSession = Depends(get_session),
     current_user: User = Depends(get_current_user),
+    settings: Settings = Depends(get_settings),
 ) -> AccessRequestResponse:
     trace_id = new_trace_id()
-    
+
+    # P1-2: When HMS sync is enabled, route the access request through
+    # the HMS for audit and approval BEFORE granting local permission.
+    if settings.hms_sync_enabled:
+        hms_client = HmsApiClient(settings)
+        try:
+            await hms_client.request_patient_access(
+                str(payload.patient_id),
+                str(current_user.id),
+                payload.justification,
+            )
+        except ExternalServiceError as exc:
+            logger.warning(
+                "HMS access request denied for user=%s patient=%s: %s",
+                current_user.id, payload.patient_id, exc.message,
+            )
+            raise HTTPException(
+                status_code=502,
+                detail="HMS access request could not be processed. Try again later.",
+            )
+
     expires_at = datetime.now(timezone.utc) + timedelta(hours=1)
     
     permission = PatientPermission(

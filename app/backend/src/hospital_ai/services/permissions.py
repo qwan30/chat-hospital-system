@@ -1,9 +1,12 @@
+import logging
 import uuid
 from datetime import datetime, timezone
 from typing import Any, Iterable, Optional, Set
 
 from sqlalchemy import exists, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
+
+logger = logging.getLogger(__name__)
 
 from hospital_ai.core.errors import PermissionDeniedError
 from hospital_ai.core.security import PATIENT_READ_SCOPES, PATIENT_UPLOAD_SCOPES
@@ -78,7 +81,10 @@ class PermissionService:
                 if hms_perms.get("has_access") or hms_perms.get("hasAccess"):
                     return True
             except Exception:
-                pass
+                logger.warning(
+                    "HMS permission check failed for user=%s patient=%s",
+                    user_id, patient_id, exc_info=True,
+                )
 
         stmt = select(
             active_patient_permission_exists(

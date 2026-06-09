@@ -15,8 +15,10 @@ dependencies = [
   "pydantic>=1.10.0,<2.0.0",
   "python-dotenv>=1.0.0",
   "python-multipart>=0.0.9",
+  "PyJWT>=2.8.0",
   "redis>=5.0.0",
   "rq>=1.16.0",
+  "slowapi>=0.1.9",
   "sqlalchemy[asyncio]>=2.0.30",
   "uvicorn>=0.30.0"
 ]
@@ -42,6 +44,9 @@ tables = [
 ]
 reranker = [
   "sentence-transformers>=2.2.0"
+]
+jwt-rs256 = [
+  "cryptography>=41.0.0"
 ]
 cohere = [
   "cohere>=5.0.0"

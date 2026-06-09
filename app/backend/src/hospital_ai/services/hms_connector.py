@@ -50,9 +50,53 @@ class HmsApiClient:
             return data["data"]
         return data
 
+    async def _post(
+        self, path: str, *, jwt_token: Optional[str] = None,
+        json: Optional[Dict[str, Any]] = None,
+    ) -> Any:
+        url = f"{self.base_url}{path}"
+        try:
+            async with httpx.AsyncClient(timeout=self.timeout) as client:
+                response = await client.post(
+                    url, headers=self._headers(jwt_token), json=json,
+                )
+                response.raise_for_status()
+        except httpx.HTTPStatusError as exc:
+            logger.warning(
+                "HMS API error: %s %s -> %s",
+                exc.request.method, exc.request.url, exc.response.status_code,
+            )
+            raise ExternalServiceError(
+                f"HMS API returned {exc.response.status_code}"
+            ) from exc
+        except httpx.HTTPError as exc:
+            logger.error("HMS API connection error: %s", exc)
+            raise ExternalServiceError("HMS API is unreachable.") from exc
+
+        data = response.json()
+        if isinstance(data, dict) and "data" in data:
+            return data["data"]
+        return data
+
+    def _validate_patient_id(self, patient_id: str) -> None:
+        """Validate patient_id is a UUID before using in URL paths.
+
+        Raises ExternalServiceError for non-UUID strings to prevent
+        path-traversal or injection via the HMS URL path.
+        """
+        import uuid as _uuid
+
+        try:
+            _uuid.UUID(patient_id)
+        except (ValueError, AttributeError):
+            raise ExternalServiceError(
+                f"Invalid patient_id format: {patient_id!r}"
+            )
+
     # ── Patient integration endpoints ──────────────────────────────
 
     async def get_patient(self, patient_id: str, *, jwt_token: Optional[str] = None) -> Dict[str, Any]:
+        self._validate_patient_id(patient_id)
         # Keeps legacy compatibility mapping but routes to snapshot
         return await self.get_patient_snapshot(patient_id, jwt_token=jwt_token)
 
@@ -61,14 +105,36 @@ class HmsApiClient:
         return result if isinstance(result, list) else []
 
     async def get_patient_snapshot(self, patient_id: str, *, jwt_token: Optional[str] = None) -> Dict[str, Any]:
+        self._validate_patient_id(patient_id)
         return await self._get(f"/ai/patients/{patient_id}/snapshot", jwt_token=jwt_token)
 
     async def get_patient_timeline(self, patient_id: str, *, jwt_token: Optional[str] = None) -> List[Dict[str, Any]]:
+        self._validate_patient_id(patient_id)
         result = await self._get(f"/ai/patients/{patient_id}/timeline", jwt_token=jwt_token)
         return result if isinstance(result, list) else []
 
     async def check_clinician_permissions(self, patient_id: str, user_id: str, *, jwt_token: Optional[str] = None) -> Dict[str, Any]:
+        self._validate_patient_id(patient_id)
         return await self._get(f"/ai/patients/{patient_id}/permissions", jwt_token=jwt_token, params={"userId": user_id})
+
+    async def request_patient_access(
+        self, patient_id: str, clinician_user_id: str, justification: str, *,
+        jwt_token: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """POST an access request to the HMS for audit and approval.
+
+        Raises ExternalServiceError if the HMS is unreachable or returns
+        a non-2xx status.
+        """
+        self._validate_patient_id(patient_id)
+        return await self._post(
+            f"/ai/patients/{patient_id}/access-requests",
+            jwt_token=jwt_token,
+            json={
+                "userId": clinician_user_id,
+                "justification": justification,
+            },
+        )
 
     async def get_incremental_changes(self, since: Optional[str] = None, *, jwt_token: Optional[str] = None) -> Dict[str, Any]:
         params = {"since": since} if since else {}

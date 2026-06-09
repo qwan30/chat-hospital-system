@@ -3,7 +3,10 @@ from typing import Optional
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from slowapi import _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
 
+from hospital_ai.api.limiter import limiter
 from hospital_ai.api.router import api_router
 from hospital_ai.core.config import Settings, get_settings
 from hospital_ai.core.errors import AppError
@@ -19,6 +22,9 @@ def create_app(settings: Optional[Settings] = None) -> FastAPI:
         version="0.1.0",
         default_response_class=JSONResponse,
     )
+    app.state.limiter = limiter
+    app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
     if active_settings.cors_origin_list:
         app.add_middleware(
             CORSMiddleware,

@@ -3,9 +3,13 @@ from fastapi import APIRouter, Depends, Request
 from sqlalchemy import case, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+import logging
+
 from hospital_ai.api.deps import get_current_user, get_request_ip, get_session
 from hospital_ai.core.config import Settings, get_settings
 from hospital_ai.core.security import PATIENT_READ_SCOPES, new_trace_id
+
+logger = logging.getLogger(__name__)
 from hospital_ai.db.models import AuditLog, Document, Patient, User
 from hospital_ai.schemas.dashboard import DashboardSummaryResponse
 from hospital_ai.services.audit import AuditService
@@ -101,7 +105,7 @@ async def get_dashboard_summary(
             res = await client.get(settings.ollama_base_url.rstrip("/"))
             ollama_healthy = res.status_code in (200, 404)
     except Exception:
-        pass
+        logger.warning("Ollama health check failed", exc_info=True)
     ollama_inference = "healthy" if ollama_healthy else "unreachable"
 
     systems_health = {

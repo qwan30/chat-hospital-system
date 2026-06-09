@@ -72,6 +72,16 @@ class Settings(BaseSettings):
     hms_sync_enabled: bool = False
     hms_sync_timeout_seconds: int = 30
 
+    # JWT / OIDC authentication (see docs/04-architecture/security-architecture.md)
+    # When jwt_issuer is empty, JWT validation is skipped and static tokens are used.
+    # For HS256: set jwt_hmac_secret and jwt_algorithm="HS256"
+    # For RS256: set jwks_url and install optional jwt-rs256 extras (cryptography)
+    jwt_issuer: str = ""
+    jwt_audience: str = ""
+    jwks_url: str = ""
+    jwt_hmac_secret: str = ""
+    jwt_algorithm: str = "RS256"
+
     @validator("api_v1_prefix")
     def normalize_api_prefix(cls, value: str) -> str:
         if not value.startswith("/"):

@@ -4,7 +4,8 @@ from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from hospital_ai.api.deps import get_current_user, get_request_ip, get_session
-from hospital_ai.core.security import PATIENT_READ_SCOPES, new_trace_id
+from hospital_ai.api.limiter import limiter
+from hospital_ai.core.security import PATIENT_READ_SCOPES, new_trace_id, sanitize_audit_query
 from hospital_ai.db.models import ChatThread, ChatThreadParticipant, Document, Patient, User
 from hospital_ai.schemas.search import GlobalSearchResponse
 from hospital_ai.services.audit import AuditService
@@ -14,6 +15,7 @@ router = APIRouter()
 
 
 @router.get("/global", response_model=GlobalSearchResponse)
+@limiter.limit("20/minute")
 async def global_search(
     request: Request,
     q: Optional[str] = Query(default=None),
@@ -95,7 +97,7 @@ async def global_search(
         trace_id=trace_id,
         ip_address=get_request_ip(request),
         metadata={
-            "q": q_clean,
+            **sanitize_audit_query(q_clean),
             "patient_matches": len(patients),
             "document_matches": len(documents),
             "thread_matches": len(threads),

@@ -1,3 +1,4 @@
+import logging
 from typing import AsyncIterator
 
 from fastapi import Depends, HTTPException, Request, status
@@ -8,6 +9,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from hospital_ai.core.config import Settings, get_settings
 from hospital_ai.db.models import User
 from hospital_ai.db.session import get_session
+from hospital_ai.services.jwt_auth import JwtAuthService
+
+logger = logging.getLogger(__name__)
 
 bearer_scheme = HTTPBearer(auto_error=False)
 
@@ -29,6 +33,23 @@ async def get_current_user(
     if credentials is None or credentials.scheme.lower() != "bearer":
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Missing bearer token.")
 
+    # P1-3: Try JWT validation first when configured.
+    # Falls back to static token map if JWT is not configured or fails.
+    jwt_service = JwtAuthService(settings)
+    jwt_data = await jwt_service.validate_token(credentials.credentials)
+    if jwt_data is not None:
+        result = await session.execute(
+            select(User).where(User.email == jwt_data.email, User.is_active.is_(True))
+        )
+        user = result.scalar_one_or_none()
+        if user is not None:
+            return user
+        logger.warning(
+            "JWT-validated user %s not found in local DB — falling back to static token",
+            jwt_data.email,
+        )
+
+    # Static token fallback (local dev and legacy clients)
     email = settings.token_user_map.get(credentials.credentials)
     if email is None:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Unknown bearer token.")

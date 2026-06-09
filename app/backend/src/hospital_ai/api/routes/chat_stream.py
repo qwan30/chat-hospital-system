@@ -18,6 +18,7 @@ from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from hospital_ai.api.deps import get_current_user, get_request_ip, get_session
+from hospital_ai.api.limiter import limiter
 from hospital_ai.core.config import Settings, get_settings
 from hospital_ai.core.errors import AppError
 from hospital_ai.core.security import PATIENT_READ_SCOPES, new_trace_id
@@ -351,6 +352,7 @@ async def _persist_stream_completion(
 
 
 @router.post("/stream")
+@limiter.limit("5/minute")
 async def chat_stream(
     payload: ChatRequest,
     request: Request,

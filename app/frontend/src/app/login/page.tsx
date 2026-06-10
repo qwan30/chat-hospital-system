@@ -9,6 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Label } from "@/components/ui/label";
 import { Shield, Mail, Lock, Eye, EyeOff } from "lucide-react";
 
+
 export default function LoginPage() {
   const { login, isAuthenticated, isLoading: authLoading } = useAuth();
   const router = useRouter();
@@ -36,9 +37,19 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen flex bg-bg-app">
+    <div className="min-h-screen flex bg-bg-app relative">
+      {/* Background Image — left marketing pane only */}
+      <div
+        className="absolute inset-y-0 left-0 z-0 w-[45%] hidden lg:block"
+        style={{
+          backgroundImage: 'url(/images/login-bg.png)',
+          backgroundSize: 'cover',
+          backgroundPosition: 'center',
+        }}
+      />
+
       {/* Marketing Pane */}
-      <div className="hidden lg:flex w-[45%] flex-col justify-center px-16 bg-gradient-to-br from-primary-600 to-primary-800 text-white">
+      <div className="relative z-10 hidden lg:flex w-[45%] flex-col justify-center px-16 text-white">
         <div className="mb-8">
           <div className="flex items-center justify-center w-12 h-12 rounded-xl bg-white/20 text-white font-bold text-xl mb-6">H</div>
           <h1 className="text-display mb-3">AI-Powered Hospital Knowledge Assistant</h1>
@@ -59,8 +70,17 @@ export default function LoginPage() {
         </div>
       </div>
 
-      {/* Form Pane */}
-      <div className="flex-1 flex items-center justify-center px-8">
+      {/* Form Pane with background */}
+      <div
+        className="relative z-10 flex-1 flex items-center justify-center px-8"
+        style={{
+          backgroundImage: 'url(/images/login-right-bg.png)',
+          backgroundSize: 'cover',
+          backgroundPosition: 'center',
+        }}
+      >
+        <div className="absolute inset-0 bg-white/70 backdrop-blur-sm" />
+        <div className="relative z-10 w-full max-w-[440px]">
         <Card className="w-full max-w-[440px] shadow-card">
           <CardHeader className="text-center pb-2">
             <CardTitle className="text-h2 text-text-strong">Welcome back</CardTitle>
@@ -113,6 +133,7 @@ export default function LoginPage() {
             </div>
           </CardContent>
         </Card>
+        </div>
       </div>
     </div>
   );

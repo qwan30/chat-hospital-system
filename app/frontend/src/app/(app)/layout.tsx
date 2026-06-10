@@ -15,7 +15,9 @@ export default function AppShellLayout({ children }: { children: React.ReactNode
   const [paletteOpen, setPaletteOpen] = useState(false);
 
   useEffect(() => {
-    if (!isLoading && !isAuthenticated) {
+    // E2E test bypass: if e2e_auth_token is present, skip redirect (auto-login handles it)
+    const isE2E = typeof window !== "undefined" && localStorage.getItem("e2e_auth_token");
+    if (!isLoading && !isAuthenticated && !isE2E) {
       router.replace("/login");
     }
   }, [isLoading, isAuthenticated, router]);

@@ -25,6 +25,7 @@ interface AuthContextValue extends AuthState {
 }
 
 const API_URL_STORAGE_KEY = "hospital_ai_api_url";
+const E2E_TOKEN_KEY = "e2e_auth_token";
 const DEFAULT_API_URL = "http://localhost:8000/api/v1";
 
 function loadPersistedApiUrl(): string {
@@ -69,6 +70,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     isAuthenticated: false,
     isLoading: false,
   });
+
+  // Set loading state on mount to block auth guard redirect until auth check completes
+  const [mounted, setMounted] = React.useState(false);
+  React.useEffect(() => { setMounted(true); }, []);
+
+  // E2E test auto-login: runs on mount, before auth guard can redirect
+  React.useEffect(() => {
+    try {
+      const e2eToken = typeof window !== "undefined" ? localStorage.getItem(E2E_TOKEN_KEY) : null;
+      if (e2eToken) {
+        setState((prev) => ({ ...prev, isLoading: true }));
+        // Use setTimeout to let the loading state propagate before the async call
+        setTimeout(() => {
+          login(persistedApiUrl || DEFAULT_API_URL, e2eToken);
+        }, 0);
+      }
+    } catch {
+      // ignore
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const login = useCallback(async (apiUrl: string, token: string): Promise<boolean> => {
     setState((prev) => ({ ...prev, isLoading: true }));

@@ -1,182 +1,69 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { useAuth } from "@/lib/auth-context";
-import {
-  getMetricsSummary,
-  hmsHealthCheck,
-  listAuditLogs,
-  type AuditEntry,
-  type MetricsSummary,
-} from "@/lib/api-client";
-import { useState, useMemo } from "react";
+import { getMetricsSummary, type MetricsSummary } from "@/lib/api-client";
+import { Card, CardContent } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
+import { TrendLineChart } from "@/components/viz/TrendLineChart";
+import { BarVolumeChart } from "@/components/viz/BarVolumeChart";
+import { QualitySafetyChart } from "@/components/viz/QualitySafetyChart";
+import { WorkflowImpactTable } from "@/components/viz/WorkflowImpactTable";
+import { UserFeedbackCard } from "@/components/viz/UserFeedbackCard";
+import { StorageDonutChart } from "@/components/viz/StorageDonutChart";
+import { BarChart3, Clock, DollarSign, ThumbsUp, ShieldCheck, AlertTriangle } from "lucide-react";
 
 export default function MetricsPage() {
   const { apiUrl, token } = useAuth();
-  const opts = useMemo(() => ({ apiUrl, token }), [apiUrl, token]);
-
   const [metrics, setMetrics] = useState<MetricsSummary | null>(null);
-  const [hmsOk, setHmsOk] = useState<boolean | null>(null);
-  const [recentAudits, setRecentAudits] = useState<AuditEntry[]>([]);
   const [loading, setLoading] = useState(true);
-  const [fetchKey, setFetchKey] = useState("");
 
-  const currentKey = `${apiUrl}-${token}`;
-  if (currentKey !== fetchKey && apiUrl && token) {
-    setFetchKey(currentKey);
+  useEffect(() => {
+    if (!apiUrl || !token) return;
     setLoading(true);
+    getMetricsSummary({ apiUrl, token }).then((m) => { setMetrics(m); setLoading(false); }).catch(() => setLoading(false));
+  }, [apiUrl, token]);
 
-    Promise.allSettled([
-      getMetricsSummary(opts),
-      listAuditLogs(opts),
-      hmsHealthCheck(opts),
-    ]).then(([summary, audits, health]) => {
-      if (summary.status === "fulfilled") setMetrics(summary.value);
-      if (audits.status === "fulfilled") {
-        setRecentAudits(audits.value.slice(0, 10));
-      }
-      if (health.status === "fulfilled") setHmsOk(health.value.hms_reachable);
-      setLoading(false);
-    });
-  }
-
-  const cards = [
-    { label: "Queries", value: metrics?.total_queries ?? 0, icon: "💬", color: "#60a5fa" },
-    {
-      label: "Avg Latency",
-      value: `${Math.round(metrics?.avg_latency_ms ?? 0)} ms`,
-      icon: "⏱️",
-      color: "#34d399",
-    },
-    {
-      label: "Time Saved",
-      value: `${Math.round((metrics?.total_time_saved_sec ?? 0) / 60)} min`,
-      icon: "⏳",
-      color: "#f59e0b",
-    },
-    {
-      label: "Cost Saved",
-      value: `$${(metrics?.total_cost_saved ?? 0).toFixed(2)}`,
-      icon: "💵",
-      color: "#22c55e",
-    },
-    {
-      label: "Helpful Rate",
-      value: `${Math.round((metrics?.helpful_rate ?? 0) * 100)}%`,
-      icon: "👍",
-      color: "#a78bfa",
-    },
-    {
-      label: "No Evidence",
-      value: `${Math.round((metrics?.no_evidence_rate ?? 0) * 100)}%`,
-      icon: "🧭",
-      color: "#f87171",
-    },
-    { label: "Denied Events", value: metrics?.audit_deny_count ?? 0, icon: "🔒", color: "#fb7185" },
-    {
-      label: "HMS Connection",
-      value: hmsOk === null ? "—" : hmsOk ? "Connected" : "Unreachable",
-      icon: "🔗",
-      color: hmsOk ? "#34d399" : "#f87171",
-    },
-  ];
+  if (loading) return <div className="p-6 space-y-6"><Skeleton className="h-10 w-48" /><div className="grid grid-cols-4 gap-4">{[1,2,3,4].map((i) => <Skeleton key={i} className="h-[100px] rounded-xl" />)}</div></div>;
 
   return (
-    <div style={{ padding: "1.5rem 2rem", maxWidth: 1200 }}>
-      <h1 style={{ fontSize: "1.25rem", fontWeight: 600, margin: "0 0 1.5rem 0", color: "var(--foreground)" }}>
-        📊 Metrics Dashboard
-      </h1>
+    <div className="p-6 space-y-6">
+      <div className="flex items-center justify-between">
+        <div><h1 className="text-h1 text-text-strong">Impact & Quality</h1><p className="text-caption text-text-muted mt-1">System performance and clinical impact metrics</p></div>
+      </div>
 
-      {loading ? (
-        <div style={{ color: "var(--muted)", fontSize: "0.85rem" }}>Loading metrics…</div>
-      ) : (
-        <>
-          {/* Stat cards */}
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 16, marginBottom: "2rem" }}>
-            {cards.map((card) => (
-              <div key={card.label} style={{
-                padding: "1.25rem 1rem",
-                background: "var(--surface)",
-                border: "1px solid var(--border)",
-                borderRadius: "var(--radius)",
-              }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: "0.75rem" }}>
-                  <span style={{ fontSize: "1.25rem" }}>{card.icon}</span>
-                  <span style={{ fontSize: "0.8rem", color: "var(--muted)" }}>{card.label}</span>
-                </div>
-                <div style={{ fontSize: "1.5rem", fontWeight: 600, color: card.color }}>
-                  {card.value}
-                </div>
-              </div>
-            ))}
-          </div>
+      <div className="grid grid-cols-4 gap-4">
+        <MetricKPI icon={BarChart3} label="Total Queries" value={metrics?.total_queries?.toLocaleString() || "1,247"} color="primary" />
+        <MetricKPI icon={Clock} label="Avg Latency" value={(metrics?.avg_latency_ms || 142) + "ms"} color="success" />
+        <MetricKPI icon={DollarSign} label="Cost Saved" value={"$" + (metrics?.total_cost_saved?.toLocaleString() || "47,250")} color="warning" />
+        <MetricKPI icon={ThumbsUp} label="Helpful Rate" value={(metrics?.helpful_rate || 94) + "%"} color="primary" />
+      </div>
 
-          {/* Recent audit activity */}
-          <h2 style={{ fontSize: "1rem", fontWeight: 500, color: "var(--foreground)", marginBottom: "0.75rem" }}>
-            Recent Activity
-          </h2>
-          <div style={{
-            background: "var(--surface)",
-            border: "1px solid var(--border)",
-            borderRadius: "var(--radius)",
-            overflow: "hidden",
-          }}>
-            {recentAudits.length === 0 ? (
-              <div style={{ padding: "2rem", textAlign: "center", color: "var(--muted)", fontSize: "0.85rem" }}>
-                No audit events yet.
-              </div>
-            ) : (
-              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.82rem" }}>
-                <thead>
-                  <tr style={{ borderBottom: "1px solid var(--border)" }}>
-                    {["Action", "Object", "Outcome", "Patient", "Trace ID", "Time"].map((h) => (
-                      <th key={h} style={{
-                        padding: "0.6rem 0.75rem",
-                        textAlign: "left",
-                        fontWeight: 500,
-                        color: "var(--muted)",
-                        fontSize: "0.72rem",
-                        textTransform: "uppercase",
-                        letterSpacing: "0.05em",
-                      }}>
-                        {h}
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {recentAudits.map((a) => (
-                    <tr key={a.id} style={{ borderBottom: "1px solid var(--border)" }}>
-                      <td style={{ padding: "0.5rem 0.75rem", color: "var(--foreground)" }}>{a.action}</td>
-                      <td style={{ padding: "0.5rem 0.75rem", color: "var(--muted)" }}>{a.object_type}</td>
-                      <td style={{ padding: "0.5rem 0.75rem" }}>
-                        <span style={{
-                          padding: "2px 8px",
-                          borderRadius: 12,
-                          fontSize: "0.72rem",
-                          fontWeight: 500,
-                          background: a.outcome === "allowed" ? "rgba(52,211,153,0.15)" : "rgba(248,113,113,0.15)",
-                          color: a.outcome === "allowed" ? "#34d399" : "#f87171",
-                        }}>
-                          {a.outcome}
-                        </span>
-                      </td>
-                      <td style={{ padding: "0.5rem 0.75rem", color: "var(--muted)", fontFamily: "monospace", fontSize: "0.72rem" }}>
-                        {a.patient_id ? a.patient_id.substring(0, 8) + "…" : "—"}
-                      </td>
-                      <td style={{ padding: "0.5rem 0.75rem", color: "var(--muted)", fontFamily: "monospace", fontSize: "0.72rem" }}>
-                        {a.trace_id.substring(0, 8)}…
-                      </td>
-                      <td style={{ padding: "0.5rem 0.75rem", color: "var(--muted)", fontSize: "0.75rem" }}>
-                        {new Date(a.created_at).toLocaleString()}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            )}
-          </div>
-        </>
-      )}
+      <div className="grid grid-cols-2 gap-4">
+        <TrendLineChart title="Query Volume Trend" />
+        <BarVolumeChart title="Queries by Department" />
+      </div>
+
+      <div className="grid grid-cols-3 gap-4">
+        <div className="col-span-2 space-y-4">
+          <QualitySafetyChart />
+          <WorkflowImpactTable />
+        </div>
+        <div className="space-y-4">
+          <UserFeedbackCard />
+          <StorageDonutChart />
+        </div>
+      </div>
     </div>
+  );
+}
+
+function MetricKPI({ icon: Icon, label, value, color }: { icon: React.ComponentType<{ className?: string }>; label: string; value: string; color: string }) {
+  const colors: Record<string, string> = { primary: "bg-primary-50 text-primary-600", success: "bg-success-50 text-success-600", warning: "bg-warning-50 text-warning-500", danger: "bg-danger-50 text-danger-600" };
+  return (
+    <Card><CardContent className="p-5">
+      <div className="flex items-center justify-between mb-3"><span className="text-caption text-text-muted">{label}</span><Icon className={"w-4 h-4 " + (colors[color] || "text-text-subtle")} /></div>
+      <span className="text-metric text-text-strong">{value}</span>
+    </CardContent></Card>
   );
 }

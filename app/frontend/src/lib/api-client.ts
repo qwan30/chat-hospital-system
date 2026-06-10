@@ -1,13 +1,14 @@
 /**
  * Centralized API client with auth header injection.
+ * All frontend data access goes through this module — never call fetch() directly.
  */
 
-interface ApiClientOptions {
+export interface ApiClientOptions {
   apiUrl: string;
   token: string;
 }
 
-class ApiError extends Error {
+export class ApiError extends Error {
   status: number;
   code: string;
 
@@ -19,7 +20,7 @@ class ApiError extends Error {
   }
 }
 
-async function apiFetch<T>(
+export async function apiFetch<T>(
   path: string,
   options: ApiClientOptions & RequestInit
 ): Promise<T> {
@@ -55,41 +56,43 @@ async function apiFetch<T>(
   return response.json();
 }
 
-// ── Chat API ──────────────────────────────────────────────────────
+// ── Typed API Contracts ───────────────────────────────────────────
 
-export interface ChatRequest {
-  question: string;
-  patient_id?: string;
-  thread_id?: string;
+export interface ListEnvelope<T> {
+  items: T[];
+  total?: number;
 }
 
-export interface ChatEvidence {
-  evidence_id: string;
-  document_id: string;
-  document_title: string;
-  page: number;
-  chunk_id: string;
-  score: number;
-  content?: string;
-  metadata: Record<string, unknown>;
+export interface Patient {
+  id: string;
+  mrn: string;
+  full_name: string;
+  dob?: string;
+  gender?: string;
+  department?: string;
+  status?: string;
 }
 
-export interface ChatResponse {
-  answer: string;
-  citations: ChatEvidence[];
-  confidence: string;
-  disclaimer: string;
-  thread_id?: string;
-  pipeline?: string;
+export interface PatientOverview {
+  patient_id: string;
+  full_name: string;
+  mrn: string;
+  dob?: string;
+  gender?: string;
+  blood_type?: string;
+  department?: string;
+  attending_physician?: string;
+  admission_status?: string;
+  admitted_date?: string;
+  room?: string;
+  allergy_count: number;
+  medication_count: number;
+  lab_count: number;
+  ai_summary?: string;
+  last_updated?: string;
 }
 
-export function sendChat(opts: ApiClientOptions, body: ChatRequest): Promise<ChatResponse> {
-  return apiFetch<ChatResponse>("/chat", { ...opts, method: "POST", body: JSON.stringify(body) });
-}
-
-// ── Thread API ────────────────────────────────────────────────────
-
-export interface Thread {
+export interface ChatThread {
   id: string;
   title: string;
   patient_id?: string;
@@ -98,127 +101,38 @@ export interface Thread {
   message_count?: number;
 }
 
-export interface ThreadMessage {
+export interface ChatMessage {
   id: string;
   thread_id: string;
-  role: string;
+  role: "user" | "assistant";
   content: string;
-  evidence?: ChatEvidence[];
+  citations?: Citation[];
+  confidence?: string;
   created_at: string;
 }
 
-export function listThreads(opts: ApiClientOptions): Promise<Thread[]> {
-  return apiFetch<Thread[]>("/chat-threads", { ...opts, method: "GET" });
+export interface Citation {
+  evidence_id: string;
+  document_id: string;
+  document_title: string;
+  page: number;
+  chunk_id: string;
+  score: number;
+  content?: string;
 }
-
-export function getThread(opts: ApiClientOptions, threadId: string): Promise<Thread> {
-  return apiFetch<Thread>(`/chat-threads/${threadId}`, { ...opts, method: "GET" });
-}
-
-export function createThread(
-  opts: ApiClientOptions,
-  body: { title: string; patient_id?: string }
-): Promise<Thread> {
-  return apiFetch<Thread>("/chat-threads", { ...opts, method: "POST", body: JSON.stringify(body) });
-}
-
-export function getThreadMessages(opts: ApiClientOptions, threadId: string): Promise<ThreadMessage[]> {
-  return apiFetch<ThreadMessage[]>(`/chat-threads/${threadId}/messages`, { ...opts, method: "GET" });
-}
-
-// ── Patient API ───────────────────────────────────────────────────
-
-export interface Patient {
-  id: string;
-  mrn: string;
-  full_name: string;
-  dob: string;
-  department: string;
-}
-
-interface ListEnvelope<T> {
-  items: T[];
-}
-
-export function listPatients(opts: ApiClientOptions): Promise<Patient[]> {
-  return apiFetch<ListEnvelope<Patient>>("/patients/search", { ...opts, method: "GET" }).then(
-    (data) => data.items
-  );
-}
-
-// ── Document API ──────────────────────────────────────────────────
 
 export interface DocumentItem {
   id: string;
-  patient_id: string;
-  uploaded_by: string;
+  patient_id?: string;
   title: string;
   document_type: string;
-  storage_uri: string;
-  mime_type: string;
   status: string;
+  ocr_confidence?: number;
   page_count?: number;
-  ocr_error?: string;
   created_at: string;
 }
 
-export function listDocuments(opts: ApiClientOptions, patientId?: string): Promise<DocumentItem[]> {
-  const params = patientId ? `?patient_id=${patientId}` : "";
-  return apiFetch<ListEnvelope<DocumentItem>>(`/documents${params}`, { ...opts, method: "GET" }).then(
-    (data) => data.items
-  );
-}
-
-export function getDocument(opts: ApiClientOptions, documentId: string): Promise<DocumentItem> {
-  return apiFetch<DocumentItem>(`/documents/${documentId}`, { ...opts, method: "GET" });
-}
-
-export function uploadDocument(
-  opts: ApiClientOptions,
-  body: { patient_id: string; file: File; title: string; document_type?: string }
-): Promise<DocumentItem> {
-  const { apiUrl, token } = opts;
-  const url = `${apiUrl.replace(/\/+$/, "")}/documents`;
-
-  const formData = new FormData();
-  formData.append("patient_id", body.patient_id);
-  formData.append("title", body.title);
-  formData.append("document_type", body.document_type || "clinical_note");
-  formData.append("file", body.file);
-
-  return fetch(url, {
-    method: "POST",
-    headers: { Authorization: `Bearer ${token}` },
-    body: formData,
-  }).then((res) => {
-    if (!res.ok) throw new ApiError(res.status, "UPLOAD_ERROR", "Upload failed");
-    return res.json();
-  });
-}
-
-// ── HMS Sync API ──────────────────────────────────────────────────
-
-export interface HmsSyncResult {
-  patient_id: string;
-  synced: Record<string, number>;
-  message: string;
-}
-
-export function hmsSyncFull(opts: ApiClientOptions, patientId: string): Promise<HmsSyncResult> {
-  return apiFetch<HmsSyncResult>("/hms/sync/full", {
-    ...opts,
-    method: "POST",
-    body: JSON.stringify({ patient_id: patientId }),
-  });
-}
-
-export function hmsHealthCheck(opts: ApiClientOptions): Promise<{ hms_reachable: boolean; hms_url: string }> {
-  return apiFetch("/hms/health", { ...opts, method: "GET" });
-}
-
-// ── Audit API ─────────────────────────────────────────────────────
-
-export interface AuditEntry {
+export interface AuditEvent {
   id: string;
   actor_user_id: string;
   action: string;
@@ -230,14 +144,12 @@ export interface AuditEntry {
   created_at: string;
 }
 
-export function listAuditLogs(opts: ApiClientOptions, params?: Record<string, string>): Promise<AuditEntry[]> {
-  const qs = params ? "?" + new URLSearchParams(params).toString() : "";
-  return apiFetch<ListEnvelope<AuditEntry>>(`/audit/logs${qs}`, { ...opts, method: "GET" }).then(
-    (data) => data.items
-  );
+export interface DashboardSummary {
+  recent_patients: Patient[];
+  document_stats: { indexed: number; processing: number; failed: number };
+  metrics: { hours_saved: number; cost_saved_usd: number };
+  systems_health: { hms_api: string; ollama_inference: string };
 }
-
-// ── Metrics API ───────────────────────────────────────────────────
 
 export interface MetricsSummary {
   total_queries: number;
@@ -249,63 +161,21 @@ export interface MetricsSummary {
   audit_deny_count: number;
 }
 
-export function getMetricsSummary(opts: ApiClientOptions): Promise<MetricsSummary> {
-  return apiFetch<MetricsSummary>("/feedback/metrics/summary", { ...opts, method: "GET" });
+export interface GlobalSearchResult {
+  patients: { id: string; full_name: string; mrn: string }[];
+  documents: { id: string; title: string; document_type: string }[];
+  threads: { id: string; title?: string; patient_id?: string }[];
 }
 
-// ── BFF Dashboard API ──────────────────────────────────────────────
-
-export interface RecentPatient {
-  id: string;
-  full_name: string;
-  mrn: string;
-  last_accessed?: string;
-}
-
-export interface DocumentStats {
-  indexed: number;
-  processing: number;
-  failed: number;
-}
-
-export interface DashboardMetrics {
-  hours_saved: number;
-  cost_saved_usd: number;
-}
-
-export interface SystemsHealth {
-  hms_api: string;
-  ollama_inference: string;
-}
-
-export interface DashboardSummary {
-  recent_patients: RecentPatient[];
-  document_stats: DocumentStats;
-  metrics: DashboardMetrics;
-  systems_health: SystemsHealth;
-}
+// ── API Functions ─────────────────────────────────────────────────
 
 export function getDashboardSummary(opts: ApiClientOptions): Promise<DashboardSummary> {
   return apiFetch<DashboardSummary>("/dashboard/summary", { ...opts, method: "GET" });
 }
 
-// ── BFF Patient API ────────────────────────────────────────────────
-
-export interface PatientOverview {
-  patient_id: string;
-  full_name: string;
-  mrn: string;
-  dob?: string;
-  gender?: string;
-  cccd?: string;
-  blood_type?: string;
-  occupation?: string;
-  allergy_count: number;
-  medication_count: number;
-  lab_count: number;
-  appointment_count: number;
-  ai_summary?: string;
-  last_updated?: string;
+export function listPatients(opts: ApiClientOptions): Promise<Patient[]> {
+  return apiFetch<ListEnvelope<Patient>>("/patients/search", { ...opts, method: "GET" })
+    .then((d) => d.items);
 }
 
 export function getPatientOverview(
@@ -315,61 +185,53 @@ export function getPatientOverview(
   return apiFetch<PatientOverview>(`/patients/${patientId}/overview`, { ...opts, method: "GET" });
 }
 
-export interface PatientTimelineEvent {
-  event_id: string;
-  event_type: string;
-  title: string;
-  description?: string;
-  timestamp: string;
+export function listThreads(opts: ApiClientOptions): Promise<ChatThread[]> {
+  return apiFetch<ListEnvelope<ChatThread>>("/chat-threads", { ...opts, method: "GET" })
+    .then((d) => d.items);
 }
 
-export interface PatientTimeline {
-  patient_id: string;
-  events: PatientTimelineEvent[];
-}
-
-export function getPatientTimeline(
+export function createThread(
   opts: ApiClientOptions,
-  patientId: string
-): Promise<PatientTimeline> {
-  return apiFetch<PatientTimeline>(`/patients/${patientId}/timeline`, { ...opts, method: "GET" });
+  body: { title: string; patient_id?: string }
+): Promise<ChatThread> {
+  return apiFetch<ChatThread>("/chat-threads", {
+    ...opts,
+    method: "POST",
+    body: JSON.stringify(body),
+  });
 }
 
-export function hmsSyncPatient(
+export function sendChatMessage(
   opts: ApiClientOptions,
-  patientId: string
-): Promise<HmsSyncResult> {
-  return apiFetch<HmsSyncResult>(`/hms/sync/patients/${patientId}`, { ...opts, method: "POST", body: "{}" });
+  body: { question: string; patient_id?: string; thread_id?: string }
+): Promise<ChatMessage> {
+  return apiFetch<ChatMessage>("/chat", {
+    ...opts,
+    method: "POST",
+    body: JSON.stringify(body),
+  });
 }
 
-// ── BFF Global Search API ──────────────────────────────────────────
-
-export interface SearchPatient {
-  id: string;
-  full_name: string;
-  mrn: string;
-  dob?: string;
-  department?: string;
-  status: string;
+export function listDocuments(
+  opts: ApiClientOptions,
+  params?: Record<string, string>
+): Promise<DocumentItem[]> {
+  const qs = params ? "?" + new URLSearchParams(params).toString() : "";
+  return apiFetch<ListEnvelope<DocumentItem>>(`/documents${qs}`, { ...opts, method: "GET" })
+    .then((d) => d.items);
 }
 
-export interface SearchDocument {
-  id: string;
-  title: string;
-  document_type: string;
-  patient_id: string;
+export function listAuditEvents(
+  opts: ApiClientOptions,
+  params?: Record<string, string>
+): Promise<AuditEvent[]> {
+  const qs = params ? "?" + new URLSearchParams(params).toString() : "";
+  return apiFetch<ListEnvelope<AuditEvent>>(`/audit/events${qs}`, { ...opts, method: "GET" })
+    .then((d) => d.items);
 }
 
-export interface SearchThread {
-  id: string;
-  title?: string;
-  patient_id: string;
-}
-
-export interface GlobalSearchResult {
-  patients: SearchPatient[];
-  documents: SearchDocument[];
-  threads: SearchThread[];
+export function getMetricsSummary(opts: ApiClientOptions): Promise<MetricsSummary> {
+  return apiFetch<MetricsSummary>("/metrics/summary", { ...opts, method: "GET" });
 }
 
 export function globalSearch(
@@ -380,22 +242,21 @@ export function globalSearch(
   return apiFetch<GlobalSearchResult>(`/search/global?${params}`, { ...opts, method: "GET" });
 }
 
-export interface AccessRequestResponse {
-  message: string;
-  patient_id: string;
-  expires_at: string;
-}
-
 export function createAccessRequest(
   opts: ApiClientOptions,
-  patientId: string,
-  justification: string
-): Promise<AccessRequestResponse> {
-  return apiFetch<AccessRequestResponse>("/access-requests", {
+  body: {
+    patient_id: string;
+    resource: string;
+    duration: string;
+    urgency: string;
+    relationship: string;
+    purpose: string;
+    justification: string;
+  }
+): Promise<{ message: string; patient_id: string; expires_at: string }> {
+  return apiFetch("/access-requests", {
     ...opts,
     method: "POST",
-    body: JSON.stringify({ patient_id: patientId, justification }),
+    body: JSON.stringify(body),
   });
 }
-
-export { ApiError };

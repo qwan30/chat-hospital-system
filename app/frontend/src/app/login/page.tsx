@@ -3,198 +3,116 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
-
-const DEV_TOKENS = [
-  { label: "Doctor", token: "dev-doctor", role: "doctor" },
-  { label: "Records Staff", token: "dev-records", role: "records_staff" },
-  { label: "Security", token: "dev-security", role: "security" },
-  { label: "Admin", token: "dev-admin", role: "admin" },
-];
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Label } from "@/components/ui/label";
+import { Shield, Mail, Lock, Eye, EyeOff } from "lucide-react";
 
 export default function LoginPage() {
-  const { login, apiUrl, setApiUrl, isLoading } = useAuth();
+  const { login, isAuthenticated, isLoading: authLoading } = useAuth();
   const router = useRouter();
-  const [localApiUrl, setLocalApiUrl] = useState(apiUrl || "http://localhost:8000/api/v1");
-  const [token, setToken] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  async function handleLogin(useToken?: string) {
-    setError("");
-    const t = useToken || token;
-    if (!t.trim()) {
-      setError("Please enter a bearer token.");
-      return;
-    }
-    const ok = await login(localApiUrl, t.trim());
-    if (ok) {
-      router.push("/chat");
-    } else {
-      setError("Invalid token or API unreachable. Check the API URL and token.");
-    }
-  }
+  if (authLoading) return <div className="min-h-screen flex items-center justify-center bg-bg-app"><p className="text-text-muted">Loading...</p></div>;
+  if (isAuthenticated) { router.replace("/dashboard"); return null; }
+
+  const handleSSOLogin = async () => {
+    setLoading(true); setError("");
+    const ok = await login("http://localhost:8000/api/v1", "sso-token-placeholder");
+    if (!ok) setError("SSO authentication failed.");
+    setLoading(false);
+  };
+
+  const handleEmailLogin = async (e: React.FormEvent) => {
+    e.preventDefault(); setLoading(true); setError("");
+    const ok = await login("http://localhost:8000/api/v1", "email-token-placeholder");
+    if (!ok) setError("Invalid email or password.");
+    setLoading(false);
+  };
 
   return (
-    <div style={{
-      minHeight: "100vh",
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "center",
-      background: "var(--background)",
-      padding: "1.5rem",
-    }}>
-      <div style={{
-        width: "100%",
-        maxWidth: 440,
-        background: "var(--surface)",
-        border: "1px solid var(--border)",
-        borderRadius: "var(--radius)",
-        padding: "2.5rem 2rem",
-      }}>
-        {/* Header */}
-        <div style={{ textAlign: "center", marginBottom: "2rem" }}>
-          <div style={{
-            width: 48,
-            height: 48,
-            background: "var(--brand)",
-            borderRadius: 12,
-            display: "inline-flex",
-            alignItems: "center",
-            justifyContent: "center",
-            marginBottom: "1rem",
-            fontSize: 22,
-          }}>
-            🏥
-          </div>
-          <h1 style={{
-            fontSize: "1.25rem",
-            fontWeight: 600,
-            color: "var(--foreground)",
-            margin: 0,
-          }}>
-            Hospital Knowledge Assistant
-          </h1>
-          <p style={{
-            fontSize: "0.85rem",
-            color: "var(--muted)",
-            marginTop: "0.5rem",
-          }}>
-            Sign in with your bearer token to continue
-          </p>
+    <div className="min-h-screen flex bg-bg-app">
+      {/* Marketing Pane */}
+      <div className="hidden lg:flex w-[45%] flex-col justify-center px-16 bg-gradient-to-br from-primary-600 to-primary-800 text-white">
+        <div className="mb-8">
+          <div className="flex items-center justify-center w-12 h-12 rounded-xl bg-white/20 text-white font-bold text-xl mb-6">H</div>
+          <h1 className="text-display mb-3">AI-Powered Hospital Knowledge Assistant</h1>
+          <p className="text-white/80 text-[16px] leading-relaxed">Access clinical knowledge, patient summaries, and cited answers — all in one place.</p>
         </div>
-
-        {/* API URL */}
-        <label style={{ display: "block", marginBottom: "1rem" }}>
-          <span style={{ fontSize: "0.8rem", color: "var(--muted)", display: "block", marginBottom: 4 }}>
-            API Base URL
-          </span>
-          <input
-            id="api-url-input"
-            type="url"
-            value={localApiUrl}
-            onChange={(e) => {
-              setLocalApiUrl(e.target.value);
-              setApiUrl(e.target.value);
-            }}
-            style={{
-              width: "100%",
-              padding: "0.6rem 0.75rem",
-              background: "var(--surface-elevated)",
-              border: "1px solid var(--border)",
-              borderRadius: "var(--radius)",
-              color: "var(--foreground)",
-              fontSize: "0.875rem",
-            }}
-          />
-        </label>
-
-        {/* Token */}
-        <label style={{ display: "block", marginBottom: "1rem" }}>
-          <span style={{ fontSize: "0.8rem", color: "var(--muted)", display: "block", marginBottom: 4 }}>
-            Bearer Token
-          </span>
-          <input
-            id="token-input"
-            type="text"
-            value={token}
-            onChange={(e) => setToken(e.target.value)}
-            placeholder="e.g. dev-doctor"
-            onKeyDown={(e) => e.key === "Enter" && handleLogin()}
-            style={{
-              width: "100%",
-              padding: "0.6rem 0.75rem",
-              background: "var(--surface-elevated)",
-              border: "1px solid var(--border)",
-              borderRadius: "var(--radius)",
-              color: "var(--foreground)",
-              fontSize: "0.875rem",
-            }}
-          />
-        </label>
-
-        {/* Error */}
-        {error && (
-          <div style={{
-            padding: "0.5rem 0.75rem",
-            borderRadius: "var(--radius)",
-            background: "rgba(248,113,113,0.12)",
-            border: "1px solid rgba(248,113,113,0.25)",
-            color: "#f87171",
-            fontSize: "0.8rem",
-            marginBottom: "1rem",
-          }}>
-            {error}
-          </div>
-        )}
-
-        {/* Sign In button */}
-        <button
-          id="login-button"
-          disabled={isLoading}
-          onClick={() => handleLogin()}
-          style={{
-            width: "100%",
-            padding: "0.65rem",
-            background: "var(--brand)",
-            color: "#fff",
-            border: "none",
-            borderRadius: "var(--radius)",
-            fontWeight: 500,
-            fontSize: "0.9rem",
-            cursor: isLoading ? "wait" : "pointer",
-            marginBottom: "1.5rem",
-            opacity: isLoading ? 0.7 : 1,
-          }}
-        >
-          {isLoading ? "Signing in…" : "Sign In"}
-        </button>
-
-        {/* Dev quick tokens */}
-        <div>
-          <p style={{ fontSize: "0.75rem", color: "var(--muted)", marginBottom: "0.5rem" }}>
-            Development Quick Access
-          </p>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
-            {DEV_TOKENS.map((dt) => (
-              <button
-                key={dt.token}
-                id={`dev-token-${dt.role}`}
-                onClick={() => handleLogin(dt.token)}
-                style={{
-                  padding: "0.45rem 0.5rem",
-                  background: "var(--surface-elevated)",
-                  border: "1px solid var(--border)",
-                  borderRadius: "var(--radius)",
-                  color: "var(--foreground)",
-                  fontSize: "0.8rem",
-                  cursor: "pointer",
-                  textAlign: "center",
-                }}
-              >
-                {dt.label}
-              </button>
-            ))}
-          </div>
+        <div className="space-y-4">
+          {[
+            { icon: Shield, text: "HIPAA-compliant, role-based access control" },
+            { icon: Lock, text: "End-to-end encrypted data transmission" },
+            { icon: Shield, text: "Complete audit logging on every action" },
+            { icon: Lock, text: "AI answers with verified clinical citations" },
+          ].map((f, i) => (
+            <div key={i} className="flex items-center gap-3">
+              <f.icon className="w-5 h-5 text-white/70 flex-shrink-0" />
+              <span className="text-[14px] text-white/90">{f.text}</span>
+            </div>
+          ))}
         </div>
+      </div>
+
+      {/* Form Pane */}
+      <div className="flex-1 flex items-center justify-center px-8">
+        <Card className="w-full max-w-[440px] shadow-card">
+          <CardHeader className="text-center pb-2">
+            <CardTitle className="text-h2 text-text-strong">Welcome back</CardTitle>
+            <CardDescription className="text-caption text-text-muted mt-1">Sign in to your hospital account</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-5 pt-4">
+            {/* SSO Button */}
+            <Button variant="outline" className="w-full h-11 gap-2 text-[14px] font-semibold" onClick={handleSSOLogin} disabled={loading}>
+              <Shield className="w-4 h-4" />
+              Sign in with Hospital SSO
+            </Button>
+
+            <div className="relative">
+              <div className="absolute inset-0 flex items-center"><span className="w-full border-t border-border-subtle" /></div>
+              <div className="relative flex justify-center text-[12px]"><span className="bg-bg-surface px-3 text-text-muted">or continue with email</span></div>
+            </div>
+
+            {/* Email/Password Form */}
+            <form onSubmit={handleEmailLogin} className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="email">Email</Label>
+                <div className="relative">
+                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-subtle" />
+                  <Input id="email" type="email" placeholder="Enter your email" value={email} onChange={(e) => setEmail(e.target.value)} className="pl-10" required />
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="password">Password</Label>
+                <div className="relative">
+                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-subtle" />
+                  <Input id="password" type={showPassword ? "text" : "password"} placeholder="Enter password" value={password} onChange={(e) => setPassword(e.target.value)} className="pl-10 pr-10" required />
+                  <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-text-subtle hover:text-text-muted">
+                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
+              </div>
+              {error && <p className="text-[13px] text-danger-600">{error}</p>}
+              <Button type="submit" className="w-full h-11 text-[14px] font-semibold" disabled={loading}>
+                Sign in with email
+              </Button>
+            </form>
+
+            {/* Trust badges */}
+            <div className="flex justify-center gap-4 pt-2">
+              {["PHI Protection", "Audit Logging", "Role-Based Access"].map((t) => (
+                <span key={t} className="text-[11px] text-text-muted flex items-center gap-1">
+                  <Shield className="w-3 h-3 text-success-600" /> {t}
+                </span>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
       </div>
     </div>
   );

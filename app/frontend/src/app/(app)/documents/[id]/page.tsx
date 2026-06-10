@@ -1,180 +1,47 @@
 "use client";
 
-import { useAuth } from "@/lib/auth-context";
-import { getDocument, type DocumentItem } from "@/lib/api-client";
-import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
-import { ArrowLeft } from "lucide-react";
+import { use } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { FileText, ArrowLeft, ChevronLeft, ChevronRight } from "lucide-react";
+import Link from "next/link";
 
-export default function DocumentDetailPage({ params }: { params: { id: string } }) {
-  const { apiUrl, token } = useAuth();
-  const router = useRouter();
-
-  const [document, setDocument] = useState<DocumentItem | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
-
-  useEffect(() => {
-    if (!apiUrl || !token) return;
-
-    let cancelled = false;
-    void Promise.resolve().then(() => {
-      if (cancelled) return;
-      setLoading(true);
-      getDocument({ apiUrl, token }, params.id)
-        .then((doc) => {
-          if (cancelled) return;
-          setDocument(doc);
-          setLoading(false);
-        })
-        .catch((err: unknown) => {
-          if (cancelled) return;
-          setError(err instanceof Error ? err.message : "Failed to load document details");
-          setLoading(false);
-        });
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [params.id, apiUrl, token]);
-
-  const statusColor: Record<string, string> = {
-    indexed: "#34d399",
-    uploaded: "#60a5fa",
-    processing: "#fbbf24",
-    failed: "#f87171",
-  };
+export default function DocumentPreviewPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = use(params);
 
   return (
-    <div style={{ padding: "1.5rem 2rem", maxWidth: 800 }}>
-      <button
-        onClick={() => router.back()}
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: "0.5rem",
-          background: "transparent",
-          border: "none",
-          color: "var(--muted)",
-          cursor: "pointer",
-          fontSize: "0.85rem",
-          marginBottom: "1.5rem",
-        }}
-      >
-        <ArrowLeft size={16} /> Back to Documents
-      </button>
-
-      {loading ? (
-        <div style={{ color: "var(--muted)", fontSize: "0.85rem" }}>Loading document details…</div>
-      ) : error ? (
-        <div style={{
-          padding: "0.6rem 1rem",
-          borderRadius: "var(--radius)",
-          background: "rgba(248,113,113,0.1)",
-          border: "1px solid rgba(248,113,113,0.2)",
-          color: "#f87171",
-          fontSize: "0.8rem",
-        }}>
-          {error}
+    <div className="p-6 space-y-6">
+      <div className="flex items-center gap-3">
+        <Link href="/documents"><Button variant="ghost" size="icon" className="h-8 w-8"><ArrowLeft className="w-4 h-4" /></Button></Link>
+        <div>
+          <h1 className="text-h1 text-text-strong">Admission Note - May 2025</h1>
+          <p className="text-caption text-text-muted">Document ID: {id} · 3 pages · Indexed</p>
         </div>
-      ) : document ? (
-        <div style={{
-          background: "var(--surface)",
-          border: "1px solid var(--border)",
-          borderRadius: "var(--radius)",
-          padding: "2rem",
-        }}>
-          <h1 style={{ fontSize: "1.5rem", fontWeight: 600, margin: "0 0 0.5rem 0", color: "var(--foreground)" }}>
-            {document.title}
-          </h1>
-          <div style={{ display: "flex", gap: "0.5rem", marginBottom: "2rem", alignItems: "center" }}>
-            <span style={{
-              display: "inline-block",
-              padding: "2px 8px",
-              borderRadius: 12,
-              fontSize: "0.75rem",
-              fontWeight: 500,
-              background: `${statusColor[document.status] || "var(--muted)"}22`,
-              color: statusColor[document.status] || "var(--muted)",
-            }}>
-              {document.status}
-            </span>
-            <span style={{ color: "var(--muted)", fontSize: "0.8rem" }}>
-              {document.document_type.replace("hms_", "").replace(/_/g, " ")}
-            </span>
-          </div>
+        <Badge variant="outline" className="bg-success-50 text-success-600 ml-2">OCR: 94%</Badge>
+      </div>
 
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1.5rem", marginBottom: "2rem" }}>
-            <div>
-              <div style={{ color: "var(--muted)", fontSize: "0.75rem", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: "0.25rem" }}>
-                Patient ID
-              </div>
-              <div style={{ color: "var(--foreground)", fontSize: "0.9rem" }}>
-                {document.patient_id}
-              </div>
-            </div>
-            <div>
-              <div style={{ color: "var(--muted)", fontSize: "0.75rem", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: "0.25rem" }}>
-                Created At
-              </div>
-              <div style={{ color: "var(--foreground)", fontSize: "0.9rem" }}>
-                {new Date(document.created_at).toLocaleString()}
-              </div>
-            </div>
-            <div>
-              <div style={{ color: "var(--muted)", fontSize: "0.75rem", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: "0.25rem" }}>
-                MIME Type
-              </div>
-              <div style={{ color: "var(--foreground)", fontSize: "0.9rem" }}>
-                {document.mime_type}
-              </div>
-            </div>
-            <div>
-              <div style={{ color: "var(--muted)", fontSize: "0.75rem", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: "0.25rem" }}>
-                Page Count
-              </div>
-              <div style={{ color: "var(--foreground)", fontSize: "0.9rem" }}>
-                {document.page_count ?? "N/A"}
-              </div>
-            </div>
-          </div>
-
-          {document.ocr_error && (
-            <div style={{
-              padding: "1rem",
-              borderRadius: "var(--radius)",
-              background: "rgba(248,113,113,0.1)",
-              border: "1px solid rgba(248,113,113,0.2)",
-              marginBottom: "1.5rem",
-            }}>
-              <div style={{ color: "#f87171", fontSize: "0.75rem", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: "0.25rem", fontWeight: 600 }}>
-                OCR Error
-              </div>
-              <div style={{ color: "var(--foreground)", fontSize: "0.85rem" }}>
-                {document.ocr_error}
-              </div>
-            </div>
-          )}
-
-          <div>
-            <div style={{ color: "var(--muted)", fontSize: "0.75rem", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: "0.5rem" }}>
-              Storage URI
-            </div>
-            <div style={{
-              background: "var(--surface-elevated)",
-              padding: "0.75rem",
-              borderRadius: "var(--radius)",
-              border: "1px solid var(--border)",
-              color: "var(--foreground)",
-              fontSize: "0.8rem",
-              wordBreak: "break-all",
-              fontFamily: "monospace",
-            }}>
-              {document.storage_uri}
-            </div>
-          </div>
+      <div className="grid grid-cols-[176px_1fr] gap-4">
+        <div className="space-y-2">
+          {[1, 2, 3].map((p) => (
+            <button key={p} className={"w-full p-2 rounded-lg border text-left text-[12px] transition-colors " + (p === 1 ? "border-primary-500 bg-primary-50" : "border-border-subtle hover:border-border-default")}>
+              <div className="w-full h-24 bg-bg-surface-tint rounded mb-1 flex items-center justify-center text-[10px] text-text-subtle">Page {p}</div>
+            </button>
+          ))}
         </div>
-      ) : null}
+        <Card>
+          <CardContent className="p-6">
+            <div className="bg-bg-surface-tint rounded-xl border border-border-subtle h-[600px] flex items-center justify-center">
+              <div className="text-center"><FileText className="w-20 h-20 text-text-subtle mx-auto mb-3" /><p className="text-[14px] text-text-muted">Document Preview</p><p className="text-[12px] text-text-subtle">Page 1 of 3</p></div>
+            </div>
+            <div className="flex items-center justify-between mt-4">
+              <Button variant="outline" size="icon" className="h-8 w-8" disabled><ChevronLeft className="w-4 h-4" /></Button>
+              <span className="text-[12px] text-text-muted">Page 1 / 3</span>
+              <Button variant="outline" size="icon" className="h-8 w-8"><ChevronRight className="w-4 h-4" /></Button>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 }

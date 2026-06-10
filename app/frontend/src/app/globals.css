@@ -1,34 +1,106 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 
+/* ── Design Token Foundation ────────────────────────────────────── */
 :root {
-  --background: #08090a;
-  --foreground: #f7f8f8;
-  --muted: #8a8f98;
-  --surface: #0f1011;
-  --surface-elevated: #191a1b;
-  --border: rgba(255, 255, 255, 0.08);
-  --brand: #5e6ad2;
-  --brand-hover: #828fff;
-  --success: #27a644;
-  --radius: 0.5rem;
+  /* Brand/Primary */
+  --color-primary-50: #F5F9FF;
+  --color-primary-100: #EAF2FF;
+  --color-primary-300: #8BB8FF;
+  --color-primary-500: #2F7AF7;
+  --color-primary-600: #0B5CDF;
+  --color-primary-700: #004EC2;
+
+  /* Backgrounds & Surfaces */
+  --color-bg-app: #F7FAFF;
+  --color-bg-page: #FFFFFF;
+  --color-bg-surface: #FFFFFF;
+  --color-bg-surface-tint: #F9FBFF;
+  --color-bg-sidebar: #FAFCFF;
+  --color-bg-overlay: rgba(15, 23, 42, 0.52);
+
+  /* Borders */
+  --color-border-subtle: #EEF3FB;
+  --color-border-default: #DCE6F7;
+  --color-border-strong: #BFD0EE;
+  --color-border-focus: #2F7AF7;
+
+  /* Typography Colors */
+  --color-text-strong: #081A48;
+  --color-text-default: #24365F;
+  --color-text-muted: #5B6B92;
+  --color-text-subtle: #8A98B8;
+  --color-text-inverse: #FFFFFF;
+  --color-text-link: #0B5CDF;
+
+  /* Semantic Colors */
+  --color-success-50: #F2FBF6;
+  --color-success-100: #E8F8EF;
+  --color-success-600: #12A763;
+  --color-success-700: #087443;
+
+  --color-danger-100: #FFF1F1;
+  --color-danger-600: #EF4444;
+  --color-danger-700: #B42318;
+
+  --color-warning-100: #FFF6E5;
+  --color-warning-500: #F59E0B;
+  --color-warning-700: #B54708;
+
+  --color-purple-100: #F1E9FF;
+  --color-purple-600: #7C3AED;
+
+  --color-cyan-100: #E6FAFC;
+  --color-cyan-600: #0EA5B7;
+
+  /* Chart Colors */
+  --color-chart-blue: #1265F0;
+  --color-chart-green: #18A957;
+  --color-chart-orange: #FF6B00;
+  --color-chart-purple: #7C3AED;
+  --color-chart-grid: #E7EDF8;
+  --color-chart-axis: #6B7898;
+
+  /* Shadows */
+  --shadow-card: 0 8px 24px rgba(20, 38, 80, 0.08);
+  --shadow-modal: 0 18px 50px rgba(20, 38, 80, 0.18);
+  --shadow-popover: 0 12px 34px rgba(20, 38, 80, 0.16);
+  --effect-focus-ring: 0 0 0 3px rgba(11, 92, 223, 0.12);
+
+  /* Radii */
+  --radius-xs: 6px;
+  --radius-sm: 8px;
+  --radius-md: 10px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+  --radius-2xl: 20px;
+  --radius-3xl: 24px;
+  --radius-full: 9999px;
+
+  /* Spacing constants */
+  --sidebar-width: 244px;
+  --sidebar-wide-width: 288px;
+  --topbar-height: 84px;
+  --content-gap: 16px;
 }
 
+/* ── Reset ──────────────────────────────────────────────────────── */
 * {
   box-sizing: border-box;
 }
 
 html {
-  background: var(--background);
+  background: var(--color-bg-app);
 }
 
 body {
   min-height: 100vh;
   margin: 0;
-  background: var(--background);
-  color: var(--foreground);
+  background: var(--color-bg-app);
+  color: var(--color-text-default);
   font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  letter-spacing: 0;
+  font-size: 14px;
+  line-height: 22px;
 }
 
 button,
@@ -39,5 +111,5 @@ textarea {
 }
 
 ::selection {
-  background: rgba(113, 112, 255, 0.35);
+  background: rgba(11, 92, 223, 0.15);
 }

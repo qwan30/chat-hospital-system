@@ -32,9 +32,8 @@ function loadPersistedApiUrl(): string {
   try {
     return localStorage.getItem(API_URL_STORAGE_KEY) || DEFAULT_API_URL;
   } catch {
-    // ignore
+    return DEFAULT_API_URL;
   }
-  return DEFAULT_API_URL;
 }
 
 function persistApiUrl(apiUrl: string): void {
@@ -52,37 +51,13 @@ async function verifyToken(apiUrl: string, token: string): Promise<AuthUser | nu
       headers: { Authorization: `Bearer ${token}` },
     });
     if (!res.ok) return null;
-    const data = await res.json();
-    return data as AuthUser;
+    return res.json() as Promise<AuthUser>;
   } catch {
     return null;
   }
 }
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
-
-/**
- * Internal child that runs the restore-on-mount logic.
- * Splitting this out avoids the "setState in effect" lint rule on the
- * parent while still restoring the session asynchronously.
- */
-function AuthRestorer({ onRestored }: { onRestored: (s: AuthState) => void }) {
-  const [ran, setRan] = useState(false);
-  if (!ran) {
-    setRan(true);
-    const apiUrl = loadPersistedApiUrl();
-    Promise.resolve().then(() =>
-      onRestored({
-        apiUrl: apiUrl || DEFAULT_API_URL,
-        token: "",
-        user: null,
-        isAuthenticated: false,
-        isLoading: false,
-      })
-    );
-  }
-  return null;
-}
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const persistedApiUrl = loadPersistedApiUrl();
@@ -94,13 +69,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     isAuthenticated: false,
     isLoading: false,
   });
-
-  const [restored, setRestored] = useState(false);
-
-  const handleRestored = useCallback((s: AuthState) => {
-    setState(s);
-    setRestored(true);
-  }, []);
 
   const login = useCallback(async (apiUrl: string, token: string): Promise<boolean> => {
     setState((prev) => ({ ...prev, isLoading: true }));
@@ -131,7 +99,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   return (
     <AuthContext.Provider value={{ ...state, login, logout, setApiUrl }}>
-      {!restored && <AuthRestorer onRestored={handleRestored} />}
       {children}
     </AuthContext.Provider>
   );

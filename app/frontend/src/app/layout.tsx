@@ -4,7 +4,8 @@ import { AuthProvider } from "@/lib/auth-context";
 
 export const metadata: Metadata = {
   title: "Hospital Knowledge Assistant",
-  description: "Local-first AI assistant dashboard for hospital knowledge workflows.",
+  description:
+    "AI-powered hospital knowledge assistant dashboard for clinical workflows.",
 };
 
 export default function RootLayout({

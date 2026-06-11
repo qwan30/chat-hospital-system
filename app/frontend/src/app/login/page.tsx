@@ -65,7 +65,7 @@ export default function LoginPage() {
       {/* Marketing Pane */}
       <div className="relative z-10 hidden lg:flex w-[45%] flex-col justify-start pt-16 px-14 text-white bg-gradient-to-br from-primary-700/90 via-primary-600/70 to-primary-500/50 backdrop-blur-[2px]">
         <div className="mb-8">
-          <div className="flex items-center justify-center w-12 h-12 rounded-xl bg-white/20 text-white font-bold text-xl mb-6">H</div>
+          <img src="/images/logo.png" alt="Hospital AI" className="w-12 h-12 mb-6" />
           <h1 className="text-display mb-3">AI-Powered Hospital Knowledge Assistant</h1>
           <p className="text-white/80 text-[16px] leading-relaxed">Access clinical knowledge, patient summaries, and cited answers — all in one place.</p>
         </div>

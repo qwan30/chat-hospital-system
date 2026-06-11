@@ -40,7 +40,7 @@ export function Topbar({ onOpenCommandPalette }: TopbarProps) {
     >
       {/* Logo + Product */}
       <div className="flex items-center gap-3">
-        <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-primary-600 text-white font-bold text-sm">H</div>
+        <img src="/images/logo.png" alt="Hospital AI" className="w-8 h-8" />
         <span className="text-text-strong font-semibold text-[14px]">{PRODUCT_NAME}</span>
       </div>
 

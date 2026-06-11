@@ -21,7 +21,7 @@ export function Sidebar() {
   return (
     <aside className="fixed left-0 top-0 bottom-0 z-10 flex flex-col bg-bg-sidebar border-r border-border-subtle overflow-hidden" style={{ width: "244px" }}>
       <div className="flex items-center gap-2.5 px-5 flex-shrink-0 border-b border-border-subtle" style={{ height: "84px" }}>
-        <div className="flex items-center justify-center w-9 h-9 rounded-lg bg-primary-600 text-white font-bold text-base">H</div>
+        <img src="/images/logo.png" alt="Hospital AI" className="w-9 h-9" />
         <div className="flex flex-col">
           <span className="text-[12px] font-semibold text-text-strong leading-tight">Hospital AI</span>
           <span className="text-[10px] text-text-subtle leading-tight">Knowledge Assistant</span>

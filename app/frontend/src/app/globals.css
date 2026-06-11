@@ -2,7 +2,7 @@
 @import "tw-animate-css";
 
 /* ── Design Token Foundation ────────────────────────────────────── */
-:root {
+@theme {
   /* Brand/Primary */
   --color-primary-50: #F5F9FF;
   --color-primary-100: #EAF2FF;
@@ -65,7 +65,6 @@
   --shadow-card: 0 8px 24px rgba(20, 38, 80, 0.08);
   --shadow-modal: 0 18px 50px rgba(20, 38, 80, 0.18);
   --shadow-popover: 0 12px 34px rgba(20, 38, 80, 0.16);
-  --effect-focus-ring: 0 0 0 3px rgba(11, 92, 223, 0.12);
 
   /* Radii */
   --radius-xs: 6px;
@@ -77,7 +76,44 @@
   --radius-3xl: 24px;
   --radius-full: 9999px;
 
-  /* Spacing constants */
+  /* shadcn/ui compatible aliases */
+  --color-background: #FFFFFF;
+  --color-foreground: #081A48;
+  --color-card: #FFFFFF;
+  --color-card-foreground: #081A48;
+  --color-popover: #FFFFFF;
+  --color-popover-foreground: #081A48;
+  --color-primary: #2F7AF7;
+  --color-primary-foreground: #FFFFFF;
+  --color-secondary: #F9FBFF;
+  --color-secondary-foreground: #24365F;
+  --color-muted: #F7FAFF;
+  --color-muted-foreground: #5B6B92;
+  --color-accent: #F9FBFF;
+  --color-accent-foreground: #24365F;
+  --color-destructive: #EF4444;
+  --color-destructive-foreground: #FFFFFF;
+  --color-border: #DCE6F7;
+  --color-input: #DCE6F7;
+  --color-ring: #2F7AF7;
+  --color-sidebar-background: #FAFCFF;
+  --color-sidebar-foreground: #24365F;
+  --color-sidebar-primary: #2F7AF7;
+  --color-sidebar-primary-foreground: #FFFFFF;
+  --color-sidebar-accent: #F9FBFF;
+  --color-sidebar-accent-foreground: #24365F;
+  --color-sidebar-border: #EEF3FB;
+  --color-sidebar-ring: #2F7AF7;
+  --color-chart-1: #1265F0;
+  --color-chart-2: #18A957;
+  --color-chart-3: #FF6B00;
+  --color-chart-4: #7C3AED;
+  --color-chart-5: #0EA5B7;
+}
+
+/* ── Custom utilities (not expressible as theme tokens) ────────── */
+:root {
+  --effect-focus-ring: 0 0 0 3px rgba(11, 92, 223, 0.12);
   --sidebar-width: 244px;
   --sidebar-wide-width: 288px;
   --topbar-height: 84px;

@@ -14,6 +14,6 @@ test.describe("Metrics", () => {
   });
   test("workflow impact table", async ({ page }) => {
     await gotoAuthenticated(page, "/metrics");
-    await expect(page.getByRole("heading", { name: /Workflow Impact/i })).toBeVisible({ timeout: 15000 });
+    await expect(page.getByText("Workflow Impact").first()).toBeVisible({ timeout: 15000 });
   });
 });

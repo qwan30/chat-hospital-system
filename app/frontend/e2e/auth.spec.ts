@@ -9,10 +9,12 @@ test.describe("Auth - Login", () => {
     await page.goto("/login");
     await expect(page.getByRole("button", { name: /Sign in with Hospital SSO/i })).toBeVisible();
   });
-  test("has email and password inputs", async ({ page }) => {
+  test("has email and access token inputs", async ({ page }) => {
     await page.goto("/login");
     await expect(page.getByPlaceholder(/email/i)).toBeVisible();
-    await expect(page.getByLabel(/password/i)).toBeVisible();
+    await expect(page.getByLabel(/access token/i)).toBeVisible();
+    await expect(page.getByText(/Remember me/i)).toBeVisible();
+    await expect(page.getByText(/Forgot password/i)).toBeVisible();
   });
   test("renders marketing bullet points", async ({ page }) => {
     await page.goto("/login");

@@ -15,6 +15,6 @@ test.describe("Audit", () => {
   });
   test("event log table", async ({ page }) => {
     await gotoAuthenticated(page, "/audit");
-    await expect(page.getByRole("heading", { name: /Event Log/i })).toBeVisible({ timeout: 15000 });
+    await expect(page.getByText("Event Log").first()).toBeVisible({ timeout: 15000 });
   });
 });

@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Shield, Lock, ArrowLeft, Loader2 } from "lucide-react";
+import { Shield, Lock, ArrowLeft, Loader2, Check, FileText } from "lucide-react";
 
 
 const OTP_LENGTH = 6;
@@ -98,7 +98,7 @@ export default function MfaPage() {
       />
 
       {/* MFA Card */}
-      <div className="relative z-10 w-full max-w-[480px] px-6">
+      <div className="relative z-10 w-full max-w-[684px] px-6">
         <Card className="shadow-modal border-border-default">
           <CardHeader className="text-center pb-2">
             <div className="flex items-center justify-center w-14 h-14 rounded-2xl bg-primary-50 mx-auto mb-4">
@@ -112,7 +112,7 @@ export default function MfaPage() {
 
           <CardContent className="space-y-6 pt-2">
             {/* OTP Inputs */}
-            <div className="flex justify-center gap-3" onPaste={handlePaste}>
+            <div className="flex justify-center gap-[18px]" onPaste={handlePaste}>
               {otp.map((digit, i) => (
                 <input
                   key={i}
@@ -166,13 +166,16 @@ export default function MfaPage() {
               </button>
             </div>
 
-            {/* Trust footer */}
-            <div className="flex justify-center gap-4 pt-2 border-t border-border-subtle">
-              <span className="text-[11px] text-text-subtle flex items-center gap-1">
-                <Shield className="w-3 h-3 text-success-500" /> Secure MFA
+            {/* Trust Strip */}
+            <div className="flex justify-center gap-6 pt-4 border-t border-border-subtle">
+              <span className="text-[12px] text-text-muted flex items-center gap-1.5">
+                <Shield className="w-3.5 h-3.5 text-success-600" /> HIPAA Compliant
               </span>
-              <span className="text-[11px] text-text-subtle flex items-center gap-1">
-                <Lock className="w-3 h-3 text-success-500" /> End-to-end encrypted
+              <span className="text-[12px] text-text-muted flex items-center gap-1.5">
+                <Check className="w-3.5 h-3.5 text-success-600" /> SOC 2 Type II
+              </span>
+              <span className="text-[12px] text-text-muted flex items-center gap-1.5">
+                <FileText className="w-3.5 h-3.5 text-success-600" /> Audit Logged
               </span>
             </div>
           </CardContent>

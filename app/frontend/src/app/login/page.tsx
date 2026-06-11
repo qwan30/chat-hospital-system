@@ -24,20 +24,31 @@ export default function LoginPage() {
 
   const handleSSOLogin = async () => {
     setLoading(true); setError("");
-    const ok = await login("http://localhost:8000/api/v1", "sso-token-placeholder");
+    const ok = await login("http://localhost:8000/api/v1", "dev-doctor");
     if (!ok) setError("SSO authentication failed.");
     setLoading(false);
   };
 
   const handleEmailLogin = async (e: React.FormEvent) => {
     e.preventDefault(); setLoading(true); setError("");
-    const ok = await login("http://localhost:8000/api/v1", "email-token-placeholder");
-    if (!ok) setError("Invalid email or password.");
+    if (!email.trim() || !password.trim()) {
+      setError("Please enter both email and access token.");
+      setLoading(false);
+      return;
+    }
+    const ok = await login("http://localhost:8000/api/v1", password.trim());
+    if (!ok) setError("Invalid email or access token.");
     setLoading(false);
   };
 
   return (
     <div className="min-h-screen flex bg-bg-app relative">
+      {/* Environment Pill — top right */}
+      <div className="absolute top-4 right-4 z-20 flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/90 border border-border-subtle shadow-sm">
+        <span className="w-2 h-2 rounded-full bg-success-600" />
+        <span className="text-[11px] font-medium text-text-muted">Synthetic Data</span>
+      </div>
+
       {/* Background Image — left marketing pane only */}
       <div
         className="absolute inset-y-0 left-0 z-0 w-[45%] hidden lg:block"
@@ -49,7 +60,7 @@ export default function LoginPage() {
       />
 
       {/* Marketing Pane */}
-      <div className="relative z-10 hidden lg:flex w-[45%] flex-col justify-center px-16 text-white">
+      <div className="relative z-10 hidden lg:flex w-[45%] flex-col justify-start pt-16 px-14 text-white bg-gradient-to-br from-primary-700/90 via-primary-600/70 to-primary-500/50 backdrop-blur-[2px]">
         <div className="mb-8">
           <div className="flex items-center justify-center w-12 h-12 rounded-xl bg-white/20 text-white font-bold text-xl mb-6">H</div>
           <h1 className="text-display mb-3">AI-Powered Hospital Knowledge Assistant</h1>
@@ -68,25 +79,26 @@ export default function LoginPage() {
             </div>
           ))}
         </div>
+        {/* Trust footnote */}
+        <p className="mt-auto mb-8 text-[12px] text-white/60">HIPAA Compliant &bull; SOC 2 Type II &bull; Enterprise Ready</p>
       </div>
 
-      {/* Form Pane with background */}
+      {/* Form Pane */}
       <div
-        className="relative z-10 flex-1 flex items-center justify-center px-8"
+        className="relative z-10 flex-1 flex items-center justify-center px-8 bg-gradient-to-br from-primary-50/50 to-bg-surface"
         style={{
           backgroundImage: 'url(/images/login-right-bg.png)',
           backgroundSize: 'cover',
           backgroundPosition: 'center',
         }}
       >
-        <div className="absolute inset-0 bg-white/70 backdrop-blur-sm" />
         <div className="relative z-10 w-full max-w-[440px]">
-        <Card className="w-full max-w-[440px] shadow-card">
+        <Card className="w-full max-w-[440px] shadow-modal bg-white/95">
           <CardHeader className="text-center pb-2">
             <CardTitle className="text-h2 text-text-strong">Welcome back</CardTitle>
             <CardDescription className="text-caption text-text-muted mt-1">Sign in to your hospital account</CardDescription>
           </CardHeader>
-          <CardContent className="space-y-5 pt-4">
+          <CardContent className="space-y-4 pt-2">
             {/* SSO Button */}
             <Button variant="outline" className="w-full h-11 gap-2 text-[14px] font-semibold" onClick={handleSSOLogin} disabled={loading}>
               <Shield className="w-4 h-4" />
@@ -108,16 +120,24 @@ export default function LoginPage() {
                 </div>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="password">Password</Label>
+                <Label htmlFor="password">Access Token</Label>
                 <div className="relative">
                   <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-subtle" />
-                  <Input id="password" type={showPassword ? "text" : "password"} placeholder="Enter password" value={password} onChange={(e) => setPassword(e.target.value)} className="pl-10 pr-10" required />
+                  <Input id="password" type={showPassword ? "text" : "password"} placeholder="Enter dev token (e.g. dev-doctor)" value={password} onChange={(e) => setPassword(e.target.value)} className="pl-10 pr-10" required />
                   <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-text-subtle hover:text-text-muted">
                     {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                   </button>
                 </div>
               </div>
               {error && <p className="text-[13px] text-danger-600">{error}</p>}
+              {/* Remember me + Forgot password */}
+              <div className="flex items-center justify-between">
+                <label className="flex items-center gap-2 text-[13px] text-text-muted cursor-pointer">
+                  <input type="checkbox" className="rounded border-border-default" />
+                  Remember me
+                </label>
+                <a href="#" className="text-[13px] text-text-link hover:underline">Forgot password?</a>
+              </div>
               <Button type="submit" className="w-full h-11 text-[14px] font-semibold" disabled={loading}>
                 Sign in with email
               </Button>

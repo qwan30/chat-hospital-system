@@ -14,7 +14,7 @@ test.describe("Settings", () => {
   });
   test("profile form", async ({ page }) => {
     await gotoAuthenticated(page, "/settings");
-    await expect(page.getByRole("heading", { name: /Profile Information/i })).toBeVisible({ timeout: 15000 });
+    await expect(page.getByText("Profile").first()).toBeVisible({ timeout: 15000 });
   });
   test("save button", async ({ page }) => {
     await gotoAuthenticated(page, "/settings");

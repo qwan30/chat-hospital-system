@@ -3,14 +3,17 @@ import { Badge } from "@/components/ui/badge";
 import { FileText, ChevronLeft, ChevronRight, X } from "lucide-react";
 import { useState } from "react";
 
+interface Citation { content_snippet?: string; page?: number; }
+
 interface DocumentViewerModalProps {
   open: boolean;
   onClose: () => void;
   documentTitle: string;
   pageCount?: number;
+  citation?: Citation;
 }
 
-export function DocumentViewerModal({ open, onClose, documentTitle, pageCount = 3 }: DocumentViewerModalProps) {
+export function DocumentViewerModal({ open, onClose, documentTitle, pageCount = 3, citation }: DocumentViewerModalProps) {
   const [currentPage, setCurrentPage] = useState(1);
 
   return (
@@ -27,8 +30,16 @@ export function DocumentViewerModal({ open, onClose, documentTitle, pageCount = 
               </button>
             ))}
           </div>
-          <div className="bg-bg-surface-tint rounded-xl border border-border-subtle flex items-center justify-center">
-            <div className="text-center"><FileText className="w-12 h-12 text-text-subtle mx-auto mb-2" /><p className="text-[14px] text-text-muted">Document Preview</p><p className="text-[12px] text-text-subtle">Page {currentPage} of {pageCount}</p></div>
+          <div className="flex-1 flex items-center justify-center bg-bg-surface-tint rounded-lg border border-border-subtle p-8">
+            <div className="text-center max-w-md">
+              <FileText className="w-12 h-12 text-primary-300 mx-auto mb-4" />
+              <p className="text-[13px] text-text-muted leading-relaxed italic">
+                {citation?.content_snippet || "No preview available for this document."}
+              </p>
+              {citation?.page && (
+                <p className="text-[11px] text-text-subtle mt-2">Page {citation.page}</p>
+              )}
+            </div>
           </div>
           <div className="space-y-3 overflow-y-auto">
             <h4 className="text-h4 text-text-strong">Citation Details</h4>

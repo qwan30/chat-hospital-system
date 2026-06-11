@@ -6,7 +6,7 @@ test.beforeEach(async ({ context }) => { await setupContext(context); });
 test.describe("Chat Landing", () => {
   test("greeting", async ({ page }) => {
     await gotoAuthenticated(page, "/chat");
-    await expect(page.getByText(/Good morning/i).first()).toBeVisible({ timeout: 15000 });
+    await expect(page.getByText(/Good (morning|afternoon|evening)/i).first()).toBeVisible({ timeout: 15000 });
   });
   test("suggestion cards", async ({ page }) => {
     await gotoAuthenticated(page, "/chat");

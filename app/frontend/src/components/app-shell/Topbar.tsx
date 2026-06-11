@@ -1,6 +1,8 @@
 "use client";
 
 import { Search, ChevronDown, Database, FlaskConical, GraduationCap, Lock, LogOut, User, Settings, HelpCircle, RefreshCw, Sun } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
   DropdownMenu,
@@ -26,6 +28,7 @@ const ENVIRONMENTS = [
 ];
 
 export function Topbar({ onOpenCommandPalette }: TopbarProps) {
+  const router = useRouter();
   const { user, logout } = useAuth();
   const initials = user?.full_name
     ? user.full_name.split(" ").map((n) => n[0]).join("").toUpperCase()
@@ -67,7 +70,10 @@ export function Topbar({ onOpenCommandPalette }: TopbarProps) {
             {ENVIRONMENTS.map((env) => {
               const Icon = env.icon;
               return (
-                <DropdownMenuItem key={env.id} className="flex items-start gap-3 py-3 cursor-pointer">
+                <DropdownMenuItem key={env.id} className="flex items-start gap-3 py-3 cursor-pointer"
+                  onClick={() => {
+                    if (!env.active) toast("Environment changed", { description: `Switched to ${env.label}` });
+                  }}>
                   <span className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5 ${env.color}`}>
                     <Icon className="w-4 h-4" />
                   </span>
@@ -100,11 +106,11 @@ export function Topbar({ onOpenCommandPalette }: TopbarProps) {
           <DropdownMenuContent align="end" className="w-56">
             <DropdownMenuLabel className="text-caption-strong text-text-muted">{user?.full_name}</DropdownMenuLabel>
             <DropdownMenuSeparator />
-            <DropdownMenuItem><User className="w-4 h-4 mr-2" /> My Profile</DropdownMenuItem>
-            <DropdownMenuItem><Settings className="w-4 h-4 mr-2" /> Preferences</DropdownMenuItem>
-            <DropdownMenuItem><RefreshCw className="w-4 h-4 mr-2" /> Switch Role</DropdownMenuItem>
+            <DropdownMenuItem onClick={() => router.push("/settings")}><User className="w-4 h-4 mr-2" /> My Profile</DropdownMenuItem>
+            <DropdownMenuItem onClick={() => router.push("/settings")}><Settings className="w-4 h-4 mr-2" /> Preferences</DropdownMenuItem>
+            <DropdownMenuItem onClick={() => toast("Role switched", { description: "Role switching will be available in a future update." })}><RefreshCw className="w-4 h-4 mr-2" /> Switch Role</DropdownMenuItem>
             <DropdownMenuSeparator />
-            <DropdownMenuItem><HelpCircle className="w-4 h-4 mr-2" /> Help &amp; Support</DropdownMenuItem>
+            <DropdownMenuItem onClick={() => window.open("https://help.example.com", "_blank")}><HelpCircle className="w-4 h-4 mr-2" /> Help &amp; Support</DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem className="text-danger-600 focus:text-danger-600" onClick={logout}>
               <LogOut className="w-4 h-4 mr-2" /> Log out

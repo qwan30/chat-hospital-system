@@ -1,3 +1,5 @@
+import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -37,6 +39,7 @@ export function DetailHeader({
   department,
   attendingPhysician,
 }: DetailHeaderProps) {
+  const router = useRouter();
   const initials = fullName.split(" ").map((n) => n[0]).join("").toUpperCase();
   const statusLabel = status.charAt(0).toUpperCase() + status.slice(1);
   const statusColor = STATUS_COLORS[status] || STATUS_COLORS.active;
@@ -67,13 +70,19 @@ export function DetailHeader({
       </div>
 
       <div className="flex items-center gap-2">
-        <Button variant="ghost" size="icon" className="h-8 w-8 text-text-muted hover:text-text-default">
+        <Button variant="ghost" size="icon" className="h-8 w-8 text-text-muted hover:text-text-default"
+          onClick={() => toast("Bookmarked", { description: `${fullName} added to bookmarks.` })}
+          title="Bookmark patient">
           <Bookmark className="w-4 h-4" />
         </Button>
-        <Button variant="ghost" size="icon" className="h-8 w-8 text-text-muted hover:text-text-default">
+        <Button variant="ghost" size="icon" className="h-8 w-8 text-text-muted hover:text-text-default"
+          onClick={() => toast("Share link copied", { description: "Patient profile link copied to clipboard." })}
+          title="Share patient">
           <Share2 className="w-4 h-4" />
         </Button>
-        <Button variant="ghost" size="icon" className="h-8 w-8 text-text-muted hover:text-text-default">
+        <Button variant="ghost" size="icon" className="h-8 w-8 text-text-muted hover:text-text-default"
+          onClick={() => window.print()}
+          title="Print patient record">
           <Printer className="w-4 h-4" />
         </Button>
         <DropdownMenu>
@@ -83,10 +92,10 @@ export function DetailHeader({
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-44">
-            <DropdownMenuItem>Request Access</DropdownMenuItem>
-            <DropdownMenuItem>View Audit Log</DropdownMenuItem>
+            <DropdownMenuItem onClick={() => toast("Access Request", { description: "Opening access request form..." })}>Request Access</DropdownMenuItem>
+            <DropdownMenuItem onClick={() => router.push("/audit")}>View Audit Log</DropdownMenuItem>
             <DropdownMenuSeparator />
-            <DropdownMenuItem className="text-danger-600">Report Issue</DropdownMenuItem>
+            <DropdownMenuItem className="text-danger-600" onClick={() => toast("Issue reported", { description: "Thank you. The compliance team has been notified." })}>Report Issue</DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
       </div>

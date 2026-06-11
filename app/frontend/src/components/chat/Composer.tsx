@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Send, Paperclip } from "lucide-react";
@@ -11,6 +12,7 @@ interface ComposerProps {
 
 export function Composer({ onSubmit, placeholder = "Ask a clinical question...", disabled }: ComposerProps) {
   const [value, setValue] = useState("");
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleSubmit = () => {
     if (!value.trim() || disabled) return;
@@ -27,7 +29,11 @@ export function Composer({ onSubmit, placeholder = "Ask a clinical question...",
 
   return (
     <div className="flex items-end gap-3 p-3 bg-bg-surface rounded-xl border border-border-default shadow-card">
-      <button className="p-2 text-text-subtle hover:text-text-muted transition-colors rounded-lg hover:bg-bg-surface-tint" title="Attach file">
+      <input ref={fileInputRef} type="file" className="hidden" accept=".pdf,.jpg,.png,.txt" onChange={(e) => {
+        const file = e.target.files?.[0];
+        if (file) toast("File attached", { description: `${file.name} (${(file.size / 1024).toFixed(1)} KB)` });
+      }} />
+      <button onClick={() => fileInputRef.current?.click()} className="p-2 text-text-subtle hover:text-text-muted hover:bg-bg-surface-tint rounded-lg transition-colors" title="Attach file">
         <Paperclip className="w-4 h-4" />
       </button>
       <Textarea

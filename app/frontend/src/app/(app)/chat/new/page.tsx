@@ -52,7 +52,7 @@ export default function NewChatPage() {
         <div className="max-w-3xl mx-auto space-y-6">
           <Card><CardContent className="py-8 text-center"><MessageSquare className="w-12 h-12 text-primary-300 mx-auto mb-3" /><h2 className="text-h3 text-text-strong mb-2">Start a Clinical Conversation</h2><p className="text-body text-text-muted max-w-md mx-auto">Ask a question about patient data, drug interactions, or clinical guidelines.</p></CardContent></Card>
           <GeneralKnowledgeToggle enabled={gkEnabled} onToggle={setGkEnabled} />
-          <PromptGrid onSelect={handleSubmit} />
+          <PromptGrid onSelect={(p) => handleSubmit(p.title)} />
         </div>
       ) : (
         <div className="grid grid-cols-3 gap-6">

@@ -51,7 +51,7 @@ test("Access denied heading", async ({ page }) => {
 test("Chat greeting", async ({ page }) => {
   await page.goto("/chat");
   await page.waitForTimeout(2000);
-  await expect(page.getByText(/Good morning/i).first()).toBeVisible({ timeout: 15000 });
+  await expect(page.getByText(/Good (morning|afternoon|evening)/i).first()).toBeVisible({ timeout: 15000 });
 });
 test("Chat suggestion cards", async ({ page }) => {
   await page.goto("/chat");

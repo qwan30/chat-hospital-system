@@ -20,13 +20,17 @@ export default function MfaPage() {
   const [countdown, setCountdown] = useState(RESEND_COOLDOWN);
   const [canResend, setCanResend] = useState(false);
 
-  if (isAuthenticated) { router.replace("/dashboard"); return null; }
+  useEffect(() => {
+    if (isAuthenticated) router.replace("/dashboard");
+  }, [isAuthenticated, router]);
 
   useEffect(() => {
     if (countdown <= 0) { setCanResend(true); return; }
     const timer = setInterval(() => setCountdown((c) => c - 1), 1000);
     return () => clearInterval(timer);
   }, [countdown]);
+
+  if (isAuthenticated) return null;
 
   const handleOtpChange = (index: number, value: string) => {
     if (!/^\d?$/.test(value)) return;

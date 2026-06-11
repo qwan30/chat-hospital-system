@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
 import { Button } from "@/components/ui/button";
@@ -19,8 +19,11 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  if (authLoading) return <div className="min-h-screen flex items-center justify-center bg-bg-app"><p className="text-text-muted">Loading...</p></div>;
-  if (isAuthenticated) { router.replace("/dashboard"); return null; }
+  useEffect(() => {
+    if (!authLoading && isAuthenticated) router.replace("/dashboard");
+  }, [authLoading, isAuthenticated, router]);
+
+  if (authLoading || isAuthenticated) return <div className="min-h-screen flex items-center justify-center bg-bg-app"><p className="text-text-muted">Loading...</p></div>;
 
   const handleSSOLogin = async () => {
     setLoading(true); setError("");

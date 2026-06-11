@@ -112,11 +112,30 @@ export async function setupContext(context: BrowserContext) {
     });
   });
 
-  await context.route("**/api/v1/chat-threads**", (route) => {
-    route.fulfill({
-      status: 200, contentType: "application/json",
-      body: JSON.stringify({ items: [], total: 0 }),
-    });
+  // GET chat-threads (list) + POST (create)
+  await context.route("**/api/v1/chat-threads", (route) => {
+    if (route.request().method() === "POST") {
+      route.fulfill({
+        status: 200, contentType: "application/json",
+        body: JSON.stringify({ id: "thread-e2e", title: "E2E Thread", created_at: new Date().toISOString() }),
+      });
+    } else {
+      route.fulfill({
+        status: 200, contentType: "application/json",
+        body: JSON.stringify({ items: [], total: 0 }),
+      });
+    }
+  });
+  // POST /api/v1/chat (send message)
+  await context.route("**/api/v1/chat", (route) => {
+    if (route.request().method() === "POST") {
+      route.fulfill({
+        status: 200, contentType: "application/json",
+        body: JSON.stringify({ id: "msg-e2e", role: "assistant", content: "Based on the available evidence, the patient shows normal values.", confidence: "high", citations: [] }),
+      });
+    } else {
+      route.continue();
+    }
   });
 }
 

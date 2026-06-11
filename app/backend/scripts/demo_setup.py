@@ -30,6 +30,7 @@ from hospital_ai.db.models import (
     Base,
     Document,
     DocumentChunk,
+    DocumentPage,
     Patient,
     PatientPermission,
     User,
@@ -95,21 +96,21 @@ DEMO_PATIENTS = [
         "id": uuid.UUID("10000000-0000-0000-0000-000000000001"),
         "mrn": "MRN-2024-0001",
         "full_name": "John Doe",
-        "date_of_birth": date(1958, 3, 15),
+        "dob": date(1958, 3, 15),
         "department": "Cardiology",
     },
     {
         "id": uuid.UUID("10000000-0000-0000-0000-000000000002"),
         "mrn": "MRN-2024-0002",
         "full_name": "Jane Roe",
-        "date_of_birth": date(1975, 11, 22),
+        "dob": date(1975, 11, 22),
         "department": "Neurology",
     },
     {
         "id": uuid.UUID("10000000-0000-0000-0000-000000000003"),
         "mrn": "MRN-2024-0003",
         "full_name": "Sam Wilson",
-        "date_of_birth": date(1990, 7, 8),
+        "dob": date(1990, 7, 8),
         "department": "Emergency",
     },
 ]
@@ -241,8 +242,9 @@ async def setup_demo(settings: Settings | None = None) -> None:
                 user_id=users[1].id,  # doctor
                 patient_id=patient.id,
                 scope="read",
-                granted_by=users[0].id,
+                source="manual",
                 created_at=now,
+                updated_at=now,
             )
             session.add(perm)
 
@@ -252,8 +254,9 @@ async def setup_demo(settings: Settings | None = None) -> None:
             user_id=users[2].id,  # nurse
             patient_id=patients[2].id,  # Sam Wilson (Emergency)
             scope="read",
-            granted_by=users[0].id,
+            source="manual",
             created_at=now,
+            updated_at=now,
         )
         session.add(perm)
         await session.flush()
@@ -282,12 +285,26 @@ async def setup_demo(settings: Settings | None = None) -> None:
             session.add(doc)
             await session.flush()
 
+            # Create a page for the document
+            page = DocumentPage(
+                id=uuid.uuid4(),
+                document_id=doc.id,
+                page_number=1,
+                ocr_text=d["content"],
+                created_at=now,
+                updated_at=now,
+            )
+            session.add(page)
+            await session.flush()
+
             # Create a single chunk with embedding
             embedding = deterministic_embedding(d["content"])
             chunk = DocumentChunk(
                 id=uuid.uuid4(),
                 document_id=doc.id,
-                page=1,
+                page_id=page.id,
+                patient_id=patient.id,
+                chunk_index=1,
                 content=d["content"],
                 embedding=embedding,
                 meta={
@@ -295,6 +312,7 @@ async def setup_demo(settings: Settings | None = None) -> None:
                     "document_type": d["document_type"],
                 },
                 created_at=now,
+                updated_at=now,
             )
             session.add(chunk)
 
@@ -308,7 +326,7 @@ async def setup_demo(settings: Settings | None = None) -> None:
                 actor_user_id=users[entry["user_index"]].id,
                 action=entry["action"],
                 object_type=entry["object_type"],
-                object_id=str(patients[entry.get("patient_index", 0)].id) if "patient_index" in entry else None,
+                object_id=patients[entry["patient_index"]].id if "patient_index" in entry else None,
                 patient_id=patients[entry["patient_index"]].id if "patient_index" in entry else None,
                 outcome=entry["outcome"],
                 trace_id=f"demo-trace-{uuid.uuid4().hex[:8]}",

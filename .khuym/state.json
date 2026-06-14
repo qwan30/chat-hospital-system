@@ -1,6 +1,6 @@
 {
   "schema_version": "1.1",
-  "feature_slug": "portfolio-hardening-2026-06",
+  "feature_slug": "figma-programmatic-screen-replication",
   "mode": "standard_feature",
   "active_skill": "khuym:reviewing",
   "phase": "implementation-verified",
@@ -15,12 +15,10 @@
   },
   "active_beads": [],
   "active_workers": [],
-  "blockers": [
-    "gkg command is unavailable on PATH; GitNexus MCP + direct inspection fallback in use"
-  ],
-  "focus": "history/portfolio-hardening-2026-06/CONTEXT.md",
-  "summary": "Portfolio hardening slice implemented and verified: API contracts, memory-only token handling, settings/HMS guards, metrics, synthetic RAG eval, API UAT, login screenshots, tests, and portfolio docs.",
-  "next_action": "Human review/sign-off; optional follow-up is authenticated browser workflow screenshots and live demo UAT.",
+  "blockers": [],
+  "focus": "C:\\Users\\NITRO\\.gemini\\antigravity\\brain\\1e4762b2-41db-4a5b-a66c-a35a31a1d532\\walkthrough.md",
+  "summary": "Programmatically reconstructed the remaining three Figma screens (SCR-013: AI Copilot Landing, SCR-014: Chat Cited Answer, SCR-018: Document Pages Preview) on page '📱 Screens Grid' using native design system components and dynamic child node lookups, ensuring zero screenshot or image placeholders in the content area.",
+  "next_action": "Get user approval on the recreated components and close the task.",
   "deferred_beads": [],
   "last_compounding_run": {
     "feature": "",
@@ -28,5 +26,5 @@
     "learnings_file": "",
     "critical_promotions": 0
   },
-  "last_updated": "2026-06-07T18:05:00+07:00"
+  "last_updated": "2026-06-10T19:16:00+07:00"
 }

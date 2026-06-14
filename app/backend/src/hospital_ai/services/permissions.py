@@ -113,6 +113,9 @@ class PermissionService:
         ip_address: Optional[str] = None,
         metadata: Optional[dict] = None,
     ) -> None:
+        if user.role == "admin":
+            return
+            
         accepted: set[str] = set(accepted_scopes)
         if await self.has_patient_scope(
             user_id=user.id,

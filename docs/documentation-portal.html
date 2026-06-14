@@ -1,0 +1,795 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HOSP-AI-001 — AI Hospital Knowledge Assistant Documentation</title>
+<style>
+/* ── Reset & Base ── */
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth;-webkit-font-smoothing:antialiased}
+body{font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;color:#111111;background:#ffffff;line-height:1.5;font-size:16px}
+
+/* ── Design Tokens ── */
+:root{
+  --primary:#111111;--primary-active:#242424;
+  --brand-accent:#3b82f6;
+  --badge-orange:#fb923c;--badge-pink:#ec4899;--badge-violet:#8b5cf6;--badge-emerald:#34d399;
+  --canvas:#ffffff;--surface-soft:#f8f9fa;--surface-card:#f5f5f5;--surface-strong:#e5e7eb;
+  --surface-dark:#101010;--surface-dark-elevated:#1a1a1a;
+  --hairline:#e5e7eb;--hairline-soft:#f3f4f6;
+  --ink:#111111;--body-c:#374151;--muted:#6b7280;--muted-soft:#898989;
+  --on-primary:#ffffff;--on-dark:#ffffff;--on-dark-soft:#a1a1aa;
+  --success:#10b981;--warning:#f59e0b;--error:#ef4444;
+  --rounded-xs:4px;--rounded-sm:6px;--rounded-md:8px;--rounded-lg:12px;--rounded-xl:16px;--rounded-pill:9999px;--rounded-full:50%;
+}
+
+/* ── Typography ── */
+h1,h2,h3{font-weight:600;letter-spacing:-1px}
+h1{font-size:48px;line-height:1.1;letter-spacing:-1.5px}
+h2{font-size:36px;line-height:1.15;letter-spacing:-1px}
+h3{font-size:22px;line-height:1.3;letter-spacing:-0.3px}
+h4{font-size:18px;font-weight:600;line-height:1.4}
+p,li{color:var(--body-c);font-size:16px;line-height:1.6}
+.caption{font-size:13px;font-weight:500;color:var(--muted-soft)}
+code{font-family:'JetBrains Mono','Fira Code',monospace;font-size:13px;background:var(--surface-card);padding:2px 6px;border-radius:var(--rounded-xs)}
+pre{background:var(--surface-dark);color:var(--on-dark-soft);padding:24px;border-radius:var(--rounded-lg);overflow-x:auto;font-size:13px;line-height:1.6;margin:16px 0}
+pre code{background:none;padding:0;color:inherit;font-size:inherit}
+a{color:var(--ink);text-decoration:none;font-weight:500}
+a:hover{text-decoration:underline}
+
+/* ── Layout ── */
+.container{max-width:1200px;margin:0 auto;padding:0 32px}
+.section-padding{padding:96px 0}
+
+/* ── Top Nav ── */
+.top-nav{position:sticky;top:0;z-index:100;background:rgba(255,255,255,0.92);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border-bottom:1px solid var(--hairline);height:64px;display:flex;align-items:center}
+.top-nav .container{display:flex;align-items:center;justify-content:space-between;width:100%}
+.nav-brand{display:flex;align-items:center;gap:8px;font-size:18px;font-weight:600;color:var(--ink);letter-spacing:-0.3px}
+.nav-brand-icon{width:28px;height:28px;background:var(--primary);border-radius:var(--rounded-full);display:flex;align-items:center;justify-content:center;color:var(--on-primary);font-size:12px;font-weight:700}
+.nav-links{display:flex;gap:24px;align-items:center}
+.nav-links a{font-size:14px;font-weight:500;color:var(--muted);transition:color 0.15s}
+.nav-links a:hover{color:var(--ink);text-decoration:none}
+.nav-cta{display:inline-flex;align-items:center;justify-content:center;height:36px;padding:0 16px;border-radius:var(--rounded-md);font-size:14px;font-weight:600;background:var(--primary);color:var(--on-primary);cursor:pointer;transition:background 0.15s;border:none}
+.nav-cta:hover{background:var(--primary-active)}
+
+/* ── Hero Band ── */
+.hero-band{background:var(--canvas);border-bottom:1px solid var(--hairline-soft)}
+.hero-band .container{display:grid;grid-template-columns:7fr 5fr;gap:64px;align-items:center}
+.hero-badge{display:inline-flex;align-items:center;gap:6px;background:var(--badge-emerald);color:var(--ink);padding:4px 12px;border-radius:var(--rounded-pill);font-size:13px;font-weight:500;margin-bottom:20px}
+.hero-badge::before{content:'';width:6px;height:6px;background:var(--ink);border-radius:var(--rounded-full)}
+.hero-tagline{color:var(--muted);font-size:18px;margin:16px 0 28px}
+.hero-buttons{display:flex;gap:12px;align-items:center}
+.hero-btn-secondary{display:inline-flex;align-items:center;justify-content:center;height:44px;padding:0 20px;border-radius:var(--rounded-md);font-size:14px;font-weight:600;background:var(--canvas);color:var(--ink);border:1px solid var(--hairline);cursor:pointer;transition:background 0.15s}
+.hero-btn-secondary:hover{background:var(--surface-card)}
+.hero-mockup{border-radius:var(--rounded-xl);border:1px solid var(--hairline);overflow:hidden;box-shadow:0 4px 12px rgba(0,0,0,0.08)}
+.hero-mockup-header{background:var(--surface-soft);padding:12px 16px;border-bottom:1px solid var(--hairline);display:flex;align-items:center;gap:8px}
+.hero-mockup-dot{width:10px;height:10px;border-radius:var(--rounded-full);background:var(--surface-strong)}
+.hero-mockup-body{padding:24px;font-size:13px;color:var(--muted);background:var(--canvas)}
+.hero-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-top:48px}
+.hero-stat{text-align:center}
+.hero-stat-number{font-size:28px;font-weight:600;color:var(--ink);letter-spacing:-0.5px}
+.hero-stat-label{font-size:13px;color:var(--muted);margin-top:4px}
+
+/* ── Nav Pill Group ── */
+.nav-pill-group{display:inline-flex;gap:4px;background:var(--surface-soft);padding:6px;border-radius:var(--rounded-pill);margin-bottom:48px;flex-wrap:wrap}
+.nav-pill-group a{padding:8px 16px;border-radius:var(--rounded-md);font-size:13px;font-weight:500;color:var(--muted);transition:all 0.15s;white-space:nowrap}
+.nav-pill-group a:hover,.nav-pill-group a.active{background:var(--canvas);color:var(--ink);box-shadow:0 1px 2px rgba(0,0,0,0.05);text-decoration:none}
+
+/* ── Section Bands ── */
+.section-band{background:var(--canvas)}
+.section-band-alt{background:var(--surface-soft)}
+.section-header{margin-bottom:48px}
+.section-header h2{margin-bottom:12px}
+.section-header p{color:var(--muted);font-size:18px;max-width:640px}
+
+/* ── Cards ── */
+.card-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:24px}
+.card-grid-2{display:grid;grid-template-columns:repeat(2,1fr);gap:24px}
+.card-grid-4{display:grid;grid-template-columns:repeat(4,1fr);gap:24px}
+.feature-card{background:var(--surface-card);border-radius:var(--rounded-lg);padding:32px}
+.feature-card h4{margin-bottom:8px}
+.feature-card p{font-size:14px;color:var(--muted)}
+.feature-card-icon{width:40px;height:40px;border-radius:var(--rounded-md);display:flex;align-items:center;justify-content:center;margin-bottom:16px;font-size:18px}
+.icon-blue{background:#dbeafe;color:#2563eb}
+.icon-green{background:#d1fae5;color:#059669}
+.icon-orange{background:#ffedd5;color:#ea580c}
+.icon-violet{background:#ede9fe;color:#7c3aed}
+.icon-pink{background:#fce7f3;color:#db2777}
+.icon-gray{background:var(--surface-strong);color:var(--muted)}
+.icon-teal{background:#ccfbf1;color:#0d9488}
+
+.content-card{background:var(--canvas);border:1px solid var(--hairline);border-radius:var(--rounded-lg);padding:32px}
+.content-card h4{margin-bottom:8px}
+.content-card p{font-size:14px;color:var(--muted)}
+
+/* ── API / DB Tables ── */
+.table-wrap{overflow-x:auto;margin:16px 0}
+table{width:100%;border-collapse:collapse;font-size:14px}
+thead th{text-align:left;padding:10px 14px;font-weight:600;font-size:12px;text-transform:uppercase;letter-spacing:0.5px;color:var(--muted);border-bottom:2px solid var(--hairline);background:var(--surface-soft)}
+tbody td{padding:10px 14px;border-bottom:1px solid var(--hairline-soft);color:var(--body-c);vertical-align:top}
+tbody tr:hover{background:var(--surface-soft)}
+td code{font-size:12px}
+
+.badge{display:inline-flex;align-items:center;padding:2px 10px;border-radius:var(--rounded-pill);font-size:12px;font-weight:500}
+.badge-green{background:#d1fae5;color:#065f46}
+.badge-blue{background:#dbeafe;color:#1e40af}
+.badge-orange{background:#ffedd5;color:#9a3412}
+.badge-gray{background:var(--surface-strong);color:var(--muted)}
+.badge-violet{background:#ede9fe;color:#5b21b6}
+
+/* ── Accordion ── */
+.accordion{border:1px solid var(--hairline);border-radius:var(--rounded-lg);overflow:hidden;margin-bottom:16px}
+.accordion-header{background:var(--canvas);padding:20px 24px;cursor:pointer;display:flex;align-items:center;justify-content:space-between;font-weight:600;font-size:16px;transition:background 0.15s;border:none;width:100%;text-align:left;color:var(--ink);font-family:inherit}
+.accordion-header:hover{background:var(--surface-soft)}
+.accordion-header::after{content:'+';font-size:20px;color:var(--muted);font-weight:400;transition:transform 0.2s}
+.accordion.open .accordion-header::after{content:'−'}
+.accordion-body{max-height:0;overflow:hidden;transition:max-height 0.3s ease}
+.accordion.open .accordion-body{max-height:4000px}
+.accordion-content{padding:0 24px 24px;color:var(--body-c);font-size:15px;line-height:1.7}
+.accordion-content p{margin-bottom:12px}
+.accordion-content ul,.accordion-content ol{padding-left:20px;margin-bottom:12px}
+.accordion-content li{margin-bottom:6px}
+
+/* ── CTA Band ── */
+.cta-band{background:var(--surface-card);border-radius:var(--rounded-lg);padding:48px;text-align:center}
+.cta-band h3{margin-bottom:12px}
+.cta-band p{color:var(--muted);margin-bottom:24px;max-width:500px;margin-left:auto;margin-right:auto}
+.cta-buttons{display:flex;gap:12px;justify-content:center}
+
+/* ── Architecture Diagram ── */
+.arch-diagram{background:var(--canvas);border:1px solid var(--hairline);border-radius:var(--rounded-lg);padding:32px;margin:24px 0}
+.arch-flow{display:flex;align-items:center;justify-content:center;flex-wrap:wrap;gap:12px;font-size:13px}
+.arch-box{background:var(--surface-card);border:1px solid var(--hairline);border-radius:var(--rounded-md);padding:14px 20px;text-align:center;font-weight:600;font-size:14px;white-space:nowrap}
+.arch-box.dark{background:var(--surface-dark);color:var(--on-dark);border-color:var(--surface-dark)}
+.arch-box.accent{background:#dbeafe;border-color:#93c5fd;color:#1e40af}
+.arch-arrow{color:var(--muted-soft);font-size:18px;flex-shrink:0}
+
+/* ── Footer ── */
+.footer{background:var(--surface-dark);color:var(--on-dark-soft);padding:64px 0 32px}
+.footer-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:32px}
+.footer-col h5{color:var(--on-dark);font-size:14px;font-weight:600;margin-bottom:16px}
+.footer-col a{display:block;color:var(--on-dark-soft);font-size:14px;margin-bottom:8px;font-weight:400}
+.footer-col a:hover{color:var(--on-dark);text-decoration:none}
+.footer-brand{display:flex;align-items:center;gap:8px;color:var(--on-dark);font-size:18px;font-weight:600;margin-bottom:16px}
+.footer-bottom{margin-top:48px;padding-top:24px;border-top:1px solid var(--surface-dark-elevated);display:flex;justify-content:space-between;align-items:center;font-size:13px;color:var(--muted-soft)}
+
+/* ── ERD Diagram ── */
+.erd-diagram{font-family:'JetBrains Mono','Fira Code',monospace;font-size:12px;line-height:1.8;color:var(--body-c);background:var(--surface-soft);border-radius:var(--rounded-lg);padding:24px;overflow-x:auto}
+
+/* ── Responsive ── */
+@media(max-width:1024px){
+  .hero-band .container{grid-template-columns:1fr}
+  .hero-mockup{order:-1;max-width:500px;margin:0 auto}
+  .card-grid{grid-template-columns:1fr}
+  .card-grid-2{grid-template-columns:1fr}
+  .card-grid-4{grid-template-columns:repeat(2,1fr)}
+  .footer-grid{grid-template-columns:repeat(2,1fr)}
+  .hero-stats{grid-template-columns:repeat(2,1fr)}
+  h1{font-size:36px}
+  h2{font-size:28px}
+}
+@media(max-width:768px){
+  .container{padding:0 20px}
+  .section-padding{padding:64px 0}
+  .nav-links{display:none}
+  .card-grid-4{grid-template-columns:1fr}
+  .footer-grid{grid-template-columns:1fr}
+  .hero-stats{grid-template-columns:1fr 1fr}
+  h1{font-size:32px}
+  h2{font-size:24px}
+  .nav-pill-group a{padding:6px 12px;font-size:12px}
+  .arch-flow{flex-direction:column}
+  .arch-arrow{transform:rotate(90deg)}
+}
+</style>
+</head>
+<body>
+
+<!-- ═══════════════ TOP NAV ═══════════════ -->
+<nav class="top-nav">
+  <div class="container">
+    <a href="#" class="nav-brand">
+      <span class="nav-brand-icon">H</span>
+      HOSP-AI-001
+    </a>
+    <div class="nav-links">
+      <a href="#overview">Overview</a>
+      <a href="#architecture">Architecture</a>
+      <a href="#api">API</a>
+      <a href="#database">Database</a>
+      <a href="#frontend">Frontend</a>
+      <a href="#operations">Operations</a>
+    </div>
+    <a href="#docs-index" class="nav-cta">Read Docs</a>
+  </div>
+</nav>
+
+<!-- ═══════════════ HERO ═══════════════ -->
+<section id="overview" class="hero-band section-padding">
+  <div class="container">
+    <div>
+      <span class="hero-badge">v4.0 — June 2026</span>
+      <h1>AI-Powered Hospital Knowledge&nbsp;Assistant</h1>
+      <p class="hero-tagline">An intelligence layer over clinical patient data, unstructured documents, and HMS scheduling — providing cited, permission-gated AI answers for clinicians while maintaining strict HIPAA-compliant audit trails.</p>
+      <div class="hero-buttons">
+        <a href="#docs-index" class="nav-cta" style="height:44px;padding:0 24px;font-size:14px">Explore Documentation</a>
+        <a href="#architecture" class="hero-btn-secondary">System Architecture →</a>
+      </div>
+      <div class="hero-stats">
+        <div class="hero-stat">
+          <div class="hero-stat-number">14</div>
+          <div class="hero-stat-label">API Route Modules</div>
+        </div>
+        <div class="hero-stat">
+          <div class="hero-stat-number">13</div>
+          <div class="hero-stat-label">Database Tables</div>
+        </div>
+        <div class="hero-stat">
+          <div class="hero-stat-number">332</div>
+          <div class="hero-stat-label">Source Files</div>
+        </div>
+        <div class="hero-stat">
+          <div class="hero-stat-number">3,274</div>
+          <div class="hero-stat-label">Code Symbols</div>
+        </div>
+      </div>
+    </div>
+    <div class="hero-mockup">
+      <div class="hero-mockup-header">
+        <span class="hero-mockup-dot"></span>
+        <span class="hero-mockup-dot"></span>
+        <span class="hero-mockup-dot"></span>
+        <span style="font-size:12px;color:var(--muted);margin-left:8px">HOSP-AI-001 System</span>
+      </div>
+      <div class="hero-mockup-body">
+        <strong style="color:var(--ink)">FastAPI Backend</strong><br>
+        <span style="font-size:12px">14 route modules · LLM Manager · RAG Pipeline · RQ Workers</span><br><br>
+        <strong style="color:var(--ink)">Next.js 16 Frontend</strong><br>
+        <span style="font-size:12px">25+ pages · 30+ shadcn/ui components · React 19</span><br><br>
+        <strong style="color:var(--ink)">PostgreSQL + pgvector</strong><br>
+        <span style="font-size:12px">Vector embeddings (1024-dim) · 13 tables · 6 Alembic migrations</span><br><br>
+        <strong style="color:var(--ink)">LLM Integration</strong><br>
+        <span style="font-size:12px">Ollama (local) · OpenAI-compatible · Stub (testing)</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════ DOC INDEX ═══════════════ -->
+<section id="docs-index" class="section-band-alt section-padding">
+  <div class="container">
+    <div class="section-header">
+      <h2>Documentation Index</h2>
+      <p>The documentation pack is organized into 12 hierarchical domains covering business requirements through operations.</p>
+    </div>
+    <div class="nav-pill-group">
+      <a href="#doc-business" class="active">01 Business</a>
+      <a href="#doc-product">02 Product</a>
+      <a href="#doc-requirements">03 Requirements</a>
+      <a href="#doc-architecture">04 Architecture</a>
+      <a href="#doc-api">05 API</a>
+      <a href="#doc-database">06 Database</a>
+      <a href="#doc-flows">07 Flows</a>
+      <a href="#doc-uiux">08 UI/UX</a>
+      <a href="#doc-testing">09 Testing</a>
+      <a href="#doc-deployment">10 Deployment</a>
+      <a href="#doc-operations">11 Operations</a>
+      <a href="#doc-handover">12 Handover</a>
+    </div>
+
+    <div id="doc-business" class="accordion open">
+      <button class="accordion-header" onclick="this.parentElement.classList.toggle('open')">
+        01 — Business Requirements
+      </button>
+      <div class="accordion-body"><div class="accordion-content">
+        <p><strong>Documents:</strong> brd.md, business-rules.md, BR-001 through BR-007</p>
+        <p><strong>Core Business Goals:</strong></p>
+        <table>
+          <thead><tr><th>Goal</th><th>Target</th><th>Baseline</th></tr></thead>
+          <tbody>
+            <tr><td>BG-001: Reduce patient lookup time</td><td>&lt;30 sec</td><td>10–15 min</td></tr>
+            <tr><td>BG-002: Reduce manual EMR review</td><td>1 cited AI response</td><td>5–10 docs/query</td></tr>
+            <tr><td>BG-003: Citation correctness</td><td>≥95% cited answers</td><td>Manual lookup</td></tr>
+            <tr><td>BG-004: Staff productivity</td><td>≥80% effort reduction</td><td>Manual workflows</td></tr>
+            <tr><td>BG-005: HIPAA compliance audit</td><td>100% sensitive queries logged</td><td>Partial logging</td></tr>
+            <tr><td>BG-006: HMS cache freshness</td><td>&lt;15 min sync latency</td><td>Batch transfers</td></tr>
+          </tbody>
+        </table>
+        <p style="margin-top:12px"><strong>Business Rules:</strong> 7 individual BR specifications — Patient Cited Answers (BR-001), AI Patient Summaries (BR-002), OCR Document Indexing (BR-003), Permission-Aware Retrieval (BR-004), Impact Metrics Tracking (BR-005), Graph RAG Relationships (BR-006), Drug-Allergy Conflict Warnings (BR-007).</p>
+      </div></div>
+    </div>
+
+    <div id="doc-product" class="accordion">
+      <button class="accordion-header" onclick="this.parentElement.classList.toggle('open')">
+        02 — Product Requirements
+      </button>
+      <div class="accordion-body"><div class="accordion-content">
+        <p><strong>Documents:</strong> prd.md</p>
+        <p>The product is an <strong>AI Copilot integrated with the Hospital Management System (HMS)</strong>. It serves as an intelligence extension over patient clinical files, unstructured document repositories, and scheduling calendars.</p>
+        <p><strong>Key Personas:</strong> Doctors (attending/specialist), Nurses, Pharmacists, Lab Staff, Records Staff, Security Officers, IT Administrators.</p>
+        <p><strong>MVP Scope:</strong> Operational dashboard, AI chat with cited answers, patient summaries, document OCR + semantic search, drug-allergy pre-checks, audit trail, impact metrics dashboard, patient timeline view.</p>
+      </div></div>
+    </div>
+
+    <div id="doc-requirements" class="accordion">
+      <button class="accordion-header" onclick="this.parentElement.classList.toggle('open')">
+        03 — Functional & Non-Functional Requirements
+      </button>
+      <div class="accordion-body"><div class="accordion-content">
+        <p><strong>Documents:</strong> functional-requirements.md, non-functional-requirements.md, use-cases.md, permissions-matrix.md, UC-001 through UC-009</p>
+        <p><strong>9 Use Cases</strong> with Given/When/Then acceptance criteria:</p>
+        <table>
+          <thead><tr><th>ID</th><th>Use Case</th><th>Key Flow</th></tr></thead>
+          <tbody>
+            <tr><td>UC-001</td><td>Ask Patient Question</td><td>Clinician submits question → permission check → RAG retrieval → cited answer</td></tr>
+            <tr><td>UC-002</td><td>Generate Patient Summary</td><td>Select patient → AI aggregates all evidence → structured summary</td></tr>
+            <tr><td>UC-003</td><td>Upload OCR Document</td><td>Upload PDF → OCR → chunking → vector indexing → searchable</td></tr>
+            <tr><td>UC-004</td><td>Search Documents</td><td>Natural language query → vector search → ranked results</td></tr>
+            <tr><td>UC-005</td><td>View Citations & Source</td><td>Click citation → view original document page → verify accuracy</td></tr>
+            <tr><td>UC-006</td><td>Drug-Allergy Pre-Check</td><td>Query mentions drug → cross-reference allergies → warning if conflict</td></tr>
+            <tr><td>UC-007</td><td>View Patient Timeline</td><td>Select patient → chronological view of encounters, labs, documents</td></tr>
+            <tr><td>UC-008</td><td>Review Audit Logs</td><td>Security/admin user → filter by patient/action/outcome</td></tr>
+            <tr><td>UC-009</td><td>View Impact Metrics</td><td>Dashboard → time saved, cost saved, helpful rate, analytics</td></tr>
+          </tbody>
+        </table>
+        <p style="margin-top:12px"><strong>Role-Based Access:</strong> 7 roles (doctor, nurse, pharmacist, lab_staff, records_staff, security, admin) with scoped patient permissions (read, summary, medication, upload, admin). Permission enforcement at both API gateway and RAG retrieval layers.</p>
+      </div></div>
+    </div>
+
+    <div id="doc-architecture" class="accordion">
+      <button class="accordion-header" onclick="this.parentElement.classList.toggle('open')">
+        04 — System Architecture
+      </button>
+      <div class="accordion-body"><div class="accordion-content">
+        <p><strong>Documents:</strong> architecture.md, security-architecture.md, adr/ (ADR-001 through ADR-007)</p>
+        <p><strong>Component Architecture:</strong></p>
+        <table>
+          <thead><tr><th>Layer</th><th>Technology</th><th>Responsibility</th></tr></thead>
+          <tbody>
+            <tr><td>Web UI</td><td>Next.js 16 + React 19</td><td>Chat, patient snapshots, document dashboards, metrics</td></tr>
+            <tr><td>API Backend (BFF)</td><td>FastAPI (Python)</td><td>Request validation, route queries, policy checks, auth bridge</td></tr>
+            <tr><td>HMS System</td><td>Spring Boot API</td><td>External system of record — clinical data, logins, appointments</td></tr>
+            <tr><td>Worker Queue</td><td>RQ (Redis Queue)</td><td>Async OCR processing, document indexing, HMS sync</td></tr>
+            <tr><td>LLM Inference</td><td>LLM Manager (Ollama/OpenAI/Stub)</td><td>Multi-provider abstraction for local and cloud LLMs</td></tr>
+            <tr><td>Vector Database</td><td>PostgreSQL + pgvector</td><td>Document chunks, embeddings (1024-dim HNSW), audit trails</td></tr>
+          </tbody>
+        </table>
+        <p style="margin-top:12px"><strong>Key ADRs:</strong></p>
+        <ul>
+          <li><strong>ADR-001:</strong> FastAPI BFF pattern — proxies HMS, owns chat + retrieval</li>
+          <li><strong>ADR-002:</strong> PostgreSQL + pgvector — no separate vector DB</li>
+          <li><strong>ADR-003:</strong> PyMuPDF for text, optional PaddleOCR for scans</li>
+          <li><strong>ADR-004:</strong> RQ (Redis Queue) for async job processing</li>
+          <li><strong>ADR-005:</strong> LLM Manager — Stub/Ollama/OpenAI, runtime-switchable</li>
+          <li><strong>ADR-006:</strong> JWT auth bridged from HMS — no separate user registry</li>
+          <li><strong>ADR-007:</strong> Local-first PHI — no patient data to external cloud LLMs</li>
+        </ul>
+        <p style="margin-top:12px"><strong>Security:</strong> HMS JWT authentication, ABAC permission enforcement (attending provider, departmental, audit-on-denial), temporary access request justification workflow, 100% audit coverage on sensitive queries.</p>
+      </div></div>
+    </div>
+
+    <div id="doc-api" class="accordion">
+      <button class="accordion-header" onclick="this.parentElement.classList.toggle('open')">
+        05 — API Specification
+      </button>
+      <div class="accordion-body"><div class="accordion-content">
+        <p><strong>Documents:</strong> api-contract.md, api-overview.md, error-codes.md</p>
+        <p><strong>14 Route Modules</strong> — all mounted under <code>/api/v1</code>:</p>
+        <table>
+          <thead><tr><th>Prefix</th><th>Module</th><th>Key Endpoints</th></tr></thead>
+          <tbody>
+            <tr><td><code>/health</code></td><td>(inline)</td><td><span class="badge badge-green">GET</span> Health check</td></tr>
+            <tr><td><code>/auth</code></td><td>auth.py</td><td><span class="badge badge-green">GET</span> /me — current user</td></tr>
+            <tr><td><code>/patients</code></td><td>patients.py</td><td><span class="badge badge-green">GET</span> list, overview, summary, meds, timeline</td></tr>
+            <tr><td><code>/documents</code></td><td>documents.py</td><td><span class="badge badge-green">GET</span> list, detail · <span class="badge badge-blue">POST</span> upload, retry-ocr</td></tr>
+            <tr><td><code>/chat</code></td><td>chat.py</td><td><span class="badge badge-blue">POST</span> chat query (rate limited 10/min)</td></tr>
+            <tr><td><code>/chat</code></td><td>chat_stream.py</td><td><span class="badge badge-blue">POST</span> streaming chat (SSE)</td></tr>
+            <tr><td><code>/chat</code></td><td>rag_trace.py</td><td><span class="badge badge-green">GET</span> RAG trace observability</td></tr>
+            <tr><td><code>/chat-threads</code></td><td>chat_threads.py</td><td><span class="badge badge-green">GET</span> list · <span class="badge badge-blue">POST</span> create · <span class="badge badge-orange">PUT</span> update · <span class="badge badge-gray">DELETE</span> archive</td></tr>
+            <tr><td><code>/hms</code></td><td>hms.py</td><td><span class="badge badge-blue">POST</span> sync/patients/{id} · <span class="badge badge-green">GET</span> jobs/{id}</td></tr>
+            <tr><td><code>/audit</code></td><td>audit.py</td><td><span class="badge badge-green">GET</span> logs, events (security/admin only)</td></tr>
+            <tr><td><code>/settings</code></td><td>settings.py</td><td><span class="badge badge-green">GET</span> · <span class="badge badge-orange">PUT</span> system settings (14 keys)</td></tr>
+            <tr><td><code>/dashboard</code></td><td>dashboard.py</td><td><span class="badge badge-green">GET</span> summary metrics</td></tr>
+            <tr><td><code>/search</code></td><td>search.py</td><td><span class="badge badge-green">GET</span> global?q= (rate limited 20/min)</td></tr>
+            <tr><td><code>/access-requests</code></td><td>access_requests.py</td><td><span class="badge badge-blue">POST</span> create · <span class="badge badge-green">GET</span> status</td></tr>
+            <tr><td><code>/feedback</code></td><td>feedback.py</td><td><span class="badge badge-blue">POST</span> submit · <span class="badge badge-green">GET</span> metrics/summary</td></tr>
+          </tbody>
+        </table>
+        <p style="margin-top:12px"><strong>Error Envelope:</strong> <code>{"error": "CODE", "message": "...", "metadata": {"trace_id": "uuid"}}</code> with trace IDs across service boundaries.</p>
+      </div></div>
+    </div>
+
+    <div id="doc-database" class="accordion">
+      <button class="accordion-header" onclick="this.parentElement.classList.toggle('open')">
+        06 — Database Schema
+      </button>
+      <div class="accordion-body"><div class="accordion-content">
+        <p><strong>Documents:</strong> db-schema.md, erd.md</p>
+        <p><strong>13 Core Tables:</strong></p>
+        <table>
+          <thead><tr><th>Table</th><th>Purpose</th><th>Key Columns</th></tr></thead>
+          <tbody>
+            <tr><td><code>users</code></td><td>Clinician accounts</td><td>email (unique), full_name, department, role (7 roles), is_active</td></tr>
+            <tr><td><code>patients</code></td><td>Patient identities</td><td>mrn (unique), full_name, dob, department, status</td></tr>
+            <tr><td><code>patient_permissions</code></td><td>RBAC+ABAC access</td><td>user_id, patient_id, scope (5 scopes), expires_at</td></tr>
+            <tr><td><code>documents</code></td><td>Uploaded medical docs</td><td>patient_id, title, document_type, status (8-state), storage_uri, index_generation</td></tr>
+            <tr><td><code>document_pages</code></td><td>OCR page text</td><td>document_id, page_number, ocr_text, ocr_confidence</td></tr>
+            <tr><td><code>document_chunks</code></td><td>Vector semantic chunks</td><td>document_id, page_id, patient_id, chunk_index, content, embedding (1024-dim pgvector)</td></tr>
+            <tr><td><code>ai_queries</code></td><td>AI question log</td><td>user_id, patient_id, question, answer, status, latency_ms, model</td></tr>
+            <tr><td><code>retrieved_evidence</code></td><td>RAG trace</td><td>ai_query_id, chunk_id, rank, score, citation_label, rerank_score, retrieval_method</td></tr>
+            <tr><td><code>chat_threads</code></td><td>Conversation threads</td><td>title, scope (general/patient-linked), visibility (private/shared), owner_user_id, patient_id</td></tr>
+            <tr><td><code>chat_thread_participants</code></td><td>Thread access control</td><td>thread_id, user_id, access_level (owner/write/read), can_share</td></tr>
+            <tr><td><code>chat_messages</code></td><td>Thread messages</td><td>thread_id, role, scope, content, citations (JSON), patient_permission_state, trace_id</td></tr>
+            <tr><td><code>audit_logs</code></td><td>Immutable security trail</td><td>actor_user_id, action, object_type, patient_id, outcome, trace_id, ip_address</td></tr>
+            <tr><td><code>hms_sync_logs</code></td><td>HMS data sync tracking</td><td>patient_id, sync_type, status, records_synced/skipped/failed, trace_id</td></tr>
+          </tbody>
+        </table>
+        <p style="margin-top:12px"><strong>Patterns:</strong> Soft-delete (<code>deleted_at</code> on 9 tables), TimestampMixin (<code>created_at</code> + <code>updated_at</code>), immutable append-only tables for audit/queries, pgvector HNSW indexing for semantic search. 6 Alembic migrations.</p>
+      </div></div>
+    </div>
+
+    <div id="doc-flows" class="accordion">
+      <button class="accordion-header" onclick="this.parentElement.classList.toggle('open')">
+        07 — Process Flows & State Machines
+      </button>
+      <div class="accordion-body"><div class="accordion-content">
+        <p><strong>Documents:</strong> state-machine.md</p>
+        <p><strong>Document States:</strong> uploaded → ocr_processing → ocr_failed | ocr_completed → indexing → index_failed | indexed → archived</p>
+        <p><strong>AI Query States:</strong> received → denied | no_evidence | completed | failed</p>
+        <p><strong>HMS Sync States:</strong> pending → running → completed | failed | partial</p>
+        <p><strong>Chat Thread States:</strong> active ↔ archived (scope: general ↔ patient-linked)</p>
+      </div></div>
+    </div>
+
+    <div id="doc-uiux" class="accordion">
+      <button class="accordion-header" onclick="this.parentElement.classList.toggle('open')">
+        08 — UI/UX Design
+      </button>
+      <div class="accordion-body"><div class="accordion-content">
+        <p><strong>Documents:</strong> 00_product_ui_truth.md, figma-design-system-delivery.md, hms-frontend-ui-fix-design-system.md, master-figma-execution-plan.md, ui_api_traceability_matrix.md</p>
+        <p><strong>Design System:</strong> shadcn/ui-based with 30+ components — Button, Card, Input, Dialog, DropdownMenu, Avatar, Badge, Tabs, Sheet, Command, Popover, RadioGroup, Select, Switch, Table, Tooltip, Skeleton, etc.</p>
+        <p><strong>25+ Screen Designs:</strong> Login, MFA, Dashboard (empty + populated), Chat (landing, workspace, streaming, safe refusal), Patients (list, overview, summary, medication review, denied), Documents (dashboard, upload, OCR review), Citations (viewer, evidence rail), Audit (logs, event details), Metrics (dashboard), Search (command palette), Settings, Access Requests.</p>
+        <p><strong>14 Frontend Pages:</strong> App Router <code>(app)/</code> group — dashboard, chat (list/new/by-id), patients (list/detail/summary/meds/denied), documents (list/upload/detail/review), audit, metrics, timeline, settings.</p>
+      </div></div>
+    </div>
+
+    <div id="doc-testing" class="accordion">
+      <button class="accordion-header" onclick="this.parentElement.classList.toggle('open')">
+        09 — Testing Strategy
+      </button>
+      <div class="accordion-body"><div class="accordion-content">
+        <p><strong>Documents:</strong> test-plan.md, test-cases.md, rtm.md, manual-test-checklist.md</p>
+        <p><strong>Test Types:</strong> Unit (Vitest/pytest), Integration (API + DB), E2E (Playwright), RAG evaluation, Permission/security testing.</p>
+        <p><strong>Key Test Scenarios:</strong></p>
+        <ul>
+          <li><strong>TC-001:</strong> Login succeeds with valid scoped JWT session</li>
+          <li><strong>TC-002:</strong> Unauthorized patient blocked → HTTP 403 + audit_logs entry</li>
+          <li><strong>TC-004:</strong> AI chat returns valid structured citations mapping to chunks</li>
+          <li><strong>TC-005:</strong> Safe refusal when insufficient evidence (no hallucination)</li>
+          <li><strong>TC-006:</strong> Document upload creates OCR job → RQ worker processes</li>
+          <li><strong>TC-008:</strong> Patient summary generated in &lt;30 seconds</li>
+        </ul>
+        <p style="margin-top:12px"><strong>Quality Targets:</strong> ≥80% code coverage, citation rate ≥95%, zero unauthorized chunks to LLM, 100% audit on sensitive queries.</p>
+      </div></div>
+    </div>
+
+    <div id="doc-deployment" class="accordion">
+      <button class="accordion-header" onclick="this.parentElement.classList.toggle('open')">
+        10 — Deployment & CI/CD
+      </button>
+      <div class="accordion-body"><div class="accordion-content">
+        <p><strong>Documents:</strong> deployment-guide.md, ci-cd.md, release-checklist.md, rollback-plan.md</p>
+        <p><strong>Environments:</strong> Local Lite (16GB PC) → Dev → QA → UAT → Production (Hospital Intranet)</p>
+        <p><strong>Local Lite Stack (16GB RAM):</strong> FastAPI BFF (&lt;100MB), PostgreSQL (512MB buffers), Redis (no AOF), RQ Worker (single thread), PyMuPDF OCR (CPU), Ollama Qwen2.5 3B/7B Q4 (2.2–4.5GB), Next.js dev server.</p>
+        <p style="margin-top:12px"><strong>Release Milestones:</strong> Sprint 0 → MVP Build → System Test → UAT → Demo Release → Pilot.</p>
+        <p><strong>Alert Thresholds:</strong> API 5xx >2%/5min, Chat P95 >5s, LLM avg >20s, OCR queue >30min stale, RAG no-evidence >30%.</p>
+      </div></div>
+    </div>
+
+    <div id="doc-operations" class="accordion">
+      <button class="accordion-header" onclick="this.parentElement.classList.toggle('open')">
+        11 — Operations & Monitoring
+      </button>
+      <div class="accordion-body"><div class="accordion-content">
+        <p><strong>Documents:</strong> monitoring-guide.md</p>
+        <p><strong>Metrics Endpoint:</strong> <code>GET /api/v1/feedback/metrics/summary</code> — aggregates from <code>ai_queries</code> and user feedback:</p>
+        <ul>
+          <li><strong>total_queries</strong> — AI queries processed</li>
+          <li><strong>avg_latency_ms</strong> — average query latency</li>
+          <li><strong>total_time_saved_sec</strong> — clinician time saved</li>
+          <li><strong>total_cost_saved</strong> — cost savings estimate</li>
+          <li><strong>helpful_rate</strong> — positive (thumbs-up) feedback %</li>
+          <li><strong>no_evidence_rate</strong> — queries returning no evidence %</li>
+          <li><strong>audit_deny_count</strong> — access denials in audit_logs</li>
+        </ul>
+        <p style="margin-top:12px"><strong>Observability:</strong> OpenTelemetry tracing across all service boundaries. Sync freshness monitoring (30 min alert). Dead-letter queue for failed sync records.</p>
+      </div></div>
+    </div>
+
+    <div id="doc-handover" class="accordion">
+      <button class="accordion-header" onclick="this.parentElement.classList.toggle('open')">
+        12 — Handover & Project Summary
+      </button>
+      <div class="accordion-body"><div class="accordion-content">
+        <p><strong>Documents:</strong> project-summary.md, final-deliverables.md</p>
+        <p><strong>Final Deliverables:</strong> Complete documentation pack (12 domains), working application codebase (FastAPI + Next.js), 25+ screen designs, test plans with RTM, deployment configuration, operations runbook.</p>
+        <p><strong>Project:</strong> HOSP-AI-001 · chatbot-hospital-system · 3,274 symbols · 6,683 edges · 216 execution flows (CodeGraph + GitNexus).</p>
+      </div></div>
+    </div>
+
+  </div>
+</section>
+
+<!-- ═══════════════ ARCHITECTURE ═══════════════ -->
+<section id="architecture" class="section-band section-padding">
+  <div class="container">
+    <div class="section-header">
+      <h2>System Architecture</h2>
+      <p>Multi-layer integration with FastAPI BFF, RQ workers, LLM Manager, and PostgreSQL + pgvector.</p>
+    </div>
+
+    <div class="arch-diagram">
+      <h4 style="margin-bottom:16px">Data Flow</h4>
+      <div class="arch-flow">
+        <div class="arch-box accent">Next.js UI</div>
+        <span class="arch-arrow">→</span>
+        <div class="arch-box">FastAPI BFF</div>
+        <span class="arch-arrow">→</span>
+        <div class="arch-box accent">PostgreSQL<br>+ pgvector</div>
+      </div>
+      <div class="arch-flow" style="margin-top:12px">
+        <div class="arch-box">FastAPI BFF</div>
+        <span class="arch-arrow">→</span>
+        <div class="arch-box">Redis Queue<br>(RQ)</div>
+        <span class="arch-arrow">→</span>
+        <div class="arch-box">RQ Worker<br>OCR + Index</div>
+        <span class="arch-arrow">→</span>
+        <div class="arch-box accent">PostgreSQL</div>
+      </div>
+      <div class="arch-flow" style="margin-top:12px">
+        <div class="arch-box">FastAPI BFF</div>
+        <span class="arch-arrow">→</span>
+        <div class="arch-box">LLM Manager</div>
+        <span class="arch-arrow">→</span>
+        <div class="arch-box">Ollama</div>
+        <span class="arch-arrow">|</span>
+        <div class="arch-box">OpenAI</div>
+        <span class="arch-arrow">|</span>
+        <div class="arch-box">Stub</div>
+      </div>
+      <div class="arch-flow" style="margin-top:12px">
+        <div class="arch-box">FastAPI BFF</div>
+        <span class="arch-arrow">→</span>
+        <div class="arch-box dark">HMS API<br>(Spring Boot)</div>
+        <span class="arch-arrow">→</span>
+        <span style="font-size:12px;color:var(--muted)">Clinical data, auth, permissions</span>
+      </div>
+    </div>
+
+    <div class="card-grid-2" style="margin-top:32px">
+      <div class="content-card">
+        <h4>RAG Pipeline</h4>
+        <p>5-stage retrieval pipeline per query:</p>
+        <ol style="margin-top:8px;padding-left:20px">
+          <li>Permission check (ABAC + RBAC)</li>
+          <li>Query embedding (Ollama or deterministic)</li>
+          <li>Hybrid retrieval (vector + BM25 + Graph RAG)</li>
+          <li>Reranking (cross-encoder or score-based)</li>
+          <li>Grounded generation (Simple QA / Decompose QA / Patient Summary)</li>
+        </ol>
+        <p style="margin-top:8px">Every answer is citation-validated before returning to the user.</p>
+      </div>
+      <div class="content-card">
+        <h4>LLM Manager Pattern</h4>
+        <p>Multi-provider abstraction, runtime-switchable:</p>
+        <ul style="margin-top:8px;padding-left:20px">
+          <li><strong>StubLLM:</strong> Deterministic testing provider</li>
+          <li><strong>OllamaLLM:</strong> Local Qwen2.5 3B/7B via REST</li>
+          <li><strong>OpenAILLM:</strong> OpenAI, Azure, Groq, Together, Mistral</li>
+        </ul>
+        <p style="margin-top:8px">All providers implement <code>BaseLLM</code> (generate + stream). Configured via <code>chat_provider</code> setting.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════ FRONTEND ═══════════════ -->
+<section id="frontend" class="section-band-alt section-padding">
+  <div class="container">
+    <div class="section-header">
+      <h2>Frontend Architecture</h2>
+      <p>Next.js 16 App Router with 14 pages, 30+ shadcn/ui components, and modern SaaS aesthetic.</p>
+    </div>
+    <div class="card-grid">
+      <div class="feature-card">
+        <div class="feature-card-icon icon-blue">📄</div>
+        <h4>14 App Router Pages</h4>
+        <p>Dashboard, Chat (landing/new/thread), Patients (list/detail/summary/meds/denied), Documents (list/upload/detail/review), Audit, Metrics, Timeline, Settings — under authenticated <code>(app)</code> layout group.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-card-icon icon-violet">🧩</div>
+        <h4>30+ UI Components</h4>
+        <p>shadcn/ui primitives + 60+ feature components organized by domain: auth, chat, patient, document, evidence, access, audit, viz, app-shell.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-card-icon icon-green">🎨</div>
+        <h4>Design System</h4>
+        <p>Tailwind CSS v4 with design tokens. White canvas, black CTAs, Inter typography, hierarchical border-radius scale, clean modern-SaaS aesthetic.</p>
+      </div>
+    </div>
+
+    <div class="content-card" style="margin-top:24px">
+      <h4>Frontend Tech Stack</h4>
+      <table style="margin-top:8px">
+        <thead><tr><th>Category</th><th>Package</th><th>Version</th></tr></thead>
+        <tbody>
+          <tr><td>Framework</td><td>Next.js</td><td>16.2</td></tr>
+          <tr><td>UI Library</td><td>React</td><td>19.2</td></tr>
+          <tr><td>Styling</td><td>Tailwind CSS</td><td>4.2</td></tr>
+          <tr><td>Components</td><td>Radix UI + shadcn/ui</td><td>shadcn 4.5</td></tr>
+          <tr><td>Forms</td><td>React Hook Form + Zod</td><td>7.74 / 4.3</td></tr>
+          <tr><td>Charts</td><td>Recharts</td><td>3.8</td></tr>
+          <tr><td>Animations</td><td>Motion (Framer Motion)</td><td>12.38</td></tr>
+          <tr><td>Icons</td><td>Lucide React</td><td>1.11</td></tr>
+          <tr><td>Tables</td><td>TanStack React Table</td><td>8.21</td></tr>
+          <tr><td>Testing</td><td>Vitest + Playwright</td><td>4.1 / 1.60</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════ BACKEND ═══════════════ -->
+<section id="api" class="section-band section-padding">
+  <div class="container">
+    <div class="section-header">
+      <h2>Backend Architecture</h2>
+      <p>FastAPI with async SQLAlchemy, multi-provider LLM abstraction, and Redis-backed RQ workers.</p>
+    </div>
+    <div class="card-grid">
+      <div class="feature-card">
+        <div class="feature-card-icon icon-teal">⚡</div>
+        <h4>FastAPI Core</h4>
+        <p>Async framework with dependency injection, CORS middleware, rate limiting (slowapi), JWT auth bridging, and unified <code>AppError</code> error handling.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-card-icon icon-orange">🔌</div>
+        <h4>Service Layer</h4>
+        <p>18 service modules: chat, embeddings, llm (3 providers), reasoning (3 pipelines), retrieval (vector+BM25+hybrid), permissions, audit, drug_check, graph_rag, hms_connector, metrics, ocr, storage, reranker.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-card-icon icon-violet">🔧</div>
+        <h4>Dev Tooling</h4>
+        <p>Poetry dependency management, Alembic migrations (6 versions), Ruff linter, pytest with asyncio, seed scripts (seed_dev.py, demo_setup.py), UAT product API checker.</p>
+      </div>
+    </div>
+
+    <div class="content-card" style="margin-top:24px">
+      <h4>Backend Dependencies</h4>
+      <table style="margin-top:8px">
+        <thead><tr><th>Category</th><th>Package</th><th>Version</th></tr></thead>
+        <tbody>
+          <tr><td>Framework</td><td>FastAPI</td><td>0.95+</td></tr>
+          <tr><td>ORM</td><td>SQLAlchemy (async)</td><td>2.0+</td></tr>
+          <tr><td>Server</td><td>Uvicorn</td><td>0.30+</td></tr>
+          <tr><td>Queue</td><td>RQ (Redis Queue)</td><td>1.16+</td></tr>
+          <tr><td>Auth</td><td>PyJWT</td><td>2.8+</td></tr>
+          <tr><td>HTTP Client</td><td>HTTPX</td><td>0.27+</td></tr>
+          <tr><td>Rate Limiting</td><td>slowapi</td><td>0.1+</td></tr>
+          <tr><td>OCR</td><td>PyMuPDF</td><td>1.24+</td></tr>
+          <tr><td>Migrations</td><td>Alembic</td><td>1.13+</td></tr>
+          <tr><td>Vector DB</td><td>pgvector (optional)</td><td>0.3+</td></tr>
+          <tr><td>Reranker</td><td>sentence-transformers (optional)</td><td>2.2+</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════ DATABASE ═══════════════ -->
+<section id="database" class="section-band-alt section-padding">
+  <div class="container">
+    <div class="section-header">
+      <h2>Entity Relationships</h2>
+      <p>13 tables with UUID primary keys, soft-delete patterns, and pgvector indexing.</p>
+    </div>
+    <div class="erd-diagram">
+<pre>┌──────────┐     ┌────────────────────┐     ┌──────────┐
+│  users   │────<│patient_permissions │>────│ patients │
+└┬──┬──┬──┬┘     └────────────────────┘     └┬──┬──┬──┬┘
+ │  │  │  │                                  │  │  │  │
+ │  │  │  └── chat_thread_participants       │  │  │  │
+ │  │  │                                     │  │  │  │
+ │  │  └── chat_threads ────< chat_messages  │  │  │  │
+ │  │         │                    │         │  │  │  │
+ │  └── documents ──< document_pages          │  │  │  │
+ │           │            │                  │  │  │  │
+ │           │            └── document_chunks │  │  │  │
+ │           │                    │           │  │  │  │
+ └── ai_queries ──< retrieved_evidence        │  │  │  │
+                  (cites doc_chunks)  ────────┘  │  │  │
+                                                 │  │  │
+                          audit_logs ────────────┘  │  │
+                          hms_sync_logs ────────────┘  │
+                          (denormalized patient_id) ───┘</pre>
+    </div>
+    <div class="card-grid-2" style="margin-top:24px">
+      <div class="content-card">
+        <h4>Soft Delete Pattern</h4>
+        <p>9 tables use <code>deleted_at</code> for soft deletion: users, patients, patient_permissions, documents, document_pages, document_chunks, chat_threads, chat_thread_participants.</p>
+        <p style="margin-top:8px">Immutable tables (audit_logs, ai_queries, chat_messages, retrieved_evidence) are append-only.</p>
+      </div>
+      <div class="content-card">
+        <h4>Migrations</h4>
+        <p>6 Alembic migrations tracking schema evolution:</p>
+        <ol style="margin-top:8px;padding-left:20px">
+          <li>0001: Core schema (users, patients, permissions, documents, chunks, audit, queries)</li>
+          <li>0002: Document index tracking (index_generation, SHA256)</li>
+          <li>0003: Chat threads (threads, participants, messages)</li>
+          <li>0004: HMS sync logs</li>
+          <li>0005: System settings (14 key-value config keys)</li>
+          <li>0006: Phase 4 tables (extended observability + access control)</li>
+        </ol>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════ CTA BAND ═══════════════ -->
+<section id="operations" class="section-band section-padding">
+  <div class="container">
+    <div class="cta-band">
+      <h3>Ready to explore the full documentation?</h3>
+      <p>All 12 documentation domains are available in the <code>docs/</code> directory. Start with the architecture overview or dive into specific API contracts.</p>
+      <div class="cta-buttons">
+        <a href="#docs-index" class="nav-cta" style="height:44px;padding:0 24px;font-size:14px">Browse All Docs</a>
+        <a href="#architecture" class="hero-btn-secondary">View Architecture →</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════ FOOTER ═══════════════ -->
+<footer class="footer">
+  <div class="container">
+    <div class="footer-grid">
+      <div class="footer-col">
+        <div class="footer-brand">
+          <span class="nav-brand-icon">H</span>
+          HOSP-AI-001
+        </div>
+        <p style="font-size:13px;line-height:1.6">AI-Powered Hospital Knowledge Assistant — an intelligence layer over clinical data with cited, permission-gated answers.</p>
+      </div>
+      <div class="footer-col">
+        <h5>Documentation</h5>
+        <a href="#doc-business">Business Requirements</a>
+        <a href="#doc-architecture">Architecture</a>
+        <a href="#doc-api">API Specification</a>
+        <a href="#doc-database">Database Schema</a>
+        <a href="#doc-testing">Testing Strategy</a>
+      </div>
+      <div class="footer-col">
+        <h5>Application</h5>
+        <a href="#frontend">Frontend (Next.js 16)</a>
+        <a href="#api">Backend (FastAPI)</a>
+        <a href="#database">Database (PostgreSQL)</a>
+        <a href="#operations">Operations</a>
+      </div>
+      <div class="footer-col">
+        <h5>Resources</h5>
+        <a href="#">GitHub Repository</a>
+        <a href="#">Figma Design Files</a>
+        <a href="#">Screen Designs (25+)</a>
+        <a href="#">ADR Records (7)</a>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <span>Documentation updated June 2026 · v4.0 · In Sync with codebase</span>
+      <span>3,274 symbols · 6,683 edges · 332 source files</span>
+    </div>
+  </div>
+</footer>
+
+</body>
+</html>

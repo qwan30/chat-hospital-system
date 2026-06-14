@@ -2,10 +2,10 @@
 
 > Project: AI-Powered Hospital Knowledge Assistant  
 > Project Code: HOSP-AI-001  
-> Version: 2.0  
-> Status: Draft  
+> Version: 2.1  
+> Status: In Sync  
 > Owner: DevOps / SRE / Tech Lead  
-> Last Updated: 2026-06-07  
+> Last Updated: 2026-06-14  
 
 ---
 
@@ -33,10 +33,10 @@ flowchart TD
     API --> PG[(PostgreSQL + pgvector)]
     API --> REDIS[(Redis Cache / Queue)]
     API --> STORAGE[(Object Storage / Local Volume)]
-    REDIS --> WORKER[Celery/RQ Ingestion Worker]
-    WORKER --> OCR[PaddleOCR/PP-OCR Engine]
+    REDIS --> WORKER[RQ Ingestion Worker]
+    WORKER --> OCR[PyMuPDF / PaddleOCR Engine]
     WORKER --> EMB[Embedding Model]
-    API --> LLM[Ollama Local MVP / vLLM Production]
+    API --> LLM[LLM Manager: Ollama Local / OpenAI-compatible]
     API --> OBS[OpenTelemetry Collector]
     OBS --> PROM[Prometheus / Grafana / Loki]
 ```
@@ -52,11 +52,10 @@ For development, testing, and system demonstrations on standard laptops with a 1
 | **FastAPI BFF** | Local Process or Docker | Minimal memory footprint (<100MB). |
 | **PostgreSQL** | Docker Container | Limit shared buffers to 512MB. |
 | **Redis** | Docker Container | Cache only, disable persistent AOF snapshots. |
-| **Celery Worker** | Single worker thread | Avoid high concurrency; process OCR jobs sequentially. |
-| **PaddleOCR** | CPU mode | PP-OCR models run slowly on CPU (~10-15s per page) but save GPU RAM. |
-| **Ollama LLM** | Qwen2.5 3B/7B Q4 Quantized | Q4 quantization reduces model footprint to 2.2GB/4.5GB. Avoid models >7B. |
+| **RQ Worker** | Single worker thread | Avoid high concurrency; process OCR jobs sequentially. |
+| **PyMuPDF / OCR** | CPU mode | PyMuPDF for text extraction; optional PaddleOCR for scanned documents (~10-15s per page on CPU). |
+| **Ollama LLM** | Qwen2.5 3B/7B Q4 Quantized | Q4 quantization reduces model footprint to 2.2GB/4.5GB. Avoid models >7B. OpenAI-compatible providers also supported via LLM Manager. |
 | **Next.js Frontend**| Local dev server | Disable heavy compiler source mapping. |
-| **Neo4j** | Disabled | Defer graph operations to PostgreSQL tables. |
 
 ---
 
@@ -73,3 +72,4 @@ For development, testing, and system demonstrations on standard laptops with a 1
 |---|---|---|---|
 | 1.0 | 2026-04-27 | DevOps Engineer | Initial deployment plan |
 | 2.0 | 2026-06-07 | Agent | Split into dedicated deployment guide and architecture-linked diagrams |
+| 2.1 | 2026-06-14 | Agent | Corrected services: Celery → RQ, PaddleOCR → PyMuPDF, removed Neo4j, Ollama-only → LLM Manager multi-provider |

@@ -7,7 +7,6 @@ import { Topbar } from "@/components/app-shell/Topbar";
 import { Sidebar } from "@/components/app-shell/Sidebar";
 import { Footer } from "@/components/app-shell/Footer";
 import { CommandPalette } from "@/components/app-shell/CommandPalette";
-import { SAFETY_FOOTER } from "@/lib/constants";
 
 export default function AppShellLayout({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, isLoading } = useAuth();
@@ -15,7 +14,6 @@ export default function AppShellLayout({ children }: { children: React.ReactNode
   const [paletteOpen, setPaletteOpen] = useState(false);
 
   useEffect(() => {
-    // E2E test bypass: if e2e_auth_token is present, skip redirect (auto-login handles it)
     const isE2E = typeof window !== "undefined" && localStorage.getItem("e2e_auth_token");
     if (!isLoading && !isAuthenticated && !isE2E) {
       router.replace("/login");
@@ -45,9 +43,9 @@ export default function AppShellLayout({ children }: { children: React.ReactNode
   return (
     <div className="min-h-screen bg-bg-app flex">
       <Sidebar />
-      <div className="flex-1 flex flex-col" style={{ marginLeft: "244px" }}>
+      <div className="flex-1 flex flex-col" style={{ marginLeft: "var(--sidebar-width)" }}>
         <Topbar onOpenCommandPalette={() => setPaletteOpen(true)} />
-        <main className="flex-1 overflow-auto" style={{ paddingTop: "84px" }}>
+        <main className="flex-1 overflow-auto" style={{ paddingTop: "var(--topbar-height)" }}>
           {children}
         </main>
         <Footer />

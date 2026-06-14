@@ -1,189 +1,79 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
-import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Shield, Lock, ArrowLeft, Loader2, Check, FileText } from "lucide-react";
+import { MFACard } from "@/components/auth/MFACard";
+import { Shield } from "lucide-react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useEffect } from "react";
 
-
-const OTP_LENGTH = 6;
-const RESEND_COOLDOWN = 30;
-
-export default function MfaPage() {
-  const { login, isAuthenticated } = useAuth();
+export default function MFAPage() {
+  const { isAuthenticated, isLoading: authLoading } = useAuth();
   const router = useRouter();
-  const [otp, setOtp] = useState<string[]>(Array(OTP_LENGTH).fill(""));
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
-  const [countdown, setCountdown] = useState(RESEND_COOLDOWN);
-  const [canResend, setCanResend] = useState(false);
 
   useEffect(() => {
-    if (isAuthenticated) router.replace("/dashboard");
-  }, [isAuthenticated, router]);
-
-  useEffect(() => {
-    if (countdown <= 0) { setCanResend(true); return; }
-    const timer = setInterval(() => setCountdown((c) => c - 1), 1000);
-    return () => clearInterval(timer);
-  }, [countdown]);
-
-  if (isAuthenticated) return null;
-
-  const handleOtpChange = (index: number, value: string) => {
-    if (!/^\d?$/.test(value)) return;
-    const next = [...otp];
-    next[index] = value;
-    setOtp(next);
-
-    // Auto-focus next input
-    if (value && index < OTP_LENGTH - 1) {
-      const nextInput = document.getElementById("otp-" + (index + 1));
-      nextInput?.focus();
+    // If not authenticated or no ongoing session, one could redirect back to login,
+    // but for the sake of UI preview, we'll allow it.
+    if (isAuthenticated) {
+      router.replace("/dashboard");
     }
+  }, [isAuthenticated, authLoading, router]);
 
-    // Auto-submit when all digits entered
-    if (value && index === OTP_LENGTH - 1) {
-      const fullOtp = next.join("");
-      if (fullOtp.length === OTP_LENGTH) handleVerify(fullOtp);
-    }
-  };
-
-  const handleKeyDown = (index: number, e: React.KeyboardEvent) => {
-    if (e.key === "Backspace" && !otp[index] && index > 0) {
-      const prevInput = document.getElementById("otp-" + (index - 1));
-      prevInput?.focus();
-    }
-  };
-
-  const handlePaste = (e: React.ClipboardEvent) => {
-    e.preventDefault();
-    const pasted = e.clipboardData.getData("text").replace(/\D/g, "").slice(0, OTP_LENGTH);
-    if (!pasted) return;
-    const next = [...otp];
-    pasted.split("").forEach((char, i) => { if (i < OTP_LENGTH) next[i] = char; });
-    setOtp(next);
-    if (pasted.length === OTP_LENGTH) handleVerify(pasted);
-  };
-
-  const handleVerify = async (code: string) => {
-    setLoading(true); setError("");
-    try {
-      const ok = await login("http://localhost:8000/api/v1", "mfa-token-" + code);
-      if (!ok) setError("Invalid verification code. Please try again.");
-    } catch {
-      setError("Verification failed. Please try again.");
-    }
-    setLoading(false);
-  };
-
-  const handleResend = useCallback(() => {
-    setCanResend(false);
-    setCountdown(RESEND_COOLDOWN);
-    setError("");
-    setOtp(Array(OTP_LENGTH).fill(""));
-    document.getElementById("otp-0")?.focus();
-  }, []);
-
-  const isComplete = otp.every((d) => d !== "");
+  if (isAuthenticated || authLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-bg-app">
+        <p className="text-text-muted">Loading...</p>
+      </div>
+    );
+  }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-bg-app relative">
-      {/* Full-screen Background Image */}
-      <div
-        className="absolute inset-0 z-0"
-        style={{
-          backgroundImage: 'url(/images/mfa-bg.png)',
-          backgroundSize: 'cover',
-          backgroundPosition: 'center',
-        }}
-      />
+    <div className="min-h-screen bg-bg-app flex flex-col relative items-center justify-center py-12 px-4">
+      {/* Top right pills */}
+      <div className="absolute top-8 right-8 flex flex-col gap-2 z-20 items-end">
+        <div className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-success-50 border border-success-100 shadow-sm">
+          <span className="w-4 h-4 rounded-sm bg-success-600 flex items-center justify-center text-white text-[10px]">DB</span>
+          <span className="text-[12px] text-success-700">Synthetic Data</span>
+        </div>
+      </div>
 
-      {/* MFA Card */}
-      <div className="relative z-10 w-full max-w-[684px] px-6">
-        <Card className="shadow-modal border-border-default">
-          <CardHeader className="text-center pb-2">
-            <div className="flex items-center justify-center w-14 h-14 rounded-2xl bg-primary-50 mx-auto mb-4">
-              <Lock className="w-7 h-7 text-primary-600" />
-            </div>
-            <CardTitle className="text-h2 text-text-strong">Two-Factor Authentication</CardTitle>
-            <CardDescription className="text-caption text-text-muted mt-2">
-              Enter the 6-digit verification code sent to your registered device
-            </CardDescription>
-          </CardHeader>
+      <div className="w-full max-w-[684px] flex flex-col items-center z-10">
+        
+        {/* Brand Lockup above card */}
+        <div className="mb-8 flex items-center gap-3">
+          <div className="flex items-center justify-center w-10 h-10 bg-primary-600 rounded-xl shadow-sm text-white font-bold text-lg">
+            H
+          </div>
+          <div className="flex flex-col">
+            <span className="text-body-strong text-text-strong">AI-Powered Hospital</span>
+            <span className="text-caption text-text-muted">Knowledge Assistant</span>
+          </div>
+        </div>
 
-          <CardContent className="space-y-6 pt-2">
-            {/* OTP Inputs */}
-            <div className="flex justify-center gap-[18px]" onPaste={handlePaste}>
-              {otp.map((digit, i) => (
-                <input
-                  key={i}
-                  id={"otp-" + i}
-                  type="text"
-                  inputMode="numeric"
-                  maxLength={1}
-                  value={digit}
-                  onChange={(e) => handleOtpChange(i, e.target.value)}
-                  onKeyDown={(e) => handleKeyDown(i, e)}
-                  className={"w-14 h-16 text-center text-[22px] font-bold rounded-xl border-2 bg-bg-surface-tint transition-all outline-none focus:border-primary-500 focus:ring-4 focus:ring-primary-500/10 " + (digit ? "border-primary-500 text-text-strong" : "border-border-default text-text-muted")}
-                  disabled={loading}
-                  autoFocus={i === 0}
-                />
-              ))}
-            </div>
+        <MFACard />
 
-            {/* Error message */}
-            {error && (
-              <div className="flex items-center justify-center gap-2 p-3 rounded-lg bg-danger-50 border border-danger-100">
-                <Shield className="w-4 h-4 text-danger-500 flex-shrink-0" />
-                <p className="text-[13px] text-danger-600">{error}</p>
-              </div>
-            )}
+        {/* 3 Marketing Blocks below card */}
+        <div className="w-full grid grid-cols-1 md:grid-cols-3 gap-8 mt-12 px-8">
+          <div className="flex flex-col">
+            <h4 className="text-[12px] font-bold text-text-strong mb-1">Your data is protected</h4>
+            <p className="text-[11px] text-text-muted leading-relaxed">We use enterprise-grade encryption to keep patient data secure.</p>
+          </div>
+          <div className="flex flex-col">
+            <h4 className="text-[12px] font-bold text-text-strong mb-1">MFA for stronger security</h4>
+            <p className="text-[11px] text-text-muted leading-relaxed">Multi-factor authentication helps protect your account.</p>
+          </div>
+          <div className="flex flex-col">
+            <h4 className="text-[12px] font-bold text-text-strong mb-1">Audit-ready access</h4>
+            <p className="text-[11px] text-text-muted leading-relaxed">All access attempts are logged and monitored for compliance.</p>
+          </div>
+        </div>
 
-            {/* Verify button */}
-            <Button
-              className="w-full h-12 text-[14px] font-semibold gap-2"
-              disabled={!isComplete || loading}
-              onClick={() => handleVerify(otp.join(""))}
-            >
-              {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Shield className="w-4 h-4" />}
-              {loading ? "Verifying..." : "Verify Code"}
-            </Button>
-
-            {/* Resend & Back */}
-            <div className="flex items-center justify-between text-[13px]">
-              <button
-                onClick={handleResend}
-                disabled={!canResend}
-                className={"font-medium transition-colors " + (canResend ? "text-primary-600 hover:text-primary-700" : "text-text-subtle cursor-not-allowed")}
-              >
-                {canResend ? "Resend code" : "Resend in " + countdown + "s"}
-              </button>
-              <button
-                onClick={() => router.back()}
-                className="flex items-center gap-1 text-text-muted hover:text-text-default transition-colors"
-              >
-                <ArrowLeft className="w-3.5 h-3.5" />
-                Back to sign in
-              </button>
-            </div>
-
-            {/* Trust Strip */}
-            <div className="flex justify-center gap-6 pt-4 border-t border-border-subtle">
-              <span className="text-[12px] text-text-muted flex items-center gap-1.5">
-                <Shield className="w-3.5 h-3.5 text-success-600" /> HIPAA Compliant
-              </span>
-              <span className="text-[12px] text-text-muted flex items-center gap-1.5">
-                <Check className="w-3.5 h-3.5 text-success-600" /> SOC 2 Type II
-              </span>
-              <span className="text-[12px] text-text-muted flex items-center gap-1.5">
-                <FileText className="w-3.5 h-3.5 text-success-600" /> Audit Logged
-              </span>
-            </div>
-          </CardContent>
-        </Card>
+        {/* Footer links */}
+        <div className="mt-16 text-center text-[11px] text-text-subtle">
+          <Link href="#" className="hover:text-text-muted transition-colors">Need help? Contact IT Support ↗</Link>
+          <span className="mx-2">|</span>
+          <Link href="/login" className="hover:text-text-muted transition-colors">Return to sign in</Link>
+        </div>
       </div>
     </div>
   );

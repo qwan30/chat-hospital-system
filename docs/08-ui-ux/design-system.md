@@ -1,89 +1,63 @@
-# UI/UX Design System
+# Design System
 
-> Project: AI-Powered Hospital Knowledge Assistant  
-> Project Code: HOSP-AI-001  
-> Version: 2.0  
-> Status: Draft  
-> Owner: UX Lead / UI Designer  
-> Last Updated: 2026-06-07  
+> Project: HOSP-AI-001 · Version: 1.0 · Last Updated: 2026-06-14  
+> Reference: `00_product_ui_truth.md`, `figma-design-system-delivery.md`, `hms-frontend-ui-fix-design-system.md`
 
----
+## 1. Brand
 
-## 1. Design Philosophy & Guidelines
+Clean modern-SaaS clinical interface — white canvas, confident typography, clear hierarchy. Designed for fast clinical scanning with accessible contrast.
 
-The user interface of the Hospital Knowledge Assistant (HOSP-AI-001) is designed around clinical efficiency, security transparency, and visual density (derived from modern workspace systems like Linear and Notion).
+## 2. Colors
 
-*   **Chat-First Workspace**: The primary entry screen lands the user directly in the chat interface (based on the Kotaemon workspace structure). Dashboard charts or configuration pages are secondary surfaces.
-*   **Context Gating**: The user's active context (general hospital knowledge vs. a specific patient) is always clearly displayed. Patient context changes trigger explicit authorization state changes in the UI.
-*   **Traceability**: Every claim made by the AI model is backed by inline citation chips. Clicking a citation opens a side panel rendering the raw source chunk/page summary.
-*   **Accessibility (WCAG AA)**: Color is never used as the sole indicator of status (e.g., warnings have distinct symbols, active items have background fills and borders). High contrast and full keyboard navigation focus states are required.
+| Token | Hex | Use |
+|-------|-----|-----|
+| Primary | `#111111` | CTAs, headlines |
+| Primary Hover | `#242424` | Button press |
+| Canvas | `#ffffff` | Page background |
+| Surface Tint | `#f8f9fa` | Section alternates |
+| Surface Card | `#f5f5f5` | Cards, elevated |
+| Hairline | `#e5e7eb` | Borders, dividers |
+| Surface Dark | `#101010` | Footer only |
+| Text Default | `#111111` | Headlines |
+| Text Body | `#374151` | Body copy |
+| Text Muted | `#6b7280` | Secondary, captions |
+| Text Subtle | `#898989` | Tertiary, placeholders |
+| Success | `#10b981` | Confirmation, indexed |
+| Warning | `#f59e0b` | Processing |
+| Error | `#ef4444` | Failures, denials |
+| Info | `#3b82f6` | Links |
 
----
+## 3. Typography
 
-## 2. Design Tokens
+| Level | Size | Weight | Use |
+|-------|------|--------|-----|
+| H1 | 36px | 600 | Page titles |
+| H2 | 28px | 600 | Section headers |
+| H3 | 22px | 600 | Card titles |
+| H4 | 18px | 600 | Sub-headings |
+| Body | 14px | 400 | Default text |
+| Caption | 12px | 500 | Labels, badges |
+| Button | 14px | 600 | CTAs |
 
-| UI Category | Token Name | Token Hex Value | Visual Use Case |
-|---|---|---|---|
-| **Background** | `bg.app` | `#08090a` | Main application viewport backdrop. |
-| **Surface** | `surface.shell` | `#0f1011` | Sidebar, header bar, and prompt panels. |
-| **Elevated** | `surface.elevated` | `#17181a` | Chat message bubbles, modals, drop-down menus. |
-| **Border** | `border.subtle` | `#26282c` | Panel separators and list item grids. |
-| **Primary Text** | `text.primary` | `#f7f8f8` | Primary clinical headers and copy text. |
-| **Secondary Text** | `text.secondary` | `#a3a7ad` | Body text, labels, and description text. |
-| **Muted Text** | `text.muted` | `#6f747d` | Timestamps, disabled placeholders, and minor info. |
-| **Accent Primary**| `accent.primary` | `#5e6ad2` | Call-to-action buttons, active sidebar highlights. |
-| **Info Accent** | `semantic.info` | `#60a5fa` | Citation highlights, general mode prompts. |
-| **Success Status**| `semantic.success` | `#34d399` | Permission-allowed indicators, completed tasks. |
-| **Warning Status**| `semantic.warning` | `#fbbf24` | Drug/allergy conflict notices, empty data warnings. |
-| **Danger Status** | `semantic.danger` | `#f87171` | Access-denied blocks, system timeout failures. |
+Font: **Inter**, fallback to system sans-serif.
 
----
+## 4. Spacing
 
-## 3. Screen Hierarchy & Wireframe Layouts
+`xs: 4px · sm: 8px · md: 16px · lg: 24px · xl: 32px · 2xl: 48px · Section: 96px`
 
-### Assistant Workspace Layout
-```
-+-------------------------------------------------------------------------------+
-| App Logo | Attending Physician Name                       [Patient Context v] |
-+-----------------------+----------------------------------+--------------------+
-|                       |                                  |                    |
-| (Sidebar)             | (Central Chat Area)              | (Evidence Panel)   |
-|                       |                                  |                    |
-| > New Chat            | Patient: John Doe (Allowed)      | Source Metadata:   |
-|                       |                                  | file_signed.pdf    |
-| - Allergy review      | User: What are his allergies?    | Page: 2            |
-| - Prescription log    |                                  |                    |
-| - Timeline notes      | AI: Patient is allergic to       | Excerpt:           |
-|                       | Penicillin [1].                  | \"Patient reports  |
-|                       |                                  | severe allergy     |
-|                       | [1] Ingestion records            | to Penicillin      |
-|                       |                                  | (anaphylaxis).\"   |
-|                       |                                  |                    |
-|                       +----------------------------------+                    |
-|                       | Ask patient-scoped question...   |                    |
-+-----------------------+----------------------------------+--------------------+
-```
+## 5. Border Radius
 
----
+`sm: 6px · md: 8px (buttons/inputs) · lg: 12px (cards) · xl: 16px · pill: 9999px (badges) · full: 50% (avatars)`
 
-## 4. Core UI Component States
+## 6. Components (shadcn/ui)
 
-*   **Conversation Sidebar**:
-    *   *Empty*: Shows instructions on starting a new chat thread.
-    *   *Active Thread*: Border highlight (`border.subtle`) and fill (`surface.elevated`) with rename and share action controls visible on hover.
-*   **Patient Context Gate**:
-    *   *General Mode*: Icon: Blue Shield. Placeholder: "Ask about hospital policies..."
-    *   *Patient Mode (Allowed)*: Icon: Green Lock. Displays patient MRN and name.
-    *   *Patient Mode (Denied)*: Icon: Red Lock. Hides patient metrics, blocks input, and displays "Audit trail access violation logged."
-*   **Citation Chip**:
-    *   *Default*: Rendered as `[1]`, `#5e6ad2` font with small border.
-    *   *Selected*: Inverse colors, highlighting the corresponding source chunk in the side panel.
-    *   *Unavailable*: Muted text, indicating source files have been soft-deleted or archived.
+30+ primitives: Button, Card, Input, Dialog, DropdownMenu, Avatar, Badge, Tabs, Sheet, Command, Popover, Select, Switch, Table, Tooltip, Skeleton, Checkbox, RadioGroup, Progress, Separator, Label, Textarea, Sonner.
 
----
+## 7. States
+
+Every component: Default · Hover · Active · Focused · Disabled · Loading (skeleton) · Empty · Error.
 
 ## Change Log
 | Version | Date | Author | Change |
-|---|---|---|---|
-| 1.0 | 2026-04-28 | UX Designer | Initial UI layout rules |
-| 2.0 | 2026-06-07 | Agent | Consolidated design tokens, visual workspace wireframe, and accessibility notes |
+|---------|------|--------|--------|
+| 1.0 | 2026-06-14 | Agent | Recreated from current frontend tokens + Figma specs |

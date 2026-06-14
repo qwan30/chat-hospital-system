@@ -30,10 +30,8 @@ export const NAV_ITEMS: NavItem[] = [
   { label: "Patients", href: "/patients", icon: "Users" },
   { label: "Chat", href: "/chat", icon: "MessageSquare" },
   { label: "Documents", href: "/documents", icon: "FileText" },
-  { label: "Timeline", href: "/timeline", icon: "Clock" },
-  { label: "Audit", href: "/audit", icon: "ShieldCheck" },
+  { label: "Audit Logs", href: "/audit", icon: "ShieldCheck" },
   { label: "Metrics", href: "/metrics", icon: "BarChart3" },
-  { label: "Settings", href: "/settings", icon: "Settings" },
 ];
 
 export const ENVIRONMENTS = [

@@ -33,30 +33,16 @@ The operations team monitors the following telemetry parameters to verify system
 
 ## 2. PostgreSQL Analytics Database Schema
 
-Metric events are logged directly to the chatbot database for de-identified aggregate reporting:
+Metrics are tracked via the `MetricsService` in `app/backend/src/hospital_ai/services/metrics.py` and exposed through the `/api/v1/feedback/metrics/summary` endpoint. Impact metrics (time saved, cost saved, helpful rate) are derived from `ai_queries` records and user feedback submissions.
 
-```sql
-CREATE TABLE metric_events (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    query_id UUID NOT NULL,
-    user_id UUID NOT NULL,
-    task_type VARCHAR(64) NOT NULL, -- e.g. PATIENT_SUMMARY, CHAT_QUERY
-    baseline_manual_time_sec INTEGER NOT NULL,
-    actual_ai_time_sec INTEGER NOT NULL,
-    estimated_time_saved_sec INTEGER GENERATED ALWAYS AS (baseline_manual_time_sec - actual_ai_time_sec) STORED,
-    estimated_cost_saved NUMERIC(12,2) NOT NULL, -- computed as (time_saved_sec / 3600.0) * clinician_hourly_rate
-    documents_retrieved INTEGER NOT NULL DEFAULT 0,
-    citations_count INTEGER NOT NULL DEFAULT 0,
-    query_latency_ms INTEGER NOT NULL,
-    retrieval_latency_ms INTEGER NOT NULL,
-    generation_latency_ms INTEGER NOT NULL,
-    shared_thread_id UUID,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-);
-
--- Index for date range query optimization
-CREATE INDEX idx_metric_events_created_at ON metric_events(created_at);
-```
+The `/api/v1/feedback/metrics/summary` endpoint returns:
+- `total_queries` — total AI queries processed
+- `avg_latency_ms` — average query latency
+- `total_time_saved_sec` — estimated clinician time saved
+- `total_cost_saved` — estimated cost savings
+- `helpful_rate` — percentage of positive (thumbs-up) feedback
+- `no_evidence_rate` — percentage of queries returning "no evidence"
+- `audit_deny_count` — total access denials logged in `audit_logs`
 
 ---
 

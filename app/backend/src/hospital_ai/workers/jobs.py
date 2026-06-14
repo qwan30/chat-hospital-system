@@ -36,9 +36,13 @@ async def process_document(
     await session.commit()
 
     try:
+        from hospital_ai.services.storage import LocalStorageService
         pages = OcrService().extract_pages(
             storage_uri=document.storage_uri,
             mime_type=document.mime_type,
+            patient_id=str(document.patient_id),
+            document_id=str(document.id),
+            storage_service=LocalStorageService(settings)
         )
     except Exception as exc:
         await _mark_failed_if_current(

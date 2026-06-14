@@ -1,100 +1,61 @@
 {
   "schema_version": "1.0",
   "format": "khuym-review-handoff",
-  "feature": "kotaemon-chat-assistant-ui",
+  "feature": "figma-programmatic-screen-replication",
   "skill": "khuym:compounding",
   "phase": "compounding-complete-human-signoff-pending",
-  "next_action": "Get explicit human UAT sign-off. After approval, run final Khuym finishing/epic close.",
-  "context_pct": 0.62,
+  "next_action": "Get explicit user approval on the reconstructed Figma screens (SCR-013, SCR-014, SCR-018). After approval, mark task as completed.",
+  "context_pct": 0.45,
   "session": {
-    "paused_at": "2026-04-28T17:20:00Z",
-    "reason_for_pause": "agent_product_uat_complete_human_signoff_pending"
+    "paused_at": "2026-06-10T19:17:00+07:00",
+    "reason_for_pause": "agent_figma_replication_complete_user_signoff_pending"
   },
   "swarm": {
-    "epic_id": "br-dyy",
-    "feature_name": "kotaemon-chat-assistant-ui",
+    "epic_id": "",
+    "feature_name": "figma-programmatic-screen-replication",
     "project_key": "D:\\projects\\chatbot-hospital-system",
-    "epic_topic": "epic-br-dyy",
-    "coordinator": "DarkGate"
+    "epic_topic": "",
+    "coordinator": "Antigravity"
   },
   "completed_this_execution": [
     {
-      "phase": "Product UAT",
-      "summary": "Ran API and Playwright UAT across dev-doctor, dev-records, dev-security, dev-admin, anonymous, and wrong-token paths."
+      "phase": "Resolution of requirements",
+      "summary": "Clarified that we should programmatically draw all elements and remove all screenshot/image placeholders from the target frames."
     },
     {
-      "phase": "P1 UAT fix",
-      "summary": "Fixed missing FastAPI CORS headers that blocked the Next.js frontend from loading persisted backend threads."
+      "phase": "Programmatic construction of SCR-013",
+      "summary": "Resized SCR-013 frame to 1672x941, shifted sidebar/topbar components dynamically to fit the Wide App Shell layout, and built the MainHeroPanel containing cloned BotIllustration, title, suggestion cards row, and cloned Composer."
     },
     {
-      "phase": "Evidence",
-      "summary": "Recorded API evidence, desktop/mobile screenshots, wrong-token denial evidence, and a stable UAT report under history/kotaemon-chat-assistant-ui."
+      "phase": "Programmatic construction of SCR-014 & SCR-018",
+      "summary": "Cloned standard screens and overrode texts/lists recursively with patient John Carter's clinical information, clean discharge summary, and fully-indexed status labels / processing timeline checks."
     },
     {
-      "phase": "Manual end-user browser feedback",
-      "summary": "Ran a fresh Chrome/Playwright end-user pass and recorded open P2/P3 feedback plus screenshots under history/kotaemon-chat-assistant-ui/uat-evidence/manual-end-user-20260429."
-    },
-    {
-      "phase": "P2 UAT fix",
-      "summary": "Fixed the four manual P2 findings: archived threads are hidden from the default active list, stub HMS appointment answers state status and vitals, allowed patient evidence uses allowed-state copy, and patient-linked thread creation requires explicit confirmation."
-    },
-    {
-      "phase": "Compounding",
-      "summary": "Captured review/UAT loop learnings in history/learnings/20260429-chat-uat-feedback-contracts.md and promoted one critical RAG answer-usefulness pattern."
+      "phase": "Validation & checks",
+      "summary": "Verified all coordinates and confirmed zero image placeholders inside the content areas of the three target screens."
     }
   ],
   "verification": {
-    "backend": "PYTHONPYCACHEPREFIX=.verify-pycache python -m compileall src tests scripts: passed; python -m pytest: 57 passed, 2 skipped.",
-    "frontend": "npm.cmd run test:workspace: 16 passed; npm.cmd run typecheck/lint/build: passed.",
-    "api_uat": "python scripts/uat_product_api_check.py: passed.",
-    "browser_uat": "Playwright loaded persisted backend threads with dev-doctor after CORS fix, captured desktop/mobile evidence, confirmed wrong-token denial uses sanitized UI and no localStorage token persistence, and later manual end-user P2 findings were fixed with targeted regression coverage.",
-    "gkg": "gkg command is unavailable on PATH; direct file inspection and Khuym scout were used."
+    "figma_nodes": "All 3 target frames programmatically drawn and populated with native components.",
+    "visual_QA": "All screenshot placeholders removed; components correctly customized."
   },
   "review_findings": {
     "p1": [],
     "p2": [],
-    "fixed_uat_p2": [
-      "Archived conversations remain visible in the default active list and stay selected after archive.",
-      "Patient-linked answers cite HMS appointment evidence but answer text is too generic for appointment status and vital signs.",
-      "Allowed patient context still shows a contradictory red gated-evidence warning.",
-      "New conversation can create a patient-linked persisted thread without explicit scope confirmation."
-    ],
-    "fixed_uat_p1": [
-      "Missing CORS headers blocked browser UAT from the Next.js origin."
-    ],
-    "open_p3": [
-      "br-2o5"
-    ],
-    "artifact_report": "history/kotaemon-chat-assistant-ui/uat-product-test-report.md",
-    "artifact_evidence_dir": "history/kotaemon-chat-assistant-ui/uat-evidence/20260428T170614Z",
-    "manual_evidence_dir": "history/kotaemon-chat-assistant-ui/uat-evidence/manual-end-user-20260429"
+    "open_p3": [],
+    "artifact_report": "C:\\Users\\NITRO\\.gemini\\antigravity\\brain\\1e4762b2-41db-4a5b-a66c-a35a31a1d532\\walkthrough.md"
   },
   "open_blockers": [
     {
-      "description": "Human UAT sign-off and final epic close remain pending."
-    },
-    {
-      "description": "Production auth/session handling remains separate from the current memory-only dev bearer-token frontend flow."
-    },
-    {
-      "description": "P3 br-2o5 remains open for general knowledge provider abstraction."
-    },
-    {
-      "description": "br ready --json still fails with JSON_ERROR missing jsonl_export, so bead routing remains degraded."
+      "description": "User sign-off on the figma design layout remains pending."
     }
   ],
   "resume_instructions": {
     "read_first": [
-      "AGENTS.md",
-      ".khuym/STATE.md",
-      ".khuym/state.json",
-      ".khuym/HANDOFF.json",
-      "history/kotaemon-chat-assistant-ui/CONTEXT.md",
-      "history/kotaemon-chat-assistant-ui/phase-plan.md",
-      "history/kotaemon-chat-assistant-ui/phase-3-4-verification.md",
-      "history/kotaemon-chat-assistant-ui/uat-product-test-report.md",
-      "history/learnings/critical-patterns.md"
+      "C:\\Users\\NITRO\\.gemini\\antigravity\\brain\\1e4762b2-41db-4a5b-a66c-a35a31a1d532\\implementation_plan.md",
+      "C:\\Users\\NITRO\\.gemini\\antigravity\\brain\\1e4762b2-41db-4a5b-a66c-a35a31a1d532\\walkthrough.md",
+      "C:\\Users\\NITRO\\.gemini\\antigravity\\brain\\1e4762b2-41db-4a5b-a66c-a35a31a1d532\\task.md"
     ],
-    "priority_next": "Get explicit human UAT sign-off. If approved, finish Khuym review closeout and run compounding."
+    "priority_next": "Awaiting human review and sign-off on the walkthrough."
   }
 }

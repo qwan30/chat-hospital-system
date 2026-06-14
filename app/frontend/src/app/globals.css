@@ -39,10 +39,12 @@
   --color-success-600: #12A763;
   --color-success-700: #087443;
 
+  --color-danger-50: #FFF7F7;
   --color-danger-100: #FFF1F1;
   --color-danger-600: #EF4444;
   --color-danger-700: #B42318;
 
+  --color-warning-50: #FFFBEB;
   --color-warning-100: #FFF6E5;
   --color-warning-500: #F59E0B;
   --color-warning-700: #B54708;
@@ -118,6 +120,14 @@
   --sidebar-wide-width: 288px;
   --topbar-height: 84px;
   --content-gap: 16px;
+  --z-sidebar: 10;
+  --z-topbar: 20;
+  --z-rail: 30;
+  --z-dropdown: 200;
+  --z-drawer: 250;
+  --z-backdrop: 500;
+  --z-modal: 600;
+  --z-toast: 700;
 }
 
 /* ── Reset ──────────────────────────────────────────────────────── */

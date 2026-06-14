@@ -39,7 +39,7 @@ export function CommandPalette({ open, onClose }: CommandPaletteProps) {
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex justify-center" style={{ background: "var(--color-bg-overlay)", paddingTop: "12vh" }} onClick={onClose}>
+    <div className="fixed inset-0 z-[var(--z-modal)] flex justify-center" style={{ background: "var(--color-bg-overlay)", paddingTop: "12vh" }} onClick={onClose}>
       <div className="bg-bg-surface border border-border-default rounded-2xl shadow-modal w-[560px] max-h-[520px] overflow-hidden flex flex-col" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center gap-3 px-5 py-4 border-b border-border-subtle">
           <Search className="w-5 h-5 text-text-subtle flex-shrink-0" />

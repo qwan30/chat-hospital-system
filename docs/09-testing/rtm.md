@@ -31,7 +31,7 @@ The RTM maps all functional and non-functional requirements to design elements, 
 | **FR-014** | Settings (SCR-025) | `GET /api/v1/users/me/preferences` | TBD | Covered |
 | **FR-015** | Feedback (SCR-014) | `POST /api/v1/feedback` | TC-015 | Covered |
 | **FR-016** | Dashboard Populated (SCR-003, SCR-005) | `GET /api/v1/dashboard/summary` | TC-026 | Covered |
-| **FR-017** | HMS Sync Integration (Worker) | `/ai/changes`, `cached_patients` | TC-020, TC-022 | Covered |
+| **FR-017** | HMS Sync Integration (Worker) | `/api/v1/hms/sync`, `patients`, `hms_sync_logs` | TC-020, TC-022 | Covered |
 | **FR-018** | Patient Overview Snapshot (SCR-007) | `GET /api/v1/patients/{id}/overview` | TC-020 | Covered |
 | **FR-019** | Access Justification Modal (SCR-022)| `POST /api/v1/access-requests` | TC-023 | Covered |
 | **FR-020** | Environment Switcher (SCR-027) | `POST /api/v1/workspaces/{id}/switch` | TBD | Covered |

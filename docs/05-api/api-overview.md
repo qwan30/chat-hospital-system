@@ -2,10 +2,10 @@
 
 > Project: AI Copilot for Hospital Management System (HMS)  
 > Project Code: HOSP-AI-001  
-> Version: 3.0  
-> Status: Approved  
+> Version: 3.1  
+> Status: In Sync  
 > Owner: Integration Lead / DevOps  
-> Last Updated: 2026-06-07  
+> Last Updated: 2026-06-14  
 
 ---
 
@@ -42,8 +42,8 @@ sequenceDiagram
 
 To manage data synchronization tasks, the AI Assistant BFF exposes the following administrative endpoints:
 
-*   `POST /api/v1/integrations/hms/sync/patients/{patientId}`: Triggers an immediate, manual refresh of the read cache for a specific patient.
-*   `GET /api/v1/integrations/hms/jobs/{jobId}`: Retrieves status logs for background sync workers.
+*   `POST /api/v1/hms/sync/patients/{id}`: Triggers an immediate, manual refresh of the read cache for a specific patient.
+*   `GET /api/v1/hms/jobs/{job_id}`: Retrieves status logs for background sync workers.
     ```json
     {
       "job_id": "job_9831a28d-3b2a-4dfb",
@@ -70,3 +70,4 @@ To manage data synchronization tasks, the AI Assistant BFF exposes the following
 | 1.0 | 2026-04-27 | Integration Lead | Initial integration overview |
 | 2.0 | 2026-06-07 | Agent | Restructured into standalone doc |
 | 3.0 | 2026-06-07 | Agent | Realigned to incremental sync queues, change feeds, and telemetry tracing |
+| 3.1 | 2026-06-14 | Agent | Corrected endpoint paths to match actual routes (`/api/v1/hms/...` not `/api/v1/integrations/hms/...`) |

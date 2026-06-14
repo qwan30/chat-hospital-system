@@ -33,7 +33,7 @@ The Hospital Management System acts as the **single source of truth** for patien
 
 *   **Attending Provider Rule**: Clinicians can only access patient EMR snapshots or chat context if they are registered as the active attending doctor/nurse for that patient on the HMS.
 *   **Departmental Rule**: Access is allowed if the clinician is assigned to the department (e.g., Cardiology, ICU) where the patient is currently admitted.
-*   **Audit-on-Denial**: Standard users trying to access patients outside their EMR scope receive HTTP 403 blocks, triggering an automatic critical write to `audit_events`.
+*   **Audit-on-Denial**: Standard users trying to access patients outside their EMR scope receive HTTP 403 blocks, triggering an automatic critical write to `audit_logs`.
 
 ---
 

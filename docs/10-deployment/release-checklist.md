@@ -33,7 +33,7 @@ If any of the following operational signals breach thresholds, follow the recomm
 | **API 5xx Error Rate** | `>2%` within 5 minutes | 1. Check API gateway and FastAPI container logs.<br>2. Roll back to the previous stable Docker image if immediate hotfix is unavailable. |
 | **Chat Response Latency** | `P95 > 5` seconds | 1. Query pgvector index performance logs.<br>2. Review RAG search execution plans in PostgreSQL. |
 | **LLM Inference Latency** | `Average > 20` seconds | 1. Check local Ollama container CPU/GPU usage.<br>2. Reduce context chunk counts (limit retrieved chunks) or switch to a smaller quantized model. |
-| **OCR Worker Queue Backlog** | Task stale for `>30` mins | 1. Inspect Redis queue state.<br>2. Restart the OCR worker processes or spin up additional Celery worker instances. |
+| **OCR Worker Queue Backlog** | Task stale for `>30` mins | 1. Inspect Redis queue state.<br>2. Restart the OCR worker processes or spin up additional RQ worker instances. |
 | **RAG No-Evidence Rate** | `>30%` on evaluation dataset | 1. Review document chunking size and overlap policies.<br>2. Check if embedding models need reindexing. |
 | **Authorization Failures** | Unexpected spike in 403 errors | 1. Review access control configurations.<br>2. Verify if ABAC rules are misinterpreting clinician departments. |
 | **Missing Audit Event** | Any patient query missing audit record | **BLOCK RELEASE**. Audit compliance is a mandatory release gate. Inspect RAG query middleware. |

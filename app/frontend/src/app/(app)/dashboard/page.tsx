@@ -6,7 +6,8 @@ import { getDashboardSummary, type DashboardSummary } from "@/lib/api-client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
-import { Clock, DollarSign, FileText, Users, Activity } from "lucide-react";
+import { Clock, DollarSign, FileText, Users, Plus } from "lucide-react";
+import { DashboardErrorState } from "@/components/empty/DashboardErrorState";
 
 export default function DashboardPage() {
   const { apiUrl, token } = useAuth();
@@ -36,12 +37,10 @@ export default function DashboardPage() {
   if (error) {
     return (
       <div className="p-6">
-        <Card className="border-danger-100 bg-danger-50">
-          <CardContent className="py-8 text-center">
-            <p className="text-danger-600 text-body-strong">Unable to load dashboard</p>
-            <p className="text-caption text-text-muted mt-1">{error}</p>
-          </CardContent>
-        </Card>
+        <DashboardErrorState
+          primaryAction={{ label: "Retry", onClick: () => { setError(""); setLoading(true); getDashboardSummary({ apiUrl, token }).then((d) => { setData(d); setLoading(false); }).catch((e) => { setError(e.message); setLoading(false); }); } }}
+          secondaryAction={{ label: "View logs", onClick: () => console.log("Logs") }}
+        />
       </div>
     );
   }
@@ -49,11 +48,14 @@ export default function DashboardPage() {
   return (
     <div className="p-6 space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-h1 text-text-strong">Dashboard</h1>
-        <Badge variant="outline" className="gap-1.5 text-caption">
-          <Activity className="w-3 h-3" />
-          {data?.systems_health?.hms_api === "ok" ? "All systems operational" : "System issues detected"}
-        </Badge>
+        <div>
+          <h1 className="text-[24px] font-bold text-text-strong mb-1">Welcome back, Dr. Chen 👋</h1>
+          <p className="text-[14px] text-text-muted">Here's what's happening with your patients today.</p>
+        </div>
+        <button className="flex items-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-lg text-[13px] font-bold hover:bg-primary-700 transition-colors">
+          <Plus className="w-4 h-4" />
+          Add Patient
+        </button>
       </div>
 
       <div className="grid grid-cols-4 gap-4">

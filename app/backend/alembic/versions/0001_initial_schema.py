@@ -37,7 +37,9 @@ def _require_pgvector() -> None:
 
 def upgrade() -> None:
     _require_pgvector()
-    op.execute("CREATE EXTENSION IF NOT EXISTS vector")
+    bind = op.get_bind()
+    if bind.dialect.name == "postgresql":
+        op.execute("CREATE EXTENSION IF NOT EXISTS vector")
 
     op.create_table(
         "users",
@@ -47,8 +49,8 @@ def upgrade() -> None:
         sa.Column("department", sa.String(length=128), nullable=True),
         sa.Column("role", sa.String(length=32), nullable=False),
         sa.Column("is_active", sa.Boolean(), nullable=False, server_default=sa.text("true")),
-        sa.Column("created_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.text("now()")),
-        sa.Column("updated_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.text("now()")),
+        sa.Column("created_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.text("CURRENT_TIMESTAMP")),
+        sa.Column("updated_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.text("CURRENT_TIMESTAMP")),
         sa.Column("deleted_at", sa.DateTime(timezone=True), nullable=True),
         sa.CheckConstraint(
             "role in ('doctor','nurse','pharmacist','lab_staff','records_staff','security','admin')",
@@ -65,8 +67,8 @@ def upgrade() -> None:
         sa.Column("dob", sa.Date(), nullable=True),
         sa.Column("department", sa.String(length=128), nullable=True),
         sa.Column("status", sa.String(length=32), nullable=False, server_default="active"),
-        sa.Column("created_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.text("now()")),
-        sa.Column("updated_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.text("now()")),
+        sa.Column("created_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.text("CURRENT_TIMESTAMP")),
+        sa.Column("updated_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.text("CURRENT_TIMESTAMP")),
         sa.Column("deleted_at", sa.DateTime(timezone=True), nullable=True),
     )
     op.create_index("ix_patients_mrn", "patients", ["mrn"], unique=True)
@@ -79,8 +81,8 @@ def upgrade() -> None:
         sa.Column("scope", sa.String(length=32), nullable=False),
         sa.Column("source", sa.String(length=64), nullable=False, server_default="manual"),
         sa.Column("expires_at", sa.DateTime(timezone=True), nullable=True),
-        sa.Column("created_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.text("now()")),
-        sa.Column("updated_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.text("now()")),
+        sa.Column("created_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.text("CURRENT_TIMESTAMP")),
+        sa.Column("updated_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.text("CURRENT_TIMESTAMP")),
         sa.Column("deleted_at", sa.DateTime(timezone=True), nullable=True),
         sa.CheckConstraint(
             "scope in ('read','summary','medication','upload','admin')",
@@ -106,8 +108,8 @@ def upgrade() -> None:
         sa.Column("status", sa.String(length=32), nullable=False),
         sa.Column("page_count", sa.Integer(), nullable=True),
         sa.Column("ocr_error", sa.Text(), nullable=True),
-        sa.Column("created_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.text("now()")),
-        sa.Column("updated_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.text("now()")),
+        sa.Column("created_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.text("CURRENT_TIMESTAMP")),
+        sa.Column("updated_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.text("CURRENT_TIMESTAMP")),
         sa.Column("deleted_at", sa.DateTime(timezone=True), nullable=True),
         sa.CheckConstraint(
             "status in ('uploaded','ocr_processing','ocr_failed','ocr_completed','indexing',"
@@ -124,8 +126,8 @@ def upgrade() -> None:
         sa.Column("page_number", sa.Integer(), nullable=False),
         sa.Column("ocr_text", sa.Text(), nullable=False),
         sa.Column("ocr_confidence", sa.Numeric(), nullable=True),
-        sa.Column("created_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.text("now()")),
-        sa.Column("updated_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.text("now()")),
+        sa.Column("created_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.text("CURRENT_TIMESTAMP")),
+        sa.Column("updated_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.text("CURRENT_TIMESTAMP")),
         sa.Column("deleted_at", sa.DateTime(timezone=True), nullable=True),
         sa.UniqueConstraint("document_id", "page_number", name="uq_document_page_number"),
     )
@@ -140,17 +142,19 @@ def upgrade() -> None:
         sa.Column("content", sa.Text(), nullable=False),
         sa.Column("token_count", sa.Integer(), nullable=True),
         sa.Column("embedding", _embedding_type(), nullable=True),
-        sa.Column("metadata", postgresql.JSONB(), nullable=False, server_default=sa.text("'{}'::jsonb")),
-        sa.Column("created_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.text("now()")),
-        sa.Column("updated_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.text("now()")),
+        sa.Column("metadata", sa.JSON(), nullable=False, server_default=sa.text("'{}'")),
+        sa.Column("created_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.text("CURRENT_TIMESTAMP")),
+        sa.Column("updated_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.text("CURRENT_TIMESTAMP")),
         sa.Column("deleted_at", sa.DateTime(timezone=True), nullable=True),
         sa.UniqueConstraint("document_id", "chunk_index", name="uq_document_chunk_index"),
     )
     op.create_index("ix_document_chunks_patient_document", "document_chunks", ["patient_id", "document_id"])
-    op.execute(
-        "CREATE INDEX document_chunks_embedding_hnsw "
-        "ON document_chunks USING hnsw (embedding vector_cosine_ops)"
-    )
+    bind = op.get_bind()
+    if bind.dialect.name == "postgresql":
+        op.execute(
+            "CREATE INDEX document_chunks_embedding_hnsw "
+            "ON document_chunks USING hnsw (embedding vector_cosine_ops)"
+        )
 
     op.create_table(
         "audit_logs",
@@ -162,9 +166,9 @@ def upgrade() -> None:
         sa.Column("patient_id", sa.Uuid(), sa.ForeignKey("patients.id"), nullable=True),
         sa.Column("outcome", sa.String(length=32), nullable=False),
         sa.Column("trace_id", sa.String(length=64), nullable=False),
-        sa.Column("ip_address", postgresql.INET(), nullable=True),
-        sa.Column("metadata", postgresql.JSONB(), nullable=False, server_default=sa.text("'{}'::jsonb")),
-        sa.Column("created_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.text("now()")),
+        sa.Column("ip_address", sa.String(length=45), nullable=True),
+        sa.Column("metadata", sa.JSON(), nullable=False, server_default=sa.text("'{}'")),
+        sa.Column("created_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.text("CURRENT_TIMESTAMP")),
         sa.CheckConstraint("outcome in ('allowed','denied','failed')", name="ck_audit_logs_outcome"),
     )
     op.execute("CREATE INDEX ix_audit_logs_actor_created ON audit_logs (actor_user_id, created_at DESC)")
@@ -180,7 +184,7 @@ def upgrade() -> None:
         sa.Column("status", sa.String(length=32), nullable=False),
         sa.Column("latency_ms", sa.Integer(), nullable=True),
         sa.Column("model", sa.String(length=128), nullable=True),
-        sa.Column("created_at", sa.DateTime(timezone=True), nullable=True, server_default=sa.text("now()")),
+        sa.Column("created_at", sa.DateTime(timezone=True), nullable=True, server_default=sa.text("CURRENT_TIMESTAMP")),
     )
 
     op.create_table(

@@ -1,73 +1,72 @@
 # Documentation Index
 
-> Project: AI-Powered Hospital Knowledge Assistant  
-> Project Code: HOSP-AI-001  
-> Version: 2.0  
-> Last updated: 2026-06-07
-
-## Quick Start Reading Paths
-
-### For Business Analyst / Product Owner
-1. [Project Context](project-context.md)
-2. [BRD](../01-business/brd.md)
-3. [PRD](../02-product/prd.md)
-4. [Use Cases](../03-requirements/use-cases.md)
-5. [Screen List](../08-ui-ux/screen-list.md)
-
-### For Developer
-1. [Project Foundation](project-foundation.md) ← **start here**
-2. [Architecture](../04-architecture/architecture.md)
-3. [API Contract](../05-api/api-contract.md)
-4. [DB Schema](../06-database/db-schema.md)
-5. [State Machines](../07-flows/state-machine.md)
-
-### For QA / Tester
-1. [Test Plan](../09-testing/test-plan.md)
-2. [Test Cases](../09-testing/test-cases.md)
-3. [RTM](../09-testing/rtm.md)
-4. [Use Cases (with ACs)](../03-requirements/use-cases.md)
-
-### For Security / Compliance
-1. [Project Foundation § Security](project-foundation.md#5-security-posture)
-2. [Permissions Matrix](../03-requirements/permissions-matrix.md)
-3. [Audit Logs](../09-testing/test-cases.md) (TC-002, TC-011, TC-016)
-
-### For DevOps / SRE
-1. [Deployment Guide](../10-deployment/deployment-guide.md)
-2. [CI/CD](../10-deployment/ci-cd.md)
-3. [Monitoring Guide](../11-operations/monitoring-guide.md)
-4. [Rollback Plan](../10-deployment/rollback-plan.md)
+> Project: HOSP-AI-001  
+> Version: 1.0  
+> Last Updated: 2026-06-14  
 
 ---
 
-## Folder Map
+## Persona-Based Reading Paths
 
-| Directory | Purpose | Key Files |
-|---|---|---|
-| `00-overview/` | Documentation map, project context, technical foundation | `project-foundation.md`, `project-context.md`, `documentation-index.md` |
-| `01-business/` | Business requirements and rules | `brd.md`, `BR-001-*.md` through `BR-007-*.md`, `business-rules.md`, `glossary.md` |
-| `02-product/` | Product requirements and roadmap | `prd.md` |
-| `03-requirements/` | Software requirements and use cases | `use-cases.md`, `UC-001-*.md` through `UC-009-*.md`, `functional-requirements.md`, `non-functional-requirements.md`, `permissions-matrix.md` |
-| `04-architecture/` | Architecture and technical decisions | `architecture.md`, `adr/ADR-001-*.md` through `ADR-007-*.md` |
-| `05-api/` | API contracts and OpenAPI | `api-contract.md`, `api-overview.md`, `error-codes.md` |
-| `06-database/` | Schema, ERD, and data dictionary | `db-schema.md`, `erd.md` |
-| `07-flows/` | Business flows, state machines | `state-machine.md` |
-| `08-ui-ux/` | UI/UX design and screen catalog | `screen-list.md`, `design-system.md` |
-| `09-testing/` | QA and testing documentation | `test-plan.md`, `test-cases.md`, `rtm.md` |
-| `10-deployment/` | Deployment, CI/CD, release | `deployment-guide.md`, `ci-cd.md`, `rollback-plan.md` |
-| `11-operations/` | Operations and monitoring | `monitoring-guide.md` |
-| `12-handover/` | Project summary and deliverables | `project-summary.md`, `final-deliverables.md` |
+### For Business Analysts & Product Owners
+1. `00-overview/project-context.md` — Project metadata & background
+2. `01-business/brd.md` — Business goals, KPIs, scope
+3. `02-product/prd.md` — Personas, MVP criteria
+4. `03-requirements/use-cases.md` — Use case index
+5. `03-requirements/permissions-matrix.md` — Access control
+
+### For Developers & Architects
+1. `00-overview/project-foundation.md` — **Source of Truth** (start here)
+2. `04-architecture/architecture.md` — System architecture
+3. `04-architecture/coding-standards.md` — Code conventions
+4. `05-api/api-contract.md` — API specification
+5. `06-database/db-schema.md` — Database schema
+6. `06-database/erd.md` — Entity relationships
+7. `04-architecture/adr/` — Architecture Decision Records
+
+### For QA & Testers
+1. `09-testing/test-plan.md` — Test strategy
+2. `09-testing/test-cases.md` — Test scenarios
+3. `09-testing/rtm.md` — Requirements traceability
+4. `09-testing/manual-test-checklist.md` — UAT checklist
+
+### For DevOps & SREs
+1. `10-deployment/deployment-guide.md` — Deployment environments
+2. `10-deployment/ci-cd.md` — Build pipeline
+3. `10-deployment/release-checklist.md` — Release runbook
+4. `10-deployment/rollback-plan.md` — Incident response
+5. `11-operations/monitoring-guide.md` — Operations metrics
+
+### For New Team Members
+1. `00-overview/project-context.md` — What is this project?
+2. `00-overview/project-foundation.md` — How do we work?
+3. `12-handover/developer-onboarding.md` — Getting started
+4. `12-handover/repository-guide.md` — Codebase tour
 
 ---
 
-## Cross-Cutting References
+## Full Directory Map
 
-- [UI/API Traceability Matrix](../ui_api_traceability_matrix.md) — SCR → UC → API → FR → BR → TC
-- [Screen Design Images](../screen-design/) — 25 annotated screenshots
+| # | Folder | Purpose | Status |
+|---|--------|---------|--------|
+| 00 | `00-overview/` | Project foundation, context, standards | ✅ In Sync |
+| 01 | `01-business/` | BRD, business rules, stakeholders | ✅ In Sync |
+| 02 | `02-product/` | PRD, personas, MVP scope | ✅ In Sync |
+| 03 | `03-requirements/` | Use cases, functional/non-functional reqs | ✅ In Sync |
+| 04 | `04-architecture/` | Architecture, ADRs, security, coding standards | ✅ In Sync |
+| 05 | `05-api/` | API contracts, error codes, integration overview | ✅ In Sync |
+| 06 | `06-database/` | DB schema, ERD, data dictionary | ✅ In Sync |
+| 07 | `07-flows/` | State machines, process flows | ✅ In Sync |
+| 08 | `08-ui-ux/` | Design system, Figma specs, screen designs | ✅ In Sync |
+| 09 | `09-testing/` | Test plan, test cases, RTM | ✅ In Sync |
+| 10 | `10-deployment/` | Deployment, CI/CD, env setup | ✅ In Sync |
+| 11 | `11-operations/` | Monitoring, operations runbooks | ✅ In Sync |
+| 12 | `12-handover/` | Onboarding, project summary, deliverables | ✅ In Sync |
 
 ---
 
 ## Change Log
+
 | Version | Date | Author | Change |
-|---|---|---|---|
-| 2.0 | 2026-06-07 | Agent | Initial creation replacing `00_template_usage_guide.md` |
+|---------|------|--------|--------|
+| 1.0 | 2026-06-14 | Agent | Created with persona-based paths and directory map |

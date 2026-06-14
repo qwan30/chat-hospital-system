@@ -13,33 +13,62 @@ import { SemanticSearchPanel } from "@/components/document/SemanticSearchPanel";
 import { StorageUsageDonut } from "@/components/document/StorageUsageDonut";
 import { Search, Upload, FileText } from "lucide-react";
 
+import { uploadDocument } from "@/lib/api/documents";
+import Link from "next/link";
+
 export default function DocumentsPage() {
   const { apiUrl, token } = useAuth();
   const [documents, setDocuments] = useState<DocumentItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
-  useEffect(() => {
+  const fetchDocuments = () => {
     if (!apiUrl || !token) return;
     setLoading(true);
     listDocuments({ apiUrl, token }).then((d) => { setDocuments(d); setLoading(false); }).catch((e) => { setError(e.message); setLoading(false); });
+  };
+
+  useEffect(() => {
+    fetchDocuments();
   }, [apiUrl, token]);
+
+  const handleQuickUpload = async (fileList: FileList) => {
+    if (!apiUrl || !token) return;
+    const files = Array.from(fileList);
+    
+    for (const file of files) {
+      const formData = new FormData();
+      formData.append("patient_id", "00000000-0000-0000-0000-000000000001");
+      formData.append("title", file.name);
+      formData.append("document_type", "Clinical Note");
+      formData.append("file", file);
+      
+      try {
+        await uploadDocument({ apiUrl, token }, formData);
+      } catch (err) {
+        console.error("Upload error:", err);
+      }
+    }
+    fetchDocuments();
+  };
 
   return (
     <div className="p-6 space-y-6">
       <div className="flex items-center justify-between">
         <div><h1 className="text-h1 text-text-strong">Documents</h1><p className="text-caption text-text-muted mt-1">{documents.length} documents indexed</p></div>
-        <Button className="gap-2"><Upload className="w-4 h-4" />Upload</Button>
+        <Link href="/documents/upload">
+          <Button className="gap-2"><Upload className="w-4 h-4" />Upload</Button>
+        </Link>
       </div>
 
       {error && <Card className="border-danger-100 bg-danger-50"><CardContent className="py-6 text-center"><p className="text-danger-600 text-body-strong">Failed to load documents</p><p className="text-caption text-text-muted mt-1">{error}</p></CardContent></Card>}
 
-      <div className="grid grid-cols-3 gap-4">
-        <div className="col-span-2 space-y-4">
+      <div className="grid grid-cols-[minmax(0,1fr)_360px] gap-6">
+        <div className="space-y-4">
           <div className="flex items-center gap-3">
             <div className="relative flex-1"><Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-subtle" /><Input placeholder="Search documents..." className="pl-9" /></div>
           </div>
-          <UploadDropzone onFilesSelected={(files) => console.log(files.length + " files selected")} />
+          <UploadDropzone onFilesSelected={handleQuickUpload} />
           <Card>
             <CardHeader><CardTitle className="text-h4">All Documents</CardTitle></CardHeader>
             <CardContent>

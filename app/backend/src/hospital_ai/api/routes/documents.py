@@ -219,6 +219,36 @@ async def get_document_page(
     return page
 
 
+@router.get("/{document_id}/pages/{page_number}/image")
+async def get_document_page_image(
+    document_id: uuid.UUID,
+    page_number: int,
+    request: Request,
+    session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(get_current_user),
+    settings: Settings = Depends(get_settings),
+):
+    from fastapi.responses import FileResponse
+    
+    document = await _get_document_or_404(session, document_id)
+    trace_id = new_trace_id()
+    await PermissionService(session).require_read(
+        user=current_user,
+        patient_id=document.patient_id,
+        action="document.page.image.read",
+        trace_id=trace_id,
+        object_type="document",
+        object_id=document.id,
+        ip_address=get_request_ip(request),
+    )
+    
+    image_path = LocalStorageService(settings).get_page_image_path(document.patient_id, document.id, page_number)
+    if not image_path.exists():
+        raise NotFoundError("Document page image not found.")
+        
+    return FileResponse(image_path, media_type="image/png")
+
+
 @router.post("/{document_id}/retry-index", response_model=DocumentRead)
 async def retry_index(
     document_id: uuid.UUID,

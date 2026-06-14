@@ -29,7 +29,7 @@ export function getDocument(opts: ApiClientOptions, docId: string): Promise<Docu
 }
 
 export function uploadDocument(opts: ApiClientOptions, formData: FormData): Promise<DocumentUploadResponse> {
-  return apiFetch<DocumentUploadResponse>("/documents/upload", { ...opts, method: "POST", body: formData, headers: {} });
+  return apiFetch<DocumentUploadResponse>("/documents", { ...opts, method: "POST", body: formData, headers: {} });
 }
 
 export function getOCRStatus(opts: ApiClientOptions, docId: string): Promise<OCRStatusResponse> {

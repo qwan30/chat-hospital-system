@@ -16,7 +16,7 @@ This inventory catalogues all test cases mapped to functional requirements, non-
 | TC ID | Title / Scenario | Linked Req | Priority | Expected Result / Verification |
 |---|---|---|---|---|
 | **TC-001** | Login succeeds | FR-001 | P1 (Must) | Authenticated user receives valid scoped JWT session. |
-| **TC-002** | Unauthorized patient blocked | FR-002 | P1 (Must) | Request returns HTTP 403, and an event is written to `audit_events`. |
+| **TC-002** | Unauthorized patient blocked | FR-002 | P1 (Must) | Request returns HTTP 403, and an event is written to `audit_logs`. |
 | **TC-003** | Patient search scoped | FR-003 | P1 (Must) | Search results exclude patient records outside user's ABAC scope. |
 | **TC-004** | AI chat cited answer | FR-004/005 | P1 (Must) | Chat response contains valid structured source citations mapping to chunks. |
 | **TC-005** | Safe refusal without evidence | BR-AI-001 | P1 (Must) | Query returns standard "Insufficient evidence" status (`INSUFFICIENT_EVIDENCE`). |
@@ -24,8 +24,8 @@ This inventory catalogues all test cases mapped to functional requirements, non-
 | **TC-007** | OCR document searchable | FR-006/007 | P1 (Must) | Output text chunks are parsed, embedded, and visible in semantic search. |
 | **TC-008** | Summary generation under target | FR-008 | P1 (Must) | Patient summary is generated in <30 seconds on the MVP benchmark dataset. |
 | **TC-009** | Summary contains required sections| FR-008 | P1 (Must) | Completed summary contains: history, medications, allergies, and labs. |
-| **TC-010** | Metric event created after query | FR-009 | P1 (Must) | A de-identified analytics row is successfully logged in `metric_events`. |
-| **TC-011** | Audit event created after query | FR-010 | P1 (Must) | An access control row is successfully logged in `audit_events` (with trace ID). |
+| **TC-010** | Metric event created after query | FR-009 | P1 (Must) | A de-identified analytics row is successfully logged via the metrics service. |
+| **TC-011** | Audit event created after query | FR-010 | P1 (Must) | An access control row is successfully logged in `audit_logs` (with trace ID). |
 | **TC-012** | Graph RAG queries work | FR-011 | P2 (Should) | Multi-hop relationship evidence is retrieved and cited in the chatbot. |
 | **TC-013** | Drug/allergy warning triggered | FR-012 | P2 (Should) | Medication check detects allergy conflict and displays high-severity warning. |
 | **TC-014** | Patient timeline filtering | FR-013 | P2 (Should) | Sorting and filtering by category updates events list correctly (SCR-007). |

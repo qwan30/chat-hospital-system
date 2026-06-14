@@ -13,6 +13,7 @@ import { StreamingAnswer } from "@/components/chat/StreamingAnswer";
 import { SafeRefusalCard } from "@/components/chat/SafeRefusalCard";
 import { HowItWorksRail } from "@/components/chat/HowItWorksRail";
 import { GeneralKnowledgeToggle } from "@/components/chat/GeneralKnowledgeToggle";
+import { ChatLayout } from "@/components/chat/ChatLayout";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, MessageSquare } from "lucide-react";
 import Link from "next/link";
@@ -53,20 +54,25 @@ export default function NewChatPage() {
           <Card><CardContent className="py-8 text-center"><MessageSquare className="w-12 h-12 text-primary-300 mx-auto mb-3" /><h2 className="text-h3 text-text-strong mb-2">Start a Clinical Conversation</h2><p className="text-body text-text-muted max-w-md mx-auto">Ask a question about patient data, drug interactions, or clinical guidelines.</p></CardContent></Card>
           <GeneralKnowledgeToggle enabled={gkEnabled} onToggle={setGkEnabled} />
           <PromptGrid onSelect={(p) => handleSubmit(p.title)} />
+          <Composer onSubmit={handleSubmit} disabled={streaming} />
         </div>
       ) : (
-        <div className="grid grid-cols-3 gap-6">
-          <div className="col-span-2 space-y-4">
-            {messages.map((msg, i) => msg.role === "user" ? <UserBubble key={i} message={msg.content} /> : msg.isRefusal ? <SafeRefusalCard key={i} reason="Insufficient clinical evidence available." suggestions={["Try a more specific query", "Check if relevant documents are indexed", "Consult a senior physician"]} /> : <AssistantCard key={i} content={msg.content} sections={msg.sections} confidence={msg.confidence} />)}
-            {streaming && <StreamingAnswer />}
-          </div>
-          <div className="space-y-4">
-            <HowItWorksRail />
-            <GeneralKnowledgeToggle enabled={gkEnabled} onToggle={setGkEnabled} />
-          </div>
-        </div>
+        <ChatLayout
+          thread={
+            <div className="space-y-4">
+              {messages.map((msg, i) => msg.role === "user" ? <UserBubble key={i} message={msg.content} /> : msg.isRefusal ? <SafeRefusalCard key={i} reason="Insufficient clinical evidence available." suggestions={["Try a more specific query", "Check if relevant documents are indexed", "Consult a senior physician"]} /> : <AssistantCard key={i} content={msg.content} sections={msg.sections} confidence={msg.confidence} />)}
+              {streaming && <StreamingAnswer />}
+            </div>
+          }
+          rail={
+            <>
+              <HowItWorksRail />
+              <GeneralKnowledgeToggle enabled={gkEnabled} onToggle={setGkEnabled} />
+            </>
+          }
+          composer={<Composer onSubmit={handleSubmit} disabled={streaming} />}
+        />
       )}
-      <div className="max-w-3xl mx-auto"><Composer onSubmit={handleSubmit} disabled={streaming} /></div>
     </div>
   );
 }

@@ -28,9 +28,12 @@ export async function apiFetch<T>(
   const url = `${apiUrl.replace(/\/+$/, "")}${path}`;
 
   const headers: Record<string, string> = {
-    "Content-Type": "application/json",
     ...(init.headers as Record<string, string>),
   };
+  
+  if (!(init.body instanceof FormData) && !headers["Content-Type"]) {
+    headers["Content-Type"] = "application/json";
+  }
 
   if (token) {
     headers["Authorization"] = `Bearer ${token}`;

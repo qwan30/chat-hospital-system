@@ -30,9 +30,9 @@ In addition to standard unit and system testing, the QA lifecycle enforces speci
 |---|---|---|
 | **HMS Snapshot Sync** | Verify the BFF successfully pulls EMR data snapshot and merges it with AI summary. | Mock HMS endpoints and verify response matching. |
 | **HMS Permission Revocation** | Verify that if access is revoked on HMS, RAG retrieval immediately blocks queries. | Set permission key to False and execute query; assert HTTP 403. |
-| **HMS Change Feed Sync** | Verify incremental changes from `/ai/changes` are processed and cached correctly. | Mock insertion events and inspect `cached_patients` table updates. |
+| **HMS Change Feed Sync** | Verify incremental changes from `/ai/changes` are processed and cached correctly. | Mock insertion events and inspect `patients` table and `hms_sync_logs` updates. |
 | **Access Request Approval** | Verify that submitting justification requests grants access once approved on HMS. | Execute POST `/access-requests` -> mock HMS approval -> verify 200 OK query. |
-| **Document OCR Workflows**| Verify file processing lifecycle states (Retry, Approve, Archive). | Trigger PaddleOCR fail -> select retry -> verify state returns to processing. |
+| **Document OCR Workflows**| Verify file processing lifecycle states (Retry, Approve, Archive). | Trigger OCR fail -> select retry -> verify state returns to processing. |
 | **Global Search Verification**| Verify Ctrl+K Global Search returns matches across patients, files, and threads. | Execute global search query -> assert multi-type result JSON fields. |
 | **Dashboard Summary Validation**| Verify dashboard summary aggregates data from both HMS health checks and local metrics. | Fetch dashboard metrics -> verify metrics counts match DB test data values. |
 

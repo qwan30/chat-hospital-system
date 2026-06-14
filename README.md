@@ -267,51 +267,60 @@ erDiagram
 
 ## 🚢 Deployment Architecture
 
-```plantuml
-@startuml
-!define RECTANGLE class
+```mermaid
+graph TB
+    subgraph "VPS / Cloud Instance"
+        NG[🔀 Nginx :80<br/><i>Reverse Proxy</i>]
+        FE[⚛️ Frontend<br/><i>Next.js :3000</i>]
+        BE[🐍 Backend<br/><i>FastAPI :8000</i>]
+        W[⚙️ Worker<br/><i>RQ :queue</i>]
+        PG[("🐘 PostgreSQL<br/><i>pgvector :5432</i>")]
+        RD[("🗄️ Redis<br/><i>:6379</i>")]
+    end
 
-skinparam componentStyle rectangle
-skinparam backgroundColor #FEFEFE
-skinparam defaultFontSize 12
+    subgraph "Observability Stack"
+        GF[📈 Grafana<br/><i>:3001</i>]
+        PR[📊 Prometheus<br/><i>:9090</i>]
+        LK[📝 Loki<br/><i>:3100</i>]
+        TP[🔍 Tempo<br/><i>:3200</i>]
+    end
 
-title Hospital AI — Production Deployment
+    subgraph "External Services"
+        GHCR[📦 GitHub Container Registry]
+        LLM[🧠 LLM Provider<br/><i>Ollama / OpenAI</i>]
+        HMS[🏥 HMS<br/><i>Hospital System</i>]
+    end
 
-node "VPS / Cloud Instance" {
-    component "Nginx :80" as nginx
-    component "Frontend\nNext.js :3000" as frontend
-    component "Backend\nFastAPI :8000" as backend
-    component "Worker\nRQ :queue" as worker
-    database "PostgreSQL\npgvector :5432" as postgres
-    database "Redis\n:6379" as redis
-}
+    NG -->|"/"| FE
+    NG -->|"/api/*"| BE
+    FE -->|"REST + SSE"| BE
+    BE --> PG
+    BE --> RD
+    W --> PG
+    W --> RD
+    BE --> LLM
+    BE --> HMS
+    BE -.->|"metrics"| PR
+    BE -.->|"logs/traces"| LK
+    BE -.->|"traces"| TP
+    PR --> GF
+    LK --> GF
+    TP --> GF
+    GHCR -.->|"pull image"| BE
 
-node "Observability" {
-    component "Grafana\n:3001" as grafana
-    component "Prometheus\n:9090" as prometheus
-    component "Loki\n:3100" as loki
-    component "Tempo\n:3200" as tempo
-}
-
-cloud "GitHub Container Registry" as ghcr
-cloud "LLM Provider\n(Ollama / OpenAI)" as llm
-cloud "HMS\n(Hospital System)" as hms
-
-nginx --> frontend : "/"
-nginx --> backend : "/api/*"
-frontend --> backend : "REST + SSE"
-backend --> postgres
-backend --> redis
-worker --> postgres
-worker --> redis
-backend --> llm
-backend --> hms
-backend --> prometheus : "metrics"
-prometheus --> grafana
-loki --> grafana
-tempo --> grafana
-ghcr --> backend : "pull image"
-@enduml
+    style NG fill:#ea580c,stroke:#fb923c,color:#fff
+    style FE fill:#000,stroke:#666,color:#fff
+    style BE fill:#059669,stroke:#34d399,color:#fff
+    style W fill:#7c3aed,stroke:#a78bfa,color:#fff
+    style PG fill:#1e40af,stroke:#60a5fa,color:#fff
+    style RD fill:#dc2626,stroke:#f87171,color:#fff
+    style GF fill:#eab308,stroke:#facc15,color:#000
+    style PR fill:#eab308,stroke:#facc15,color:#000
+    style LK fill:#eab308,stroke:#facc15,color:#000
+    style TP fill:#eab308,stroke:#facc15,color:#000
+    style GHCR fill:#4b5563,stroke:#9ca3af,color:#fff
+    style LLM fill:#b91c1c,stroke:#ef4444,color:#fff
+    style HMS fill:#4b5563,stroke:#9ca3af,color:#fff
 ```
 
 ---

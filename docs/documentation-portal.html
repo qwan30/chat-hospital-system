@@ -1,9 +1,13 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="light">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>HOSP-AI-001 — AI Hospital Knowledge Assistant Documentation</title>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
+<script>
+  mermaid.initialize({ startOnLoad: true, theme: 'default', securityLevel: 'loose' });
+</script>
 <style>
 /* ── Reset & Base ── */
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
@@ -22,6 +26,60 @@ body{font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans
   --on-primary:#ffffff;--on-dark:#ffffff;--on-dark-soft:#a1a1aa;
   --success:#10b981;--warning:#f59e0b;--error:#ef4444;
   --rounded-xs:4px;--rounded-sm:6px;--rounded-md:8px;--rounded-lg:12px;--rounded-xl:16px;--rounded-pill:9999px;--rounded-full:50%;
+  --scroll-progress:0%;
+}
+
+/* ── Dark Mode ── */
+[data-theme="dark"]{
+  --canvas:#0f1117;--surface-soft:#161822;--surface-card:#1c1f2e;--surface-strong:#2a2d3a;
+  --surface-dark:#0a0b10;--surface-dark-elevated:#12141d;
+  --hairline:#2a2d3a;--hairline-soft:#1f2130;
+  --ink:#f1f5f9;--body-c:#cbd5e1;--muted:#94a3b8;--muted-soft:#64748b;
+  --on-primary:#0f1117;--on-dark:#f1f5f9;--on-dark-soft:#94a3b8;
+  --brand-accent:#60a5fa;
+  --badge-emerald:#34d399;
+}
+
+/* ── Scroll Progress Bar ── */
+.scroll-progress{position:fixed;top:0;left:0;height:3px;background:linear-gradient(90deg,var(--brand-accent),#a78bfa,#f472b6);z-index:200;width:var(--scroll-progress);transition:width 0.1s linear;border-radius:0 2px 2px 0}
+
+/* ── Theme Toggle ── */
+.theme-toggle{width:36px;height:36px;border-radius:var(--rounded-md);border:1px solid var(--hairline);background:var(--canvas);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:16px;transition:all 0.2s;color:var(--ink)}
+.theme-toggle:hover{background:var(--surface-soft);border-color:var(--muted)}
+
+/* ── Search Bar ── */
+.search-wrap{position:relative;max-width:480px;margin:0 auto 48px}
+.search-input{width:100%;height:48px;padding:0 48px 0 20px;border:1px solid var(--hairline);border-radius:var(--rounded-pill);font-size:15px;font-family:inherit;background:var(--canvas);color:var(--ink);transition:all 0.2s;outline:none}
+.search-input:focus{border-color:var(--brand-accent);box-shadow:0 0 0 3px rgba(59,130,246,0.15)}
+.search-input::placeholder{color:var(--muted-soft)}
+.search-icon{position:absolute;right:16px;top:50%;transform:translateY(-50%);color:var(--muted-soft);font-size:18px;pointer-events:none}
+.search-results-count{text-align:center;margin-top:12px;font-size:13px;color:var(--muted);display:none}
+
+/* ── Mermaid Diagram Container ── */
+.mermaid-container{background:var(--canvas);border:1px solid var(--hairline);border-radius:var(--rounded-lg);padding:32px;margin:24px 0;overflow-x:auto;text-align:center}
+.mermaid-container .mermaid{display:inline-block;max-width:100%}
+
+/* ── Persona Cards ── */
+.persona-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin:24px 0}
+.persona-card{background:var(--surface-card);border:1px solid var(--hairline);border-radius:var(--rounded-lg);padding:24px;text-align:center;cursor:pointer;transition:all 0.2s}
+.persona-card:hover{transform:translateY(-2px);box-shadow:0 8px 24px rgba(0,0,0,0.08);border-color:var(--brand-accent)}
+.persona-card.active{border-color:var(--brand-accent);background:#eff6ff}
+.persona-icon{font-size:32px;margin-bottom:8px}
+.persona-name{font-weight:600;font-size:14px;color:var(--ink);margin-bottom:4px}
+.persona-role{font-size:12px;color:var(--muted)}
+
+/* ── Reading Time ── */
+.reading-time{display:inline-flex;align-items:center;gap:4px;font-size:12px;color:var(--muted-soft)}
+.reading-time::before{content:'⏱'}
+
+/* ── Print Styles ── */
+@media print{
+  .top-nav,.scroll-progress,.theme-toggle,.nav-links,.nav-cta,.hero-buttons,.footer,.search-wrap{display:none!important}
+  body{font-size:12pt;color:#000;background:#fff}
+  .section-padding{padding:24pt 0}
+  .accordion-body{max-height:none!important}
+  .accordion{border:none;page-break-inside:avoid}
+  a{color:#000;text-decoration:underline}
 }
 
 /* ── Typography ── */
@@ -186,6 +244,9 @@ td code{font-size:12px}
 </head>
 <body>
 
+<!-- Scroll Progress Bar -->
+<div class="scroll-progress" id="scrollProgress"></div>
+
 <!-- ═══════════════ TOP NAV ═══════════════ -->
 <nav class="top-nav">
   <div class="container">
@@ -201,7 +262,10 @@ td code{font-size:12px}
       <a href="#frontend">Frontend</a>
       <a href="#operations">Operations</a>
     </div>
-    <a href="#docs-index" class="nav-cta">Read Docs</a>
+    <div style="display:flex;gap:8px;align-items:center">
+      <button class="theme-toggle" id="themeToggle" title="Toggle dark/light mode" aria-label="Toggle theme">☀️</button>
+      <a href="#docs-index" class="nav-cta">Read Docs</a>
+    </div>
   </div>
 </nav>
 
@@ -365,6 +429,30 @@ td code{font-size:12px}
           <li><strong>ADR-006:</strong> JWT auth bridged from HMS — no separate user registry</li>
           <li><strong>ADR-007:</strong> Local-first PHI — no patient data to external cloud LLMs</li>
         </ul>
+        <div class="mermaid-container">
+          <p style="font-weight:600;margin-bottom:16px;text-align:center">📐 System Architecture — Permission-First RAG Flow</p>
+          <div class="mermaid">
+graph TB
+    U[👨‍⚕️ Clinician] --> N[Nginx :80]
+    N -->|"/api/*"| BE[FastAPI Backend]
+    N -->|"/"| FE[Next.js Frontend]
+    FE --> BE
+    BE --> PG[(PostgreSQL + pgvector)]
+    BE --> RD[(Redis 7)]
+    BE --> LLM[LLM Provider<br/>Ollama / OpenAI]
+    BE --> HMS[HMS API<br/>Spring Boot]
+    subgraph "Background Workers"
+        W[RQ Worker<br/>OCR · Chunk · Embed]
+    end
+    W --> PG
+    W --> RD
+    subgraph "Observability"
+        PR[Prometheus] --> GF[Grafana]
+        LK[Loki · Tempo] --> GF
+    end
+    BE --> PR
+          </div>
+        </div>
         <p style="margin-top:12px"><strong>Security:</strong> HMS JWT authentication, ABAC permission enforcement (attending provider, departmental, audit-on-denial), temporary access request justification workflow, 100% audit coverage on sensitive queries.</p>
       </div></div>
     </div>
@@ -791,5 +879,101 @@ td code{font-size:12px}
   </div>
 </footer>
 
+<script>
+// ── Scroll Progress Bar ──────────────────────────────────────────
+(function(){
+  const bar = document.getElementById('scrollProgress');
+  if (!bar) return;
+  window.addEventListener('scroll', () => {
+    const h = document.documentElement;
+    const st = h.scrollTop || document.body.scrollTop;
+    const sh = h.scrollHeight - h.clientHeight;
+    const pct = sh > 0 ? Math.round((st / sh) * 100) : 0;
+    h.style.setProperty('--scroll-progress', pct + '%');
+  }, { passive: true });
+})();
+
+// ── Dark / Light Theme Toggle ─────────────────────────────────────
+(function(){
+  const html = document.documentElement;
+  const toggle = document.getElementById('themeToggle');
+  if (!toggle) return;
+
+  // Load saved preference
+  const saved = localStorage.getItem('hosp-ai-theme');
+  if (saved === 'dark') {
+    html.setAttribute('data-theme', 'dark');
+    toggle.textContent = '🌙';
+  }
+
+  toggle.addEventListener('click', () => {
+    const current = html.getAttribute('data-theme');
+    const next = current === 'dark' ? 'light' : 'dark';
+    html.setAttribute('data-theme', next);
+    toggle.textContent = next === 'dark' ? '🌙' : '☀️';
+    localStorage.setItem('hosp-ai-theme', next);
+
+    // Re-render Mermaid diagrams on theme change
+    if (typeof mermaid !== 'undefined') {
+      mermaid.initialize({ theme: next === 'dark' ? 'dark' : 'default', securityLevel: 'loose' });
+    }
+  });
+})();
+
+// ── Accordion Section Search ──────────────────────────────────────
+(function(){
+  // Insert a search bar after the nav-pill-group
+  const pillGroup = document.querySelector('.nav-pill-group');
+  if (!pillGroup) return;
+
+  const wrap = document.createElement('div');
+  wrap.className = 'search-wrap';
+  wrap.innerHTML = '<input type="text" class="search-input" id="docSearch" placeholder="🔍  Search documentation... (e.g. RAG, permission, database)">'
+    + '<span class="search-icon">⌘K</span>';
+  pillGroup.insertAdjacentElement('afterend', wrap);
+
+  const input = document.getElementById('docSearch');
+  const accordions = document.querySelectorAll('.accordion');
+
+  input.addEventListener('input', function(){
+    const query = this.value.toLowerCase().trim();
+    let visibleCount = 0;
+
+    accordions.forEach(acc => {
+      const text = acc.textContent.toLowerCase();
+      if (!query || text.includes(query)) {
+        acc.style.display = '';
+        if (query) acc.classList.add('open');
+        visibleCount++;
+      } else {
+        acc.style.display = 'none';
+      }
+    });
+  });
+
+  // Ctrl+K / Cmd+K shortcut to focus search
+  document.addEventListener('keydown', function(e){
+    if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+      e.preventDefault();
+      if (input) input.focus();
+    }
+  });
+})();
+
+// ── Smooth scroll offset for sticky header ───────────────────────
+(function(){
+  document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+    anchor.addEventListener('click', function(e){
+      const href = this.getAttribute('href');
+      if (href === '#') return;
+      const target = document.querySelector(href);
+      if (!target) return;
+      e.preventDefault();
+      const top = target.getBoundingClientRect().top + window.pageYOffset - 80;
+      window.scrollTo({ top, behavior: 'smooth' });
+    });
+  });
+})();
+</script>
 </body>
 </html>

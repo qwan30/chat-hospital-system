@@ -1,5 +1,28 @@
 "use client";
 
+/**
+ * Sidebar — Primary Navigation Component.
+ *
+ * Fixed-position left sidebar providing role-based navigation across the
+ * hospital AI application. Renders navigation items from a centralized
+ * NAV_ITEMS constant with dynamic icon resolution and active-state tracking
+ * via the Next.js App Router pathname.
+ *
+ * @remarks
+ * - Positioned as a fixed sidebar using CSS custom properties for width
+ *   (`--sidebar-width`) and z-index (`--z-sidebar`).
+ * - Active nav item detection uses `pathname.startsWith()` for nested route
+ *   matching (e.g., `/patients/123` matches the Patients nav item).
+ * - Brand lockup at top matches topbar height for visual alignment.
+ * - Footer links (Settings) are separated by a top border for visual grouping.
+ *
+ * @example
+ * ```tsx
+ * // Rendered once in the app shell layout
+ * <Sidebar />
+ * ```
+ */
+
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
@@ -12,11 +35,17 @@ import {
 import { BrandLockup } from "@/components/layout/BrandLockup";
 import { UserMenu } from "@/components/layout/UserMenu";
 
+/** Mapping from icon name strings to Lucide icon components for dynamic resolution. */
 const ICON_MAP: Record<string, LucideIcon> = {
   LayoutDashboard, Users, MessageSquare, FileText, Clock,
   ShieldCheck, BarChart3, Settings,
 };
 
+/**
+ * Renders the fixed left sidebar with dynamic navigation highlighting.
+ *
+ * @returns The sidebar JSX element.
+ */
 export function Sidebar() {
   const pathname = usePathname();
 

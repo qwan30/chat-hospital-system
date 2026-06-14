@@ -36,6 +36,18 @@
 | `access_requests.py` | `/access-requests` | POST create, GET status |
 | `feedback.py` | `/feedback` | POST submit, GET metrics |
 
+### Core Layer (Framework-Free Business Logic)
+
+| Module | Role |
+|--------|------|
+| `exceptions.py` | 13 domain exceptions (MedicalDataAccess, CitationHallucination, etc.) — ZERO FastAPI imports |
+| `interfaces.py` | 7 ABC/Protocol interfaces (ILLMProvider, IEmbeddingProvider, IHMSConnector, etc.) enforcing Clean Architecture |
+| `prompts/` | Centralized prompt registry — 4 modules (RAG system, citation validation, patient summary, drug check) |
+| `config.py` | Pydantic Settings with env-var loading |
+| `errors.py` | Legacy AppError base class |
+| `logging.py` | Structured logging configuration |
+| `security.py` | JWT utilities, password hashing |
+
 ### Service Layer (18 modules)
 
 | Module | Role |

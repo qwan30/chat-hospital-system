@@ -364,36 +364,43 @@ This maps naturally to a **pipeline architecture** where each stage is a self-co
 **However**, we still achieve the **same architectural goals** as DDD:
 
 ```mermaid
-block-beta
-    columns 1
-    block:api["api/ — Presentation Layer"]
-        columns 3
-        a1["14 Route Modules"] a2["Middleware"] a3["Exception Handlers"]
-    end
-    space
-    block:svc["services/ — Application Layer"]
-        columns 4
-        s1["RAG Pipeline"] s2["Chat"] s3["Document OCR"] s4["HMS Sync"]
-    end
-    space
-    block:core["core/ — Domain Layer (ZERO framework deps)"]
-        columns 4
-        c1["Exceptions\n13 domain errors"] c2["Interfaces\n7 ABC/Protocol"] c3["Prompts\n4 modules versioned"] c4["Config\nJWT · Rate Limit"]
-    end
-    space
-    block:db["db/ — Infrastructure Layer"]
-        columns 3
-        d1["SQLAlchemy Models"] d2["Alembic Migrations"] d3["pgvector"]
+graph TB
+    subgraph api["🔴 api/ — Presentation Layer"]
+        direction LR
+        A1[14 Route Modules]
+        A2[Middleware]
+        A3[Exception Handlers]
     end
 
-    db --> core
-    core --> svc
-    svc --> api
+    subgraph svc["🔵 services/ — Application Layer"]
+        direction LR
+        S1[RAG Pipeline]
+        S2[Chat Orchestration]
+        S3[Document OCR]
+        S4[HMS Sync]
+    end
 
-    style api fill:#b91c1c,stroke:#ef4444,color:#fff
-    style svc fill:#1d4ed8,stroke:#60a5fa,color:#fff
-    style core fill:#059669,stroke:#34d399,color:#fff
-    style db fill:#4b5563,stroke:#9ca3af,color:#fff
+    subgraph core["🟢 core/ — Domain Layer (ZERO framework deps)"]
+        direction LR
+        C1["Exceptions<br/>13 domain errors"]
+        C2["Interfaces<br/>7 ABC/Protocol"]
+        C3["Prompts<br/>4 modules"]
+        C4["Config<br/>JWT · Rate Limit"]
+    end
+
+    subgraph db["⚫ db/ — Infrastructure Layer"]
+        direction LR
+        D1[SQLAlchemy Models]
+        D2[Alembic Migrations]
+        D3[pgvector]
+    end
+
+    api --> svc --> core --> db
+
+    style api fill:#b91c1c,stroke:#ef4444,color:#fff,stroke-width:2px
+    style svc fill:#1d4ed8,stroke:#60a5fa,color:#fff,stroke-width:2px
+    style core fill:#059669,stroke:#34d399,color:#fff,stroke-width:2px
+    style db fill:#4b5563,stroke:#9ca3af,color:#fff,stroke-width:2px
 ```
 
 > ⬆️ **Dependency Flow: db ← core ← services ← api** (inner layers never depend on outer layers)

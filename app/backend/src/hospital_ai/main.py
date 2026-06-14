@@ -10,10 +10,66 @@ from hospital_ai.api.limiter import limiter
 from hospital_ai.api.router import api_router
 from hospital_ai.core.config import Settings, get_settings
 from hospital_ai.core.errors import AppError
+from hospital_ai.core.exceptions import (
+    AuthenticationException,
+    CitationHallucinationException,
+    DocumentProcessingException,
+    EmbeddingProviderException,
+    EntityNotFoundException,
+    HMSIntegrationException,
+    LLMProviderException,
+    MedicalDataAccessException,
+    PermissionDeniedException,
+    RAGRetrievalException,
+    ValidationException,
+)
 from hospital_ai.core.logging import configure_logging
 
 
+# ── Domain Exception → HTTP Status Code Mapping ─────────────────────
+# Keeps the domain layer framework-free — only the presentation layer
+# (this file) knows about HTTP status codes.
+DOMAIN_EXCEPTION_STATUS_MAP: dict[type[AppError], int] = {
+    # Security / Access Control
+    MedicalDataAccessException: 403,
+    PermissionDeniedException: 403,
+    AuthenticationException: 401,
+    # AI / RAG Quality
+    CitationHallucinationException: 422,
+    RAGRetrievalException: 502,
+    # Document Processing
+    DocumentProcessingException: 422,
+    # External Integration
+    HMSIntegrationException: 502,
+    LLMProviderException: 502,
+    EmbeddingProviderException: 502,
+    # Data Integrity
+    EntityNotFoundException: 404,
+    ValidationException: 400,
+}
+
+
+def _resolve_status_code(exc: AppError) -> int:
+    """Map a domain exception to its HTTP status code.
+
+    Walks the MRO to find the most specific registered mapping.
+    Falls back to 500 for unregistered exception types.
+    """
+    for cls in type(exc).__mro__:
+        if cls in DOMAIN_EXCEPTION_STATUS_MAP:
+            return DOMAIN_EXCEPTION_STATUS_MAP[cls]
+    return 500
+
+
 def create_app(settings: Optional[Settings] = None) -> FastAPI:
+    """Factory function to create and configure the FastAPI application.
+
+    Args:
+        settings: Optional Settings override (defaults to get_settings()).
+
+    Returns:
+        Configured FastAPI application instance.
+    """
     active_settings = settings or get_settings()
     configure_logging()
 
@@ -37,8 +93,15 @@ def create_app(settings: Optional[Settings] = None) -> FastAPI:
 
     @app.exception_handler(AppError)
     async def app_error_handler(_: Request, exc: AppError) -> JSONResponse:
+        """Catch all domain exceptions and map them to HTTP JSON responses.
+
+        Uses DOMAIN_EXCEPTION_STATUS_MAP to resolve the appropriate status
+        code based on the exception's MRO. All domain exceptions produce
+        a consistent JSON envelope with code, message, and metadata.
+        """
+        status_code = _resolve_status_code(exc)
         return JSONResponse(
-            status_code=exc.status_code,
+            status_code=status_code,
             content={"error": exc.code, "message": exc.message, "metadata": exc.metadata},
         )
 

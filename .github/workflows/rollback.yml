@@ -1,0 +1,106 @@
+name: Rollback
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: "Environment to rollback"
+        required: true
+        type: choice
+        options:
+          - staging
+          - production
+      backend-tag:
+        description: "Backend image tag to rollback to (e.g., sha-abc1234 or v1.2.3)"
+        required: true
+        type: string
+      confirm:
+        description: "Type 'ROLLBACK' to confirm this action"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  packages: read
+
+jobs:
+  # ═══════════════════════════════════════════════════════════════════
+  # Gate: Require explicit confirmation before rollback
+  # ═══════════════════════════════════════════════════════════════════
+  validate:
+    name: Validate rollback confirmation
+    runs-on: ubuntu-latest
+    timeout-minutes: 1
+    steps:
+      - name: Check confirmation string
+        run: |
+          if [ "${{ github.event.inputs.confirm }}" != "ROLLBACK" ]; then
+            echo "::error::Confirmation required. Type 'ROLLBACK' in the confirm field."
+            exit 1
+          fi
+          echo "✓ Rollback confirmed for environment: ${{ github.event.inputs.environment }}"
+
+  # ═══════════════════════════════════════════════════════════════════
+  # Execute rollback on target environment
+  # ═══════════════════════════════════════════════════════════════════
+  rollback:
+    name: Rollback ${{ github.event.inputs.environment }}
+    runs-on: ubuntu-latest
+    needs: [validate]
+    environment:
+      name: ${{ github.event.inputs.environment }}
+
+    steps:
+      - name: Resolve target host credentials
+        id: params
+        run: |
+          BTAG="${{ github.event.inputs.backend-tag }}"
+          echo "backend-tag=$BTAG" >> "$GITHUB_OUTPUT"
+
+          ENV="${{ github.event.inputs.environment }}"
+          if [ "$ENV" = "production" ]; then
+            echo "host=${{ secrets.DEPLOY_HOST }}" >> "$GITHUB_OUTPUT"
+            echo "user=${{ secrets.DEPLOY_USER }}" >> "$GITHUB_OUTPUT"
+            echo "key=${{ secrets.DEPLOY_SSH_KEY }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "host=${{ secrets.DEPLOY_HOST_STAGING }}" >> "$GITHUB_OUTPUT"
+            echo "user=${{ secrets.DEPLOY_USER_STAGING }}" >> "$GITHUB_OUTPUT"
+            echo "key=${{ secrets.DEPLOY_SSH_KEY_STAGING }}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: SSH — rollback to specified image tag
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ steps.params.outputs.host }}
+          username: ${{ steps.params.outputs.user }}
+          key: ${{ steps.params.outputs.key }}
+          script: |
+            set -e
+            cd ~/apps/chatbot-hospital
+
+            REPO="${{ github.repository }}"
+            BTAG="${{ steps.params.outputs.backend-tag }}"
+
+            echo "⚠ Rolling back ${{ github.event.inputs.environment }} to backend:${BTAG}"
+
+            # Pull specific image version
+            docker pull "ghcr.io/${REPO}/backend:${BTAG}"
+
+            # Override image tag and redeploy
+            BACKEND_IMAGE="ghcr.io/${REPO}/backend:${BTAG}" \
+            docker compose -f infra/docker-compose.yml up -d --remove-orphans
+
+            echo "✓ Rollback complete — backend:${BTAG}"
+
+            # Post-rollback health check
+            for attempt in $(seq 1 12); do
+              echo "Health check attempt ${attempt}/12"
+              if curl -sSf http://localhost:8000/api/v1/health > /dev/null 2>&1; then
+                echo "✓ Backend healthy after rollback"
+                exit 0
+              fi
+              echo "Backend not ready, waiting 10s..."
+              sleep 10
+            done
+            echo "✗ Health check failed after rollback — manual intervention required"
+            exit 1

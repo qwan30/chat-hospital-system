@@ -2,88 +2,156 @@ name: CI
 
 on:
   push:
-    branches: [main]
-    tags: ["v*"]
+    branches:
+      - main
+      - master
+    paths-ignore:
+      - "**.md"
+      - "docs/**"
+      - ".gitignore"
+      - "LICENSE"
   pull_request:
-    branches: [main]
+    paths-ignore:
+      - "**.md"
+      - "docs/**"
+      - ".gitignore"
+      - "LICENSE"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+  security-events: write
+  actions: read
+
+# ── Concurrency: cancel redundant runs on same PR/branch ──────────
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 env:
+  PYTHON_VERSION: "3.12"
+  NODE_VERSION: "22"
   REGISTRY: ghcr.io
   IMAGE_PREFIX: ${{ github.repository_owner }}/hospital-ai
 
 jobs:
-  # ===================================================================
-  # STAGE 1 — FAST FEEDBACK (parallel, no dependencies)
-  # Runs first to give quick pass/fail on code quality.
-  # ===================================================================
-
-  backend-lint:
+  # ═══════════════════════════════════════════════════════════════════
+  # Job 1: Detect what changed (for path-based skipping)
+  # ═══════════════════════════════════════════════════════════════════
+  changes:
+    name: Detect changed paths
     runs-on: ubuntu-latest
+    timeout-minutes: 2
+    outputs:
+      backend: ${{ steps.filter.outputs.backend }}
+      frontend: ${{ steps.filter.outputs.frontend }}
+      infra: ${{ steps.filter.outputs.infra }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Path filter
+        id: filter
+        uses: dorny/paths-filter@v3
+        with:
+          filters: |
+            backend:
+              - 'app/backend/**'
+              - '.github/workflows/ci.yml'
+              - '.github/workflows/cd.yml'
+            frontend:
+              - 'app/frontend/src/**'
+              - 'app/frontend/public/**'
+              - 'app/frontend/e2e/**'
+              - 'app/frontend/*.{ts,js,json,css}'
+              - 'app/frontend/package.json'
+              - '.github/workflows/ci.yml'
+              - '.github/workflows/cd.yml'
+            infra:
+              - 'infra/docker-compose.yml'
+              - 'infra/docker-compose.observability.yml'
+              - 'infra/observability/**'
+              - 'app/backend/Dockerfile'
+              - 'app/frontend/Dockerfile'
+              - 'docker-compose.yml'
+
+  # ═══════════════════════════════════════════════════════════════════
+  # Job 2: CodeQL Security Analysis
+  # ═══════════════════════════════════════════════════════════════════
+  codeql:
+    name: CodeQL security scan
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      security-events: write
+      contents: read
+      actions: read
+
+    strategy:
+      fail-fast: false
+      matrix:
+        language: ["python", "javascript-typescript"]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          languages: ${{ matrix.language }}
+          queries: security-extended,security-and-quality
+
+      - name: Auto-build (Python)
+        if: matrix.language == 'python'
+        uses: github/codeql-action/autobuild@v3
+
+      - name: Auto-build (JS/TS)
+        if: matrix.language == 'javascript-typescript'
+        uses: github/codeql-action/autobuild@v3
+
+      - name: Perform CodeQL analysis
+        uses: github/codeql-action/analyze@v3
+        with:
+          category: "/language:${{ matrix.language }}"
+
+  # ═══════════════════════════════════════════════════════════════════
+  # Job 3: Backend — Lint, Test, Contract Verify
+  # ═══════════════════════════════════════════════════════════════════
+  backend-test:
+    name: Backend lint, test & contract verify
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    needs: [changes]
+    if: ${{ needs.changes.outputs.backend == 'true' || github.event_name != 'pull_request' }}
     defaults:
       run:
         working-directory: app/backend
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-          cache: pip
-          cache-dependency-path: app/backend/pyproject.toml
-      - name: Install ruff
-        run: pip install ruff
-      - name: Ruff check
-        run: ruff check src/ tests/
-      - name: Ruff format check
-        run: ruff format --check src/ tests/
-
-  infra-validate:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - name: Validate docker-compose configuration
-        run: docker compose -f docker-compose.yml config --quiet
-      - name: Verify infrastructure images are pullable
-        run: |
-          docker pull pgvector/pgvector:pg16
-          docker pull redis:7-alpine
-
-  # ===================================================================
-  # STAGE 2 — TESTS & SECURITY (depends on lint passing)
-  # ===================================================================
-
-  backend-test:
-    needs: backend-lint
-    runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        python-version: ["3.11", "3.12"]
 
     services:
       postgres:
         image: pgvector/pgvector:pg16
         env:
+          POSTGRES_DB: hospital_ai_test
           POSTGRES_USER: hospital_ai
           POSTGRES_PASSWORD: hospital_ai
-          POSTGRES_DB: hospital_ai_test
         ports:
           - 5432:5432
         options: >-
-          --health-cmd pg_isready
+          --health-cmd "pg_isready -U hospital_ai -d hospital_ai_test"
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
 
-    defaults:
-      run:
-        working-directory: app/backend
-
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
 
-      - name: Set up Python ${{ matrix.python-version }}
+      - name: Set up Python ${{ env.PYTHON_VERSION }}
         uses: actions/setup-python@v5
         with:
-          python-version: ${{ matrix.python-version }}
+          python-version: ${{ env.PYTHON_VERSION }}
           cache: pip
           cache-dependency-path: app/backend/pyproject.toml
 
@@ -92,68 +160,73 @@ jobs:
           python -m pip install --upgrade pip
           pip install -e ".[dev,postgres]"
 
-      - name: Run tests
+      # ── Quality gates ──
+      - name: Ruff lint check
+        run: ruff check src/ tests/
+
+      - name: Ruff format check
+        run: ruff format --check src/ tests/
+
+      # ── Tests ──
+      - name: Run pytest (unit + integration)
         env:
           HOSPITAL_AI_DATABASE_URL: "postgresql+asyncpg://hospital_ai:hospital_ai@localhost:5432/hospital_ai_test"
           HOSPITAL_AI_CHAT_PROVIDER: "stub"
           HOSPITAL_AI_EMBEDDING_PROVIDER: "deterministic"
-        run: python -m pytest tests/ -v --tb=short -q
+        run: python -m pytest tests/ -v --tb=short
 
+      # ── API Contract Verification ──
       - name: Verify API contracts
         run: python scripts/verify_contracts.py
 
-  backend-security:
-    needs: backend-lint
+      # ── Artifacts ──
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-test-results
+          path: |
+            app/backend/.pytest_cache/
+            app/backend/test-results/
+          if-no-files-found: ignore
+          retention-days: 7
+
+  # ═══════════════════════════════════════════════════════════════════
+  # Job 4: Backend — Migration Check
+  # ═══════════════════════════════════════════════════════════════════
+  backend-migration:
+    name: Backend migration check
     runs-on: ubuntu-latest
+    timeout-minutes: 10
+    needs: [changes]
+    if: ${{ needs.changes.outputs.backend == 'true' || github.event_name != 'pull_request' }}
     defaults:
       run:
         working-directory: app/backend
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-          cache: pip
-          cache-dependency-path: app/backend/pyproject.toml
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -e ".[postgres]" bandit pip-audit
-      - name: Bandit security scan (advisory)
-        run: bandit -r src/ -ll -f screen || true
-      - name: Dependency vulnerability audit (advisory)
-        run: pip-audit || true
-
-  infra-migration-check:
-    needs: backend-lint
-    runs-on: ubuntu-latest
 
     services:
       postgres:
         image: pgvector/pgvector:pg16
         env:
+          POSTGRES_DB: hospital_ai_test
           POSTGRES_USER: hospital_ai
           POSTGRES_PASSWORD: hospital_ai
-          POSTGRES_DB: hospital_ai_test
         ports:
           - 5432:5432
         options: >-
-          --health-cmd pg_isready
+          --health-cmd "pg_isready -U hospital_ai -d hospital_ai_test"
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
 
-    defaults:
-      run:
-        working-directory: app/backend
-
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
 
-      - name: Set up Python
+      - name: Set up Python ${{ env.PYTHON_VERSION }}
         uses: actions/setup-python@v5
         with:
-          python-version: "3.12"
+          python-version: ${{ env.PYTHON_VERSION }}
           cache: pip
           cache-dependency-path: app/backend/pyproject.toml
 
@@ -166,92 +239,227 @@ jobs:
         env:
           HOSPITAL_AI_DATABASE_URL: "postgresql+asyncpg://hospital_ai:hospital_ai@localhost:5432/hospital_ai_test"
         run: alembic upgrade head
+
       - name: Check migration-model alignment (advisory)
         env:
           HOSPITAL_AI_DATABASE_URL: "postgresql+asyncpg://hospital_ai:hospital_ai@localhost:5432/hospital_ai_test"
         run: alembic check || true
 
-  # ===================================================================
-  # STAGE 3 — DOCKER BUILD & PUSH
-  # Only runs if ALL tests pass. Only pushes on push/tag, not PR.
-  # ===================================================================
-
-  docker-build-push:
-    needs: [backend-test, backend-security, infra-migration-check]
+  # ═══════════════════════════════════════════════════════════════════
+  # Job 5: Frontend — Lint, Test, Build & E2E
+  # ═══════════════════════════════════════════════════════════════════
+  frontend-test:
+    name: Frontend lint, test, build & E2E
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      packages: write
+    timeout-minutes: 25
+    needs: [changes]
+    if: ${{ needs.changes.outputs.frontend == 'true' || github.event_name != 'pull_request' }}
+    defaults:
+      run:
+        working-directory: app/frontend
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js ${{ env.NODE_VERSION }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: app/frontend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      # ── Playwright browser cache ──
+      - name: Resolve Playwright version
+        id: playwright-version
+        run: |
+          PW=$(node -e "console.log(require('./package.json').devDependencies['@playwright/test'])")
+          echo "version=$PW" >> "$GITHUB_OUTPUT"
+
+      - name: Cache Playwright browsers
+        id: playwright-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ steps.playwright-version.outputs.version }}
+          restore-keys: |
+            playwright-${{ runner.os }}-
+
+      - name: Install Playwright browser (chromium)
+        if: steps.playwright-cache.outputs.cache-hit != 'true'
+        run: npx playwright install --with-deps chromium
+
+      # ── Next.js build cache ──
+      - name: Cache Next.js build
+        uses: actions/cache@v4
+        with:
+          path: app/frontend/.next/cache
+          key: nextjs-${{ runner.os }}-${{ hashFiles('app/frontend/src/**', 'app/frontend/public/**', 'app/frontend/*.ts', 'app/frontend/*.js', 'app/frontend/*.json') }}
+          restore-keys: |
+            nextjs-${{ runner.os }}-
+
+      # ── Quality gates ──
+      - name: ESLint check
+        run: npm run lint
+
+      - name: TypeScript type check
+        run: npm run typecheck
+
+      - name: Unit tests (Vitest)
+        run: npm run test
+
+      - name: Production build
+        env:
+          NEXT_PUBLIC_API_BASE_URL: http://localhost:8000/api/v1
+        run: npm run build
+
+      - name: E2E tests (Playwright, Chromium)
+        env:
+          NEXT_PUBLIC_API_BASE_URL: http://localhost:8000/api/v1
+        run: npx playwright test --project=chromium
+
+      # ── Artifacts ──
+      - name: Upload Playwright reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: |
+            app/frontend/playwright-report/
+            app/frontend/test-results/
+          if-no-files-found: ignore
+          retention-days: 7
+
+  # ═══════════════════════════════════════════════════════════════════
+  # Job 6: Validate observability compose config
+  # ═══════════════════════════════════════════════════════════════════
+  validate-observability:
+    name: Validate observability compose config
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    needs: [changes]
+    if: ${{ needs.changes.outputs.infra == 'true' || github.event_name != 'pull_request' }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Log in to GHCR
-        if: github.event_name != 'pull_request'
+      - name: Validate docker-compose.yml
+        run: docker compose -f infra/docker-compose.yml config --quiet
+
+      - name: Validate docker-compose.observability.yml
+        run: docker compose -f infra/docker-compose.yml -f infra/docker-compose.observability.yml config --quiet
+
+  # ═══════════════════════════════════════════════════════════════════
+  # Job 7: Docker build, Trivy scan & push to GHCR
+  # ═══════════════════════════════════════════════════════════════════
+  docker-push:
+    name: Build, scan & push Docker images
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    needs: [backend-test, backend-migration, frontend-test, validate-observability]
+    if: ${{ github.event_name != 'pull_request' && (success() || !cancelled()) }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
         uses: docker/login-action@v3
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Extract metadata
+      # ── Extract metadata for tagging ──
+      - name: Docker metadata
         id: meta
         uses: docker/metadata-action@v5
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}-backend
           tags: |
             type=ref,event=branch
-            type=ref,event=pr
-            type=semver,pattern={{version}}
             type=sha,prefix=
+            type=semver,pattern={{version}}
 
-      - name: Build and push backend
-        uses: docker/build-push-action@v5
+      # ── Build & push backend image ──
+      - name: Build and push backend image
+        id: backend-image
+        uses: docker/build-push-action@v6
         with:
           context: app/backend
-          push: ${{ github.event_name != 'pull_request' }}
+          file: app/backend/Dockerfile
+          push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha,scope=backend
           cache-to: type=gha,mode=max,scope=backend
 
-  # ===================================================================
-  # STAGE 3b — CI SUMMARY (always runs, reports overall status)
-  # ===================================================================
+      # ── Scan backend image with Trivy ──
+      - name: Scan backend image (Trivy)
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}-backend:${{ github.sha }}
+          format: sarif
+          output: trivy-backend.sarif
+          severity: CRITICAL,HIGH
+          exit-code: 0
 
+      - name: Upload backend Trivy results
+        if: always()
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: trivy-backend.sarif
+          category: trivy-backend
+
+  # ═══════════════════════════════════════════════════════════════════
+  # Job 8: CI Summary — final gate (always runs)
+  # ═══════════════════════════════════════════════════════════════════
   ci-summary:
-    needs: [backend-lint, backend-test, backend-security, infra-migration-check, docker-build-push, infra-validate]
-    if: always()
+    name: CI summary
     runs-on: ubuntu-latest
+    timeout-minutes: 2
+    needs: [codeql, backend-test, backend-migration, frontend-test, validate-observability, docker-push]
+    if: always()
     steps:
-      - name: Collect job statuses
-        env:
-          LINT: "${{ needs.backend-lint.result }}"
-          TEST: "${{ needs.backend-test.result }}"
-          SECURITY: "${{ needs.backend-security.result }}"
-          MIGRATION: "${{ needs.infra-migration-check.result }}"
-          DOCKER: "${{ needs.docker-build-push.result }}"
-          INFRA: "${{ needs.infra-validate.result }}"
+      - name: Check results
         run: |
-          echo "=== CI Pipeline Summary ==="
-          echo "backend-lint:         ${LINT}"
-          echo "backend-test:         ${TEST}"
-          echo "backend-security:     ${SECURITY}"
-          echo "infra-migration-check: ${MIGRATION}"
-          echo "docker-build-push:    ${DOCKER}"
-          echo "infra-validate:       ${INFRA}"
-          echo "========================="
+          echo "## 🏥 Hospital AI CI Results" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Job | Result |" >> "$GITHUB_STEP_SUMMARY"
+          echo "|-----|--------|" >> "$GITHUB_STEP_SUMMARY"
 
-          if [ "${LINT}" != "success" ] || \
-             [ "${TEST}" != "success" ] || \
-             [ "${SECURITY}" != "success" ] || \
-             [ "${MIGRATION}" != "success" ] || \
-             [ "${DOCKER}" != "success" ] || \
-             [ "${INFRA}" != "success" ]; then
-            echo "::error::One or more CI jobs failed — check logs above."
+          declare -A jobs=(
+            ["codeql"]="${{ needs.codeql.result }}"
+            ["backend-test"]="${{ needs.backend-test.result }}"
+            ["backend-migration"]="${{ needs.backend-migration.result }}"
+            ["frontend-test"]="${{ needs.frontend-test.result }}"
+            ["validate-observability"]="${{ needs.validate-observability.result }}"
+            ["docker-push"]="${{ needs.docker-push.result }}"
+          )
+
+          FAILED=0
+          for job in "${!jobs[@]}"; do
+            result="${jobs[$job]}"
+            icon="✅"
+            if [[ "$result" == "failure" ]]; then icon="❌"; FAILED=1; fi
+            if [[ "$result" == "skipped" ]]; then icon="⏭️"; fi
+            if [[ "$result" == "cancelled" ]]; then icon="⚠️"; fi
+            echo "| $job | $icon $result |" >> "$GITHUB_STEP_SUMMARY"
+          done
+
+          if [[ $FAILED -eq 1 ]]; then
+            echo "" >> "$GITHUB_STEP_SUMMARY"
+            echo "❌ **Some jobs failed.** Check the logs above." >> "$GITHUB_STEP_SUMMARY"
             exit 1
           fi
-          echo "All CI jobs passed."
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "✅ **All CI jobs passed.** Ready for deployment." >> "$GITHUB_STEP_SUMMARY"

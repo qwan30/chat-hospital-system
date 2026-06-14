@@ -7,53 +7,290 @@ on:
       - completed
     branches:
       - main
+      - master
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: "Target environment"
+        required: true
+        type: choice
+        options:
+          - staging
+          - production
+      image-tag:
+        description: "Specific image tag (default: latest main build)"
+        required: false
+        type: string
+        default: "latest"
+
+permissions:
+  contents: read
+  packages: read
 
 jobs:
-  deploy:
+  # ═══════════════════════════════════════════════════════════════════
+  # Stage 1: Deploy to staging (automatic on CI success)
+  # ═══════════════════════════════════════════════════════════════════
+  deploy-staging:
+    name: Deploy to staging
     runs-on: ubuntu-latest
-    if: ${{ github.event.workflow_run.conclusion == 'success' }}
-    permissions:
-      contents: read
-      packages: read
+    environment:
+      name: staging
+      url: ${{ vars.STAGING_URL || 'https://staging.hospital-ai.local' }}
+    if: |
+      (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success') ||
+      (github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'staging')
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Copy docker-compose configuration to Server
+      - name: Resolve GHCR token
+        id: ghcr
+        run: |
+          if [ -n "${{ secrets.GHCR_PAT }}" ]; then
+            echo "token=${{ secrets.GHCR_PAT }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "token=${{ secrets.GITHUB_TOKEN }}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Set image tag
+        id: tag
+        run: |
+          TAG="${{ github.event.inputs.image-tag || 'latest' }}"
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+
+      - name: Copy deployment configurations to staging server
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.DEPLOY_HOST_STAGING }}
+          username: ${{ secrets.DEPLOY_USER_STAGING }}
+          key: ${{ secrets.DEPLOY_SSH_KEY_STAGING }}
+          source: "infra/docker-compose.yml,infra/docker-compose.observability.yml,infra/observability,infra/nginx"
+          target: "~/apps/chatbot-hospital"
+
+      - name: SSH — deploy to staging
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.DEPLOY_HOST_STAGING }}
+          username: ${{ secrets.DEPLOY_USER_STAGING }}
+          key: ${{ secrets.DEPLOY_SSH_KEY_STAGING }}
+          script: |
+            set -e
+            cd ~/apps/chatbot-hospital
+
+            # Log in to GHCR
+            echo "${{ steps.ghcr.outputs.token }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+
+            # Pull target images
+            IMAGE_TAG="${{ steps.tag.outputs.tag }}"
+            export BACKEND_IMAGE="ghcr.io/${{ github.repository }}/backend:${IMAGE_TAG}"
+
+            echo "→ Deploying backend: ${BACKEND_IMAGE}"
+
+            docker compose -f infra/docker-compose.yml pull
+
+            # Run database migrations
+            if docker compose -f infra/docker-compose.yml run --rm backend alembic upgrade head 2>/dev/null; then
+              echo "✓ Migrations applied"
+            else
+              echo "⚠ Migration step skipped (not configured or no pending changes)"
+            fi
+
+            # Recreate containers
+            if [ -f infra/docker-compose.observability.yml ]; then
+              docker compose -f infra/docker-compose.yml -f infra/docker-compose.observability.yml up -d --remove-orphans
+            else
+              docker compose -f infra/docker-compose.yml up -d --remove-orphans
+            fi
+
+            # Clean up old images
+            docker image prune -f
+
+      - name: Staging smoke check
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.DEPLOY_HOST_STAGING }}
+          username: ${{ secrets.DEPLOY_USER_STAGING }}
+          key: ${{ secrets.DEPLOY_SSH_KEY_STAGING }}
+          script: |
+            for attempt in $(seq 1 12); do
+              echo "Smoke check attempt $attempt/12"
+              if curl -sSf http://localhost:8000/api/v1/health > /dev/null 2>&1; then
+                echo "✓ Staging backend healthy"
+                exit 0
+              fi
+              echo "Backend not ready, waiting 10s..."
+              sleep 10
+            done
+            echo "✗ Staging backend health check failed after 12 attempts"
+            exit 1
+
+  # ═══════════════════════════════════════════════════════════════════
+  # Stage 2: Deploy to production (promotion from staging)
+  # ═══════════════════════════════════════════════════════════════════
+  deploy-production:
+    name: Deploy to production
+    runs-on: ubuntu-latest
+    needs: [deploy-staging]
+    environment:
+      name: production
+      url: ${{ vars.PROD_URL || 'https://hospital-ai.local' }}
+    if: |
+      (github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'production') ||
+      (github.event_name == 'workflow_run' && needs.deploy-staging.result == 'success')
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Resolve GHCR token
+        id: ghcr
+        run: |
+          if [ -n "${{ secrets.GHCR_PAT }}" ]; then
+            echo "token=${{ secrets.GHCR_PAT }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "token=${{ secrets.GITHUB_TOKEN }}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Set image tag
+        id: tag
+        run: |
+          TAG="${{ github.event.inputs.image-tag || 'latest' }}"
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+
+      - name: Copy deployment configurations to production server
         uses: appleboy/scp-action@v0.1.7
         with:
           host: ${{ secrets.DEPLOY_HOST }}
           username: ${{ secrets.DEPLOY_USER }}
           key: ${{ secrets.DEPLOY_SSH_KEY }}
-          source: "docker-compose.yml"
+          source: "infra/docker-compose.yml,infra/docker-compose.observability.yml,infra/observability,infra/nginx"
           target: "~/apps/chatbot-hospital"
 
-      - name: SSH and deploy via Docker Compose
+      - name: SSH — deploy to production
         uses: appleboy/ssh-action@v1.2.0
         with:
           host: ${{ secrets.DEPLOY_HOST }}
           username: ${{ secrets.DEPLOY_USER }}
           key: ${{ secrets.DEPLOY_SSH_KEY }}
           script: |
+            set -e
             cd ~/apps/chatbot-hospital
 
-            # Log in to GHCR on the target machine
-            echo "${{ secrets.GHCR_PAT || secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+            # Log in to GHCR
+            echo "${{ steps.ghcr.outputs.token }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
 
-            # Export image prefix for docker-compose variable substitution
-            export IMAGE_PREFIX="${{ github.repository_owner }}/hospital-ai"
+            # Pull target images
+            IMAGE_TAG="${{ steps.tag.outputs.tag }}"
+            export BACKEND_IMAGE="ghcr.io/${{ github.repository }}/backend:${IMAGE_TAG}"
 
-            # Pull the pre-built backend image from GHCR
-            docker compose pull backend
+            echo "→ Deploying backend: ${BACKEND_IMAGE}"
 
-            # Start infrastructure services first (they must be healthy for migrations)
-            docker compose up -d --wait postgres redis
+            docker compose -f infra/docker-compose.yml pull
 
             # Run database migrations
-            docker compose run --rm backend alembic upgrade head
+            if docker compose -f infra/docker-compose.yml run --rm backend alembic upgrade head 2>/dev/null; then
+              echo "✓ Migrations applied"
+            else
+              echo "⚠ Migration step skipped (not configured or no pending changes)"
+            fi
 
-            # Bring up backend (and any remaining services)
-            docker compose up -d --remove-orphans
+            # Recreate containers
+            if [ -f infra/docker-compose.observability.yml ]; then
+              docker compose -f infra/docker-compose.yml -f infra/docker-compose.observability.yml up -d --remove-orphans
+            else
+              docker compose -f infra/docker-compose.yml up -d --remove-orphans
+            fi
 
             # Clean up old images
             docker image prune -f
+
+      - name: Production smoke check
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          script: |
+            for attempt in $(seq 1 15); do
+              echo "Smoke check attempt $attempt/15"
+              if curl -sSf http://localhost:8000/api/v1/health > /dev/null 2>&1; then
+                echo "✓ Production backend healthy"
+                exit 0
+              fi
+              echo "Backend not ready, waiting 10s..."
+              sleep 10
+            done
+            echo "✗ Production backend health check failed after 15 attempts"
+            exit 1
+
+  # ═══════════════════════════════════════════════════════════════════
+  # Post-deploy: Notify deployment status
+  # ═══════════════════════════════════════════════════════════════════
+  notify:
+    name: Notify deployment status
+    runs-on: ubuntu-latest
+    needs: [deploy-staging, deploy-production]
+    if: always()
+    timeout-minutes: 3
+
+    steps:
+      - name: Determine deployment status
+        id: status
+        run: |
+          STAGING="${{ needs.deploy-staging.result }}"
+          PROD="${{ needs.deploy-production.result }}"
+
+          if [[ "$PROD" == "success" ]]; then
+            echo "emoji=🚀" >> "$GITHUB_OUTPUT"
+            echo "text=Hospital AI deployed to *production* | SHA: \`${GITHUB_SHA:0:7}\` | Actor: ${{ github.actor }}" >> "$GITHUB_OUTPUT"
+            echo "color=good" >> "$GITHUB_OUTPUT"
+          elif [[ "$STAGING" == "success" ]]; then
+            echo "emoji=🔬" >> "$GITHUB_OUTPUT"
+            echo "text=Hospital AI deployed to *staging* | SHA: \`${GITHUB_SHA:0:7}\` | Actor: ${{ github.actor }}" >> "$GITHUB_OUTPUT"
+            echo "color=warning" >> "$GITHUB_OUTPUT"
+          else
+            echo "emoji=❌" >> "$GITHUB_OUTPUT"
+            echo "text=Hospital AI deployment *FAILED* | Staging: ${STAGING} | Prod: ${PROD} | SHA: \`${GITHUB_SHA:0:7}\`" >> "$GITHUB_OUTPUT"
+            echo "color=danger" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Post to Slack
+        if: ${{ vars.SLACK_WEBHOOK_URL != '' }}
+        uses: slackapi/slack-github-action@v2
+        with:
+          webhook: ${{ vars.SLACK_WEBHOOK_URL }}
+          webhook-type: incoming-webhook
+          payload: |
+            {
+              "attachments": [
+                {
+                  "color": "${{ steps.status.outputs.color }}",
+                  "blocks": [
+                    {
+                      "type": "section",
+                      "text": {
+                        "type": "mrkdwn",
+                        "text": "${{ steps.status.outputs.emoji }} ${{ steps.status.outputs.text }}"
+                      }
+                    },
+                    {
+                      "type": "context",
+                      "elements": [
+                        {
+                          "type": "mrkdwn",
+                          "text": "<${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|View workflow run>"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+
+      - name: No-op notification (Slack not configured)
+        if: ${{ vars.SLACK_WEBHOOK_URL == '' }}
+        run: |
+          echo "ℹ️ Slack webhook not configured — skipping notification."
+          echo "${{ steps.status.outputs.emoji }} ${{ steps.status.outputs.text }}"

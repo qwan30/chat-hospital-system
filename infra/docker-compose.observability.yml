@@ -1,0 +1,103 @@
+# Hospital AI — Observability Stack (extends infra/docker-compose.yml)
+# Usage: docker compose -f infra/docker-compose.yml -f infra/docker-compose.observability.yml up -d
+#
+# Adds: OpenTelemetry Collector, Prometheus, Grafana, Tempo, Loki, Promtail
+
+services:
+  # Override backend to enable OTLP tracing
+  backend:
+    environment:
+      # OpenTelemetry tracing (if backend supports it)
+      OTEL_SERVICE_NAME: hospital-ai-backend
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
+      # Structured logging
+      HOSPITAL_AI_LOG_FORMAT: json
+
+  # ── OpenTelemetry Collector ──────────────────────────────────────
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:latest
+    command: ["--config=/etc/otelcol/config.yml"]
+    volumes:
+      - ./observability/otel-collector.yml:/etc/otelcol/config.yml:ro
+    depends_on:
+      - tempo
+    ports:
+      - "${HOSPITAL_AI_OTEL_GRPC_HOST_PORT:-4317}:4317"
+      - "${HOSPITAL_AI_OTEL_HTTP_HOST_PORT:-4318}:4318"
+      - "${HOSPITAL_AI_OTEL_METRICS_HOST_PORT:-8889}:8889"
+    restart: unless-stopped
+
+  # ── Prometheus (Metrics) ─────────────────────────────────────────
+  prometheus:
+    image: prom/prometheus:latest
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.retention.time=7d"
+      - "--web.enable-lifecycle"
+    volumes:
+      - ./observability/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    depends_on:
+      - backend
+      - otel-collector
+    ports:
+      - "${HOSPITAL_AI_PROMETHEUS_HOST_PORT:-9090}:9090"
+    restart: unless-stopped
+
+  # ── Grafana (Dashboards) ─────────────────────────────────────────
+  grafana:
+    image: grafana/grafana:latest
+    environment:
+      GF_SECURITY_ADMIN_USER: ${HOSPITAL_AI_GRAFANA_ADMIN_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${HOSPITAL_AI_GRAFANA_ADMIN_PASSWORD:-admin}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+    volumes:
+      - ./observability/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./observability/grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - grafana-data:/var/lib/grafana
+    depends_on:
+      - prometheus
+      - tempo
+      - loki
+    ports:
+      - "${HOSPITAL_AI_GRAFANA_HOST_PORT:-3001}:3000"
+    restart: unless-stopped
+
+  # ── Tempo (Tracing) ──────────────────────────────────────────────
+  tempo:
+    image: grafana/tempo:latest
+    command: ["-config.file=/etc/tempo.yml"]
+    volumes:
+      - ./observability/tempo.yml:/etc/tempo.yml:ro
+      - tempo-data:/tmp/tempo
+    ports:
+      - "${HOSPITAL_AI_TEMPO_HOST_PORT:-3200}:3200"
+    restart: unless-stopped
+
+  # ── Loki (Logs) ──────────────────────────────────────────────────
+  loki:
+    image: grafana/loki:latest
+    command: ["-config.file=/etc/loki/local-config.yml"]
+    volumes:
+      - ./observability/loki.yml:/etc/loki/local-config.yml:ro
+      - loki-data:/loki
+    ports:
+      - "${HOSPITAL_AI_LOKI_HOST_PORT:-3100}:3100"
+    restart: unless-stopped
+
+  # ── Promtail (Log Shipper → Loki) ────────────────────────────────
+  promtail:
+    image: grafana/promtail:latest
+    command: ["-config.file=/etc/promtail/config.yml"]
+    volumes:
+      - ./observability/promtail.yml:/etc/promtail/config.yml:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    depends_on:
+      - loki
+    restart: unless-stopped
+
+volumes:
+  prometheus-data:
+  grafana-data:
+  tempo-data:
+  loki-data:

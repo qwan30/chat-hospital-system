@@ -1,0 +1,128 @@
+# Hospital AI — Production Docker Compose Stack
+# Usage: docker compose -f infra/docker-compose.yml up -d
+# For observability: docker compose -f infra/docker-compose.yml -f infra/docker-compose.observability.yml up -d
+
+services:
+  # ── PostgreSQL 16 + pgvector ────────────────────────────────────
+  postgres:
+    image: pgvector/pgvector:pg16
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-hospital_ai}
+      POSTGRES_USER: ${POSTGRES_USER:-hospital_ai}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    ports:
+      - "${HOSPITAL_AI_POSTGRES_HOST_PORT:-5432}:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-hospital_ai} -d ${POSTGRES_DB:-hospital_ai}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    restart: unless-stopped
+
+  # ── Redis 7 (job queue + cache) ─────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "${HOSPITAL_AI_REDIS_HOST_PORT:-6379}:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    restart: unless-stopped
+
+  # ── Chatbot Backend (FastAPI) ────────────────────────────────────
+  backend:
+    image: ghcr.io/${IMAGE_PREFIX:-qwan30/hospital-ai}-backend:latest
+    build:
+      context: ../app/backend
+      dockerfile: Dockerfile
+    environment:
+      # Database
+      HOSPITAL_AI_DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-hospital_ai}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-hospital_ai}
+      HOSPITAL_AI_REDIS_URL: redis://redis:6379/0
+
+      # Storage
+      HOSPITAL_AI_STORAGE_ROOT: /data/storage
+
+      # CORS
+      HOSPITAL_AI_CORS_ORIGINS: ${HOSPITAL_AI_CORS_ORIGINS:-http://localhost:3000,http://127.0.0.1:3000}
+
+      # Environment
+      HOSPITAL_AI_ENVIRONMENT: ${HOSPITAL_AI_ENVIRONMENT:-production}
+
+      # AI/LLM Providers
+      HOSPITAL_AI_EMBEDDING_PROVIDER: ${HOSPITAL_AI_EMBEDDING_PROVIDER:-ollama}
+      HOSPITAL_AI_CHAT_PROVIDER: ${HOSPITAL_AI_CHAT_PROVIDER:-ollama}
+      HOSPITAL_AI_LLM_BASE_URL: ${HOSPITAL_AI_LLM_BASE_URL:-http://host.docker.internal:11434}
+
+      # Worker
+      HOSPITAL_AI_WORKER_INLINE: "${HOSPITAL_AI_WORKER_INLINE:-false}"
+
+      # HMS Integration
+      HOSPITAL_AI_HMS_BASE_URL: ${HOSPITAL_AI_HMS_BASE_URL:-http://host.docker.internal:8080/api/v1}
+      HOSPITAL_AI_HMS_SYNC_ENABLED: "${HOSPITAL_AI_HMS_SYNC_ENABLED:-false}"
+
+      # JWT
+      HOSPITAL_AI_JWT_SECRET: ${HOSPITAL_AI_JWT_SECRET}
+      HOSPITAL_AI_JWT_ALGORITHM: ${HOSPITAL_AI_JWT_ALGORITHM:-HS256}
+
+      # Rate Limiting
+      HOSPITAL_AI_RATE_LIMIT_PER_MINUTE: ${HOSPITAL_AI_RATE_LIMIT_PER_MINUTE:-60}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    ports:
+      - "${HOSPITAL_AI_BACKEND_HOST_PORT:-8000}:8000"
+    volumes:
+      - storage-data:/data/storage
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8000/api/v1/health')\" || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+    restart: unless-stopped
+
+  # ── RQ Background Worker (document processing) ────────────────────
+  worker:
+    image: ghcr.io/${IMAGE_PREFIX:-qwan30/hospital-ai}-backend:latest
+    command: python -m hospital_ai.workers.queue
+    environment:
+      HOSPITAL_AI_DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-hospital_ai}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-hospital_ai}
+      HOSPITAL_AI_REDIS_URL: redis://redis:6379/0
+      HOSPITAL_AI_STORAGE_ROOT: /data/storage
+      HOSPITAL_AI_ENVIRONMENT: ${HOSPITAL_AI_ENVIRONMENT:-production}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - storage-data:/data/storage
+    restart: unless-stopped
+
+  # ── Nginx Reverse Proxy ──────────────────────────────────────────
+  nginx:
+    image: nginx:1.27-alpine
+    ports:
+      - "${HOSPITAL_AI_NGINX_HOST_PORT:-80}:80"
+    volumes:
+      - ./nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      - backend
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sSf http://localhost:80/ > /dev/null || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    restart: unless-stopped
+
+volumes:
+  postgres-data:
+  storage-data:

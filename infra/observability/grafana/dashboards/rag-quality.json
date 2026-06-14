@@ -1,0 +1,42 @@
+{
+  "title": "Hospital AI — RAG Quality Metrics",
+  "uid": "hospital-ai-rag",
+  "panels": [
+    {
+      "title": "Citation Validation Rate",
+      "targets": [
+        {
+          "expr": "rate(rag_citation_valid_total[5m])",
+          "legendFormat": "Validated"
+        }
+      ]
+    },
+    {
+      "title": "Citation Hallucination Detected",
+      "targets": [
+        {
+          "expr": "rate(rag_citation_hallucination_total[5m])",
+          "legendFormat": "Hallucinations"
+        }
+      ]
+    },
+    {
+      "title": "Permission Denials",
+      "targets": [
+        {
+          "expr": "rate(rag_permission_denied_total[5m])",
+          "legendFormat": "Denied"
+        }
+      ]
+    },
+    {
+      "title": "RAG Query Duration (p95)",
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, rate(rag_query_duration_seconds_bucket[5m]))",
+          "legendFormat": "p95"
+        }
+      ]
+    }
+  ]
+}

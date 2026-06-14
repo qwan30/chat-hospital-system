@@ -14,10 +14,10 @@
 [![RAG Eval](https://img.shields.io/badge/RAG_Eval-6%2F6_Passed-22C55E?style=for-the-badge)](https://github.com/qwan30/chat-hospital-system)
 [![Release](https://img.shields.io/badge/Release-v4.0-0d7c4b?style=for-the-badge)](https://github.com/qwan30/chat-hospital-system)
 
-**A Permission-Aware RAG System for Clinical Decision Support**
+**An AI-powered clinical decision support system** integrating RAG (Retrieval-Augmented Generation) with permission-aware vector search, citation hallucination detection, and HMS (Hospital Management System) data synchronization. Built with a **hybrid Clean/Pipeline architecture** — framework-free domain core, abstract provider interfaces, centralized prompt registry, and domain-driven exceptions. Designed to demonstrate production-grade AI engineering with strict PHI (Protected Health Information) compliance considerations.
 
 > **🟢 Production Status: v4.0 — June 15, 2026**
-> 250+ Pytest tests passing. 6/6 RAG synthetic evaluation scenarios passed. 5 CI/CD workflows active with CodeQL, Trivy, and TruffleHog scanning.
+> 250+ Pytest tests passing. 6/6 RAG synthetic evaluation scenarios passed. 5 CI/CD workflows active with CodeQL, Trivy, and TruffleHog scanning. Full Grafana observability stack.
 >
 > 📚 **[Interactive Documentation Portal →](docs/documentation-portal.html)** | 📂 **[Documentation Index →](docs/README.md)** | 📋 **[API Contract →](docs/05-api/api-contract.md)**
 
@@ -25,18 +25,31 @@
 
 ---
 
-## 🎯 What This Project Demonstrates
+## 🎯 Key Features & Business Value
 
-This is a **production-grade AI application** built to showcase full-stack engineering skills across multiple dimensions:
+| # | Clinical Domain | Technical Implementation | Business Impact |
+|---|---------------|-------------------------|-----------------|
+| 🔍 | **Permission-Aware RAG** | Vector search with SQL JOIN permission filter — only document chunks the user's role can access are included in LLM context | Zero PHI leakage across role boundaries; HIPAA-aligned data access |
+| ✅ | **Citation Validation** | Post-generation verification: every LLM citation cross-checked against actual document chunks; hallucinated references blocked before streaming | Eliminates clinical misinformation from AI-generated responses |
+| 📄 | **Document OCR & Indexing** | Async RQ worker pipeline: PDF parsing (PyMuPDF) → OCR (PaddleOCR) → chunking → embedding (Ollama/OpenAI/Cohere) → pgvector HNSW index | Converts unstructured hospital documents into searchable knowledge base |
+| 🏥 | **HMS Data Sync** | API bridge to Hospital Management System — imports appointments, lab results, medications; caches as RAG-readable context | Real-time patient context without manual data entry |
+| 💊 | **Drug-Allergy Pre-Check** | Cross-references prescribed medications against patient allergy list + current medications using RAG context + LLM analysis | Prevents adverse drug events at point of care |
+| 🔐 | **RBAC + ABAC Security** | JWT authentication with role-based claims; 7 roles with scoped patient permissions; enforcement at API gateway + RAG retrieval layers | Enforced separation of duties; audit-ready access control |
+| 📊 | **Impact Metrics** | Time-saved and cost-saved tracking per AI-assisted query; helpfulness feedback loop; dashboard analytics | Quantifiable ROI for hospital administration |
+| 🔄 | **Streaming SSE** | Server-Sent Events for real-time token streaming; buffered until citation validation passes; client-side progressive rendering | Immediate clinician feedback with safety gate |
+
+---
+
+## 🎯 Engineering Skills Demonstrated
 
 | Dimension | Demonstrated Skills |
 |-----------|-------------------|
-| **AI/ML Engineering** | RAG pipeline with citation validation, permission-aware vector search, multi-provider LLM/embedding abstraction, synthetic RAG evaluation suite |
-| **Backend Engineering** | FastAPI with async SQLAlchemy, pgvector, Redis/RQ workers, Alembic migrations, API contract verification, structured logging |
-| **Frontend Engineering** | Next.js 16 App Router, React 19, shadcn/ui, Tailwind CSS v4, streaming SSE, Playwright E2E, Vitest |
-| **DevOps / SRE** | Multi-environment CI/CD (GitHub Actions), Docker multi-stage builds, Trivy container scanning, CodeQL SAST, full Grafana observability stack (Prometheus, Loki, Tempo), Dependabot, automated rollback |
-| **Security** | JWT RBAC, PHI-aware permission filtering, citation hallucination detection, TruffleHog secret scanning, npm audit + pip-audit + Bandit SAST, security headers |
-| **Documentation** | 100+ doc files across 12 domains, interactive HTML portal, ADRs with trade-off rationale, Mermaid/PlantUML diagrams |
+| **AI/ML Engineering** | RAG pipeline with citation validation, permission-aware vector search, multi-provider LLM/embedding abstraction (Ollama/OpenAI/Cohere), synthetic RAG evaluation suite, centralized prompt registry |
+| **Backend Engineering** | FastAPI async, SQLAlchemy 2.0+asyncpg, pgvector HNSW, Redis/RQ workers, Alembic migrations, API contract verification, structured JSON logging |
+| **Frontend Engineering** | Next.js 16 App Router, React 19, shadcn/ui, Tailwind CSS v4, SSE streaming, Playwright E2E, Vitest unit tests |
+| **DevOps / SRE** | 5 GitHub Actions workflows (CI/CD/Security/Rollback/Dependabot), Docker multi-stage, Trivy+CodeQL scanning, Grafana+Prometheus+Loki+Tempo observability |
+| **Security** | JWT RBAC+ABAC, PHI-aware SQL JOIN filters, citation hallucination detection, TruffleHog+Bandit+pip-audit+npm audit, security headers |
+| **Documentation** | 100+ docs across 12 domains, interactive HTML portal with dark mode+search+Mermaid, ADRs, 5 architecture diagrams |
 
 ---
 
@@ -503,17 +516,25 @@ Configurations in [`infra/observability/`](infra/observability/) — Prometheus 
 
 ---
 
-## 🔗 Quick Links
+## 📚 Documentation
 
-| Resource | Description |
-|----------|-------------|
-| [📖 Documentation Portal](docs/documentation-portal.html) | Interactive HTML portal with all 100+ docs, diagrams, and search |
-| [🏗️ Architecture ADRs](docs/04-architecture/adr/) | 12 Architecture Decision Records with trade-off analysis |
-| [🔒 Security Architecture](docs/04-architecture/security-architecture.md) | PHI protection, RBAC, audit trails |
-| [📊 Database Schema](docs/06-database/db-schema.md) | 13 tables, pgvector, ERD diagram |
-| [🧪 Test Plan](docs/09-testing/test-plan.md) | 250+ tests, RAG evaluation, coverage strategy |
-| [🚀 Deployment Guide](docs/10-deployment/deployment-guide.md) | Local, staging, production deployment |
-| [👨‍💻 Developer Onboarding](docs/12-handover/developer-onboarding.md) | Setup, commands, conventions |
+| Section | Content | Primary Doc |
+|---------|---------|-------------|
+| **00-overview** | Project foundation, conventions, governance | [`project-foundation.md`](docs/00-overview/project-foundation.md) |
+| **01-business** | Business rules, BR-001–BR-007, glossary, scope | [`business-rules.md`](docs/01-business/business-rules.md) |
+| **02-product** | PRD, personas, MVP criteria | [`prd.md`](docs/02-product/prd.md) |
+| **03-requirements** | SRS (24 FRs + 22 NFRs), use cases UC-001–UC-009, permissions | [`srs.md`](docs/03-requirements/srs.md) |
+| **04-architecture** | System design, security architecture, ADR-001–ADR-012, coding standards | [`architecture.md`](docs/04-architecture/architecture.md) |
+| **05-api** | API contract, endpoint specs, error codes | [`api-contract.md`](docs/05-api/api-contract.md) |
+| **06-database** | Schema (13 tables), ERD, data dictionary, migrations | [`db-schema.md`](docs/06-database/db-schema.md) |
+| **07-flows** | Business flows, state machines, user journeys | [`end-to-end-business-flow.md`](docs/07-flows/end-to-end-business-flow.md) |
+| **08-ui-ux** | Design system, Figma specs, UI/API traceability | [`00_product_ui_truth.md`](docs/08-ui-ux/00_product_ui_truth.md) |
+| **09-testing** | Test strategy, plan, RTM, 250+ test cases | [`test-plan.md`](docs/09-testing/test-plan.md) |
+| **10-deployment** | CI/CD (5 workflows), env variables, Docker, rollback | [`deployment-guide.md`](docs/10-deployment/deployment-guide.md) |
+| **11-operations** | Monitoring (Grafana), incident response, troubleshooting | [`monitoring-guide.md`](docs/11-operations/monitoring-guide.md) |
+| **12-handover** | Developer onboarding, repository guide, known issues | [`developer-onboarding.md`](docs/12-handover/developer-onboarding.md) |
+
+> 📄 **[Interactive Documentation Portal →](docs/documentation-portal.html)** | 📂 **[Full Documentation Index →](docs/README.md)**
 
 ---
 
@@ -534,8 +555,8 @@ Configurations in [`infra/observability/`](infra/observability/) — Prometheus 
 
 <div align="center">
 
-**Built with ❤️ for healthcare professionals**
+**Built with ❤️ following Clean Architecture principles, AI safety engineering practices, and healthcare industry compliance standards.**
 
-*This project uses synthetic/de-identified data. It is a demonstration of engineering capability, not a certified medical device.*
+*This project uses synthetic/de-identified data. It demonstrates engineering capability for portfolio purposes — not a certified medical device.*
 
 </div>

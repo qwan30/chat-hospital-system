@@ -2,10 +2,10 @@
 
 > Project: AI Copilot for Hospital Management System (HMS)  
 > Project Code: HOSP-AI-001  
-> Version: 3.0  
+> Version: 4.0  
 > Status: Approved  
 > Owner: QA Lead / Clinician SMEs  
-> Last Updated: 2026-06-07  
+> Last Updated: 2026-06-15  
 
 ---
 
@@ -24,9 +24,26 @@ The following high-level scenarios must be verified manually by designated clini
 
 ---
 
+## 2. Automated E2E Coverage (Reduced Manual Burden)
+
+The following UAT scenarios are now partially or fully covered by automated E2E real-user interaction tests (`app/frontend/e2e/flows/`). Manual verification is still recommended for final sign-off, but regression testing is automated:
+
+| UAT Scenario | Automated Coverage | E2E Suite | Status |
+|---|---|---|---|
+| Clinician Patient Summary — login + patient selection | Login flow + patient navigation | `login-flow`, `patient-flow` | ✅ Automated |
+| Justification Override — access denied + request button | Access denied page + request button | `patient-flow` | ✅ Automated |
+| Pharmacist Medication Safety — start review | Medication review page + start button | `patient-flow` | ✅ Automated |
+| Security Log Audit — page load | Audit page loads via sidebar | `navigation-flow` | ✅ Automated |
+| Management ROI Dashboard — page load | Dashboard via sidebar + direct URL | `navigation-flow` | ✅ Automated |
+
+> **Note (2026-06-15)**: 56 automated E2E tests run at 100% pass rate. See `test-plan.md` §5 for details.
+
+---
+
 ## Change Log
 | Version | Date | Author | Change |
 |---|---|---|---|
 | 1.0 | 2026-04-27 | QA Lead | Initial manual UAT scenarios |
 | 2.0 | 2026-06-07 | Agent | Restructured into checklists |
 | 3.0 | 2026-06-07 | Agent | Realigned verification scenarios to BFF endpoints and access justification workflows |
+| 4.0 | 2026-06-15 | Agent | Added automated E2E coverage mapping; 5/6 UAT scenarios now have automated regression tests |

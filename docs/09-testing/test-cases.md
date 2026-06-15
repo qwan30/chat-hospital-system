@@ -2,10 +2,10 @@
 
 > Project: AI Copilot for Hospital Management System (HMS)  
 > Project Code: HOSP-AI-001  
-> Version: 3.0  
+> Version: 4.0  
 > Status: Approved  
 > Owner: QA Lead / PM  
-> Last Updated: 2026-06-07  
+> Last Updated: 2026-06-15  
 
 ---
 
@@ -41,6 +41,22 @@ This inventory catalogues all test cases mapped to functional requirements, non-
 | **TC-024** | Document OCR Workflow (Retry/Archive)| FR-022 | P2 (Should) | Triggering re-scan and archiving items reflects correctly in status updates. |
 | **TC-025** | Global Search Command Palette | FR-021 | P2 (Should) | Ctrl+K displays matching results for patients, documents, and chat threads. |
 | **TC-026** | Dashboard Summary Validation | FR-016, FR-024 | P1 (Must) | Operational page displays synced document counters, metrics, and health. |
+| **TC-027** | Login SSO button click | FR-001 | P1 (Must) | Click "Sign in with Hospital SSO" → redirected to dashboard, user name visible. |
+| **TC-028** | Login email form submit | FR-001 | P1 (Must) | Type email+password, click "Sign in with email" → authenticated. |
+| **TC-029** | Login invalid credentials error | FR-001 | P1 (Must) | Type wrong credentials → "Invalid email or password" error, stays on /login. |
+| **TC-030** | Chat — type question and send | FR-004/005 | P1 (Must) | Type clinical question, press Enter → navigates to /chat/new with query. |
+| **TC-031** | Patient search — type and filter | FR-003 | P1 (Must) | Type patient name in search → filtered results; clear → full list restored. |
+| **TC-032** | Patient detail — click to navigate | FR-003 | P1 (Must) | Click patient row → detail page with tabs (Overview, AI Summary, Meds). |
+| **TC-033** | Patient meds — start review | FR-012 | P1 (Must) | Click "Start Medication Review" → medications and allergies displayed. |
+| **TC-034** | Access denied — emergency request | FR-002, FR-019 | P1 (Must) | Visit patient without permission → "Access Denied" heading → "Request Emergency Access" button visible. |
+| **TC-035** | Sidebar navigation — all links | FR-014 | P1 (Must) | Click each sidebar link (Dashboard, Patients, Chat, Documents, Audit Logs, Metrics, Settings) → correct page loads. |
+| **TC-036** | Document list — status badges | FR-006/007 | P1 (Must) | Documents page shows indexed status badges and document entries. |
+| **TC-037** | Auth expiry redirect | FR-001 | P1 (Must) | Expired/invalid token → auto-redirect to /login. |
+| **TC-038** | Rate limit error handling | NFR-SEC-003 | P1 (Must) | 429 response → user sees rate limit error message. |
+| **TC-039** | API 500 graceful degradation | NFR-REL-001 | P2 (Should) | Backend 500 → app shows error state, not white screen. |
+| **TC-040** | 404 page for unknown routes | NFR-REL-001 | P2 (Should) | Unknown route → app renders without crashing, no redirect to login. |
+
+> **Note**: TC-027 through TC-040 are automated as E2E real-user interaction tests in `app/frontend/e2e/flows/`. All 56 tests pass at 100% (2026-06-15).
 
 ---
 
@@ -50,3 +66,4 @@ This inventory catalogues all test cases mapped to functional requirements, non-
 | 1.0 | 2026-04-27 | QA Lead | Initial test cases list |
 | 2.0 | 2026-06-07 | Agent | Split into standalone test cases catalog |
 | 3.0 | 2026-06-07 | Agent | Added EMR/HMS integration test cases (TC-020 to TC-026) |
+| 4.0 | 2026-06-15 | Agent | Added E2E real-user interaction test cases (TC-027 to TC-040); all 56 automated |

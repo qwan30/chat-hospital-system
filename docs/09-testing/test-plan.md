@@ -2,10 +2,10 @@
 
 > Project: AI Copilot for Hospital Management System (HMS)  
 > Project Code: HOSP-AI-001  
-> Version: 3.0  
+> Version: 4.0  
 > Status: Approved  
 > Owner: QA Lead / PM  
-> Last Updated: 2026-06-07  
+> Last Updated: 2026-06-15  
 
 ---
 
@@ -63,9 +63,58 @@ Since standard deterministic assertions are insufficient for generative AI model
 
 ---
 
+## 5. E2E Real-User Interaction Tests
+
+### 5.1 Overview
+
+A comprehensive E2E test suite simulates real clinical user interactions using Playwright. Unlike passive rendering checks, these tests perform actual browser actions — typing, clicking, submitting forms, waiting for responses — exactly as a clinician, nurse, or admin would.
+
+**Location**: `app/frontend/e2e/flows/`  
+**Framework**: Playwright (Chromium headless)  
+**Run command**: `npx playwright test e2e/flows/ --workers=1`
+
+### 5.2 Test Architecture
+
+| Layer | File | Purpose |
+|-------|------|---------|
+| **Auth helpers** | `e2e/helpers/auth.ts` | `loginViaSSO()`, `loginViaEmailForm()`, `setupContext()`, `mockAllApiRoutes()` |
+| **Interaction helpers** | `e2e/helpers/interactions.ts` | `waitForLoadingToFinish()`, `typeAndSubmit()`, `clickAndWait()`, `navigateViaSidebar()` |
+| **Flow tests** | `e2e/flows/*.spec.ts` | Real-user interaction tests organized by feature area |
+
+### 5.3 Test Suites & Status
+
+| Suite | Tests | Status | Key Real-User Interactions |
+|-------|-------|--------|---------------------------|
+| **login-flow** | 12 | ✅ 100% | SSO click → dashboard, email/password form fill, invalid credentials error, empty field validation |
+| **chat-flow** | 7 | ✅ 100% | Type clinical question, suggestion cards, multi-turn conversation, thread navigation |
+| **patient-flow** | 11 | ✅ 100% | Type search → filter, click patient → detail + tabs, AI Summary, Meds Review, Access Denied |
+| **document-flow** | 5 | ✅ 100% | Document list badges, upload dropzone, file input, detail page |
+| **navigation-flow** | 16 | ✅ 100% | All 7 sidebar clicks, all 7 direct URLs, user menu, search trigger |
+| **error-flow** | 5 | ✅ 100% | API 500, auth expiry → login, 404, rate limit 429, slow network |
+| **Total** | **56** | **✅ 100%** | All passing (2.9 min, single worker) |
+
+### 5.4 Mock Strategy
+
+Tests use Playwright's `context.route()` to mock all API responses. The auth mock supports:
+- `dev-admin` token → Alex Admin (admin role)
+- `dev-doctor` token → Dr. Sarah Chen (physician role)
+- `e2e-test-token` → Dr. Sarah Chen (auto-login via localStorage)
+- Unknown tokens → 401 (error state testing)
+
+### 5.5 CI Commands
+
+```bash
+cd app/frontend && npx playwright test e2e/flows/ --workers=1   # All 56 tests
+npx playwright test e2e/flows/login-flow.spec.ts                 # Single suite
+npx playwright show-report                                        # HTML report
+```
+
+---
+
 ## Change Log
 | Version | Date | Author | Change |
 |---|---|---|---|
 | 1.0 | 2026-04-27 | QA Lead | Initial master test plan |
 | 2.0 | 2026-06-07 | Agent | Restructured and separated test plan, cases, and RTM matrices |
 | 3.0 | 2026-06-07 | Agent | Added EMR/HMS integration test scenarios and verified gates |
+| 4.0 | 2026-06-15 | Agent | Added E2E real-user interaction tests (56 tests, Playwright, 100% pass) |

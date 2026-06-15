@@ -2,10 +2,10 @@
 
 > Project: AI Copilot for Hospital Management System (HMS)  
 > Project Code: HOSP-AI-001  
-> Version: 3.0  
+> Version: 4.0  
 > Status: Approved  
 > Owner: QA Lead / PM  
-> Last Updated: 2026-06-07  
+> Last Updated: 2026-06-15  
 
 ---
 
@@ -43,8 +43,27 @@ The RTM maps all functional and non-functional requirements to design elements, 
 
 ---
 
+## 2. E2E Test Coverage Mapping
+
+The following maps each E2E real-user interaction test suite to the business requirements it validates:
+
+| E2E Suite | Test Count | Requirements Covered | TC IDs |
+|-----------|-----------|---------------------|--------|
+| **login-flow** | 12 | FR-001 (Login), FR-014 (MFA) | TC-027, TC-028, TC-029, TC-037 |
+| **chat-flow** | 7 | FR-004 (Chat), FR-005 (Citations) | TC-004, TC-005, TC-030 |
+| **patient-flow** | 11 | FR-002 (Access), FR-003 (Search), FR-008 (Summary), FR-012 (Meds), FR-019 (Access Request) | TC-031, TC-032, TC-033, TC-034 |
+| **document-flow** | 5 | FR-006 (OCR), FR-007 (Search), FR-022 (Review) | TC-036 |
+| **navigation-flow** | 16 | FR-014 (Navigation), FR-021 (Search) | TC-035 |
+| **error-flow** | 5 | NFR-SEC-003 (Rate Limit), NFR-REL-001 (Reliability) | TC-038, TC-039, TC-040 |
+| **Total** | **56** | **12 functional + 2 non-functional requirements** | **14 test cases** |
+
+> **Status (2026-06-15)**: All 56 E2E tests pass at 100%. Tests run in CI via `npx playwright test e2e/flows/ --workers=1`.
+
+---
+
 ## Change Log
 | Version | Date | Author | Change |
 |---|---|---|---|
 | 2.0 | 2026-06-07 | Agent | Restructured RTM map |
 | 3.0 | 2026-06-07 | Agent | Expanded RTM map to track FR-016 through FR-025 |
+| 4.0 | 2026-06-15 | Agent | Added E2E real-user interaction test coverage mapping (56 tests, 14 reqs) |

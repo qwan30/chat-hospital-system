@@ -4,7 +4,8 @@
 
 [![Python](https://img.shields.io/badge/Python-3.12-blue?style=for-the-badge&logo=python&logoColor=white)](https://www.python.org/)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.110-009688?style=for-the-badge&logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
-[![Next.js](https://img.shields.io/badge/Next.js-16-black?style=for-the-badge&logo=nextdotjs&logoColor=white)](https://nextjs.org/)
+[![TanStack Start](https://img.shields.io/badge/TanStack_Start-1.167-FF4154?style=for-the-badge&logo=vite&logoColor=white)](https://tanstack.com/start)
+[![Vite](https://img.shields.io/badge/Vite-8-646CFF?style=for-the-badge&logo=vite&logoColor=white)](https://vitejs.dev/)
 [![React](https://img.shields.io/badge/React-19-61DAFB?style=for-the-badge&logo=react&logoColor=black)](https://react.dev/)
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-pgvector-336791?style=for-the-badge&logo=postgresql&logoColor=white)](https://www.postgresql.org/)
 [![Redis](https://img.shields.io/badge/Redis-7-DC382D?style=for-the-badge&logo=redis&logoColor=white)](https://redis.io/)
@@ -46,7 +47,7 @@
 |-----------|-------------------|
 | **AI/ML Engineering** | RAG pipeline with citation validation, permission-aware vector search, multi-provider LLM/embedding abstraction (Ollama/OpenAI/Cohere), synthetic RAG evaluation suite, centralized prompt registry |
 | **Backend Engineering** | FastAPI async, SQLAlchemy 2.0+asyncpg, pgvector HNSW, Redis/RQ workers, Alembic migrations, API contract verification, structured JSON logging |
-| **Frontend Engineering** | Next.js 16 App Router, React 19, shadcn/ui, Tailwind CSS v4, SSE streaming, Playwright E2E, Vitest unit tests |
+| **Frontend Engineering** | TanStack Start (Vite 8), React 19, shadcn/ui, Tailwind CSS v4, SSE streaming, Playwright E2E, 90+ routes with RBAC-gated navigation |
 | **DevOps / SRE** | 5 GitHub Actions workflows (CI/CD/Security/Rollback/Dependabot), Docker multi-stage, Trivy+CodeQL scanning, Grafana+Prometheus+Loki+Tempo observability |
 | **Security** | JWT RBAC+ABAC, PHI-aware SQL JOIN filters, citation hallucination detection, TruffleHog+Bandit+pip-audit+npm audit, security headers |
 | **Documentation** | 100+ docs across 12 domains, interactive HTML portal with dark mode+search+Mermaid, ADRs, 5 architecture diagrams |
@@ -63,7 +64,7 @@ graph TB
     end
 
     subgraph "Application Layer"
-        FE[⚛️ Next.js 16 Frontend<br/><i>App Router · shadcn/ui · Streaming SSE</i>]
+        FE[⚛️ TanStack Start Frontend<br/><i>Vite 8 · shadcn/ui · Streaming SSE</i>]
         BE[🐍 FastAPI Backend<br/><i>Python 3.12 · Async · JWT Auth</i>]
         W[⚙️ RQ Worker<br/><i>Document Processing · OCR · Embedding</i>]
     end
@@ -116,6 +117,37 @@ graph TB
     style GF fill:#eab308,stroke:#facc15,color:#000
     style LK fill:#eab308,stroke:#facc15,color:#000
 ```
+
+---
+
+## 📸 Application Screenshots
+
+<div align="center">
+
+### Dashboard & Patient Management
+
+| | |
+|:---:|:---:|
+| **Dashboard** — KPI metrics, recent patients, charts | **Patients Roster** — RBAC-filtered, searchable |
+| ![Dashboard](screen-demo/02-dashboard.png) | ![Patients](screen-demo/05-patients-list.png) |
+| **Patient Overview** — Clinical summary, tabs | **Patient Timeline** — Chronological events |
+| ![Patient Overview](screen-demo/06-patient-overview.png) | ![Timeline](screen-demo/07-patient-timeline.png) |
+
+### AI Chat & Knowledge
+
+| | |
+|:---:|:---:|
+| **Chat Landing** — AI copilot with suggestions | **Documents** — OCR-indexed, searchable |
+| ![Chat](screen-demo/12-chat-landing.png) | ![Documents](screen-demo/17-documents-list.png) |
+
+### Compliance & Audit
+
+| |
+|:---:|
+| **Audit Log** — Full event trail with filtering |
+| ![Audit](screen-demo/21-audit-log.png) |
+
+</div>
 
 ---
 
@@ -271,7 +303,7 @@ erDiagram
 graph TB
     subgraph "VPS / Cloud Instance"
         NG[🔀 Nginx :80<br/><i>Reverse Proxy</i>]
-        FE[⚛️ Frontend<br/><i>Next.js :3000</i>]
+        FE[⚛️ Frontend<br/><i>TanStack Start :3000</i>]
         BE[🐍 Backend<br/><i>FastAPI :8000</i>]
         W[⚙️ Worker<br/><i>RQ :queue</i>]
         PG[("🐘 PostgreSQL<br/><i>pgvector :5432</i>")]
@@ -444,10 +476,10 @@ This is the **Clean Architecture dependency rule** implemented through conventio
 │   │   └── tests/              # 250+ Pytest tests
 │   └── frontend/
 │       ├── src/
-│       │   ├── app/            # Next.js App Router pages
-│       │   ├── components/     # 60+ React components (shadcn/ui)
+│       │   ├── routes/         # TanStack Router pages (90+ routes)
+│       │   ├── components/     # 100+ React components (shadcn/ui)
 │       │   ├── hooks/          # Custom React hooks
-│       │   └── lib/            # API client, streaming, utilities
+│       │   └── lib/            # API client, auth, session, utilities
 │       └── e2e/                # Playwright E2E tests
 └── docs/
     ├── documentation-portal.html   # Interactive HTML documentation portal
@@ -481,11 +513,11 @@ uvicorn "hospital_ai.main:create_app" --factory --host 0.0.0.0 --port 8000 --rel
 ```
 Swagger UI: http://localhost:8000/docs
 
-### 3. Frontend (Next.js)
+### 3. Frontend (TanStack Start)
 ```bash
 cd app/frontend
-npm install
-npm run dev
+bun install
+bun run dev
 ```
 UI: http://localhost:3000
 

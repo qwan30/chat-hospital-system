@@ -41,6 +41,10 @@ class Settings(BaseSettings):
     openai_chat_model: str = "gpt-4o-mini"
     openai_embedding_model: str = "text-embedding-3-small"
 
+    # Google Gemini provider
+    gemini_api_key: str = ""
+    gemini_chat_model: str = "gemini-2.0-flash"
+
     # RAG tuning
     chunk_size: int = Field(default=512, ge=64, le=4096)
     chunk_overlap: int = Field(default=64, ge=0, le=512)

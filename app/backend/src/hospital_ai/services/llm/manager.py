@@ -55,7 +55,7 @@ class LLMManager:
 
     def list_providers(self) -> list:
         """List available provider names."""
-        return ["stub", "ollama", "openai"] + list(self._providers.keys())
+        return ["stub", "ollama", "openai", "gemini"] + list(self._providers.keys())
 
     def _create_provider(self, name: str) -> BaseLLM:
         """Factory method — creates a provider from settings."""
@@ -79,6 +79,14 @@ class LLMManager:
                 api_key=getattr(self.settings, "openai_api_key", ""),
                 base_url=getattr(self.settings, "openai_base_url", "https://api.openai.com/v1"),
                 model=getattr(self.settings, "openai_chat_model", "gpt-4o-mini"),
+            )
+
+        if name == "gemini":
+            from hospital_ai.services.llm.gemini_provider import GeminiLLM
+
+            return GeminiLLM(
+                api_key=getattr(self.settings, "gemini_api_key", ""),
+                model=getattr(self.settings, "gemini_chat_model", "gemini-2.0-flash"),
             )
 
         if name in self._providers:

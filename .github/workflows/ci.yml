@@ -409,7 +409,7 @@ jobs:
 
       # ── Scan backend image with Trivy ──
       - name: Scan backend image (Trivy)
-        uses: aquasecurity/trivy-action@0.29.0
+        uses: aquasecurity/trivy-action@v0.36.0
         with:
           image-ref: ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}-backend:${{ github.sha }}
           format: sarif

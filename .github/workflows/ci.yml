@@ -266,11 +266,14 @@ jobs:
         uses: actions/setup-node@v6
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: npm
-          cache-dependency-path: app/frontend/package-lock.json
+
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
 
       - name: Install dependencies
-        run: npm ci
+        run: bun install --frozen-lockfile
 
       # ── Playwright browser cache ──
       - name: Resolve Playwright version
@@ -290,7 +293,7 @@ jobs:
 
       - name: Install Playwright browser (chromium)
         if: steps.playwright-cache.outputs.cache-hit != 'true'
-        run: npx playwright install --with-deps chromium
+        run: bunx playwright install --with-deps chromium
 
       # ── Next.js build cache ──
       - name: Cache Next.js build
@@ -303,23 +306,23 @@ jobs:
 
       # ── Quality gates ──
       - name: ESLint check
-        run: npm run lint
+        run: bun run lint
 
       - name: TypeScript type check
-        run: npm run typecheck
+        run: bun run typecheck
 
       - name: Unit tests (Vitest)
-        run: npm run test
+        run: bun run test
 
       - name: Production build
         env:
           NEXT_PUBLIC_API_BASE_URL: http://localhost:8000/api/v1
-        run: npm run build
+        run: bun run build
 
       - name: E2E tests (Playwright, Chromium)
         env:
           NEXT_PUBLIC_API_BASE_URL: http://localhost:8000/api/v1
-        run: npx playwright test --project=chromium
+        run: bunx playwright test --project=chromium
 
       # ── Artifacts ──
       - name: Upload Playwright reports
@@ -406,7 +409,7 @@ jobs:
 
       # ── Scan backend image with Trivy ──
       - name: Scan backend image (Trivy)
-        uses: aquasecurity/trivy-action@master
+        uses: aquasecurity/trivy-action@0.29.0
         with:
           image-ref: ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}-backend:${{ github.sha }}
           format: sarif

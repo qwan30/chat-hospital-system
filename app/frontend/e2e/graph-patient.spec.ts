@@ -29,11 +29,13 @@ test.describe("/graph/patients/:patientId — reasoning stream controls", () => 
 
     // Only one set of controls / one banner exists, regardless of how many
     // clicks landed. The hook's `clear()` guard means no orphan intervals.
-    await expect(page.locator("text=Tracing next hop…")).toHaveCount(0, { timeout: 2_000 }).catch(async () => {
-      // It's acceptable for "Tracing next hop…" to appear during streaming,
-      // but never more than once.
-      await expect(page.locator("text=Tracing next hop…")).toHaveCount(1);
-    });
+    await expect(page.locator("text=Tracing next hop…"))
+      .toHaveCount(0, { timeout: 2_000 })
+      .catch(async () => {
+        // It's acceptable for "Tracing next hop…" to appear during streaming,
+        // but never more than once.
+        await expect(page.locator("text=Tracing next hop…")).toHaveCount(1);
+      });
   });
 
   test("Stop after interruption keeps the original failure reason", async ({ page }) => {

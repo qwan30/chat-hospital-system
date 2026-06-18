@@ -54,7 +54,9 @@ test.describe("/chat/patients/:patientId — duplicate submits + rapid presses",
     await expect(page.locator('[data-msg-role="user"]')).toHaveCount(userCount);
   });
 
-  test("simulate=stream-fail surfaces Resume + Retry and rapid presses are idempotent", async ({ page }) => {
+  test("simulate=stream-fail surfaces Resume + Retry and rapid presses are idempotent", async ({
+    page,
+  }) => {
     await page.goto("/chat/patients/p-001?simulate=stream-fail");
     const composer = page.getByRole("textbox");
     await composer.fill("Trigger forced failure");
@@ -66,7 +68,9 @@ test.describe("/chat/patients/:patientId — duplicate submits + rapid presses",
 
     const retry = page.getByRole("button", { name: /Retry/ });
     // Mash Retry — at most one banner / one streaming controls row should be visible at any time.
-    await Promise.all(Array.from({ length: 6 }, () => retry.click({ force: true }).catch(() => {})));
+    await Promise.all(
+      Array.from({ length: 6 }, () => retry.click({ force: true }).catch(() => {})),
+    );
     await expect(page.getByRole("alert")).toHaveCount(1, { timeout: 5_000 });
   });
 });

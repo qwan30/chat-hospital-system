@@ -11,10 +11,7 @@ export async function seedSession(
 ) {
   await page.addInitScript(
     ({ role, workspaceId }) => {
-      localStorage.setItem(
-        "hms.session",
-        JSON.stringify({ role, workspaceId }),
-      );
+      localStorage.setItem("hms.session", JSON.stringify({ role, workspaceId }));
     },
     { role, workspaceId },
   );

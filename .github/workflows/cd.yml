@@ -70,7 +70,7 @@ jobs:
           target: "~/apps/chatbot-hospital"
 
       - name: SSH — deploy to staging
-        uses: appleboy/ssh-action@v1.2.0
+        uses: appleboy/ssh-action@v1.2.5
         with:
           host: ${{ secrets.DEPLOY_HOST_STAGING }}
           username: ${{ secrets.DEPLOY_USER_STAGING }}
@@ -108,7 +108,7 @@ jobs:
             docker image prune -f
 
       - name: Staging smoke check
-        uses: appleboy/ssh-action@v1.2.0
+        uses: appleboy/ssh-action@v1.2.5
         with:
           host: ${{ secrets.DEPLOY_HOST_STAGING }}
           username: ${{ secrets.DEPLOY_USER_STAGING }}
@@ -169,7 +169,7 @@ jobs:
           target: "~/apps/chatbot-hospital"
 
       - name: SSH — deploy to production
-        uses: appleboy/ssh-action@v1.2.0
+        uses: appleboy/ssh-action@v1.2.5
         with:
           host: ${{ secrets.DEPLOY_HOST }}
           username: ${{ secrets.DEPLOY_USER }}
@@ -207,7 +207,7 @@ jobs:
             docker image prune -f
 
       - name: Production smoke check
-        uses: appleboy/ssh-action@v1.2.0
+        uses: appleboy/ssh-action@v1.2.5
         with:
           host: ${{ secrets.DEPLOY_HOST }}
           username: ${{ secrets.DEPLOY_USER }}

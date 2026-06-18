@@ -69,7 +69,7 @@ jobs:
           fi
 
       - name: SSH — rollback to specified image tag
-        uses: appleboy/ssh-action@v1.2.0
+        uses: appleboy/ssh-action@v1.2.5
         with:
           host: ${{ steps.params.outputs.host }}
           username: ${{ steps.params.outputs.user }}

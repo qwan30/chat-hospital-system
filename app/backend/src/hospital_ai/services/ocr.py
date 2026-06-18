@@ -31,14 +31,15 @@ class OcrService:
         
         has_paddle = False
         try:
-            from paddleocr import PaddleOCR
-            import numpy as np
             import cv2
+            import numpy as np
+            from paddleocr import PaddleOCR
             ocr = PaddleOCR(use_doc_orientation_classify=False, use_doc_unwarping=False, use_textline_orientation=False)
             has_paddle = True
         except ImportError:
             pass
-            
+
+        pages = []
         for page_index in range(len(doc)):
             page_number = page_index + 1
             page = doc[page_index]

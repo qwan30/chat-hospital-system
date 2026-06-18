@@ -41,7 +41,9 @@ class LocalStorageService:
                 output.write(chunk)
         return str(target_path)
 
-    def save_page_image(self, patient_id: uuid.UUID, document_id: uuid.UUID, page_number: int, image_bytes: bytes) -> str:
+    def save_page_image(
+        self, patient_id: uuid.UUID, document_id: uuid.UUID, page_number: int, image_bytes: bytes
+    ) -> str:
         target_dir = self.root / "patients" / str(patient_id) / "pages"
         target_dir.mkdir(parents=True, exist_ok=True)
         target_path = target_dir / f"{document_id}_{page_number}.png"

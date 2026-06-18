@@ -16,8 +16,7 @@ Usage pattern:
 """
 
 from abc import ABC, abstractmethod
-from typing import Any, Optional, Protocol, runtime_checkable
-
+from typing import Any, Protocol, runtime_checkable
 
 # ── LLM Provider ─────────────────────────────────────────────────────
 

@@ -16,10 +16,10 @@ Architecture principle:
     not in environment variables or service-layer string literals.
 """
 
-from hospital_ai.core.prompts.rag_system_prompt import RAG_SYSTEM_PROMPT, CLINICAL_RAG_TEMPLATE
 from hospital_ai.core.prompts.citation_validation_prompt import CITATION_VALIDATION_PROMPT
-from hospital_ai.core.prompts.patient_summary_prompt import PATIENT_SUMMARY_PROMPT, PATIENT_SUMMARY_TEMPLATE
 from hospital_ai.core.prompts.drug_check_prompt import DRUG_ALLERGY_CHECK_PROMPT
+from hospital_ai.core.prompts.patient_summary_prompt import PATIENT_SUMMARY_PROMPT, PATIENT_SUMMARY_TEMPLATE
+from hospital_ai.core.prompts.rag_system_prompt import CLINICAL_RAG_TEMPLATE, RAG_SYSTEM_PROMPT
 
 __all__ = [
     "RAG_SYSTEM_PROMPT",

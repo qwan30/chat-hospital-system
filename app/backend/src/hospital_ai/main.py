@@ -25,7 +25,6 @@ from hospital_ai.core.exceptions import (
 )
 from hospital_ai.core.logging import configure_logging
 
-
 # ── Domain Exception → HTTP Status Code Mapping ─────────────────────
 # Keeps the domain layer framework-free — only the presentation layer
 # (this file) knows about HTTP status codes.

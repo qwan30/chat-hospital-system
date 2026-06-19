@@ -13,10 +13,21 @@ export const Route = createFileRoute("/_app/medication-conflicts/$conflictId")({
 
 function Page() {
   const { conflictId } = Route.useParams();
-  const c = drugConflicts.find(x=>x.id===conflictId) || drugConflicts[0];
+  const c = drugConflicts.find((x) => x.id === conflictId) || drugConflicts[0];
   return (
     <AppShell>
-      <PageHeader title={`Conflict ${c.id}`} description={`${c.patient} · ${c.drug}`} chips={<><ConflictSeverityPill severity={c.severity} /><Badge variant="outline" className="capitalize">{c.type}</Badge></>} />
+      <PageHeader
+        title={`Conflict ${c.id}`}
+        description={`${c.patient} · ${c.drug}`}
+        chips={
+          <>
+            <ConflictSeverityPill severity={c.severity} />
+            <Badge variant="outline" className="capitalize">
+              {c.type}
+            </Badge>
+          </>
+        }
+      />
       <div className="grid gap-4 md:grid-cols-2">
         <Card className="p-5 text-sm space-y-2">
           <h4 className="text-sm font-semibold">Conflicts with</h4>

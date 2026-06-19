@@ -26,7 +26,9 @@ export function ErrorState({
   return (
     <div className="mx-auto flex min-h-[calc(100vh-2rem)] max-w-xl items-center px-6 py-10">
       <Card className="w-full p-8">
-        <div className={`inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-semibold uppercase tracking-wider ${toneCls[tone]}`}>
+        <div
+          className={`inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-semibold uppercase tracking-wider ${toneCls[tone]}`}
+        >
           <span>{code}</span>
         </div>
         <h1 className="mt-4 text-2xl font-semibold tracking-tight">{title}</h1>
@@ -44,7 +46,9 @@ export function ErrorState({
         </div>
         <p className="mt-6 text-xs text-muted-foreground">
           Audit event logged · ref{" "}
-          <span className="font-mono text-foreground">evt-{code.toLowerCase().replace(/\s+/g, "-")}-7421</span>
+          <span className="font-mono text-foreground">
+            evt-{code.toLowerCase().replace(/\s+/g, "-")}-7421
+          </span>
         </p>
       </Card>
     </div>

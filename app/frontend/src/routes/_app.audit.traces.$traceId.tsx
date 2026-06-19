@@ -11,10 +11,13 @@ export const Route = createFileRoute("/_app/audit/traces/$traceId")({
 
 function Page() {
   const { traceId } = Route.useParams();
-  const t = traces.find(x=>x.id===traceId) || traces[0];
+  const t = traces.find((x) => x.id === traceId) || traces[0];
   return (
     <AppShell>
-      <PageHeader title={`Trace ${t.id}`} description={`${t.query} · ${t.spans.length} spans · ${t.totalMs}ms total`} />
+      <PageHeader
+        title={`Trace ${t.id}`}
+        description={`${t.query} · ${t.spans.length} spans · ${t.totalMs}ms total`}
+      />
       <TraceTimeline trace={t} />
     </AppShell>
   );

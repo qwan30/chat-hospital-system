@@ -41,7 +41,8 @@ export function useStreamSteps(totalSteps: number, options: Options = {}) {
       setRevealed(from);
       setStatus(from >= totalSteps ? "complete" : "streaming");
       if (forceInterrupt) failAt.current = Math.max(1, Math.ceil(totalSteps * 0.5));
-      else if (failureRate > 0 && Math.random() < failureRate) failAt.current = Math.max(1, Math.floor(Math.random() * totalSteps));
+      else if (failureRate > 0 && Math.random() < failureRate)
+        failAt.current = Math.max(1, Math.floor(Math.random() * totalSteps));
       else failAt.current = null;
 
       let i = from;

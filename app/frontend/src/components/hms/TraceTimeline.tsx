@@ -28,7 +28,9 @@ export function TraceTimeline({ trace }: { trace: Trace }) {
             <li key={s.id} className="grid grid-cols-[160px_1fr_64px] items-center gap-3 text-xs">
               <div className="truncate">
                 <div className="font-medium text-foreground">{s.name}</div>
-                <div className="text-[10px] uppercase tracking-wider text-muted-foreground">{s.service}</div>
+                <div className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                  {s.service}
+                </div>
               </div>
               <div className="relative h-5 rounded-full bg-muted">
                 <div

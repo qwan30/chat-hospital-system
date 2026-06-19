@@ -55,9 +55,7 @@ export function ChatMessage({ msg }: { msg: ChatMessageData }) {
       </div>
       <div className={cn("max-w-[80%]", isAssistant ? "" : "items-end")}>
         <div className="mb-1 flex items-center gap-2 text-xs text-muted-foreground">
-          <span className="font-medium text-foreground">
-            {isAssistant ? "HMS Copilot" : "You"}
-          </span>
+          <span className="font-medium text-foreground">{isAssistant ? "HMS Copilot" : "You"}</span>
           {msg.time ? <span>· {msg.time}</span> : null}
         </div>
         <div

@@ -12,7 +12,7 @@ export const Route = createFileRoute("/_app/integrations/hms/jobs/$jobId")({
 
 function Page() {
   const { jobId } = Route.useParams();
-  const j = syncJobs.find(x=>x.id===jobId) || syncJobs[0];
+  const j = syncJobs.find((x) => x.id === jobId) || syncJobs[0];
   return (
     <AppShell>
       <PageHeader title={`Job ${j.id}`} description={`${j.source} · ${j.status}`} />
@@ -27,4 +27,11 @@ function Page() {
     </AppShell>
   );
 }
-function Row({k,v}:{k:string;v:string}){return <div className="flex justify-between border-b py-1 last:border-0"><span className="text-muted-foreground">{k}</span><span className="font-medium">{v}</span></div>}
+function Row({ k, v }: { k: string; v: string }) {
+  return (
+    <div className="flex justify-between border-b py-1 last:border-0">
+      <span className="text-muted-foreground">{k}</span>
+      <span className="font-medium">{v}</span>
+    </div>
+  );
+}

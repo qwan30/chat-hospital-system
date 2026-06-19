@@ -13,7 +13,10 @@ export const Route = createFileRoute("/_app/documents/upload")({
 function Page() {
   return (
     <AppShell>
-      <PageHeader title="Upload documents" description="Files ingest into the OCR + vector pipeline." />
+      <PageHeader
+        title="Upload documents"
+        description="Files ingest into the OCR + vector pipeline."
+      />
       <Card className="flex flex-col items-center justify-center border-dashed p-12 text-center">
         <Upload className="h-10 w-10 text-muted-foreground" />
         <p className="mt-3 text-sm font-medium">Drop PDFs, scans, or HL7 messages here</p>

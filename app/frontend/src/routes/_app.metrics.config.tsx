@@ -12,10 +12,14 @@ export const Route = createFileRoute("/_app/metrics/config")({
 function Page() {
   return (
     <AppShell>
-      <PageHeader title="Metrics configuration" description="Dashboard thresholds, alerting, and retention." />
-      
-      <Card className="p-5 text-sm text-muted-foreground">Threshold sliders, alert rules, and retention controls (mock UI).</Card>
+      <PageHeader
+        title="Metrics configuration"
+        description="Dashboard thresholds, alerting, and retention."
+      />
 
+      <Card className="p-5 text-sm text-muted-foreground">
+        Threshold sliders, alert rules, and retention controls (mock UI).
+      </Card>
     </AppShell>
   );
 }

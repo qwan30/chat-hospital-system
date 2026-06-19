@@ -1,8 +1,5 @@
 // Stable, locale-free formatters used by SSR + CSR to avoid hydration drift.
-const MONTHS = [
-  "Jan", "Feb", "Mar", "Apr", "May", "Jun",
-  "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
-];
+const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
 function pad(n: number) {
   return n < 10 ? `0${n}` : String(n);
@@ -23,7 +20,10 @@ export function formatTime(iso: string | number | Date): string {
   return `${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())} UTC`;
 }
 
-export function formatRelative(iso: string | number | Date, now = Date.UTC(2026, 5, 12, 17, 0, 0)): string {
+export function formatRelative(
+  iso: string | number | Date,
+  now = Date.UTC(2026, 5, 12, 17, 0, 0),
+): string {
   const t = new Date(iso).getTime();
   const diff = Math.max(0, now - t);
   const m = Math.floor(diff / 60000);

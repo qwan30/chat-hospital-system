@@ -1,18 +1,68 @@
 import { useMemo, useState } from "react";
-import { Heart, Stethoscope, Activity, Pill, AlertTriangle, FlaskConical, Maximize2, Minus, Plus, RotateCcw } from "lucide-react";
+import {
+  Heart,
+  Stethoscope,
+  Activity,
+  Pill,
+  AlertTriangle,
+  FlaskConical,
+  Maximize2,
+  Minus,
+  Plus,
+  RotateCcw,
+} from "lucide-react";
 import type { GraphData, GraphNode } from "@/data/graph";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 type NodeType = GraphNode["type"];
 
-const nodeStyle: Record<NodeType, { fill: string; ring: string; chip: string; label: string; Icon: typeof Heart }> = {
-  patient:    { fill: "fill-primary",     ring: "stroke-primary",     chip: "bg-primary text-primary-foreground",         label: "Patient",    Icon: Heart },
-  encounter:  { fill: "fill-info",        ring: "stroke-info",        chip: "bg-info text-white",                         label: "Encounter",  Icon: Stethoscope },
-  diagnosis:  { fill: "fill-ai",          ring: "stroke-ai",          chip: "bg-ai text-ai-foreground",                   label: "Diagnosis",  Icon: Activity },
-  medication: { fill: "fill-citation",    ring: "stroke-citation",    chip: "bg-citation text-citation-foreground",       label: "Medication", Icon: Pill },
-  allergy:    { fill: "fill-destructive", ring: "stroke-destructive", chip: "bg-destructive text-destructive-foreground", label: "Allergy",    Icon: AlertTriangle },
-  lab:        { fill: "fill-warning",     ring: "stroke-warning",     chip: "bg-warning text-white",                      label: "Lab",        Icon: FlaskConical },
+const nodeStyle: Record<
+  NodeType,
+  { fill: string; ring: string; chip: string; label: string; Icon: typeof Heart }
+> = {
+  patient: {
+    fill: "fill-primary",
+    ring: "stroke-primary",
+    chip: "bg-primary text-primary-foreground",
+    label: "Patient",
+    Icon: Heart,
+  },
+  encounter: {
+    fill: "fill-info",
+    ring: "stroke-info",
+    chip: "bg-info text-white",
+    label: "Encounter",
+    Icon: Stethoscope,
+  },
+  diagnosis: {
+    fill: "fill-ai",
+    ring: "stroke-ai",
+    chip: "bg-ai text-ai-foreground",
+    label: "Diagnosis",
+    Icon: Activity,
+  },
+  medication: {
+    fill: "fill-citation",
+    ring: "stroke-citation",
+    chip: "bg-citation text-citation-foreground",
+    label: "Medication",
+    Icon: Pill,
+  },
+  allergy: {
+    fill: "fill-destructive",
+    ring: "stroke-destructive",
+    chip: "bg-destructive text-destructive-foreground",
+    label: "Allergy",
+    Icon: AlertTriangle,
+  },
+  lab: {
+    fill: "fill-warning",
+    ring: "stroke-warning",
+    chip: "bg-warning text-white",
+    label: "Lab",
+    Icon: FlaskConical,
+  },
 };
 
 export function GraphCanvas({ data }: { data: GraphData }) {
@@ -68,7 +118,7 @@ export function GraphCanvas({ data }: { data: GraphData }) {
   const z = zoom;
   const cx = vbW / 2;
   const cy = vbH / 2;
-  const viewBox = `${cx - (vbW / 2) / z} ${cy - (vbH / 2) / z} ${vbW / z} ${vbH / z}`;
+  const viewBox = `${cx - vbW / 2 / z} ${cy - vbH / 2 / z} ${vbW / z} ${vbH / z}`;
 
   return (
     <div className="overflow-hidden rounded-2xl border bg-card shadow-sm">
@@ -90,7 +140,12 @@ export function GraphCanvas({ data }: { data: GraphData }) {
                     : "border-transparent bg-background shadow-sm hover:shadow",
                 )}
               >
-                <span className={cn("inline-flex h-4 w-4 items-center justify-center rounded-full", s.chip)}>
+                <span
+                  className={cn(
+                    "inline-flex h-4 w-4 items-center justify-center rounded-full",
+                    s.chip,
+                  )}
+                >
                   <Icon className="h-2.5 w-2.5" />
                 </span>
                 <span className="capitalize">{s.label}</span>
@@ -100,14 +155,35 @@ export function GraphCanvas({ data }: { data: GraphData }) {
           })}
         </div>
         <div className="flex items-center gap-1">
-          <Button variant="ghost" size="icon" onClick={() => setZoom((z) => Math.max(0.5, +(z - 0.1).toFixed(2)))} aria-label="Zoom out">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => setZoom((z) => Math.max(0.5, +(z - 0.1).toFixed(2)))}
+            aria-label="Zoom out"
+          >
             <Minus className="h-4 w-4" />
           </Button>
-          <span className="w-10 text-center text-xs tabular-nums text-muted-foreground">{Math.round(zoom * 100)}%</span>
-          <Button variant="ghost" size="icon" onClick={() => setZoom((z) => Math.min(2, +(z + 0.1).toFixed(2)))} aria-label="Zoom in">
+          <span className="w-10 text-center text-xs tabular-nums text-muted-foreground">
+            {Math.round(zoom * 100)}%
+          </span>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => setZoom((z) => Math.min(2, +(z + 0.1).toFixed(2)))}
+            aria-label="Zoom in"
+          >
             <Plus className="h-4 w-4" />
           </Button>
-          <Button variant="ghost" size="icon" onClick={() => { setZoom(1); setSelected(null); setHidden(new Set()); }} aria-label="Reset view">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => {
+              setZoom(1);
+              setSelected(null);
+              setHidden(new Set());
+            }}
+            aria-label="Reset view"
+          >
             <RotateCcw className="h-4 w-4" />
           </Button>
           <Button variant="ghost" size="icon" aria-label="Fit">
@@ -127,10 +203,26 @@ export function GraphCanvas({ data }: { data: GraphData }) {
               <stop offset="0%" stopColor="white" stopOpacity="0" />
               <stop offset="100%" stopColor="white" stopOpacity="1" />
             </radialGradient>
-            <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+            <marker
+              id="arrow"
+              viewBox="0 0 10 10"
+              refX="9"
+              refY="5"
+              markerWidth="6"
+              markerHeight="6"
+              orient="auto"
+            >
               <path d="M0,0 L10,5 L0,10 z" className="fill-muted-foreground" />
             </marker>
-            <marker id="arrow-active" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+            <marker
+              id="arrow-active"
+              viewBox="0 0 10 10"
+              refX="9"
+              refY="5"
+              markerWidth="7"
+              markerHeight="7"
+              orient="auto"
+            >
               <path d="M0,0 L10,5 L0,10 z" className="fill-primary" />
             </marker>
             <filter id="node-shadow" x="-50%" y="-50%" width="200%" height="200%">
@@ -169,8 +261,23 @@ export function GraphCanvas({ data }: { data: GraphData }) {
                   markerEnd={highlighted ? "url(#arrow-active)" : "url(#arrow)"}
                 />
                 <g transform={`translate(${midX}, ${midY})`}>
-                  <rect x={-e.label.length * 3.2 - 6} y={-9} width={e.label.length * 6.4 + 12} height={16} rx={8} className="fill-card stroke-border" strokeWidth={0.75} />
-                  <text textAnchor="middle" y={3} className={cn("text-[10px]", highlighted ? "fill-primary font-medium" : "fill-muted-foreground")}>
+                  <rect
+                    x={-e.label.length * 3.2 - 6}
+                    y={-9}
+                    width={e.label.length * 6.4 + 12}
+                    height={16}
+                    rx={8}
+                    className="fill-card stroke-border"
+                    strokeWidth={0.75}
+                  />
+                  <text
+                    textAnchor="middle"
+                    y={3}
+                    className={cn(
+                      "text-[10px]",
+                      highlighted ? "fill-primary font-medium" : "fill-muted-foreground",
+                    )}
+                  >
                     {e.label}
                   </text>
                 </g>
@@ -193,7 +300,14 @@ export function GraphCanvas({ data }: { data: GraphData }) {
                 onClick={() => setSelected((cur) => (cur === n.id ? null : n.id))}
               >
                 {isActive ? (
-                  <rect x={-78} y={-26} width={156} height={52} rx={14} className={cn(s.fill, "opacity-20")} />
+                  <rect
+                    x={-78}
+                    y={-26}
+                    width={156}
+                    height={52}
+                    rx={14}
+                    className={cn(s.fill, "opacity-20")}
+                  />
                 ) : null}
                 <rect
                   x={-72}
@@ -207,11 +321,21 @@ export function GraphCanvas({ data }: { data: GraphData }) {
                 />
                 <rect x={-72} y={-22} width={6} height={44} rx={3} className={s.fill} />
                 <circle cx={-54} cy={0} r={9} className={cn(s.fill)} />
-                <text textAnchor="start" x={-40} y={-3} className="fill-foreground text-[11px] font-semibold pointer-events-none">
+                <text
+                  textAnchor="start"
+                  x={-40}
+                  y={-3}
+                  className="fill-foreground text-[11px] font-semibold pointer-events-none"
+                >
                   {n.label.length > 18 ? n.label.slice(0, 17) + "…" : n.label}
                 </text>
                 {n.sublabel ? (
-                  <text textAnchor="start" x={-40} y={11} className="fill-muted-foreground text-[10px] pointer-events-none">
+                  <text
+                    textAnchor="start"
+                    x={-40}
+                    y={11}
+                    className="fill-muted-foreground text-[10px] pointer-events-none"
+                  >
                     {n.sublabel}
                   </text>
                 ) : null}
@@ -222,7 +346,9 @@ export function GraphCanvas({ data }: { data: GraphData }) {
 
         {/* Hint */}
         <div className="pointer-events-none absolute bottom-3 left-3 rounded-md border bg-background/80 px-2 py-1 text-[11px] text-muted-foreground backdrop-blur">
-          {active ? "Click node again to deselect" : "Hover or click a node to highlight relationships"}
+          {active
+            ? "Click node again to deselect"
+            : "Hover or click a node to highlight relationships"}
         </div>
         <div className="pointer-events-none absolute bottom-3 right-3 rounded-md border bg-background/80 px-2 py-1 text-[11px] text-muted-foreground backdrop-blur">
           {visibleNodes.length} nodes · {visibleEdges.length} edges

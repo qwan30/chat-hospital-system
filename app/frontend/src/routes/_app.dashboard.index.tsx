@@ -36,7 +36,14 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { dailyQueries, lookupTimeTrend, sparkCited, sparkDocs, sparkLatency, sparkQueries } from "@/data/metrics";
+import {
+  dailyQueries,
+  lookupTimeTrend,
+  sparkCited,
+  sparkDocs,
+  sparkLatency,
+  sparkQueries,
+} from "@/data/metrics";
 import { patients } from "@/data/patients";
 import { threads } from "@/data/threads";
 import { documents } from "@/data/documents";
@@ -60,10 +67,38 @@ function Dashboard() {
         description="Here's what's happening across the cardiology service today."
       />
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <MetricCard label="Avg summary time" value="2m 18s" icon={Clock} tone="primary" delta={{ value: "−12s", positive: true }} spark={sparkLatency} />
-        <MetricCard label="Cited answers" value="94.6%" icon={Quote} tone="citation" delta={{ value: "+1.2%", positive: true }} spark={sparkCited} />
-        <MetricCard label="Authorized queries" value="218" icon={Sparkles} tone="ai" delta={{ value: "+18", positive: true }} spark={sparkQueries} />
-        <MetricCard label="Indexed documents" value="12,842" icon={FileCheck2} tone="secondary" delta={{ value: "+142", positive: true }} spark={sparkDocs} />
+        <MetricCard
+          label="Avg summary time"
+          value="2m 18s"
+          icon={Clock}
+          tone="primary"
+          delta={{ value: "−12s", positive: true }}
+          spark={sparkLatency}
+        />
+        <MetricCard
+          label="Cited answers"
+          value="94.6%"
+          icon={Quote}
+          tone="citation"
+          delta={{ value: "+1.2%", positive: true }}
+          spark={sparkCited}
+        />
+        <MetricCard
+          label="Authorized queries"
+          value="218"
+          icon={Sparkles}
+          tone="ai"
+          delta={{ value: "+18", positive: true }}
+          spark={sparkQueries}
+        />
+        <MetricCard
+          label="Indexed documents"
+          value="12,842"
+          icon={FileCheck2}
+          tone="secondary"
+          delta={{ value: "+142", positive: true }}
+          spark={sparkDocs}
+        />
       </div>
 
       <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-3">
@@ -82,10 +117,14 @@ function Dashboard() {
               <Input placeholder="MRN / patient name / question..." className="pl-8" />
             </div>
             <Button asChild>
-              <Link to="/chat"><Sparkles className="mr-1 h-4 w-4" /> Ask</Link>
+              <Link to="/chat">
+                <Sparkles className="mr-1 h-4 w-4" /> Ask
+              </Link>
             </Button>
             <Button variant="outline" asChild>
-              <Link to="/documents"><Upload className="mr-1 h-4 w-4" /> Upload</Link>
+              <Link to="/documents">
+                <Upload className="mr-1 h-4 w-4" /> Upload
+              </Link>
             </Button>
           </div>
           <div className="mt-4 flex flex-wrap gap-2">
@@ -133,7 +172,10 @@ function Dashboard() {
         <Card className="overflow-hidden p-0 lg:col-span-2">
           <div className="flex items-center justify-between border-b p-5">
             <h3 className="text-sm font-semibold">Recent patients</h3>
-            <Link to="/patients" className="inline-flex items-center text-xs font-medium text-primary hover:underline">
+            <Link
+              to="/patients"
+              className="inline-flex items-center text-xs font-medium text-primary hover:underline"
+            >
               All patients <ArrowRight className="ml-0.5 h-3 w-3" />
             </Link>
           </div>
@@ -152,18 +194,26 @@ function Dashboard() {
                 <TableRow key={p.id}>
                   <TableCell className="font-medium">
                     <Link
-                      to={p.access === "allow" ? "/chat/patients/$patientId" : "/patients/$id/access-denied"}
-                      params={p.access === "allow" ? { patientId: p.id } : { id: p.id }}
+                      to={
+                        p.access === "allow"
+                          ? "/chat/patients/$patientId"
+                          : "/patients/$patientId/access-history"
+                      }
+                      params={{ patientId: p.id }}
                       className="hover:underline"
                     >
                       {p.name}
                     </Link>
-                    <div className="text-xs text-muted-foreground">{p.age} · {p.sex} · {p.unit}</div>
+                    <div className="text-xs text-muted-foreground">
+                      {p.age} · {p.sex} · {p.unit}
+                    </div>
                   </TableCell>
                   <TableCell className="font-mono text-xs">{p.mrn}</TableCell>
                   <TableCell className="text-sm">{p.condition}</TableCell>
                   <TableCell className="text-sm text-muted-foreground">{p.lastVisit}</TableCell>
-                  <TableCell><StatusBadge status={p.access} /></TableCell>
+                  <TableCell>
+                    <StatusBadge status={p.access} />
+                  </TableCell>
                 </TableRow>
               ))}
             </TableBody>
@@ -179,10 +229,15 @@ function Dashboard() {
           </div>
           <ul className="mt-3 space-y-2">
             {documents.slice(0, 5).map((d) => (
-              <li key={d.id} className="flex items-center justify-between gap-2 rounded-md border p-2">
+              <li
+                key={d.id}
+                className="flex items-center justify-between gap-2 rounded-md border p-2"
+              >
                 <div className="min-w-0">
                   <p className="truncate text-sm font-medium">{d.name}</p>
-                  <p className="text-xs text-muted-foreground">{d.category} · {d.size}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {d.category} · {d.size}
+                  </p>
                 </div>
                 <StatusBadge status={d.status} />
               </li>
@@ -200,10 +255,29 @@ function Dashboard() {
                 <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
                 <XAxis dataKey="w" stroke="var(--color-muted-foreground)" fontSize={12} />
                 <YAxis stroke="var(--color-muted-foreground)" fontSize={12} />
-                <Tooltip contentStyle={{ background: "var(--color-card)", border: "1px solid var(--color-border)", borderRadius: 8, fontSize: 12 }} />
+                <Tooltip
+                  contentStyle={{
+                    background: "var(--color-card)",
+                    border: "1px solid var(--color-border)",
+                    borderRadius: 8,
+                    fontSize: 12,
+                  }}
+                />
                 <Legend wrapperStyle={{ fontSize: 12 }} />
-                <Line type="monotone" dataKey="manual" stroke="var(--color-chart-5)" strokeWidth={2} dot={false} />
-                <Line type="monotone" dataKey="copilot" stroke="var(--color-chart-1)" strokeWidth={2.5} dot={false} />
+                <Line
+                  type="monotone"
+                  dataKey="manual"
+                  stroke="var(--color-chart-5)"
+                  strokeWidth={2}
+                  dot={false}
+                />
+                <Line
+                  type="monotone"
+                  dataKey="copilot"
+                  stroke="var(--color-chart-1)"
+                  strokeWidth={2.5}
+                  dot={false}
+                />
               </LineChart>
             </ResponsiveContainer>
           </div>
@@ -216,7 +290,14 @@ function Dashboard() {
                 <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
                 <XAxis dataKey="d" stroke="var(--color-muted-foreground)" fontSize={12} />
                 <YAxis stroke="var(--color-muted-foreground)" fontSize={12} />
-                <Tooltip contentStyle={{ background: "var(--color-card)", border: "1px solid var(--color-border)", borderRadius: 8, fontSize: 12 }} />
+                <Tooltip
+                  contentStyle={{
+                    background: "var(--color-card)",
+                    border: "1px solid var(--color-border)",
+                    borderRadius: 8,
+                    fontSize: 12,
+                  }}
+                />
                 <Legend wrapperStyle={{ fontSize: 12 }} />
                 <Bar dataKey="queries" fill="var(--color-chart-1)" radius={[6, 6, 0, 0]} />
                 <Bar dataKey="refused" fill="var(--color-chart-3)" radius={[6, 6, 0, 0]} />

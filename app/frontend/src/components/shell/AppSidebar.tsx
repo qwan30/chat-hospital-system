@@ -36,7 +36,10 @@ import { Wordmark, Logo } from "@/components/hms/Logo";
 import { useSession } from "@/lib/session";
 import { canAccess, ROLE_LABEL } from "@/lib/rbac";
 
-const groups: { label: string; items: { title: string; url: string; icon: React.ComponentType<{ className?: string }> }[] }[] = [
+const groups: {
+  label: string;
+  items: { title: string; url: string; icon: React.ComponentType<{ className?: string }> }[];
+}[] = [
   {
     label: "Workspace",
     items: [
@@ -116,16 +119,12 @@ export function AppSidebar() {
               <SidebarMenu>
                 {g.items.map((item) => (
                   <SidebarMenuItem key={item.url}>
-                  <SidebarMenuButton
-                    asChild
-                    isActive={isActive(item.url)}
-                    tooltip={item.title}
-                  >
-                    <Link to={item.url as string}>
-                      <item.icon />
-                      <span>{item.title}</span>
-                    </Link>
-                  </SidebarMenuButton>
+                    <SidebarMenuButton asChild isActive={isActive(item.url)} tooltip={item.title}>
+                      <Link to={item.url as string}>
+                        <item.icon />
+                        <span>{item.title}</span>
+                      </Link>
+                    </SidebarMenuButton>
                   </SidebarMenuItem>
                 ))}
               </SidebarMenu>
@@ -141,7 +140,9 @@ export function AppSidebar() {
               <span className="font-medium text-foreground">Permission-aware</span>
             </div>
             <p className="mt-1 text-muted-foreground">
-              Acting as <span className="font-medium text-foreground">{role ? ROLE_LABEL[role] : "—"}</span>. RBAC/ABAC enforced.
+              Acting as{" "}
+              <span className="font-medium text-foreground">{role ? ROLE_LABEL[role] : "—"}</span>.
+              RBAC/ABAC enforced.
             </p>
             <p className="mt-2 inline-flex items-center gap-1 rounded-full bg-success/10 px-2 py-0.5 font-medium text-success">
               <span className="h-1.5 w-1.5 rounded-full bg-success" /> Audit ready

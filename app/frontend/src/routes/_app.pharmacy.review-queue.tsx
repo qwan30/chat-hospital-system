@@ -13,8 +13,30 @@ export const Route = createFileRoute("/_app/pharmacy/review-queue")({
 function Page() {
   return (
     <AppShell>
-      <PageHeader title="Pharmacy review queue" description="AI-flagged drug interactions awaiting pharmacist sign-off." />
-      <div className="space-y-2">{drugConflicts.map(c=>(<Link key={c.id} to="/medication-conflicts/$conflictId" params={{conflictId:c.id}} className="block"><Card className="p-4 flex items-center justify-between hover:bg-muted/40"><div><p className="text-sm font-medium">{c.drug}</p><p className="text-xs text-muted-foreground">{c.patient} · {c.conflictsWith}</p></div><ConflictSeverityPill severity={c.severity} /></Card></Link>))}</div>
+      <PageHeader
+        title="Pharmacy review queue"
+        description="AI-flagged drug interactions awaiting pharmacist sign-off."
+      />
+      <div className="space-y-2">
+        {drugConflicts.map((c) => (
+          <Link
+            key={c.id}
+            to="/medication-conflicts/$conflictId"
+            params={{ conflictId: c.id }}
+            className="block"
+          >
+            <Card className="p-4 flex items-center justify-between hover:bg-muted/40">
+              <div>
+                <p className="text-sm font-medium">{c.drug}</p>
+                <p className="text-xs text-muted-foreground">
+                  {c.patient} · {c.conflictsWith}
+                </p>
+              </div>
+              <ConflictSeverityPill severity={c.severity} />
+            </Card>
+          </Link>
+        ))}
+      </div>
     </AppShell>
   );
 }

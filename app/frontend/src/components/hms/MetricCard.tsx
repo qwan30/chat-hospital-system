@@ -1,11 +1,7 @@
 import { Card } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { ArrowDownRight, ArrowUpRight, type LucideIcon } from "lucide-react";
-import {
-  Area,
-  AreaChart,
-  ResponsiveContainer,
-} from "recharts";
+import { Area, AreaChart, ResponsiveContainer } from "recharts";
 
 export interface MetricCardProps {
   label: string;
@@ -24,7 +20,14 @@ const toneColor: Record<NonNullable<MetricCardProps["tone"]>, string> = {
   warning: "var(--color-warning)",
 };
 
-export function MetricCard({ label, value, delta, icon: Icon, tone = "primary", spark }: MetricCardProps) {
+export function MetricCard({
+  label,
+  value,
+  delta,
+  icon: Icon,
+  tone = "primary",
+  spark,
+}: MetricCardProps) {
   const color = toneColor[tone];
   const data = (spark ?? []).map((v, i) => ({ i, v }));
   return (
@@ -50,9 +53,7 @@ export function MetricCard({ label, value, delta, icon: Icon, tone = "primary", 
           <span
             className={cn(
               "inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 font-medium",
-              delta.positive
-                ? "bg-success/10 text-success"
-                : "bg-destructive/10 text-destructive",
+              delta.positive ? "bg-success/10 text-success" : "bg-destructive/10 text-destructive",
             )}
           >
             {delta.positive ? (

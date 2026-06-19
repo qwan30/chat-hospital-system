@@ -1,14 +1,16 @@
-export type Role =
-  | "cardiologist"
-  | "hospitalist"
-  | "rn"
-  | "pharmacist"
-  | "front_desk"
-  | "admin";
+export type Role = "cardiologist" | "hospitalist" | "rn" | "pharmacist" | "front_desk" | "admin";
 
 export const ROLES: { id: Role; label: string; description: string }[] = [
-  { id: "cardiologist", label: "Cardiologist", description: "Cardiology unit · full clinical access" },
-  { id: "hospitalist", label: "Hospitalist", description: "Assigned patients · cross-unit consult" },
+  {
+    id: "cardiologist",
+    label: "Cardiologist",
+    description: "Cardiology unit · full clinical access",
+  },
+  {
+    id: "hospitalist",
+    label: "Hospitalist",
+    description: "Assigned patients · cross-unit consult",
+  },
   { id: "rn", label: "Registered Nurse", description: "Bedside · assigned patients" },
   { id: "pharmacist", label: "Pharmacist", description: "Meds + labs · review queue" },
   { id: "front_desk", label: "Front Desk", description: "Demographics + access requests" },
@@ -54,10 +56,19 @@ const ROLE_ROUTES: Array<{ prefix: string; roles: Role[] }> = [
   { prefix: "/timeline", roles: ["cardiologist", "hospitalist", "rn"] },
   { prefix: "/chat", roles: ["cardiologist", "hospitalist", "rn", "pharmacist"] },
   { prefix: "/documents", roles: ["cardiologist", "hospitalist", "rn", "pharmacist"] },
-  { prefix: "/access-requests", roles: ["cardiologist", "hospitalist", "rn", "pharmacist", "front_desk"] },
+  {
+    prefix: "/access-requests",
+    roles: ["cardiologist", "hospitalist", "rn", "pharmacist", "front_desk"],
+  },
   { prefix: "/patients", roles: ["cardiologist", "hospitalist", "rn", "pharmacist", "front_desk"] },
-  { prefix: "/dashboard", roles: ["cardiologist", "hospitalist", "rn", "pharmacist", "front_desk"] },
-  { prefix: "/notifications", roles: ["cardiologist", "hospitalist", "rn", "pharmacist", "front_desk"] },
+  {
+    prefix: "/dashboard",
+    roles: ["cardiologist", "hospitalist", "rn", "pharmacist", "front_desk"],
+  },
+  {
+    prefix: "/notifications",
+    roles: ["cardiologist", "hospitalist", "rn", "pharmacist", "front_desk"],
+  },
   { prefix: "/settings", roles: ["cardiologist", "hospitalist", "rn", "pharmacist", "front_desk"] },
   { prefix: "/help", roles: ["cardiologist", "hospitalist", "rn", "pharmacist", "front_desk"] },
   { prefix: "/audit", roles: ["cardiologist", "hospitalist", "rn", "pharmacist", "front_desk"] }, // own audit only
@@ -65,22 +76,43 @@ const ROLE_ROUTES: Array<{ prefix: string; roles: Role[] }> = [
 
 /** Patient sub-tabs visible to each role. */
 export const PATIENT_TABS: Record<Role, string[]> = {
-  cardiologist: ["overview", "timeline", "labs", "medications", "documents", "access-history", "medication-review"],
+  cardiologist: [
+    "overview",
+    "timeline",
+    "labs",
+    "medications",
+    "documents",
+    "access-history",
+    "medication-review",
+  ],
   hospitalist: ["overview", "timeline", "labs", "medications", "documents", "medication-review"],
   rn: ["overview", "timeline", "medications", "documents"],
   pharmacist: ["overview", "medications", "medication-review", "documents", "labs"],
   front_desk: ["overview"],
-  admin: ["overview", "timeline", "labs", "medications", "documents", "access-history", "medication-review"],
+  admin: [
+    "overview",
+    "timeline",
+    "labs",
+    "medications",
+    "documents",
+    "access-history",
+    "medication-review",
+  ],
 };
 
 /** Sidebar landing per role. */
 export function landingFor(role: Role): string {
   switch (role) {
-    case "pharmacist": return "/pharmacy/review-queue";
-    case "rn": return "/patients";
-    case "front_desk": return "/patients";
-    case "admin": return "/dashboard";
-    default: return "/dashboard";
+    case "pharmacist":
+      return "/pharmacy/review-queue";
+    case "rn":
+      return "/patients";
+    case "front_desk":
+      return "/patients";
+    case "admin":
+      return "/dashboard";
+    default:
+      return "/dashboard";
   }
 }
 

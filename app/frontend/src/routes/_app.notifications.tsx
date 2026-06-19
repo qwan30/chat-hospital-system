@@ -37,7 +37,11 @@ function NotificationsPage() {
       <PageHeader
         title="Notifications"
         description="Access requests, OCR jobs, sync events, and AI safety signals."
-        actions={<Button variant="outline" size="sm">Mark all as read</Button>}
+        actions={
+          <Button variant="outline" size="sm">
+            Mark all as read
+          </Button>
+        }
         chips={
           <>
             <Badge variant="secondary">{notifications.length} total</Badge>
@@ -48,15 +52,32 @@ function NotificationsPage() {
         }
       />
       <div className="mb-3 flex gap-2">
-        <Button size="sm" variant={filter === "all" ? "default" : "outline"} onClick={() => setFilter("all")}>All</Button>
-        <Button size="sm" variant={filter === "unread" ? "default" : "outline"} onClick={() => setFilter("unread")}>Unread</Button>
+        <Button
+          size="sm"
+          variant={filter === "all" ? "default" : "outline"}
+          onClick={() => setFilter("all")}
+        >
+          All
+        </Button>
+        <Button
+          size="sm"
+          variant={filter === "unread" ? "default" : "outline"}
+          onClick={() => setFilter("unread")}
+        >
+          Unread
+        </Button>
       </div>
       <Card className="divide-y p-0">
         {list.map((n) => {
           const Icon = iconFor[n.kind];
           return (
-            <div key={n.id} className={`flex items-start gap-3 p-4 ${!n.read ? "bg-primary/5" : ""}`}>
-              <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full ${toneFor[n.kind]}`}>
+            <div
+              key={n.id}
+              className={`flex items-start gap-3 p-4 ${!n.read ? "bg-primary/5" : ""}`}
+            >
+              <div
+                className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full ${toneFor[n.kind]}`}
+              >
                 <Icon className="h-4 w-4" />
               </div>
               <div className="min-w-0 flex-1">
@@ -67,7 +88,11 @@ function NotificationsPage() {
                 <div className="mt-0.5 text-sm text-muted-foreground">{n.body}</div>
                 <div className="mt-1 text-xs text-muted-foreground">{formatRelative(n.ts)}</div>
               </div>
-              {n.href ? <a href={n.href} className="text-xs font-semibold text-primary hover:underline">Open →</a> : null}
+              {n.href ? (
+                <a href={n.href} className="text-xs font-semibold text-primary hover:underline">
+                  Open →
+                </a>
+              ) : null}
             </div>
           );
         })}

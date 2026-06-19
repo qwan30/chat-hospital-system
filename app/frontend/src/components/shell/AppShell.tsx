@@ -31,7 +31,9 @@ export function AppShell({
           <OfflineBanner />
           <ActingAsBanner />
           <div className={cn("mx-auto flex w-full flex-1 gap-6 px-6 py-6", maxWidth)}>
-            <main id="main-content" className="min-w-0 flex-1">{children}</main>
+            <main id="main-content" className="min-w-0 flex-1">
+              {children}
+            </main>
             {rightRail ? (
               <aside className="hidden w-[340px] shrink-0 xl:block">
                 <div className="sticky top-20 max-h-[calc(100vh-6rem)] overflow-y-auto">

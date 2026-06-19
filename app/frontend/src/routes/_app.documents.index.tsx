@@ -134,12 +134,16 @@ function DocumentsPage() {
                     <span className="font-medium">{d.name}</span>
                   </div>
                 </TableCell>
-                <TableCell><Badge variant="secondary">{d.category}</Badge></TableCell>
+                <TableCell>
+                  <Badge variant="secondary">{d.category}</Badge>
+                </TableCell>
                 <TableCell className="text-sm">{d.pages || "—"}</TableCell>
                 <TableCell className="text-sm">{d.size}</TableCell>
                 <TableCell className="text-sm">{d.uploadedBy}</TableCell>
                 <TableCell className="text-sm text-muted-foreground">{d.uploaded}</TableCell>
-                <TableCell><StatusBadge status={d.status} /></TableCell>
+                <TableCell>
+                  <StatusBadge status={d.status} />
+                </TableCell>
               </TableRow>
             ))}
           </TableBody>

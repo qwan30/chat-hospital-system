@@ -15,7 +15,11 @@ export const Route = createFileRoute("/_app/chat/general")({
 
 function Page() {
   const [messages, setMessages] = useState<ChatMessageData[]>([
-    { id: "g1", role: "user", content: "What is the recommended duration of DAPT after DES placement in stable CAD?" },
+    {
+      id: "g1",
+      role: "user",
+      content: "What is the recommended duration of DAPT after DES placement in stable CAD?",
+    },
     {
       id: "g2",
       role: "assistant",
@@ -43,12 +47,19 @@ function Page() {
 
   return (
     <AppShell>
-      <PageHeader title="General clinical chat" description="No patient context. Cite from formularies and guidelines only." />
+      <PageHeader
+        title="General clinical chat"
+        description="No patient context. Cite from formularies and guidelines only."
+      />
       <Card className="flex flex-col">
         <div className="flex-1 space-y-4 p-5">
           {messages.map((m) =>
             m.id === streamingId ? (
-              <StreamingAssistantMessage key={m.id} message={m} onComplete={() => setStreamingId(null)} />
+              <StreamingAssistantMessage
+                key={m.id}
+                message={m}
+                onComplete={() => setStreamingId(null)}
+              />
             ) : (
               <ChatMessage key={m.id} msg={m} />
             ),

@@ -6,11 +6,31 @@ export interface HealthMetric {
 }
 
 export const systemHealth: HealthMetric[] = [
-  { name: "HMS API", status: "degraded", value: "p95 1.8s", detail: "Last sync 18 min ago · target 15 min" },
-  { name: "Vector index", status: "ok", value: "12.4M chunks", detail: "Last rebuild 03:14 UTC · 4m 12s" },
-  { name: "LLM runtime (Ollama)", status: "ok", value: "p95 1.4s", detail: "Qwen2.5-7B · 14.2GB mem · 2 GPUs" },
+  {
+    name: "HMS API",
+    status: "degraded",
+    value: "p95 1.8s",
+    detail: "Last sync 18 min ago · target 15 min",
+  },
+  {
+    name: "Vector index",
+    status: "ok",
+    value: "12.4M chunks",
+    detail: "Last rebuild 03:14 UTC · 4m 12s",
+  },
+  {
+    name: "LLM runtime (Ollama)",
+    status: "ok",
+    value: "p95 1.4s",
+    detail: "Qwen2.5-7B · 14.2GB mem · 2 GPUs",
+  },
   { name: "Embeddings", status: "ok", value: "p95 84ms", detail: "bge-large-en · queue depth 0" },
-  { name: "Audit ledger", status: "ok", value: "0 gaps", detail: "Hash chain verified at 16:00 UTC" },
+  {
+    name: "Audit ledger",
+    status: "ok",
+    value: "0 gaps",
+    detail: "Hash chain verified at 16:00 UTC",
+  },
 ];
 
 export const vectorIndexHealth = {

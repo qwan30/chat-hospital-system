@@ -8,24 +8,27 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "../s
 from hospital_ai.core.config import get_settings
 from hospital_ai.main import create_app
 
+
 def get_backend_paths():
     app = create_app()
     openapi = app.openapi()
     paths = list(openapi.get("paths", {}).keys())
     return paths
 
+
 def normalize_path(path):
     # Strip query parameters if any
     path = path.split("?")[0]
     # Replace Frontend parameters ${param} with *
-    path = re.sub(r'\$\{[^}]+\}', '*', path)
+    path = re.sub(r"\$\{[^}]+\}", "*", path)
     # Replace OpenAPI parameters {param} with *
-    path = re.sub(r'\{[^}]+\}', '*', path)
+    path = re.sub(r"\{[^}]+\}", "*", path)
     # Replace double slashes and trailing slashes
-    path = re.sub(r'/+', '/', path)
+    path = re.sub(r"/+", "/", path)
     if path != "/" and path.endswith("/"):
         path = path[:-1]
     return path
+
 
 def get_frontend_paths(frontend_root, scan_files):
     """Scan multiple frontend files for API path references.
@@ -51,7 +54,7 @@ def get_frontend_paths(frontend_root, scan_files):
             paths.append(match.group(1))
 
         # Find template-literal paths: `${...}/auth/me`, `${...}/patients/...`
-        template_pattern = r'\$\{[^}]*\}(/[a-zA-Z0-9_/\-.*]+)'
+        template_pattern = r"\$\{[^}]*\}(/[a-zA-Z0-9_/\-.*]+)"
         for match in re.finditer(template_pattern, content):
             path = match.group(1)
             if path and path.startswith("/"):
@@ -67,15 +70,18 @@ def get_frontend_paths(frontend_root, scan_files):
         for match in re.finditer(literal_pattern, content):
             path = match.group(1)
             # Filter out file paths, CSS, HTML, and non-API patterns
-            if (path not in paths
+            if (
+                path not in paths
                 and not path.startswith("//")
                 and not path.startswith("/@")
                 and not path.startswith("/_")
                 and not path.startswith("/node_modules")
-                and not re.search(r'\.(png|jpg|svg|ico|css|woff2?|ttf|jsx?|tsx?)$', path)):
+                and not re.search(r"\.(png|jpg|svg|ico|css|woff2?|ttf|jsx?|tsx?)$", path)
+            ):
                 paths.append(path)
 
     return list(set(paths))
+
 
 def verify():
     backend_paths = get_backend_paths()
@@ -94,7 +100,7 @@ def verify():
     api_prefix = get_settings().api_v1_prefix.rstrip("/")
     for p in backend_paths:
         if p.startswith(f"{api_prefix}/"):
-            normalized_backend[normalize_path(p[len(api_prefix):])] = p
+            normalized_backend[normalize_path(p[len(api_prefix) :])] = p
     # Add default docs/openapi routes and health check aliases
     normalized_backend["/docs"] = "/docs"
     normalized_backend["/redoc"] = "/redoc"
@@ -119,14 +125,16 @@ def verify():
                 matched_backend_path = normalized_backend[norm_b]
                 break
             # Simple wildcard matching: replace * with .*
-            pattern = re.escape(norm_b).replace(r'\*', '.*')
+            pattern = re.escape(norm_b).replace(r"\*", ".*")
             if re.match(f"^{pattern}$", norm_f):
                 matched = True
                 matched_backend_path = normalized_backend[norm_b]
                 break
 
         if not matched:
-            print(f"ERR Mismatch: Frontend calls '{f_path}' (normalized: '{norm_f}') but no matching backend route exists.")
+            print(
+                f"ERR Mismatch: Frontend calls '{f_path}' (normalized: '{norm_f}') but no matching backend route exists."
+            )
             errors += 1
         else:
             print(f"OK Match: Frontend '{f_path}' -> Backend '{matched_backend_path}'")
@@ -137,6 +145,7 @@ def verify():
     else:
         print("\nAll API contracts verified successfully!")
         sys.exit(0)
+
 
 if __name__ == "__main__":
     verify()

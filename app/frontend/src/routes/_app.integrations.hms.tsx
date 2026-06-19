@@ -11,7 +11,10 @@ export const Route = createFileRoute("/_app/integrations/hms")({
 function Page() {
   return (
     <AppShell>
-      <PageHeader title="HMS integration" description="Live status of the hospital management system connector." />
+      <PageHeader
+        title="HMS integration"
+        description="Live status of the hospital management system connector."
+      />
       <SystemHealthCard />
     </AppShell>
   );

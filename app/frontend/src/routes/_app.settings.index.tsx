@@ -61,8 +61,17 @@ function SettingsPage() {
             <div className="mt-4 space-y-4">
               <Row k="Multi-factor authentication" v="Required at every sign-in" badge="Enforced" />
               <Row k="Device trust" v="Remember this device for 30 days" toggle />
-              <Row k="Session timeout" v="Sign out after 15 minutes of inactivity" toggle defaultOn />
-              <Row k="Break-glass access" v="Allow temporary PHI access in emergencies (audit-heavy)" toggle />
+              <Row
+                k="Session timeout"
+                v="Sign out after 15 minutes of inactivity"
+                toggle
+                defaultOn
+              />
+              <Row
+                k="Break-glass access"
+                v="Allow temporary PHI access in emergencies (audit-heavy)"
+                toggle
+              />
             </div>
           </Card>
         </TabsContent>
@@ -71,10 +80,29 @@ function SettingsPage() {
           <Card className="p-6">
             <h3 className="text-sm font-semibold">AI behavior</h3>
             <div className="mt-4 space-y-4">
-              <Row k="Citations required" v="Block answers without retrievable sources" toggle defaultOn />
-              <Row k="Safe refusal" v="Refuse when confidence is below threshold" toggle defaultOn />
-              <Row k="PHI redaction in prompts" v="Strip identifiers before sending to the model" toggle defaultOn />
-              <Row k="Show reasoning trace" v="Display the model's evidence retrieval steps" toggle />
+              <Row
+                k="Citations required"
+                v="Block answers without retrievable sources"
+                toggle
+                defaultOn
+              />
+              <Row
+                k="Safe refusal"
+                v="Refuse when confidence is below threshold"
+                toggle
+                defaultOn
+              />
+              <Row
+                k="PHI redaction in prompts"
+                v="Strip identifiers before sending to the model"
+                toggle
+                defaultOn
+              />
+              <Row
+                k="Show reasoning trace"
+                v="Display the model's evidence retrieval steps"
+                toggle
+              />
             </div>
           </Card>
         </TabsContent>
@@ -116,7 +144,9 @@ function Row({
       {toggle ? (
         <Switch defaultChecked={defaultOn} />
       ) : badge ? (
-        <Badge variant="secondary" className="bg-success/10 text-success">{badge}</Badge>
+        <Badge variant="secondary" className="bg-success/10 text-success">
+          {badge}
+        </Badge>
       ) : null}
     </div>
   );

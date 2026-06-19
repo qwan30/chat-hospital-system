@@ -51,7 +51,9 @@ function AuditPage() {
         description="Tamper-evident event stream for all PHI, AI, and admin actions."
         actions={
           <>
-            <Button variant="outline" size="sm"><Download className="mr-1 h-4 w-4" /> Export</Button>
+            <Button variant="outline" size="sm">
+              <Download className="mr-1 h-4 w-4" /> Export
+            </Button>
             <Button size="sm">View signed digest</Button>
           </>
         }
@@ -77,10 +79,18 @@ function AuditPage() {
             <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input placeholder="Search by user, action, or resource..." className="h-9 pl-8" />
           </div>
-          <Button variant="outline" size="sm"><Filter className="mr-1 h-4 w-4" /> Filter</Button>
-          <Button variant="ghost" size="sm">Last 24h</Button>
-          <Button variant="ghost" size="sm">PHI only</Button>
-          <Button variant="ghost" size="sm">AI only</Button>
+          <Button variant="outline" size="sm">
+            <Filter className="mr-1 h-4 w-4" /> Filter
+          </Button>
+          <Button variant="ghost" size="sm">
+            Last 24h
+          </Button>
+          <Button variant="ghost" size="sm">
+            PHI only
+          </Button>
+          <Button variant="ghost" size="sm">
+            AI only
+          </Button>
         </div>
         <Table>
           <TableHeader>
@@ -98,13 +108,8 @@ function AuditPage() {
             {auditEvents.map((e) => (
               <Sheet key={e.id}>
                 <SheetTrigger asChild>
-                  <TableRow
-                    onClick={() => setSelected(e)}
-                    className="cursor-pointer"
-                  >
-                    <TableCell className="font-mono text-xs">
-                      {formatDateTime(e.ts)}
-                    </TableCell>
+                  <TableRow onClick={() => setSelected(e)} className="cursor-pointer">
+                    <TableCell className="font-mono text-xs">{formatDateTime(e.ts)}</TableCell>
                     <TableCell>
                       <div className="text-sm font-medium">{e.user}</div>
                       <div className="text-xs text-muted-foreground">{e.role}</div>
@@ -112,13 +117,21 @@ function AuditPage() {
                     <TableCell className="text-sm">{e.action}</TableCell>
                     <TableCell className="text-sm">{e.target}</TableCell>
                     <TableCell>
-                      <span className={`rounded-full px-2 py-0.5 text-xs font-medium capitalize ${categoryColor[e.category]}`}>
+                      <span
+                        className={`rounded-full px-2 py-0.5 text-xs font-medium capitalize ${categoryColor[e.category]}`}
+                      >
                         {e.category}
                       </span>
                     </TableCell>
                     <TableCell>
                       <StatusBadge
-                        status={e.result === "success" ? "success" : e.result === "deny" ? "deny" : "pending"}
+                        status={
+                          e.result === "success"
+                            ? "success"
+                            : e.result === "deny"
+                              ? "deny"
+                              : "pending"
+                        }
                       />
                     </TableCell>
                     <TableCell className="font-mono text-xs">{e.ip}</TableCell>
@@ -137,20 +150,30 @@ function AuditPage() {
                     <Field k="Result" v={e.result} />
                     <Field k="IP address" v={e.ip} />
                     <div>
-                      <div className="text-xs uppercase tracking-wider text-muted-foreground">Details</div>
-                      <p className="mt-1 rounded-md border bg-muted/40 p-3 text-sm leading-relaxed">{e.details}</p>
+                      <div className="text-xs uppercase tracking-wider text-muted-foreground">
+                        Details
+                      </div>
+                      <p className="mt-1 rounded-md border bg-muted/40 p-3 text-sm leading-relaxed">
+                        {e.details}
+                      </p>
                     </div>
                     <div className="flex flex-wrap gap-2">
-                      <a href={`/audit/${e.id}/raw`} className="rounded-md border px-3 py-1.5 text-xs font-medium hover:bg-accent">
+                      <a
+                        href={`/audit/${e.id}/raw`}
+                        className="rounded-md border px-3 py-1.5 text-xs font-medium hover:bg-accent"
+                      >
                         View raw JSON
                       </a>
-                      <a href="/audit/traces/tr-001" className="rounded-md border px-3 py-1.5 text-xs font-medium hover:bg-accent">
+                      <a
+                        href="/audit/traces/tr-001"
+                        className="rounded-md border px-3 py-1.5 text-xs font-medium hover:bg-accent"
+                      >
                         Open trace
                       </a>
                     </div>
                     <div className="rounded-md border border-success/30 bg-success/5 p-3 text-xs">
-                      <span className="font-semibold text-success">Tamper-evident</span> · this event
-                      is cryptographically chained to the audit ledger.
+                      <span className="font-semibold text-success">Tamper-evident</span> · this
+                      event is cryptographically chained to the audit ledger.
                     </div>
                   </div>
                 </SheetContent>

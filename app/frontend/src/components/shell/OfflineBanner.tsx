@@ -11,7 +11,9 @@ export function OfflineBanner() {
     >
       <WifiOff className="h-3.5 w-3.5" />
       <span className="font-medium">You're offline.</span>
-      <span className="opacity-80">Drafts are saved locally and will sync when you're back online.</span>
+      <span className="opacity-80">
+        Drafts are saved locally and will sync when you're back online.
+      </span>
     </div>
   );
 }

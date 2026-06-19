@@ -6,6 +6,14 @@ export const Route = createFileRoute("/error/hms-unreachable")({
   head: () => ({ meta: [{ title: "503 HMS unreachable" }] }),
   component: () => {
     const e = getError("hms-unreachable");
-    return <ErrorState code={String(e.http)} title={e.title} description={e.description} tone={e.tone} cta={e.cta} />;
+    return (
+      <ErrorState
+        code={String(e.http)}
+        title={e.title}
+        description={e.description}
+        tone={e.tone}
+        cta={e.cta}
+      />
+    );
   },
 });

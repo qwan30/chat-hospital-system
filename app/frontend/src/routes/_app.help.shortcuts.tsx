@@ -43,7 +43,10 @@ const groups: { label: string; items: [string, string][] }[] = [
 function ShortcutsPage() {
   return (
     <AppShell>
-      <PageHeader title="Keyboard shortcuts" description="Speed-run the copilot with these power-user shortcuts." />
+      <PageHeader
+        title="Keyboard shortcuts"
+        description="Speed-run the copilot with these power-user shortcuts."
+      />
       <div className="grid gap-4 md:grid-cols-2">
         {groups.map((g) => (
           <Card key={g.label} className="overflow-hidden p-0">

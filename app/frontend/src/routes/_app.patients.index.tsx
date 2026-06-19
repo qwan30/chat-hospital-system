@@ -56,7 +56,12 @@ function PatientsPage() {
               <Bookmark className="h-4 w-4 text-primary" /> Saved filters
             </div>
             <ul className="space-y-1 text-sm">
-              {["My cardiology panel", "ICU watch list", "Pending access requests", "Discharged this week"].map((f) => (
+              {[
+                "My cardiology panel",
+                "ICU watch list",
+                "Pending access requests",
+                "Discharged this week",
+              ].map((f) => (
                 <li key={f}>
                   <button className="w-full rounded-md p-2 text-left hover:bg-muted">{f}</button>
                 </li>
@@ -90,7 +95,9 @@ function PatientsPage() {
         description="Permission-aware roster. Unauthorized records are gated."
         chips={
           <>
-            <Badge variant="secondary">{scoped.length} in {session?.workspace.name ?? "workspace"}</Badge>
+            <Badge variant="secondary">
+              {scoped.length} in {session?.workspace.name ?? "workspace"}
+            </Badge>
             <Badge variant="secondary" className="bg-success/10 text-success">
               {scoped.filter((p) => p.access === "allow").length} accessible
             </Badge>
@@ -101,7 +108,9 @@ function PatientsPage() {
         }
         actions={
           <>
-            <Button variant="outline" size="sm"><Filter className="mr-1 h-4 w-4" /> Filter</Button>
+            <Button variant="outline" size="sm">
+              <Filter className="mr-1 h-4 w-4" /> Filter
+            </Button>
             <Button size="sm">Add patient</Button>
           </>
         }
@@ -110,7 +119,12 @@ function PatientsPage() {
         <div className="flex items-center gap-2 border-b p-3">
           <div className="relative flex-1 max-w-sm">
             <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search by name, MRN, condition..." className="h-9 pl-8" />
+            <Input
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+              placeholder="Search by name, MRN, condition..."
+              className="h-9 pl-8"
+            />
           </div>
           <span className="text-xs text-muted-foreground">{filtered.length} results</span>
         </div>
@@ -131,17 +145,23 @@ function PatientsPage() {
               <TableRow key={p.id}>
                 <TableCell>
                   <div className="font-medium">{p.name}</div>
-                  <div className="text-xs text-muted-foreground">{p.age} · {p.sex}</div>
+                  <div className="text-xs text-muted-foreground">
+                    {p.age} · {p.sex}
+                  </div>
                 </TableCell>
                 <TableCell className="font-mono text-xs">{p.mrn}</TableCell>
                 <TableCell className="text-sm">{p.unit}</TableCell>
                 <TableCell className="text-sm">{p.condition}</TableCell>
                 <TableCell>
-                  <span className={`inline-flex rounded-full border px-2 py-0.5 text-xs font-medium capitalize ${statusToneClass[p.status]}`}>
+                  <span
+                    className={`inline-flex rounded-full border px-2 py-0.5 text-xs font-medium capitalize ${statusToneClass[p.status]}`}
+                  >
                     {p.status}
                   </span>
                 </TableCell>
-                <TableCell><StatusBadge status={p.access} /></TableCell>
+                <TableCell>
+                  <StatusBadge status={p.access} />
+                </TableCell>
                 <TableCell className="text-right">
                   {p.access === "allow" ? (
                     <Button asChild size="sm" variant="ghost">

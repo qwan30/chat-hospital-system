@@ -32,10 +32,27 @@ function DiagnosticsPage() {
     ["Role", session ? ROLE_LABEL[session.role] : "—"],
     ["Workspace", session?.workspace.name ?? "—"],
     ["Available workspaces", session?.user.availableWorkspaceIds.join(", ") ?? "—"],
-    ["Route", <code key="r" className="font-mono text-xs">{pathname}</code>],
-    ["Online", <Badge key="o" variant={online ? "secondary" : "destructive"} className={online ? "bg-success/10 text-success" : ""}>{online ? "Yes" : "No"}</Badge>],
+    [
+      "Route",
+      <code key="r" className="font-mono text-xs">
+        {pathname}
+      </code>,
+    ],
+    [
+      "Online",
+      <Badge
+        key="o"
+        variant={online ? "secondary" : "destructive"}
+        className={online ? "bg-success/10 text-success" : ""}
+      >
+        {online ? "Yes" : "No"}
+      </Badge>,
+    ],
     ["User agent", typeof navigator !== "undefined" ? navigator.userAgent : "—"],
-    ["Viewport", typeof window !== "undefined" ? `${window.innerWidth}×${window.innerHeight}` : "—"],
+    [
+      "Viewport",
+      typeof window !== "undefined" ? `${window.innerWidth}×${window.innerHeight}` : "—",
+    ],
     ["Clock", new Date().toISOString()],
   ];
 
@@ -50,7 +67,9 @@ function DiagnosticsPage() {
           <tbody>
             {rows.map(([k, v]) => (
               <tr key={k} className="border-b last:border-b-0">
-                <td className="w-48 bg-muted/30 px-4 py-2 text-xs font-medium uppercase text-muted-foreground">{k}</td>
+                <td className="w-48 bg-muted/30 px-4 py-2 text-xs font-medium uppercase text-muted-foreground">
+                  {k}
+                </td>
                 <td className="px-4 py-2">{v}</td>
               </tr>
             ))}
@@ -61,12 +80,16 @@ function DiagnosticsPage() {
       <h2 className="mt-8 text-sm font-semibold">Recent events ({logs.length})</h2>
       <Card className="mt-2 p-0">
         {logs.length === 0 ? (
-          <p className="px-4 py-6 text-sm text-muted-foreground">No events recorded this session.</p>
+          <p className="px-4 py-6 text-sm text-muted-foreground">
+            No events recorded this session.
+          </p>
         ) : (
           <ul className="divide-y">
             {logs.map((e) => (
               <li key={e.id} className="flex items-start gap-3 px-4 py-2 text-xs">
-                <Badge variant="outline" className="font-mono uppercase">{e.level}</Badge>
+                <Badge variant="outline" className="font-mono uppercase">
+                  {e.level}
+                </Badge>
                 <span className="font-mono text-muted-foreground">{e.ts.slice(11, 19)}</span>
                 <span className="font-medium">{e.code ?? "—"}</span>
                 <span className="flex-1 truncate">{e.message}</span>

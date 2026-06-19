@@ -7,7 +7,9 @@ export function OcrConfidenceBadge({ confidence }: { confidence: number }) {
         ? "bg-warning/10 text-warning border-warning/30"
         : "bg-destructive/10 text-destructive border-destructive/30";
   return (
-    <span className={`inline-flex items-center rounded-full border px-2 py-0.5 font-mono text-xs ${tone}`}>
+    <span
+      className={`inline-flex items-center rounded-full border px-2 py-0.5 font-mono text-xs ${tone}`}
+    >
       {pct}%
     </span>
   );

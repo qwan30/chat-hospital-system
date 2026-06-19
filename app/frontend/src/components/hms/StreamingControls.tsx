@@ -30,10 +30,18 @@ export function StreamingControls({
   if (status === "streaming") {
     const pct = total > 0 ? Math.min(100, Math.round((progress / total) * 100)) : 0;
     return (
-      <div className={cn("mt-2 flex items-center gap-2 text-[11px] text-muted-foreground", className)}>
+      <div
+        className={cn("mt-2 flex items-center gap-2 text-[11px] text-muted-foreground", className)}
+      >
         <Loader2 className="h-3 w-3 animate-spin text-ai" />
         <span>Streaming… {pct}%</span>
-        <Button type="button" size="sm" variant="ghost" className="h-6 px-2 text-[11px]" onClick={onStop}>
+        <Button
+          type="button"
+          size="sm"
+          variant="ghost"
+          className="h-6 px-2 text-[11px]"
+          onClick={onStop}
+        >
           <Square className="mr-1 h-3 w-3" /> Stop
         </Button>
       </div>
@@ -54,14 +62,28 @@ export function StreamingControls({
           <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-warning" />
           <div className="flex-1">
             <p className="font-medium text-foreground">Response interrupted at {pct}%</p>
-            <p className="mt-0.5 text-muted-foreground">{error ?? "The stream ended unexpectedly."}</p>
+            <p className="mt-0.5 text-muted-foreground">
+              {error ?? "The stream ended unexpectedly."}
+            </p>
           </div>
         </div>
         <div className="flex flex-wrap gap-2">
-          <Button type="button" size="sm" variant="default" className="h-7 px-2.5 text-[11px]" onClick={onResume}>
+          <Button
+            type="button"
+            size="sm"
+            variant="default"
+            className="h-7 px-2.5 text-[11px]"
+            onClick={onResume}
+          >
             <Play className="mr-1 h-3 w-3" /> {resumeLabel}
           </Button>
-          <Button type="button" size="sm" variant="outline" className="h-7 px-2.5 text-[11px]" onClick={onRetry}>
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            className="h-7 px-2.5 text-[11px]"
+            onClick={onRetry}
+          >
             <RotateCcw className="mr-1 h-3 w-3" /> Retry from start
           </Button>
         </div>

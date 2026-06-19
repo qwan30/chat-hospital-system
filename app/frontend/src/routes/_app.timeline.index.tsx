@@ -30,14 +30,62 @@ interface Event {
 }
 
 const events: Event[] = [
-  { ts: "09:14", title: "AI consult: anticoagulation review", body: "Dr. Chen asked the copilot to evaluate Eleanor Vance's apixaban regimen. 4 citations returned.", icon: Sparkles, tone: "ai" },
-  { ts: "08:42", title: "Echocardiogram indexed", body: "ECHO-48201 added to the knowledge base. LVEF 52%, no thrombus.", icon: FileText, tone: "primary" },
-  { ts: "08:01", title: "Vitals alert: BP 162/98", body: "Raman, P. flagged on watch list. Notified Cardiology · 4N.", icon: Heart, tone: "destructive" },
-  { ts: "07:30", title: "Medication updated", body: "Apixaban 5 mg BID renewed for Vance, E.", icon: Pill, tone: "secondary" },
-  { ts: "06:48", title: "Sepsis bundle protocol uploaded", body: "Dr. Liu uploaded Sepsis-Bundle-2026.docx — currently processing.", icon: FileText, tone: "primary" },
-  { ts: "06:30", title: "Care team huddle", body: "Cardiology 4N morning sign-out. 12 patients reviewed.", icon: Stethoscope, tone: "citation" },
-  { ts: "06:14", title: "Access granted", body: "Dr. Chen granted view access to Vance, E. for clinical consult.", icon: UserCheck, tone: "secondary" },
-  { ts: "05:55", title: "OCR completed", body: "Scanned-Consult-Müller.jpg → 2 pages extracted, queued for embedding.", icon: Activity, tone: "warning" },
+  {
+    ts: "09:14",
+    title: "AI consult: anticoagulation review",
+    body: "Dr. Chen asked the copilot to evaluate Eleanor Vance's apixaban regimen. 4 citations returned.",
+    icon: Sparkles,
+    tone: "ai",
+  },
+  {
+    ts: "08:42",
+    title: "Echocardiogram indexed",
+    body: "ECHO-48201 added to the knowledge base. LVEF 52%, no thrombus.",
+    icon: FileText,
+    tone: "primary",
+  },
+  {
+    ts: "08:01",
+    title: "Vitals alert: BP 162/98",
+    body: "Raman, P. flagged on watch list. Notified Cardiology · 4N.",
+    icon: Heart,
+    tone: "destructive",
+  },
+  {
+    ts: "07:30",
+    title: "Medication updated",
+    body: "Apixaban 5 mg BID renewed for Vance, E.",
+    icon: Pill,
+    tone: "secondary",
+  },
+  {
+    ts: "06:48",
+    title: "Sepsis bundle protocol uploaded",
+    body: "Dr. Liu uploaded Sepsis-Bundle-2026.docx — currently processing.",
+    icon: FileText,
+    tone: "primary",
+  },
+  {
+    ts: "06:30",
+    title: "Care team huddle",
+    body: "Cardiology 4N morning sign-out. 12 patients reviewed.",
+    icon: Stethoscope,
+    tone: "citation",
+  },
+  {
+    ts: "06:14",
+    title: "Access granted",
+    body: "Dr. Chen granted view access to Vance, E. for clinical consult.",
+    icon: UserCheck,
+    tone: "secondary",
+  },
+  {
+    ts: "05:55",
+    title: "OCR completed",
+    body: "Scanned-Consult-Müller.jpg → 2 pages extracted, queued for embedding.",
+    icon: Activity,
+    tone: "warning",
+  },
 ];
 
 const toneColor: Record<Event["tone"], string> = {

@@ -1,7 +1,16 @@
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Bell, Search, ChevronDown, Keyboard, Building2, UserCog, LogOut, Check } from "lucide-react";
+import {
+  Bell,
+  Search,
+  ChevronDown,
+  Keyboard,
+  Building2,
+  UserCog,
+  LogOut,
+  Check,
+} from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { SyntheticDataPill } from "@/components/hms/SyntheticDataPill";
 import {
@@ -45,10 +54,7 @@ export function Topbar() {
       <SidebarTrigger />
       <div className="relative flex-1 max-w-xl">
         <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-        <Input
-          placeholder="Search patients, docs, chats..."
-          className="h-9 pl-8 pr-16"
-        />
+        <Input placeholder="Search patients, docs, chats..." className="h-9 pl-8 pr-16" />
         <kbd className="absolute right-2 top-1/2 -translate-y-1/2 rounded border bg-muted px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground">
           ⌘K
         </kbd>
@@ -80,7 +86,9 @@ export function Topbar() {
               </Avatar>
               <div className="hidden flex-col items-start leading-tight md:flex">
                 <span className="text-xs font-semibold">{user?.name ?? "Sign in"}</span>
-                <span className={cn("text-[10px]", role && ROLE_TONE[role], "rounded px-1")}>{role ? ROLE_LABEL[role] : "—"}</span>
+                <span className={cn("text-[10px]", role && ROLE_TONE[role], "rounded px-1")}>
+                  {role ? ROLE_LABEL[role] : "—"}
+                </span>
               </div>
               <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
             </button>
@@ -97,7 +105,11 @@ export function Topbar() {
                 <DropdownMenuSubContent>
                   {ROLES.map((r) => (
                     <DropdownMenuItem key={r.id} onSelect={() => onRole(r.id)}>
-                      {role === r.id ? <Check className="mr-2 h-3.5 w-3.5" /> : <span className="mr-2 inline-block w-3.5" />}
+                      {role === r.id ? (
+                        <Check className="mr-2 h-3.5 w-3.5" />
+                      ) : (
+                        <span className="mr-2 inline-block w-3.5" />
+                      )}
                       {r.label}
                     </DropdownMenuItem>
                   ))}
@@ -116,7 +128,11 @@ export function Topbar() {
                       const active = session?.workspace.id === wid;
                       return (
                         <DropdownMenuItem key={wid} onSelect={() => switchWorkspace(wid)}>
-                          {active ? <Check className="mr-2 h-3.5 w-3.5" /> : <span className="mr-2 inline-block w-3.5" />}
+                          {active ? (
+                            <Check className="mr-2 h-3.5 w-3.5" />
+                          ) : (
+                            <span className="mr-2 inline-block w-3.5" />
+                          )}
                           {ws?.name ?? wid}
                         </DropdownMenuItem>
                       );
@@ -130,7 +146,10 @@ export function Topbar() {
               <Link to="/settings/profile">Profile</Link>
             </DropdownMenuItem>
             <DropdownMenuItem asChild>
-              <Link to="/settings/workspaces"><Building2 className="mr-2 h-3.5 w-3.5" />Switch workspace</Link>
+              <Link to="/settings/workspaces">
+                <Building2 className="mr-2 h-3.5 w-3.5" />
+                Switch workspace
+              </Link>
             </DropdownMenuItem>
             <DropdownMenuItem asChild>
               <Link to="/settings/security">Security</Link>
@@ -139,7 +158,10 @@ export function Topbar() {
               <Link to="/audit">My audit trail</Link>
             </DropdownMenuItem>
             <DropdownMenuItem asChild>
-              <Link to="/help/shortcuts"><Keyboard className="mr-2 h-3.5 w-3.5" />Keyboard shortcuts</Link>
+              <Link to="/help/shortcuts">
+                <Keyboard className="mr-2 h-3.5 w-3.5" />
+                Keyboard shortcuts
+              </Link>
             </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem onSelect={onSignOut}>

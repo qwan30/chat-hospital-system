@@ -21,10 +21,31 @@ export interface GraphData {
 export const patientGraph: GraphData = {
   patientId: "p-001",
   nodes: [
-    { id: "pt", type: "patient", label: "Eleanor Vance", sublabel: "MRN-48201 · 72F", x: 400, y: 240 },
+    {
+      id: "pt",
+      type: "patient",
+      label: "Eleanor Vance",
+      sublabel: "MRN-48201 · 72F",
+      x: 400,
+      y: 240,
+    },
     { id: "e1", type: "encounter", label: "Admission", sublabel: "Jun 8, 2026", x: 180, y: 120 },
-    { id: "e2", type: "encounter", label: "Cardio consult", sublabel: "Jun 10, 2026", x: 180, y: 360 },
-    { id: "d1", type: "diagnosis", label: "Atrial fibrillation", sublabel: "I48.0", x: 620, y: 100 },
+    {
+      id: "e2",
+      type: "encounter",
+      label: "Cardio consult",
+      sublabel: "Jun 10, 2026",
+      x: 180,
+      y: 360,
+    },
+    {
+      id: "d1",
+      type: "diagnosis",
+      label: "Atrial fibrillation",
+      sublabel: "I48.0",
+      x: 620,
+      y: 100,
+    },
     { id: "d2", type: "diagnosis", label: "CHF, preserved EF", sublabel: "I50.32", x: 620, y: 240 },
     { id: "d3", type: "diagnosis", label: "CKD stage 3", sublabel: "N18.3", x: 620, y: 380 },
     { id: "m1", type: "medication", label: "Apixaban", sublabel: "5mg BID", x: 820, y: 100 },
@@ -57,11 +78,27 @@ export interface GraphPath {
 export const graphPaths: GraphPath[] = [
   {
     id: "path-001",
-    rationale: "Selected because the query asked 'why apixaban for this patient' — traversal: Patient → Diagnosis (AFib) → Medication (Apixaban). CKD considered as cofactor.",
+    rationale:
+      "Selected because the query asked 'why apixaban for this patient' — traversal: Patient → Diagnosis (AFib) → Medication (Apixaban). CKD considered as cofactor.",
     steps: [
-      { from: "Eleanor Vance", to: "Atrial fibrillation (I48.0)", relation: "diagnosed at admission Jun 8", evidence: "Admit note, Dr. M. Patel" },
-      { from: "Atrial fibrillation", to: "Apixaban 5mg BID", relation: "guideline-directed anticoagulation", evidence: "ACC/AHA AFib 2023, CHA2DS2-VASc=4" },
-      { from: "Apixaban", to: "CKD stage 3", relation: "renal dose adjustment evaluated", evidence: "Cr 1.6, eGFR 42 — standard 5mg BID retained" },
+      {
+        from: "Eleanor Vance",
+        to: "Atrial fibrillation (I48.0)",
+        relation: "diagnosed at admission Jun 8",
+        evidence: "Admit note, Dr. M. Patel",
+      },
+      {
+        from: "Atrial fibrillation",
+        to: "Apixaban 5mg BID",
+        relation: "guideline-directed anticoagulation",
+        evidence: "ACC/AHA AFib 2023, CHA2DS2-VASc=4",
+      },
+      {
+        from: "Apixaban",
+        to: "CKD stage 3",
+        relation: "renal dose adjustment evaluated",
+        evidence: "Cr 1.6, eGFR 42 — standard 5mg BID retained",
+      },
     ],
   },
 ];

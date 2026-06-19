@@ -20,11 +20,15 @@ function ErrorIndex() {
           <Card key={e.code} className="p-3">
             <div className="flex items-center justify-between">
               <div>
-                <div className="text-xs font-mono uppercase text-muted-foreground">{e.http || "—"} · {e.code}</div>
+                <div className="text-xs font-mono uppercase text-muted-foreground">
+                  {e.http || "—"} · {e.code}
+                </div>
                 <div className="mt-0.5 text-sm font-medium">{e.title}</div>
               </div>
               <Link
-                to={`/error/${e.code === "unknown" ? "server" : e.code === "route-not-found" ? "not-found" : e.code}` as never}
+                to={
+                  `/error/${e.code === "unknown" ? "server" : e.code === "route-not-found" ? "not-found" : e.code}` as never
+                }
                 className="text-xs font-medium text-primary hover:underline"
               >
                 Preview →

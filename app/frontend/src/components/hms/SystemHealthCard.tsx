@@ -26,7 +26,10 @@ export function SystemHealthCard() {
         {systemHealth.map((m) => {
           const Icon = iconFor[m.status];
           return (
-            <li key={m.name} className="flex items-center justify-between border-b pb-3 last:border-0 last:pb-0">
+            <li
+              key={m.name}
+              className="flex items-center justify-between border-b pb-3 last:border-0 last:pb-0"
+            >
               <div className="flex items-center gap-3">
                 <Icon className={`h-4 w-4 ${toneFor[m.status]}`} />
                 <div>

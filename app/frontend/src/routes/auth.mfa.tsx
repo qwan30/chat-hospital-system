@@ -43,7 +43,8 @@ function MfaPage() {
         </div>
         <h2 className="text-xl font-semibold tracking-tight">Verify your identity</h2>
         <p className="mt-1 text-sm text-muted-foreground">
-          We sent a 6-digit code to <span className="font-medium text-foreground">s***@hospital.org</span>.
+          We sent a 6-digit code to{" "}
+          <span className="font-medium text-foreground">s***@hospital.org</span>.
         </p>
         <div className="my-6 flex justify-center">
           <InputOTP maxLength={6} value={code} onChange={setCode}>

@@ -25,20 +25,29 @@ function SsoCallback() {
     <AuthSplitLayout>
       <Card className="p-8">
         <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-primary">
-          {step < steps.length - 1 ? <Loader2 className="h-6 w-6 animate-spin" /> : <CheckCircle2 className="h-6 w-6 text-success" />}
+          {step < steps.length - 1 ? (
+            <Loader2 className="h-6 w-6 animate-spin" />
+          ) : (
+            <CheckCircle2 className="h-6 w-6 text-success" />
+          )}
         </div>
         <h1 className="mt-4 text-2xl font-semibold tracking-tight">Signing you in</h1>
         <p className="mt-2 text-sm text-muted-foreground">{steps[step]}</p>
         <ul className="mt-6 space-y-2 text-sm">
           {steps.map((s, i) => (
             <li key={s} className="flex items-center gap-2">
-              {i <= step ? <CheckCircle2 className="h-4 w-4 text-success" /> : <span className="h-4 w-4 rounded-full border" />}
+              {i <= step ? (
+                <CheckCircle2 className="h-4 w-4 text-success" />
+              ) : (
+                <span className="h-4 w-4 rounded-full border" />
+              )}
               <span className={i <= step ? "text-foreground" : "text-muted-foreground"}>{s}</span>
             </li>
           ))}
         </ul>
         <p className="mt-6 rounded-md border bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
-          Provider <span className="font-mono text-foreground">hospital-okta</span> · trace <span className="font-mono text-foreground">sso-tr-9214</span>
+          Provider <span className="font-mono text-foreground">hospital-okta</span> · trace{" "}
+          <span className="font-mono text-foreground">sso-tr-9214</span>
         </p>
       </Card>
     </AuthSplitLayout>

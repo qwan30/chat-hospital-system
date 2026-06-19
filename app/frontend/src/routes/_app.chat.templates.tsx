@@ -13,9 +13,27 @@ export const Route = createFileRoute("/_app/chat/templates")({
 function Page() {
   return (
     <AppShell>
-      <PageHeader title="Prompt templates" description="Reusable clinical prompts curated by your specialty." />
+      <PageHeader
+        title="Prompt templates"
+        description="Reusable clinical prompts curated by your specialty."
+      />
       <div className="grid gap-3 md:grid-cols-2">
-        {promptTemplates.map(t=>(<Card key={t.id} className="p-4"><div className="flex items-start justify-between"><div><p className="text-sm font-semibold">{t.title}</p><p className="mt-1 text-xs text-muted-foreground">{t.category} · used {t.usage}×</p></div><Button size="sm" variant="outline">Use</Button></div><p className="mt-3 text-sm">{t.body}</p></Card>))}
+        {promptTemplates.map((t) => (
+          <Card key={t.id} className="p-4">
+            <div className="flex items-start justify-between">
+              <div>
+                <p className="text-sm font-semibold">{t.title}</p>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  {t.category} · used {t.usage}×
+                </p>
+              </div>
+              <Button size="sm" variant="outline">
+                Use
+              </Button>
+            </div>
+            <p className="mt-3 text-sm">{t.body}</p>
+          </Card>
+        ))}
       </div>
     </AppShell>
   );

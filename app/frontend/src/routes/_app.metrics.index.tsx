@@ -46,14 +46,46 @@ function MetricsPage() {
       <PageHeader
         title="Metrics"
         description="Adoption, accuracy, latency, and content coverage."
-        actions={<Button variant="outline" size="sm">Last 7 days</Button>}
+        actions={
+          <Button variant="outline" size="sm">
+            Last 7 days
+          </Button>
+        }
       />
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <MetricCard label="Authorized queries" value="1,047" icon={Sparkles} tone="ai" delta={{ value: "+22%", positive: true }} spark={sparkQueries} />
-        <MetricCard label="Cited answer rate" value="95.4%" icon={Quote} tone="citation" delta={{ value: "+0.8%", positive: true }} spark={sparkCited} />
-        <MetricCard label="P95 latency" value="1.18s" icon={Clock} tone="primary" delta={{ value: "-90ms", positive: true }} spark={sparkLatency} />
-        <MetricCard label="Indexed docs" value="12,842" icon={FileCheck2} tone="secondary" delta={{ value: "+412", positive: true }} spark={sparkDocs} />
+        <MetricCard
+          label="Authorized queries"
+          value="1,047"
+          icon={Sparkles}
+          tone="ai"
+          delta={{ value: "+22%", positive: true }}
+          spark={sparkQueries}
+        />
+        <MetricCard
+          label="Cited answer rate"
+          value="95.4%"
+          icon={Quote}
+          tone="citation"
+          delta={{ value: "+0.8%", positive: true }}
+          spark={sparkCited}
+        />
+        <MetricCard
+          label="P95 latency"
+          value="1.18s"
+          icon={Clock}
+          tone="primary"
+          delta={{ value: "-90ms", positive: true }}
+          spark={sparkLatency}
+        />
+        <MetricCard
+          label="Indexed docs"
+          value="12,842"
+          icon={FileCheck2}
+          tone="secondary"
+          delta={{ value: "+412", positive: true }}
+          spark={sparkDocs}
+        />
       </div>
 
       <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-3">
@@ -65,7 +97,14 @@ function MetricsPage() {
                 <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
                 <XAxis dataKey="d" stroke="var(--color-muted-foreground)" fontSize={12} />
                 <YAxis stroke="var(--color-muted-foreground)" fontSize={12} />
-                <Tooltip contentStyle={{ background: "var(--color-card)", border: "1px solid var(--color-border)", borderRadius: 8, fontSize: 12 }} />
+                <Tooltip
+                  contentStyle={{
+                    background: "var(--color-card)",
+                    border: "1px solid var(--color-border)",
+                    borderRadius: 8,
+                    fontSize: 12,
+                  }}
+                />
                 <Legend wrapperStyle={{ fontSize: 12 }} />
                 <Bar dataKey="queries" fill="var(--color-chart-1)" radius={[6, 6, 0, 0]} />
                 <Bar dataKey="refused" fill="var(--color-chart-3)" radius={[6, 6, 0, 0]} />
@@ -90,7 +129,14 @@ function MetricsPage() {
                     <Cell key={i} fill={pieColors[i]} />
                   ))}
                 </Pie>
-                <Tooltip contentStyle={{ background: "var(--color-card)", border: "1px solid var(--color-border)", borderRadius: 8, fontSize: 12 }} />
+                <Tooltip
+                  contentStyle={{
+                    background: "var(--color-card)",
+                    border: "1px solid var(--color-border)",
+                    borderRadius: 8,
+                    fontSize: 12,
+                  }}
+                />
                 <Legend wrapperStyle={{ fontSize: 12 }} />
               </PieChart>
             </ResponsiveContainer>
@@ -113,8 +159,21 @@ function MetricsPage() {
                 <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
                 <XAxis dataKey="d" stroke="var(--color-muted-foreground)" fontSize={12} />
                 <YAxis stroke="var(--color-muted-foreground)" fontSize={12} />
-                <Tooltip contentStyle={{ background: "var(--color-card)", border: "1px solid var(--color-border)", borderRadius: 8, fontSize: 12 }} />
-                <Area type="monotone" dataKey="ms" stroke="var(--color-chart-1)" strokeWidth={2} fill="url(#lat)" />
+                <Tooltip
+                  contentStyle={{
+                    background: "var(--color-card)",
+                    border: "1px solid var(--color-border)",
+                    borderRadius: 8,
+                    fontSize: 12,
+                  }}
+                />
+                <Area
+                  type="monotone"
+                  dataKey="ms"
+                  stroke="var(--color-chart-1)"
+                  strokeWidth={2}
+                  fill="url(#lat)"
+                />
               </AreaChart>
             </ResponsiveContainer>
           </div>
@@ -127,8 +186,21 @@ function MetricsPage() {
               <BarChart data={topSources} layout="vertical" margin={{ left: 8 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
                 <XAxis type="number" stroke="var(--color-muted-foreground)" fontSize={12} />
-                <YAxis type="category" dataKey="name" stroke="var(--color-muted-foreground)" fontSize={11} width={170} />
-                <Tooltip contentStyle={{ background: "var(--color-card)", border: "1px solid var(--color-border)", borderRadius: 8, fontSize: 12 }} />
+                <YAxis
+                  type="category"
+                  dataKey="name"
+                  stroke="var(--color-muted-foreground)"
+                  fontSize={11}
+                  width={170}
+                />
+                <Tooltip
+                  contentStyle={{
+                    background: "var(--color-card)",
+                    border: "1px solid var(--color-border)",
+                    borderRadius: 8,
+                    fontSize: 12,
+                  }}
+                />
                 <Bar dataKey="uses" fill="var(--color-chart-4)" radius={[0, 6, 6, 0]} />
               </BarChart>
             </ResponsiveContainer>

@@ -69,7 +69,13 @@ export function useStreamText(fullText: string, options: Options = {}) {
         willFail.current = null;
       }
 
-      setState((s) => ({ ...s, status: "streaming", error: undefined, progress: from, text: fullText.slice(0, from) }));
+      setState((s) => ({
+        ...s,
+        status: "streaming",
+        error: undefined,
+        progress: from,
+        text: fullText.slice(0, from),
+      }));
 
       let cursor = from;
       timer.current = setInterval(() => {

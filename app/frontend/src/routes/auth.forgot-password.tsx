@@ -26,7 +26,10 @@ function ForgotPassword() {
             <CheckCircle2 className="mt-0.5 h-5 w-5 text-success" />
             <div className="text-sm">
               <div className="font-semibold text-success">Reset link sent</div>
-              <p className="text-muted-foreground">If the address matches an account, you'll receive a one-time reset link within 5 minutes.</p>
+              <p className="text-muted-foreground">
+                If the address matches an account, you'll receive a one-time reset link within 5
+                minutes.
+              </p>
             </div>
           </div>
         ) : (
@@ -41,12 +44,18 @@ function ForgotPassword() {
               <Label htmlFor="email">Hospital email</Label>
               <Input id="email" type="email" placeholder="you@hospital.org" required />
             </div>
-            <Button type="submit" className="w-full">Send reset link</Button>
+            <Button type="submit" className="w-full">
+              Send reset link
+            </Button>
           </form>
         )}
         <div className="mt-6 flex items-center justify-between text-xs text-muted-foreground">
-          <Link to="/auth/login" className="hover:text-foreground">← Back to sign in</Link>
-          <a href="mailto:it-helpdesk@hospital.org" className="hover:text-foreground">Contact IT helpdesk</a>
+          <Link to="/auth/login" className="hover:text-foreground">
+            ← Back to sign in
+          </Link>
+          <a href="mailto:it-helpdesk@hospital.org" className="hover:text-foreground">
+            Contact IT helpdesk
+          </a>
         </div>
         <div className="mt-6 flex items-center gap-2 rounded-md border bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
           <ShieldCheck className="h-3.5 w-3.5 text-success" />

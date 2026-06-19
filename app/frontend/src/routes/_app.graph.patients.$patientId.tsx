@@ -36,15 +36,23 @@ function Page() {
         description="Diagnoses, medications, labs, and providers linked by clinical events. Click any node to trace its relationships."
         chips={
           <>
-            <Badge variant="secondary" className="gap-1.5"><Network className="h-3 w-3" /> {patientGraph.nodes.length} entities</Badge>
-            <Badge variant="outline" className="gap-1.5"><Sparkles className="h-3 w-3 text-ai" /> RAG-grounded</Badge>
+            <Badge variant="secondary" className="gap-1.5">
+              <Network className="h-3 w-3" /> {patientGraph.nodes.length} entities
+            </Badge>
+            <Badge variant="outline" className="gap-1.5">
+              <Sparkles className="h-3 w-3 text-ai" /> RAG-grounded
+            </Badge>
             <Badge variant="outline">Updated Jun 11, 2026</Badge>
           </>
         }
         actions={
           <>
-            <Button variant="outline" size="sm" className="gap-1.5"><Share2 className="h-4 w-4" /> Share</Button>
-            <Button variant="outline" size="sm" className="gap-1.5"><Download className="h-4 w-4" /> Export</Button>
+            <Button variant="outline" size="sm" className="gap-1.5">
+              <Share2 className="h-4 w-4" /> Share
+            </Button>
+            <Button variant="outline" size="sm" className="gap-1.5">
+              <Download className="h-4 w-4" /> Export
+            </Button>
           </>
         }
       />
@@ -72,7 +80,9 @@ function Page() {
               {path.steps.slice(0, stream.revealed).map((s, i) => (
                 <div key={i} className="rounded-lg border bg-muted/30 p-3">
                   <div className="flex items-center gap-2 text-[11px] font-medium text-muted-foreground">
-                    <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-primary/10 text-primary text-[10px] font-semibold">{i + 1}</span>
+                    <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-primary/10 text-primary text-[10px] font-semibold">
+                      {i + 1}
+                    </span>
                     <span className="truncate">{s.from}</span>
                     <ArrowRight className="h-3 w-3 shrink-0" />
                     <span className="truncate text-foreground">{s.to}</span>

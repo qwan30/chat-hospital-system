@@ -56,8 +56,11 @@ const seedTs = new Date("2026-06-12T10:00:00Z").getTime();
 export const auditEvents: AuditEvent[] = Array.from({ length: 32 }).map((_, i) => {
   const [u, r] = users[i % users.length];
   const [a, c] = actions[i % actions.length];
-  const result: AuditEvent["result"] =
-    a.includes("denied") ? "deny" : a.includes("request") ? "pending" : "success";
+  const result: AuditEvent["result"] = a.includes("denied")
+    ? "deny"
+    : a.includes("request")
+      ? "pending"
+      : "success";
   const ts = new Date(seedTs - i * 1000 * 60 * 7).toISOString();
   return {
     id: `a-${String(i + 1).padStart(3, "0")}`,

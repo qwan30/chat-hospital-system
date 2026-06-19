@@ -23,8 +23,16 @@ function PatientLayout() {
   if (!p) {
     return (
       <AppShell>
-        <PageHeader title="Patient not found" description="No record matches this MRN in your accessible scope." />
-        <Card className="p-6 text-sm text-muted-foreground">The record may be archived or outside your unit. <Link to="/patients" className="text-primary underline">Back to roster</Link></Card>
+        <PageHeader
+          title="Patient not found"
+          description="No record matches this MRN in your accessible scope."
+        />
+        <Card className="p-6 text-sm text-muted-foreground">
+          The record may be archived or outside your unit.{" "}
+          <Link to="/patients" className="text-primary underline">
+            Back to roster
+          </Link>
+        </Card>
       </AppShell>
     );
   }
@@ -46,12 +54,41 @@ function PatientLayout() {
       <PageHeader
         title={p.name}
         description={`${p.age} · ${p.sex} · ${p.unit} · MRN ${p.mrn}`}
-        chips={<><Badge variant="secondary" className="capitalize">{p.status}</Badge><StatusBadge status={p.access} />{p.assigned ? <Badge variant="outline">{p.assigned}</Badge> : null}</>}
-        actions={<><Button size="sm" variant="outline" asChild><Link to="/patients/$patientId/refresh" params={{ patientId }}><RefreshCw className="mr-1 h-4 w-4"/>Refresh HMS</Link></Button><Button size="sm" asChild><Link to="/chat/patients/$patientId" params={{ patientId }}><MessageSquare className="mr-1 h-4 w-4"/>Open chat</Link></Button></>}
+        chips={
+          <>
+            <Badge variant="secondary" className="capitalize">
+              {p.status}
+            </Badge>
+            <StatusBadge status={p.access} />
+            {p.assigned ? <Badge variant="outline">{p.assigned}</Badge> : null}
+          </>
+        }
+        actions={
+          <>
+            <Button size="sm" variant="outline" asChild>
+              <Link to="/patients/$patientId/refresh" params={{ patientId }}>
+                <RefreshCw className="mr-1 h-4 w-4" />
+                Refresh HMS
+              </Link>
+            </Button>
+            <Button size="sm" asChild>
+              <Link to="/chat/patients/$patientId" params={{ patientId }}>
+                <MessageSquare className="mr-1 h-4 w-4" />
+                Open chat
+              </Link>
+            </Button>
+          </>
+        }
       />
       <div className="mb-4 flex flex-wrap gap-1 border-b">
         {tabs.map((t) => (
-          <a key={t.url} href={t.url} className={`-mb-px border-b-2 px-3 py-2 text-sm font-medium transition ${path.startsWith(t.url) ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:text-foreground"}`}>{t.label}</a>
+          <a
+            key={t.url}
+            href={t.url}
+            className={`-mb-px border-b-2 px-3 py-2 text-sm font-medium transition ${path.startsWith(t.url) ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:text-foreground"}`}
+          >
+            {t.label}
+          </a>
         ))}
       </div>
       <Outlet />

@@ -33,7 +33,9 @@ function CitationPage() {
                     className="block rounded-md border p-2 hover:bg-muted"
                   >
                     <p className="line-clamp-1 text-sm font-medium">{s.title}</p>
-                    <p className="mt-0.5 text-xs text-muted-foreground">{s.type} · {s.date}</p>
+                    <p className="mt-0.5 text-xs text-muted-foreground">
+                      {s.type} · {s.date}
+                    </p>
                   </Link>
                 </li>
               ))}
@@ -42,7 +44,9 @@ function CitationPage() {
       }
     >
       <Button asChild variant="ghost" size="sm" className="-ml-2 mb-3">
-        <Link to="/chat"><ArrowLeft className="mr-1 h-3.5 w-3.5" /> Back to chat</Link>
+        <Link to="/chat">
+          <ArrowLeft className="mr-1 h-3.5 w-3.5" /> Back to chat
+        </Link>
       </Button>
       <Card className="overflow-hidden p-0">
         <div className="border-b p-5">

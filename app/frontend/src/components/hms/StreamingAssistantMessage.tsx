@@ -18,7 +18,12 @@ interface Props {
  * Renders an assistant chat bubble whose `content` is streamed token-by-token.
  * Surfaces stop/retry/resume controls when the stream is interrupted or in flight.
  */
-export function StreamingAssistantMessage({ message, autoStart = true, forceInterrupt, onComplete }: Props) {
+export function StreamingAssistantMessage({
+  message,
+  autoStart = true,
+  forceInterrupt,
+  onComplete,
+}: Props) {
   const search = useSearch({ strict: false }) as { simulate?: string };
   const shouldForce = forceInterrupt ?? search?.simulate === "stream-fail";
 

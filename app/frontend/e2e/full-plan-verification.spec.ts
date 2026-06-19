@@ -4,7 +4,9 @@
  */
 import { test, expect } from "@playwright/test";
 
-const BASE = "http://localhost:8082";
+const BASE = process.env.E2E_BASE_URL ?? "http://localhost:8082";
+
+test.setTimeout(60_000);
 
 test("FULL BUSINESS FLOW END-TO-END", async ({ page }) => {
   // Seed mock session

@@ -3,33 +3,36 @@
 ## Project Structure & Module Organization
 This repository contains the Sprint 0 documentation pack and application workspace for the AI-Powered Hospital Knowledge Assistant. The main project docs live in the hierarchical directories under `docs/` (such as `docs/01-business/` through `docs/12-handover/`).
 
-Application code lives under `app/`. The runnable Next.js frontend is in `app/frontend`; planned backend work belongs in `app/backend`. Frontend App Router pages are in `app/frontend/src/app`, reusable UI components are in `app/frontend/src/components`, and shared helpers are in `app/frontend/src/lib`. Design references live in `docs/design/`: Linear for core UI, Vercel for dashboards, and Notion-lite for document surfaces.
+Application code lives under `app/`. The runnable **TanStack Start** frontend is in `app/frontend`; the FastAPI backend is in `app/backend`. Frontend routes are in `app/frontend/src/routes/`, reusable UI components are in `app/frontend/src/components/hms/` and `app/frontend/src/components/shell/`, shadcn/ui primitives are in `app/frontend/src/components/ui/`, and shared helpers are in `app/frontend/src/lib`. Design references live in `docs/design/`.
 
 ## Build, Test, and Development Commands
 
-### Frontend (Next.js)
-Use npm for the frontend workflow:
+### Frontend (TanStack Start + Vite + Bun)
+Use **Bun** for the frontend workflow:
 
-- `cd app/frontend && npm run dev` - start the Next.js development server.
-- `cd app/frontend && npm run build` - create a production build.
-- `cd app/frontend && npm run start` - serve the production build.
-- `cd app/frontend && npm run typecheck` - run TypeScript without emitting files.
-- `cd app/frontend && npm run lint` - run the configured Next.js lint command.
-- `cd app/frontend && npm test` - run Vitest unit tests.
+- `cd app/frontend && bun run dev` — start the Vite dev server on port 8082.
+- `cd app/frontend && bun run build` — create a production build (`VITE_API_URL` required for API proxy).
+- `cd app/frontend && bun run typecheck` — run `tsc --noEmit` type checking.
+- `cd app/frontend && bun run lint` — run ESLint flat config across `src/`, `e2e/`, and config files.
+- `cd app/frontend && bun run test` — run Vitest unit tests.
+- `cd app/frontend && bun run test:e2e` — run Playwright E2E tests (Chromium, port 8082).
+- `cd app/frontend && bun run format` — auto-format all files with Prettier.
 
 ### Backend (FastAPI)
-Poetry-based Python backend:
+Pip-based Python backend (`pyproject.toml` with hatchling):
 
-- `cd app/backend && poetry run uvicorn hospital_ai.main:create_app --reload` - start the development server.
-- `cd app/backend && poetry run alembic upgrade head` - run database migrations.
-- `cd app/backend && poetry run python scripts/seed_dev.py` - seed development data.
-- `cd app/backend && poetry run pytest` - run Python tests.
-- `cd app/backend && poetry run ruff check src/` - lint backend code.
+- `cd app/backend && python -m uvicorn hospital_ai.main:create_app --reload` — start the development server.
+- `cd app/backend && alembic upgrade head` — run database migrations.
+- `cd app/backend && python scripts/seed_dev.py` — seed development data.
+- `cd app/backend && python -m pytest tests/` — run Python tests (262 pass, 2 skip).
+- `cd app/backend && ruff check src/ tests/` — lint backend code.
+- `cd app/backend && ruff format --check src/ tests/` — check backend formatting.
+- `cd app/backend && python scripts/verify_contracts.py` — verify API contracts.
 
 ## Coding Style & Naming Conventions
 Markdown files use ATX headings, short paragraphs, and pipe tables. Use lowercase filenames with hyphens/underscores for new docs under their respective domain folders.
 
-For frontend code, use TypeScript, React function components, `PascalCase` component filenames, and `camelCase` local variables. Keep shadcn-style primitives in `app/frontend/src/components/ui` and compose feature components outside that folder.
+For frontend code, use TypeScript, React function components with named-function exports, `PascalCase` component filenames, and `camelCase` local variables. Keep shadcn-style primitives in `app/frontend/src/components/ui` and compose feature components under `app/frontend/src/components/hms/` and `app/frontend/src/components/shell/`.
 
 ## Testing Guidelines
 `docs/09-testing/test-plan.md` defines the target strategy: unit, integration, permission, OCR, RAG evaluation, system, UAT, and performance testing. Quality targets include citation rate, retrieval quality, safe refusals, zero unauthorized chunks passed to the LLM, and summary latency under 30 seconds for MVP data.
@@ -125,7 +128,7 @@ Before ending a substantial Khuym work chunk:
 <!-- gitnexus:start -->
 # GitNexus — Code Intelligence
 
-This project is indexed by GitNexus as **chat-hospital-system** (4571 symbols, 7529 relationships, 216 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
+This project is indexed by GitNexus as **chat-hospital-system** (6817 symbols, 12048 relationships, 300 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
 
 > Index stale? Run `node .gitnexus/run.cjs analyze` from the project root — it auto-selects an available runner. No `.gitnexus/run.cjs` yet? `npx gitnexus analyze` (npm 11 crash → `npm i -g gitnexus`; #1939).
 
@@ -159,7 +162,7 @@ This project is indexed by GitNexus as **chat-hospital-system** (4571 symbols, 7
 |------|---------------------|
 | Understand architecture / "How does X work?" | `.claude/skills/gitnexus/gitnexus-exploring/SKILL.md` |
 | Blast radius / "What breaks if I change X?" | `.claude/skills/gitnexus/gitnexus-impact-analysis/SKILL.md` |
-| Trace bugs / "Why is X failing?" | `.claude/skills/gitnexus/gitnexus-debugging/SKILL.md` |
+| Trace bugs / "Why is X failing?" | `.claude/skills/gitnexus-debugging/SKILL.md` |
 | Rename / extract / split / refactor | `.claude/skills/gitnexus/gitnexus-refactoring/SKILL.md` |
 | Tools, resources, schema reference | `.claude/skills/gitnexus/gitnexus-guide/SKILL.md` |
 | Index, status, clean, wiki CLI commands | `.claude/skills/gitnexus/gitnexus-cli/SKILL.md` |

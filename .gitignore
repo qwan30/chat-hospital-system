@@ -34,3 +34,20 @@ __pycache__/
 .bv/
 .gitnexus
 .claude/
+
+# CodeGraph index
+.codegraph/
+
+# Codex artifacts
+.codex/figma-renders/
+
+# Playwright
+playwright-report/
+test-results/
+
+# Vinxi / Nitro build output
+.vinxi/
+.output/
+
+# Windows crash dumps
+*.stackdump

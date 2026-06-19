@@ -1,7 +1,6 @@
 import sys
 import os
 import re
-import json
 
 # Ensure src is in sys.path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "../src")))
@@ -28,35 +27,69 @@ def normalize_path(path):
         path = path[:-1]
     return path
 
-def get_frontend_paths(api_client_path):
-    with open(api_client_path, "r", encoding="utf-8") as f:
-        content = f.read()
-    
-    # Find apiFetch<...>("..." or `...`) calls
+def get_frontend_paths(frontend_root, scan_files):
+    """Scan multiple frontend files for API path references.
+
+    Detects:
+    - apiFetch<...>("/path", ...)
+    - fetch(`.../path`, ...)
+    - fetch(url + "/path", ...)
+    - String literals starting with / that look like API routes
+    """
     paths = []
-    pattern = r'apiFetch(?:<[^>]+>)?\(\s*[`"\']([^`"\']+)[`"\'\s]*,?'
-    for match in re.finditer(pattern, content):
-        paths.append(match.group(1))
-        
-    # Match custom fetch URLs and literal paths starting with /
-    literal_pattern = r'[`"\'](/[^`"\'\s?]+)[`"\']'
-    for match in re.finditer(literal_pattern, content):
-        path = match.group(1)
-        if path not in paths and not path.startswith("//"):
-            paths.append(path)
-            
+
+    for rel_file in scan_files:
+        file_path = os.path.join(frontend_root, rel_file)
+        if not os.path.exists(file_path):
+            continue
+        with open(file_path, "r", encoding="utf-8") as f:
+            content = f.read()
+
+        # Find apiFetch<...>("..." or `...`) calls — direct string literal args
+        pattern = r'apiFetch(?:<[^>]+>)?\(\s*[`"\']([^`"\']+)[`"\'\s]*,?'
+        for match in re.finditer(pattern, content):
+            paths.append(match.group(1))
+
+        # Find template-literal paths: `${...}/auth/me`, `${...}/patients/...`
+        template_pattern = r'\$\{[^}]*\}(/[a-zA-Z0-9_/\-.*]+)'
+        for match in re.finditer(template_pattern, content):
+            path = match.group(1)
+            if path and path.startswith("/"):
+                paths.append(path)
+
+        # Find string-concatenation paths: base + "/path"
+        concat_pattern = r'["\']\s*\+\s*["\'](/[^"\']+)["\']'
+        for match in re.finditer(concat_pattern, content):
+            paths.append(match.group(1))
+
+        # Match literal paths starting with / (for inline fetch, axios, etc.)
+        literal_pattern = r'[`"\'](/\w[^`"\'\s?]{2,})[`"\']'
+        for match in re.finditer(literal_pattern, content):
+            path = match.group(1)
+            # Filter out file paths, CSS, HTML, and non-API patterns
+            if (path not in paths
+                and not path.startswith("//")
+                and not path.startswith("/@")
+                and not path.startswith("/_")
+                and not path.startswith("/node_modules")
+                and not re.search(r'\.(png|jpg|svg|ico|css|woff2?|ttf|jsx?|tsx?)$', path)):
+                paths.append(path)
+
     return list(set(paths))
 
 def verify():
     backend_paths = get_backend_paths()
-    frontend_client_file = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../frontend/src/lib/api-client.ts"))
-    
-    if not os.path.exists(frontend_client_file):
-        print(f"Error: Frontend API client not found at {frontend_client_file}")
-        sys.exit(1)
-        
-    frontend_paths = get_frontend_paths(frontend_client_file)
-    
+    frontend_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../frontend"))
+
+    # Scan frontend files that make real API calls (not mock data)
+    scan_files = [
+        "src/lib/api-client.ts",
+        "src/lib/auth-context.tsx",
+        "src/lib/stream-client.ts",
+    ]
+
+    frontend_paths = get_frontend_paths(frontend_root, scan_files)
+
     normalized_backend = {normalize_path(p): p for p in backend_paths}
     api_prefix = get_settings().api_v1_prefix.rstrip("/")
     for p in backend_paths:
@@ -67,17 +100,17 @@ def verify():
     normalized_backend["/redoc"] = "/redoc"
     normalized_backend["/openapi.json"] = "/openapi.json"
     normalized_backend["/health"] = "/health"
-    
+
     errors = 0
     print("=== Verifying API Contracts ===")
     print(f"Detected {len(backend_paths)} backend paths.")
     print(f"Detected {len(frontend_paths)} frontend paths.")
-    
+
     for f_path in sorted(frontend_paths):
         if not f_path.startswith("/"):
             continue
         norm_f = normalize_path(f_path)
-        
+
         matched = False
         matched_backend_path = None
         for norm_b in normalized_backend:
@@ -91,13 +124,13 @@ def verify():
                 matched = True
                 matched_backend_path = normalized_backend[norm_b]
                 break
-                
+
         if not matched:
             print(f"ERR Mismatch: Frontend calls '{f_path}' (normalized: '{norm_f}') but no matching backend route exists.")
             errors += 1
         else:
             print(f"OK Match: Frontend '{f_path}' -> Backend '{matched_backend_path}'")
-            
+
     if errors > 0:
         print(f"\nVerification FAILED with {errors} contract mismatch(es).")
         sys.exit(1)

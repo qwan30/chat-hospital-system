@@ -6,8 +6,6 @@
  */
 import { test, expect, type Page } from "@playwright/test";
 
-const BASE_URL = "http://localhost:8082";
-
 async function seedSession(page: Page, role = "cardiologist", workspaceId = "ws-cardio-4n") {
   await page.addInitScript(
     ({ role, workspaceId }) => {
@@ -23,7 +21,7 @@ test.describe("Chat GPT-like Flow", () => {
   });
 
   test("Chat Landing → type question → send → see response with citations", async ({ page }) => {
-    await page.goto(`${BASE_URL}/chat`, { waitUntil: "networkidle", timeout: 30000 });
+    await page.goto("/chat", { waitUntil: "networkidle", timeout: 30000 });
     await page.waitForTimeout(1000);
 
     // Verify chat landing loaded
@@ -74,7 +72,7 @@ test.describe("Chat GPT-like Flow", () => {
   });
 
   test("Chat with patient — full conversation with citations", async ({ page }) => {
-    await page.goto(`${BASE_URL}/chat/patients/p-001`, {
+    await page.goto("/chat/patients/p-001", {
       waitUntil: "networkidle",
       timeout: 30000,
     });
@@ -98,7 +96,7 @@ test.describe("Chat GPT-like Flow", () => {
   });
 
   test("Chat landing suggestions are displayed", async ({ page }) => {
-    await page.goto(`${BASE_URL}/chat`, { waitUntil: "networkidle", timeout: 30000 });
+    await page.goto("/chat", { waitUntil: "networkidle", timeout: 30000 });
     await page.waitForTimeout(800);
 
     // Suggestion cards should exist (at least 4 clinical suggestions)
@@ -115,7 +113,7 @@ test.describe("Chat GPT-like Flow", () => {
   });
 
   test("Chat composer Enter key sends message", async ({ page }) => {
-    await page.goto(`${BASE_URL}/chat`, { waitUntil: "networkidle", timeout: 30000 });
+    await page.goto("/chat", { waitUntil: "networkidle", timeout: 30000 });
     await page.waitForTimeout(800);
 
     const composer = page.locator("textarea").first();
@@ -129,7 +127,7 @@ test.describe("Chat GPT-like Flow", () => {
   });
 
   test("Chat general knowledge tab loads with pre-seeded conversation", async ({ page }) => {
-    await page.goto(`${BASE_URL}/chat/general`, { waitUntil: "networkidle", timeout: 30000 });
+    await page.goto("/chat/general", { waitUntil: "networkidle", timeout: 30000 });
     await page.waitForTimeout(1500);
 
     await expect(page.locator("body")).toBeVisible();
@@ -143,7 +141,7 @@ test.describe("Chat GPT-like Flow", () => {
   });
 
   test("Chat history page shows threads", async ({ page }) => {
-    await page.goto(`${BASE_URL}/chat/history`, { waitUntil: "networkidle", timeout: 30000 });
+    await page.goto("/chat/history", { waitUntil: "networkidle", timeout: 30000 });
     await page.waitForTimeout(800);
 
     await expect(page.locator("body")).toBeVisible();
@@ -154,7 +152,7 @@ test.describe("Chat GPT-like Flow", () => {
   test("Chat full conversation loop — send multiple messages and verify responses", async ({
     page,
   }) => {
-    await page.goto(`${BASE_URL}/chat/patients/p-001`, {
+    await page.goto("/chat/patients/p-001", {
       waitUntil: "networkidle",
       timeout: 30000,
     });
@@ -168,6 +166,7 @@ test.describe("Chat GPT-like Flow", () => {
 
     // Wait for streaming to finish, then fill textarea again with a second message
     const composer2 = page.locator("textarea").first();
+    await expect(composer2).toBeEnabled({ timeout: 10_000 });
     await composer2.fill("Are there any drug interactions to watch for?");
     await page.waitForTimeout(300);
 

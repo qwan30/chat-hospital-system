@@ -8,7 +8,6 @@ import { test, type Page } from "@playwright/test";
 import path from "path";
 
 const SCREENSHOT_DIR = "D:/projects/chatbot-hospital-system/screen-demo";
-const BASE_URL = "http://localhost:8082";
 
 async function seedSession(page: Page, role = "cardiologist", workspaceId = "ws-cardio-4n") {
   await page.addInitScript(
@@ -20,7 +19,7 @@ async function seedSession(page: Page, role = "cardiologist", workspaceId = "ws-
 }
 
 async function screenshot(page: Page, name: string, url: string) {
-  await page.goto(`${BASE_URL}${url}`, { waitUntil: "networkidle", timeout: 30000 });
+  await page.goto(url, { waitUntil: "networkidle", timeout: 30000 });
   await page.waitForTimeout(1000);
   await page.screenshot({
     path: path.join(SCREENSHOT_DIR, `${name}.png`),
@@ -34,7 +33,7 @@ test.describe("Screenshot all HMS pages", () => {
   });
 
   test("01-login-page", async ({ page }) => {
-    await page.goto(`${BASE_URL}/auth/login`, { waitUntil: "networkidle" });
+    await page.goto("/auth/login", { waitUntil: "networkidle" });
     await page.screenshot({ path: path.join(SCREENSHOT_DIR, "01-login.png"), fullPage: true });
   });
 
@@ -55,7 +54,7 @@ test.describe("Screenshot all HMS pages", () => {
   });
 
   test("06-patient-overview", async ({ page }) => {
-    await page.goto(`${BASE_URL}/patients/p-001`, { waitUntil: "networkidle" });
+    await page.goto("/patients/p-001", { waitUntil: "networkidle" });
     await page.waitForTimeout(1000);
     await page.screenshot({
       path: path.join(SCREENSHOT_DIR, "06-patient-overview.png"),
@@ -164,7 +163,7 @@ test.describe("Screenshot all HMS pages", () => {
   });
 
   test("32-error-not-found", async ({ page }) => {
-    await page.goto(`${BASE_URL}/error/not-found`, { waitUntil: "networkidle" });
+    await page.goto("/error/not-found", { waitUntil: "networkidle" });
     await page.screenshot({
       path: path.join(SCREENSHOT_DIR, "32-error-not-found.png"),
       fullPage: true,
@@ -172,7 +171,7 @@ test.describe("Screenshot all HMS pages", () => {
   });
 
   test("33-error-forbidden", async ({ page }) => {
-    await page.goto(`${BASE_URL}/error/forbidden`, { waitUntil: "networkidle" });
+    await page.goto("/error/forbidden", { waitUntil: "networkidle" });
     await page.screenshot({
       path: path.join(SCREENSHOT_DIR, "33-error-forbidden.png"),
       fullPage: true,
@@ -180,7 +179,7 @@ test.describe("Screenshot all HMS pages", () => {
   });
 
   test("34-error-offline", async ({ page }) => {
-    await page.goto(`${BASE_URL}/error/offline`, { waitUntil: "networkidle" });
+    await page.goto("/error/offline", { waitUntil: "networkidle" });
     await page.screenshot({
       path: path.join(SCREENSHOT_DIR, "34-error-offline.png"),
       fullPage: true,
@@ -188,7 +187,7 @@ test.describe("Screenshot all HMS pages", () => {
   });
 
   test("35-error-server", async ({ page }) => {
-    await page.goto(`${BASE_URL}/error/server`, { waitUntil: "networkidle" });
+    await page.goto("/error/server", { waitUntil: "networkidle" });
     await page.screenshot({
       path: path.join(SCREENSHOT_DIR, "35-error-server.png"),
       fullPage: true,

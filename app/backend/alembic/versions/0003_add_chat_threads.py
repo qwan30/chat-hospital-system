@@ -27,15 +27,18 @@ def upgrade() -> None:
         sa.Column("patient_id", sa.Uuid(), sa.ForeignKey("patients.id"), nullable=True),
         sa.Column("created_trace_id", sa.String(length=64), nullable=False),
         sa.Column("last_message_at", sa.DateTime(timezone=True), nullable=True),
-        sa.Column("created_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.text("CURRENT_TIMESTAMP")),
-        sa.Column("updated_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.text("CURRENT_TIMESTAMP")),
+        sa.Column(
+            "created_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.text("CURRENT_TIMESTAMP")
+        ),
+        sa.Column(
+            "updated_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.text("CURRENT_TIMESTAMP")
+        ),
         sa.Column("deleted_at", sa.DateTime(timezone=True), nullable=True),
         sa.CheckConstraint("scope in ('general','patient-linked')", name="ck_chat_threads_scope"),
         sa.CheckConstraint("visibility in ('private','shared')", name="ck_chat_threads_visibility"),
         sa.CheckConstraint("status in ('active','archived')", name="ck_chat_threads_status"),
         sa.CheckConstraint(
-            "(scope = 'general' and patient_id is null) or "
-            "(scope = 'patient-linked' and patient_id is not null)",
+            "(scope = 'general' and patient_id is null) or (scope = 'patient-linked' and patient_id is not null)",
             name="ck_chat_threads_patient_scope",
         ),
     )
@@ -52,8 +55,12 @@ def upgrade() -> None:
         sa.Column("added_by_user_id", sa.Uuid(), sa.ForeignKey("users.id"), nullable=False),
         sa.Column("created_trace_id", sa.String(length=64), nullable=False),
         sa.Column("last_read_at", sa.DateTime(timezone=True), nullable=True),
-        sa.Column("created_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.text("CURRENT_TIMESTAMP")),
-        sa.Column("updated_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.text("CURRENT_TIMESTAMP")),
+        sa.Column(
+            "created_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.text("CURRENT_TIMESTAMP")
+        ),
+        sa.Column(
+            "updated_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.text("CURRENT_TIMESTAMP")
+        ),
         sa.Column("deleted_at", sa.DateTime(timezone=True), nullable=True),
         sa.CheckConstraint(
             "access_level in ('owner','write','read')",
@@ -78,7 +85,9 @@ def upgrade() -> None:
         sa.Column("citations", sa.JSON(), nullable=False, server_default=sa.text("'[]'")),
         sa.Column("metadata", sa.JSON(), nullable=False, server_default=sa.text("'{}'")),
         sa.Column("trace_id", sa.String(length=64), nullable=False),
-        sa.Column("created_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.text("CURRENT_TIMESTAMP")),
+        sa.Column(
+            "created_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.text("CURRENT_TIMESTAMP")
+        ),
         sa.CheckConstraint("role in ('user','assistant','system')", name="ck_chat_messages_role"),
         sa.CheckConstraint("scope in ('general','patient-linked')", name="ck_chat_messages_scope"),
         sa.CheckConstraint(
@@ -86,8 +95,7 @@ def upgrade() -> None:
             name="ck_chat_messages_patient_permission_state",
         ),
         sa.CheckConstraint(
-            "(scope = 'general' and patient_id is null) or "
-            "(scope = 'patient-linked' and patient_id is not null)",
+            "(scope = 'general' and patient_id is null) or (scope = 'patient-linked' and patient_id is not null)",
             name="ck_chat_messages_patient_scope",
         ),
     )

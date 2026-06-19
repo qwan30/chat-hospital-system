@@ -65,10 +65,7 @@ class GeminiLLM(BaseLLM):
         temperature: float = 0.0,
         max_tokens: int | None = None,
     ) -> AsyncIterator[str]:
-        url = (
-            f"{self._base_url()}/models/{self._model}:streamGenerateContent"
-            f"?alt=sse&key={self._api_key}"
-        )
+        url = f"{self._base_url()}/models/{self._model}:streamGenerateContent?alt=sse&key={self._api_key}"
         payload = self._build_payload(messages, temperature, max_tokens)
 
         try:

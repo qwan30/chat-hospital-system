@@ -64,30 +64,66 @@ def det_embed(text: str, dims: int = 1024) -> list[float]:
 async def seed(session: AsyncSession) -> None:
     # ── Users ──────────────────────────────────────────────────────
     users = [
-        User(id=DOCTOR_ID, email="doctor@example.test", full_name="Dr. Dev Doctor",
-             department="Internal Medicine", role="doctor"),
-        User(id=RECORDS_ID, email="records@example.test", full_name="Riley Records",
-             department="Medical Records", role="records_staff"),
-        User(id=SECURITY_ID, email="security@example.test", full_name="Sam Security",
-             department="Compliance", role="security"),
-        User(id=ADMIN_ID, email="admin@example.test", full_name="Alex Admin",
-             department="IT", role="admin"),
-        User(id=NURSE_ID, email="nurse@example.test", full_name="Nancy Nurse",
-             department="Internal Medicine", role="nurse"),
+        User(
+            id=DOCTOR_ID,
+            email="doctor@example.test",
+            full_name="Dr. Dev Doctor",
+            department="Internal Medicine",
+            role="doctor",
+        ),
+        User(
+            id=RECORDS_ID,
+            email="records@example.test",
+            full_name="Riley Records",
+            department="Medical Records",
+            role="records_staff",
+        ),
+        User(
+            id=SECURITY_ID,
+            email="security@example.test",
+            full_name="Sam Security",
+            department="Compliance",
+            role="security",
+        ),
+        User(id=ADMIN_ID, email="admin@example.test", full_name="Alex Admin", department="IT", role="admin"),
+        User(
+            id=NURSE_ID,
+            email="nurse@example.test",
+            full_name="Nancy Nurse",
+            department="Internal Medicine",
+            role="nurse",
+        ),
     ]
 
     # ── Patients ───────────────────────────────────────────────────
     patients = [
-        Patient(id=PATIENT_ALICE_ID, mrn="MRN-0001", full_name="Alice Synthetic",
-                dob=date(1978, 5, 17), department="Internal Medicine"),
-        Patient(id=PATIENT_BOB_ID, mrn="MRN-0002", full_name="Bob Synthetic",
-                dob=date(1969, 9, 9), department="Cardiology"),
-        Patient(id=PATIENT_CAROL_ID, mrn="MRN-0003", full_name="Carol Synthetic",
-                dob=date(1985, 3, 22), department="Neurology"),
-        Patient(id=PATIENT_DAN_ID, mrn="MRN-0004", full_name="Dan Synthetic",
-                dob=date(1992, 11, 1), department="Orthopedics"),
-        Patient(id=PATIENT_EVE_ID, mrn="MRN-0005", full_name="Eve Synthetic",
-                dob=date(2000, 7, 14), department="Pediatrics"),
+        Patient(
+            id=PATIENT_ALICE_ID,
+            mrn="MRN-0001",
+            full_name="Alice Synthetic",
+            dob=date(1978, 5, 17),
+            department="Internal Medicine",
+        ),
+        Patient(
+            id=PATIENT_BOB_ID, mrn="MRN-0002", full_name="Bob Synthetic", dob=date(1969, 9, 9), department="Cardiology"
+        ),
+        Patient(
+            id=PATIENT_CAROL_ID,
+            mrn="MRN-0003",
+            full_name="Carol Synthetic",
+            dob=date(1985, 3, 22),
+            department="Neurology",
+        ),
+        Patient(
+            id=PATIENT_DAN_ID,
+            mrn="MRN-0004",
+            full_name="Dan Synthetic",
+            dob=date(1992, 11, 1),
+            department="Orthopedics",
+        ),
+        Patient(
+            id=PATIENT_EVE_ID, mrn="MRN-0005", full_name="Eve Synthetic", dob=date(2000, 7, 14), department="Pediatrics"
+        ),
     ]
 
     # ── Permissions ────────────────────────────────────────────────
@@ -150,9 +186,21 @@ async def seed(session: AsyncSession) -> None:
     )
 
     sample_docs = [
-        (DOC_ALICE_SUMMARY, PATIENT_ALICE_ID, "Alice Synthetic — Clinical Summary", "clinical_summary", alice_summary_content),
+        (
+            DOC_ALICE_SUMMARY,
+            PATIENT_ALICE_ID,
+            "Alice Synthetic — Clinical Summary",
+            "clinical_summary",
+            alice_summary_content,
+        ),
         (DOC_ALICE_LAB, PATIENT_ALICE_ID, "Alice Synthetic — Lab Results Apr 2026", "lab_result", alice_lab_content),
-        (DOC_BOB_DISCHARGE, PATIENT_BOB_ID, "Bob Synthetic — Discharge Summary", "discharge_summary", bob_discharge_content),
+        (
+            DOC_BOB_DISCHARGE,
+            PATIENT_BOB_ID,
+            "Bob Synthetic — Discharge Summary",
+            "discharge_summary",
+            bob_discharge_content,
+        ),
     ]
 
     for doc_id, patient_id, title, doc_type, content in sample_docs:
@@ -179,16 +227,18 @@ async def seed(session: AsyncSession) -> None:
         session.add(page)
         await session.flush()
 
-        session.add(DocumentChunk(
-            document_id=doc_id,
-            page_id=page.id,
-            patient_id=patient_id,
-            chunk_index=0,
-            content=content,
-            token_count=len(content.split()),
-            embedding=det_embed(content),
-            meta={"source": "seed", "contains_phi": True, "patient_permission_required": True},
-        ))
+        session.add(
+            DocumentChunk(
+                document_id=doc_id,
+                page_id=page.id,
+                patient_id=patient_id,
+                chunk_index=0,
+                content=content,
+                token_count=len(content.split()),
+                embedding=det_embed(content),
+                meta={"source": "seed", "contains_phi": True, "patient_permission_required": True},
+            )
+        )
 
     # ── Sample chat thread ─────────────────────────────────────────
     existing_thread = await session.get(ChatThread, THREAD_DOCTOR_ALICE)
@@ -202,24 +252,28 @@ async def seed(session: AsyncSession) -> None:
         session.add(thread)
         await session.flush()
 
-        session.add(ChatMessage(
-            thread_id=THREAD_DOCTOR_ALICE,
-            sender_user_id=DOCTOR_ID,
-            role="user",
-            content="What medications is Alice currently taking?",
-        ))
-        session.add(ChatMessage(
-            thread_id=THREAD_DOCTOR_ALICE,
-            sender_user_id=None,
-            role="assistant",
-            content=(
-                "Based on the clinical summary [E1], Alice Synthetic is currently prescribed:\n"
-                "- Metformin 500mg twice daily (for type 2 diabetes)\n"
-                "- Lisinopril 10mg once daily (for hypertension)\n\n"
-                "No known drug allergies are documented.\n\n"
-                "AI-assisted retrieval; clinical staff must verify before making decisions."
-            ),
-        ))
+        session.add(
+            ChatMessage(
+                thread_id=THREAD_DOCTOR_ALICE,
+                sender_user_id=DOCTOR_ID,
+                role="user",
+                content="What medications is Alice currently taking?",
+            )
+        )
+        session.add(
+            ChatMessage(
+                thread_id=THREAD_DOCTOR_ALICE,
+                sender_user_id=None,
+                role="assistant",
+                content=(
+                    "Based on the clinical summary [E1], Alice Synthetic is currently prescribed:\n"
+                    "- Metformin 500mg twice daily (for type 2 diabetes)\n"
+                    "- Lisinopril 10mg once daily (for hypertension)\n\n"
+                    "No known drug allergies are documented.\n\n"
+                    "AI-assisted retrieval; clinical staff must verify before making decisions."
+                ),
+            )
+        )
 
     await session.commit()
     print("✅ Seed data created successfully.")

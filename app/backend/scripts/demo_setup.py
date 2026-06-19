@@ -190,10 +190,22 @@ DEMO_DOCUMENTS = [
 
 DEMO_AUDIT_ENTRIES = [
     {"action": "login", "object_type": "session", "outcome": "allowed", "user_index": 0},
-    {"action": "query_patient_data", "object_type": "patient", "outcome": "allowed", "user_index": 1, "patient_index": 0},
+    {
+        "action": "query_patient_data",
+        "object_type": "patient",
+        "outcome": "allowed",
+        "user_index": 1,
+        "patient_index": 0,
+    },
     {"action": "view_document", "object_type": "document", "outcome": "allowed", "user_index": 1, "patient_index": 0},
     {"action": "upload_document", "object_type": "document", "outcome": "allowed", "user_index": 2, "patient_index": 2},
-    {"action": "query_patient_data", "object_type": "patient", "outcome": "denied", "user_index": 2, "patient_index": 1},
+    {
+        "action": "query_patient_data",
+        "object_type": "patient",
+        "outcome": "denied",
+        "user_index": 2,
+        "patient_index": 1,
+    },
     {"action": "export_audit_log", "object_type": "audit", "outcome": "allowed", "user_index": 0},
 ]
 

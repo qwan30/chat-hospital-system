@@ -80,7 +80,7 @@ async def test_failed_ocr_creates_no_chunks(session_and_settings, tmp_path: Path
     session.add(document)
     await session.commit()
 
-    def fail_ocr(self, *, storage_uri, mime_type):
+    def fail_ocr(self, **_kwargs):
         raise RuntimeError("ocr failed")
 
     monkeypatch.setattr("hospital_ai.services.ocr.OcrService.extract_pages", fail_ocr)
@@ -113,7 +113,7 @@ async def test_failed_reindex_preserves_existing_searchable_chunks(
         "Original indexed content remains searchable.",
     )
 
-    def fail_ocr(self, *, storage_uri, mime_type):
+    def fail_ocr(self, **_kwargs):
         raise RuntimeError("ocr failed")
 
     monkeypatch.setattr("hospital_ai.services.ocr.OcrService.extract_pages", fail_ocr)
@@ -154,7 +154,7 @@ async def test_failed_reindex_after_ocr_preserves_existing_chunks(
         "Original indexed content survives embedding failure.",
     )
 
-    def extract_pages(self, *, storage_uri, mime_type):
+    def extract_pages(self, **_kwargs):
         return [OcrPage(page_number=1, text="Replacement content", confidence=1.0)]
 
     async def fail_embeddings(self, contents):
@@ -246,7 +246,7 @@ async def test_failed_reindex_with_unknown_source_hash_marks_index_failed(
     document.indexed_source_sha256 = None
     await session.commit()
 
-    def fail_ocr(self, *, storage_uri, mime_type):
+    def fail_ocr(self, **_kwargs):
         raise RuntimeError("ocr failed")
 
     monkeypatch.setattr("hospital_ai.services.ocr.OcrService.extract_pages", fail_ocr)
@@ -307,7 +307,7 @@ async def test_stale_reindex_attempt_does_not_overwrite_newer_generation(
     )
     document_id = document.id
 
-    def extract_pages(self, *, storage_uri, mime_type):
+    def extract_pages(self, **_kwargs):
         return [OcrPage(page_number=1, text="Stale replacement content", confidence=1.0)]
 
     async def simulate_newer_index(self, contents):

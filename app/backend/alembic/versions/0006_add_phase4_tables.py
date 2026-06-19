@@ -24,8 +24,12 @@ def upgrade() -> None:
         sa.Column("source_chunk_id", sa.Uuid(), sa.ForeignKey("document_chunks.id"), nullable=False, index=True),
         sa.Column("source_document_id", sa.Uuid(), sa.ForeignKey("documents.id"), nullable=False, index=True),
         sa.Column("confidence", sa.Float(), nullable=False, server_default="1.0"),
-        sa.Column("created_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.text("CURRENT_TIMESTAMP")),
-        sa.Column("updated_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.text("CURRENT_TIMESTAMP")),
+        sa.Column(
+            "created_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.text("CURRENT_TIMESTAMP")
+        ),
+        sa.Column(
+            "updated_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.text("CURRENT_TIMESTAMP")
+        ),
     )
 
     op.create_table(
@@ -36,8 +40,12 @@ def upgrade() -> None:
         sa.Column("relation_type", sa.String(64), nullable=False, index=True),
         sa.Column("weight", sa.Float(), nullable=False, server_default="1.0"),
         sa.Column("source_chunk_id", sa.Uuid(), sa.ForeignKey("document_chunks.id"), nullable=False, index=True),
-        sa.Column("created_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.text("CURRENT_TIMESTAMP")),
-        sa.Column("updated_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.text("CURRENT_TIMESTAMP")),
+        sa.Column(
+            "created_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.text("CURRENT_TIMESTAMP")
+        ),
+        sa.Column(
+            "updated_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.text("CURRENT_TIMESTAMP")
+        ),
     )
 
     # ── Phase 3 trace columns on retrieved_evidence ──────────────────
@@ -57,10 +65,7 @@ def upgrade() -> None:
         )
         # On PostgreSQL, create a GIN index for fast BM25 queries.
         # The column type is 'tsvector' natively; Alembic uses Text as placeholder.
-        op.execute(
-            "ALTER TABLE document_chunks "
-            "ALTER COLUMN search_vector TYPE tsvector USING search_vector::tsvector"
-        )
+        op.execute("ALTER TABLE document_chunks ALTER COLUMN search_vector TYPE tsvector USING search_vector::tsvector")
         op.create_index(
             "ix_document_chunks_search_vector",
             "document_chunks",
@@ -87,7 +92,9 @@ def upgrade() -> None:
         sa.Column("retrieval_latency_ms", sa.Integer(), nullable=True),
         sa.Column("generation_latency_ms", sa.Integer(), nullable=True),
         sa.Column("shared_thread_id", sa.Uuid(), nullable=True),
-        sa.Column("created_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.text("CURRENT_TIMESTAMP")),
+        sa.Column(
+            "created_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.text("CURRENT_TIMESTAMP")
+        ),
     )
 
     # ── User feedback table ──────────────────────────────────────────
@@ -98,7 +105,9 @@ def upgrade() -> None:
         sa.Column("user_id", sa.Uuid(), sa.ForeignKey("users.id"), nullable=False, index=True),
         sa.Column("rating", sa.Integer(), nullable=False),
         sa.Column("comment", sa.Text(), nullable=True),
-        sa.Column("created_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.text("CURRENT_TIMESTAMP")),
+        sa.Column(
+            "created_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.text("CURRENT_TIMESTAMP")
+        ),
         sa.CheckConstraint("rating >= -1 AND rating <= 1", name="ck_user_feedback_rating"),
     )
 

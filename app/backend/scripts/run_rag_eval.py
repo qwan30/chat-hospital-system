@@ -179,8 +179,8 @@ async def run_eval() -> Dict[str, Any]:
                 denied_passed = True
                 denied_observed = "PermissionDeniedError raised before answer generation."
             denied_query = (
-                await session.execute(select(AiQuery).where(AiQuery.patient_id == PATIENT_BOB_ID))
-            ).scalars().first()
+                (await session.execute(select(AiQuery).where(AiQuery.patient_id == PATIENT_BOB_ID))).scalars().first()
+            )
             cases.append(
                 EvalCase(
                     name="denied_patient_refusal",
@@ -248,8 +248,10 @@ async def run_eval() -> Dict[str, Any]:
                 content="Metformin treats diabetes. Insulin also treats diabetes.",
             )
             chunk = (
-                await session.execute(select(DocumentChunk).where(DocumentChunk.document_id == graph_doc.id))
-            ).scalars().first()
+                (await session.execute(select(DocumentChunk).where(DocumentChunk.document_id == graph_doc.id)))
+                .scalars()
+                .first()
+            )
             await index_chunk_entities(session, chunk_id=chunk.id, document_id=graph_doc.id, content=chunk.content)
             await session.commit()
             graph_context = await find_related_entities(
@@ -283,13 +285,11 @@ async def run_eval() -> Dict[str, Any]:
         "total_cases": total,
         "passed_cases": passed,
         "pass_rate": round(passed / total, 3) if total else 0.0,
-        "citation_validity_rate": round(
-            sum(1 for case in citation_cases if case.passed) / len(citation_cases), 3
-        ),
-        "safe_refusal_rate": round(
-            sum(1 for case in safe_refusal_cases if case.passed) / len(safe_refusal_cases), 3
-        ),
-        "unauthorized_chunks_to_llm": 0 if any(case.name == "denied_patient_refusal" and case.passed for case in cases) else None,
+        "citation_validity_rate": round(sum(1 for case in citation_cases if case.passed) / len(citation_cases), 3),
+        "safe_refusal_rate": round(sum(1 for case in safe_refusal_cases if case.passed) / len(safe_refusal_cases), 3),
+        "unauthorized_chunks_to_llm": 0
+        if any(case.name == "denied_patient_refusal" and case.passed for case in cases)
+        else None,
     }
     return {"summary": summary, "cases": [asdict(case) for case in cases]}
 

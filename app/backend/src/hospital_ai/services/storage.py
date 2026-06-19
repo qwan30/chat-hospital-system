@@ -49,7 +49,7 @@ class LocalStorageService:
         target_path = target_dir / f"{document_id}_{page_number}.png"
         target_path.write_bytes(image_bytes)
         return str(target_path)
-        
+
     def get_page_image_path(self, patient_id: uuid.UUID, document_id: uuid.UUID, page_number: int) -> Path:
         return self.root / "patients" / str(patient_id) / "pages" / f"{document_id}_{page_number}.png"
 

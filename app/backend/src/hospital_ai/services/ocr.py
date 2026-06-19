@@ -20,7 +20,7 @@ class OcrService:
         self, *, storage_uri: str, mime_type: str, patient_id: str, document_id: str, storage_service
     ) -> list[OcrPage]:
         import fitz  # PyMuPDF
-        
+
         path = Path(storage_uri)
         if mime_type in self.TEXT_MIME_TYPES or path.suffix.lower() in {".txt", ".md"}:
             text = path.read_text(encoding="utf-8")
@@ -28,12 +28,13 @@ class OcrService:
 
         # If it's a PDF or image, we render images first.
         doc = fitz.open(str(path))
-        
+
         has_paddle = False
         try:
             import cv2
             import numpy as np
             from paddleocr import PaddleOCR
+
             ocr = PaddleOCR(use_doc_orientation_classify=False, use_doc_unwarping=False, use_textline_orientation=False)
             has_paddle = True
         except ImportError:
@@ -43,15 +44,15 @@ class OcrService:
         for page_index in range(len(doc)):
             page_number = page_index + 1
             page = doc[page_index]
-            
+
             # 1. Render and save the image for the frontend viewer
             pix = page.get_pixmap(dpi=150)
             img_bytes = pix.tobytes("png")
             storage_service.save_page_image(patient_id, document_id, page_number, img_bytes)
-            
+
             text_extracted = ""
             confidence = 1.0
-            
+
             # 2. Try native PDF text extraction first
             native_text = page.get_text().strip()
             if native_text:
@@ -70,9 +71,9 @@ class OcrService:
                             scores.append(float(item[1][1]))
                 confidence = sum(scores) / len(scores) if scores else 0.0
                 text_extracted = "\n".join(text_lines)
-                
+
             pages.append(OcrPage(page_number=page_number, text=text_extracted, confidence=confidence))
-            
+
         if not pages:
             raise ExternalServiceError("OCR produced no pages.")
         return pages

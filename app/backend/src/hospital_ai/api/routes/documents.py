@@ -229,7 +229,7 @@ async def get_document_page_image(
     settings: Settings = Depends(get_settings),
 ):
     from fastapi.responses import FileResponse
-    
+
     document = await _get_document_or_404(session, document_id)
     trace_id = new_trace_id()
     await PermissionService(session).require_read(
@@ -241,11 +241,11 @@ async def get_document_page_image(
         object_id=document.id,
         ip_address=get_request_ip(request),
     )
-    
+
     image_path = LocalStorageService(settings).get_page_image_path(document.patient_id, document.id, page_number)
     if not image_path.exists():
         raise NotFoundError("Document page image not found.")
-        
+
     return FileResponse(image_path, media_type="image/png")
 
 

@@ -7,7 +7,7 @@
 import { test, type Page } from "@playwright/test";
 import path from "path";
 
-const SCREENSHOT_DIR = "D:/projects/chatbot-hospital-system/screen-demo";
+const SCREENSHOT_DIR = path.resolve(import.meta.dirname, "..", "..", "screen-demo");
 
 async function seedSession(page: Page, role = "cardiologist", workspaceId = "ws-cardio-4n") {
   await page.addInitScript(

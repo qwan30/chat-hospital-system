@@ -49,5 +49,9 @@ test-results/
 .vinxi/
 .output/
 
+# Test artifacts
+test-results/
+*_page_*.png
+
 # Windows crash dumps
 *.stackdump

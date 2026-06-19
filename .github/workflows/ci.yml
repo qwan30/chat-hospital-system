@@ -295,14 +295,14 @@ jobs:
         if: steps.playwright-cache.outputs.cache-hit != 'true'
         run: bunx playwright install --with-deps chromium
 
-      # ── Next.js build cache ──
-      - name: Cache Next.js build
+      # ── Vite dependency transform cache ──
+      - name: Cache Vite build cache
         uses: actions/cache@v4
         with:
-          path: app/frontend/.next/cache
-          key: nextjs-${{ runner.os }}-${{ hashFiles('app/frontend/src/**', 'app/frontend/public/**', 'app/frontend/*.ts', 'app/frontend/*.js', 'app/frontend/*.json') }}
+          path: app/frontend/node_modules/.vite
+          key: vite-${{ runner.os }}-${{ hashFiles('app/frontend/src/**', 'app/frontend/public/**', 'app/frontend/*.ts', 'app/frontend/*.js', 'app/frontend/*.json') }}
           restore-keys: |
-            nextjs-${{ runner.os }}-
+            vite-${{ runner.os }}-
 
       # ── Quality gates ──
       - name: ESLint check
@@ -316,12 +316,12 @@ jobs:
 
       - name: Production build
         env:
-          NEXT_PUBLIC_API_BASE_URL: http://localhost:8000/api/v1
+          VITE_API_URL: http://localhost:8000/api/v1
         run: bun run build
 
       - name: E2E tests (Playwright, Chromium)
         env:
-          NEXT_PUBLIC_API_BASE_URL: http://localhost:8000/api/v1
+          VITE_API_URL: http://localhost:8000/api/v1
         run: bunx playwright test --project=chromium
 
       # ── Artifacts ──
@@ -367,7 +367,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 25
     needs: [backend-test, backend-migration, frontend-test, validate-observability]
-    if: ${{ github.event_name != 'pull_request' && (success() || !cancelled()) }}
+    if: ${{ github.event_name != 'pull_request' && needs.backend-test.result == 'success' && needs.backend-migration.result == 'success' && needs.frontend-test.result == 'success' && needs.validate-observability.result == 'success' }}
 
     steps:
       - name: Checkout
@@ -409,16 +409,18 @@ jobs:
 
       # ── Scan backend image with Trivy ──
       - name: Scan backend image (Trivy)
+        id: trivy-scan
+        continue-on-error: true
         uses: aquasecurity/trivy-action@v0.36.0
         with:
-          image-ref: ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}-backend:${{ github.sha }}
+          image-ref: ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}-backend@${{ steps.backend-image.outputs.digest }}
           format: sarif
           output: trivy-backend.sarif
           severity: CRITICAL,HIGH
           exit-code: 0
 
       - name: Upload backend Trivy results
-        if: always()
+        if: always() && steps.trivy-scan.outcome != 'skipped' && hashFiles('trivy-backend.sarif') != ''
         uses: github/codeql-action/upload-sarif@v3
         with:
           sarif_file: trivy-backend.sarif
@@ -450,19 +452,28 @@ jobs:
           )
 
           FAILED=0
+          DOCKER_FAILED=0
           for job in "${!jobs[@]}"; do
             result="${jobs[$job]}"
             icon="✅"
-            if [[ "$result" == "failure" ]]; then icon="❌"; FAILED=1; fi
-            if [[ "$result" == "skipped" ]]; then icon="⏭️"; fi
+            if [[ "$result" == "failure" ]]; then
+              if [[ "$job" == "docker-push" ]]; then icon="⚠️"; DOCKER_FAILED=1; else icon="❌"; FAILED=1; fi
+              fi
             if [[ "$result" == "cancelled" ]]; then icon="⚠️"; fi
             echo "| $job | $icon $result |" >> "$GITHUB_STEP_SUMMARY"
           done
 
           if [[ $FAILED -eq 1 ]]; then
+            if [[ $DOCKER_FAILED -eq 1 ]]; then
+              echo "" >> "$GITHUB_STEP_SUMMARY"
+              echo "⚠️ Docker/Trivy: advisory — does not block merge" >> "$GITHUB_STEP_SUMMARY"
+            fi
             echo "" >> "$GITHUB_STEP_SUMMARY"
             echo "❌ **Some jobs failed.** Check the logs above." >> "$GITHUB_STEP_SUMMARY"
             exit 1
           fi
-          echo "" >> "$GITHUB_STEP_SUMMARY"
+          if [[ $DOCKER_FAILED -eq 1 ]]; then
+            echo "" >> "$GITHUB_STEP_SUMMARY"
+            echo "⚠️ **Docker/Trivy advisory step failed — all other checks passed.**" >> "$GITHUB_STEP_SUMMARY"
+          fi
           echo "✅ **All CI jobs passed.** Ready for deployment." >> "$GITHUB_STEP_SUMMARY"

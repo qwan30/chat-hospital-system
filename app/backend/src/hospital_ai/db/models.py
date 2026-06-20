@@ -130,6 +130,26 @@ class PatientPermission(TimestampMixin, SoftDeleteMixin, Base):
     patient: Mapped[Patient] = relationship(back_populates="permissions")
 
 
+class AccessRequest(TimestampMixin, Base):
+    __tablename__ = "access_requests"
+    __table_args__ = (
+        CheckConstraint("status in ('pending','approved','denied','pending_info')", name="ck_access_requests_status"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    patient_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("patients.id"), nullable=False, index=True)
+    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"), nullable=False, index=True)
+    justification: Mapped[str] = mapped_column(Text, nullable=False)
+    status: Mapped[str] = mapped_column(String(32), nullable=False, default="pending")
+    reviewed_by_user_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("users.id"), nullable=True)
+    reviewed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    review_notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+    patient: Mapped[Patient] = relationship()
+    user: Mapped[User] = relationship(foreign_keys=[user_id])
+    reviewed_by: Mapped[User | None] = relationship(foreign_keys=[reviewed_by_user_id])
+
+
 class Document(TimestampMixin, SoftDeleteMixin, Base):
     __tablename__ = "documents"
     __table_args__ = (
@@ -217,7 +237,7 @@ class AiQuery(Base):
 
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
     user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"), nullable=False, index=True)
-    patient_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("patients.id"), nullable=False, index=True)
+    patient_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("patients.id"), nullable=True, index=True)
     question: Mapped[str] = mapped_column(Text, nullable=False)
     answer: Mapped[str | None] = mapped_column(Text, nullable=True)
     status: Mapped[str] = mapped_column(String(32), nullable=False)
@@ -279,6 +299,25 @@ class ChatThread(TimestampMixin, SoftDeleteMixin, Base):
         back_populates="thread",
         cascade="all, delete-orphan",
     )
+    memory: Mapped[ChatSessionMemory | None] = relationship(
+        back_populates="thread",
+        cascade="all, delete-orphan",
+        uselist=False,
+    )
+
+
+class ChatSessionMemory(TimestampMixin, Base):
+    __tablename__ = "chat_session_memory"
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    thread_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("chat_threads.id"), nullable=False, unique=True, index=True)
+    active_patient_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("patients.id"), nullable=True, index=True)
+    summary: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    active_entities: Mapped[list[str]] = mapped_column(JSON, nullable=False, default=list)
+    source_ids: Mapped[list[str]] = mapped_column(JSON, nullable=False, default=list)
+
+    thread: Mapped[ChatThread] = relationship(back_populates="memory")
+    active_patient: Mapped[Patient | None] = relationship()
 
 
 class ChatThreadParticipant(TimestampMixin, SoftDeleteMixin, Base):

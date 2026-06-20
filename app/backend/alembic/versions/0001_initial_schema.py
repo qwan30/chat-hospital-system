@@ -23,8 +23,9 @@ EMBEDDING_DIMENSIONS = 1024
 
 
 def _embedding_type():
-    _require_pgvector()
-    return Vector(EMBEDDING_DIMENSIONS)
+    if Vector is not None:
+        return Vector(EMBEDDING_DIMENSIONS)
+    return sa.JSON()
 
 
 def _require_pgvector() -> None:
@@ -36,9 +37,9 @@ def _require_pgvector() -> None:
 
 
 def upgrade() -> None:
-    _require_pgvector()
     bind = op.get_bind()
     if bind.dialect.name == "postgresql":
+        _require_pgvector()
         op.execute("CREATE EXTENSION IF NOT EXISTS vector")
 
     op.create_table(

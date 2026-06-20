@@ -47,6 +47,11 @@ SAFE_NO_EVIDENCE_ANSWER = (
     "Please review the patient record directly or ask a records user to index the relevant document."
 )
 
+PERMISSION_DENIED_CHAT_ANSWER = (
+    "Bạn không có quyền xem thông tin này. Giải thích: Yêu cầu của bạn liên quan đến "
+    "dữ liệu nhạy cảm hoặc hồ sơ bệnh án nằm ngoài phạm vi phân quyền của tài khoản hiện tại."
+)
+
 
 class ChatService:
     def __init__(self, session: AsyncSession, settings: Settings) -> None:
@@ -100,6 +105,105 @@ class ChatService:
 
         # Gather conversation history if thread is provided
         conversation_history = await self._get_conversation_history(thread_id) if thread_id else []
+
+        # Check for chit-chat query
+        from hospital_ai.services.chat_utils import is_chitchat_query
+
+        if is_chitchat_query(question):
+            from hospital_ai.services.llm import LLMManager
+            from hospital_ai.services.llm.base import LLMMessage
+
+            manager = LLMManager(settings=self.settings)
+            llm = manager.get()
+
+            messages = [
+                LLMMessage(
+                    role="system",
+                    content=(
+                        "You are a friendly hospital knowledge assistant. "
+                        "Since this is a greeting or general conversational query, "
+                        "respond naturally and politely."
+                    ),
+                ),
+                LLMMessage(role="user", content=question),
+            ]
+
+            t_gen_start = time.perf_counter()
+            try:
+                response = await llm.generate(messages)
+                ans_text = response.text
+            except Exception:
+                if self.settings.chat_provider == "stub":
+                    lower_q = question.lower()
+                    if "xin chào" in lower_q or "chào" in lower_q or "hello" in lower_q or "hi" in lower_q:
+                        ans_text = "Xin chào! Tôi là trợ lý ảo HMS AI Copilot. Tôi có thể giúp gì cho bạn hôm nay?"
+                    elif "cảm ơn" in lower_q or "cám ơn" in lower_q or "thank" in lower_q or "thanks" in lower_q:
+                        ans_text = "Không có gì! Nếu bạn cần thêm thông tin gì khác, cứ hỏi tôi nhé."
+                    else:
+                        ans_text = (
+                            "Tôi là HMS AI Copilot, trợ lý thông tin bệnh viện của bạn. Tôi có thể giúp gì cho bạn?"
+                        )
+                else:
+                    raise
+            t_gen_ms = int((time.perf_counter() - t_gen_start) * 1000)
+
+            ai_query.status = "completed"
+            ai_query.answer = ans_text
+            ai_query.latency_ms = elapsed_ms(started)
+
+            try:
+                timing = TimingBreakdown(
+                    total_ms=elapsed_ms(started),
+                    retrieval_ms=0,
+                    generation_ms=t_gen_ms,
+                    embedding_ms=0,
+                )
+                await MetricsService(self.session).record_query_metrics(
+                    query_id=ai_query.id,
+                    user_id=user.id,
+                    task_type="chitchat",
+                    timing=timing,
+                    documents_retrieved=0,
+                    citations_count=0,
+                    thread_id=thread_id,
+                )
+            except Exception:
+                logger.warning("Metrics recording failed", exc_info=True)
+
+            await AuditService(self.session).record(
+                actor_user_id=user.id,
+                action="chat.ask",
+                object_type="ai_query",
+                object_id=ai_query.id,
+                patient_id=patient_id,
+                outcome="allowed",
+                trace_id=trace_id,
+                ip_address=ip_address,
+                metadata={
+                    "result": "completed",
+                    "evidence_count": 0,
+                    "pipeline": "chitchat",
+                },
+            )
+            await self.session.commit()
+
+            if thread_id is not None:
+                await MemoryService(self.session, self.settings).update_session_memory(
+                    thread_id=thread_id,
+                    patient_id=patient_id,
+                    new_question=question,
+                    new_answer=ans_text,
+                    source_ids=[],
+                )
+
+            return ChatResponse(
+                query_id=ai_query.id,
+                answer=ans_text,
+                citations=[],
+                confidence="high",
+                thread_id=thread_id,
+                pipeline="chitchat",
+            )
 
         # ── Timing: embedding ────────────────────────────────────────
         t_embed_start = time.perf_counter()
@@ -158,8 +262,13 @@ class ChatService:
         t_retrieval_ms = int((time.perf_counter() - t_retrieval_start) * 1000)
 
         if not evidence or not meets_evidence_threshold(evidence[0], retrieval_mode, self.settings.evidence_threshold):
-            ai_query.status = "no_evidence"
-            ai_query.answer = SAFE_NO_EVIDENCE_ANSWER
+            is_blocked = retrieval_svc.blocked_chunk_count > 0
+            answer_text = PERMISSION_DENIED_CHAT_ANSWER if is_blocked else SAFE_NO_EVIDENCE_ANSWER
+            result_status = "denied" if is_blocked else "no_evidence"
+            outcome = "denied" if is_blocked else "allowed"
+
+            ai_query.status = result_status
+            ai_query.answer = answer_text
             ai_query.latency_ms = elapsed_ms(started)
             await AuditService(self.session).record(
                 actor_user_id=user.id,
@@ -167,15 +276,15 @@ class ChatService:
                 object_type="ai_query",
                 object_id=ai_query.id,
                 patient_id=patient_id,
-                outcome="allowed",
+                outcome=outcome,
                 trace_id=trace_id,
                 ip_address=ip_address,
-                metadata={"result": "no_evidence"},
+                metadata={"result": result_status},
             )
             await self.session.commit()
             return ChatResponse(
                 query_id=ai_query.id,
-                answer=SAFE_NO_EVIDENCE_ANSWER,
+                answer=answer_text,
                 citations=[],
                 confidence="low",
                 thread_id=thread_id,

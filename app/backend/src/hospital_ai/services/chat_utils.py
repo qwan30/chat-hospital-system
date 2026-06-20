@@ -176,3 +176,27 @@ def to_evidence_schema(item: RetrievedChunk) -> EvidenceRead:
         content=item.content,
         metadata=dict(item.metadata),
     )
+
+
+def is_chitchat_query(question: str) -> bool:
+    """Detect if query is conversational chit-chat (greeting, closure, etc.)."""
+    q = question.strip().lower().rstrip("?.!")
+
+    # Common greeting words / phrases in English and Vietnamese
+    patterns = [
+        # English greetings
+        r"(hello|hi|hey|hola|greetings|good\s+morning|good\s+afternoon|good\s+evening)",
+        # Vietnamese greetings
+        r"(xin\s+chào|chào\s+bạn|chào\s+bot|hi\s+bạn|hello\s+bạn|chào\s+nha|chào\s+nhé|chào|chao)",
+        # Conversational questions
+        r"(who\s+are\s+you|bạn\s+là\s+ai|tên\s+bạn\s+là\s+gì|what\s+is\s+your\s+name|how\s+are\s+you|bạn\s+khỏe\s+không|bạn\s+khỏe\s+ko)",
+        # Thank you / closures
+        r"(cảm\s+ơn|cám\s+ơn|thank\s+you|thanks|tạm\s+biệt|bye|goodbye)",
+    ]
+
+    import re
+
+    combined = "^(" + "|".join(patterns) + ")$"
+    if re.match(combined, q):
+        return True
+    return False

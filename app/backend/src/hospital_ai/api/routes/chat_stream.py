@@ -26,11 +26,17 @@ from hospital_ai.db.models import AiQuery, ChatMessage, ChatThread, RetrievedEvi
 from hospital_ai.db.session import get_session_factory
 from hospital_ai.schemas.chat import ChatRequest
 from hospital_ai.services.audit import AuditService
-from hospital_ai.services.chat import SAFE_NO_EVIDENCE_ANSWER, _select_pipeline, elapsed_ms
+from hospital_ai.services.chat import (
+    PERMISSION_DENIED_CHAT_ANSWER,
+    SAFE_NO_EVIDENCE_ANSWER,
+    _select_pipeline,
+    elapsed_ms,
+)
 from hospital_ai.services.chat_utils import (
     build_grounded_prompt,
     confidence_from_score,
     extract_citation_ids,
+    is_chitchat_query,
     meets_evidence_threshold,
 )
 from hospital_ai.services.embeddings import EmbeddingService
@@ -84,12 +90,83 @@ async def _generate_sse_events(
         data: {"type": "error", "message": "..."}
     """
     try:
-        # Build prompt
-        prompt = build_grounded_prompt(question, evidence, conversation_history)
-
         # Get LLM with streaming
         llm_manager = LLMManager(settings)
         llm = llm_manager.get()
+
+        if pipeline_name == "chitchat":
+            messages = [
+                LLMMessage(
+                    role="system",
+                    content=(
+                        "You are a friendly hospital knowledge assistant. "
+                        "Since this is a greeting or general conversational query, "
+                        "respond naturally and politely."
+                    ),
+                ),
+                LLMMessage(role="user", content=question),
+            ]
+            full_text = ""
+            try:
+                async for token in llm.stream(messages):
+                    full_text += token
+                    event = json.dumps({"type": "token", "content": token})
+                    yield f"data: {event}\n\n"
+            except Exception:
+                if settings.chat_provider == "stub":
+                    lower_q = question.lower()
+                    if "xin chào" in lower_q or "chào" in lower_q or "hello" in lower_q or "hi" in lower_q:
+                        full_text = "Xin chào! Tôi là trợ lý ảo HMS AI Copilot. Tôi có thể giúp gì cho bạn hôm nay?"
+                    elif "cảm ơn" in lower_q or "cám ơn" in lower_q or "thank" in lower_q or "thanks" in lower_q:
+                        full_text = "Không có gì! Nếu bạn cần thêm thông tin gì khác, cứ hỏi tôi nhé."
+                    else:
+                        full_text = (
+                            "Tôi là HMS AI Copilot, trợ lý thông tin bệnh viện của bạn. Tôi có thể giúp gì cho bạn?"
+                        )
+                    event = json.dumps({"type": "token", "content": full_text})
+                    yield f"data: {event}\n\n"
+                else:
+                    raise
+
+            # Emit metadata, done, and run on_complete
+            meta_event = json.dumps(
+                {
+                    "type": "metadata",
+                    "confidence": "high",
+                    "pipeline": "chitchat",
+                    "model": llm.model_name(),
+                }
+            )
+            yield f"data: {meta_event}\n\n"
+            done_event = json.dumps(
+                {
+                    "type": "done",
+                    "query_id": str(query_id),
+                    "validation": "passed",
+                }
+            )
+            yield f"data: {done_event}\n\n"
+
+            if on_complete is not None:
+                try:
+                    await on_complete(
+                        StreamCompletion(
+                            validation_status="passed",
+                            answer=full_text,
+                            cited_evidence=[],
+                            citations_payload=[],
+                            confidence="high",
+                        )
+                    )
+                except Exception:
+                    logger.exception(
+                        "Failed to persist chitchat stream query_id=%s",
+                        query_id,
+                    )
+            return
+
+        # Build prompt
+        prompt = build_grounded_prompt(question, evidence, conversation_history)
 
         messages = [
             LLMMessage(
@@ -449,104 +526,117 @@ async def chat_stream(
         svc = ChatService(session, settings)
         conversation_history = await svc._get_conversation_history(payload.thread_id)
 
-    # Retrieve evidence (mirror chat.py mode dispatch).
-    query_embedding = await EmbeddingService(settings).embed(payload.question)
-    retrieval_svc = RetrievalService(session)
-    retrieval_mode = settings.retrieval_mode
-    if retrieval_mode in ("bm25", "hybrid"):
-        evidence = (
-            await retrieval_svc.hybrid_search(
-                user_id=current_user.id,
-                patient_id=effective_patient_id,
-                query_embedding=query_embedding,
-                query_text=payload.question,
-                top_k=payload.top_k,
-                retrieval_mode=retrieval_mode,
-            )
-            if effective_patient_id
-            else []
-        )
+    is_chitchat = is_chitchat_query(payload.question)
+
+    if is_chitchat:
+        evidence = []
+        selected_pipeline = "chitchat"
+        retrieval_mode = settings.retrieval_mode
     else:
-        evidence = (
-            await retrieval_svc.search(
-                user_id=current_user.id,
+        # Retrieve evidence (mirror chat.py mode dispatch).
+        query_embedding = await EmbeddingService(settings).embed(payload.question)
+        retrieval_svc = RetrievalService(session)
+        retrieval_mode = settings.retrieval_mode
+        if retrieval_mode in ("bm25", "hybrid"):
+            evidence = (
+                await retrieval_svc.hybrid_search(
+                    user_id=current_user.id,
+                    patient_id=effective_patient_id,
+                    query_embedding=query_embedding,
+                    query_text=payload.question,
+                    top_k=payload.top_k,
+                    retrieval_mode=retrieval_mode,
+                )
+                if effective_patient_id
+                else []
+            )
+        else:
+            evidence = (
+                await retrieval_svc.search(
+                    user_id=current_user.id,
+                    patient_id=effective_patient_id,
+                    query_embedding=query_embedding,
+                    top_k=payload.top_k,
+                )
+                if effective_patient_id
+                else []
+            )
+
+        if not evidence or not meets_evidence_threshold(evidence[0], retrieval_mode, settings.evidence_threshold):
+            is_blocked = retrieval_svc.blocked_chunk_count > 0
+            answer_text = PERMISSION_DENIED_CHAT_ANSWER if is_blocked else SAFE_NO_EVIDENCE_ANSWER
+            result_status = "denied" if is_blocked else "no_evidence"
+            outcome = "denied" if is_blocked else "allowed"
+
+            ai_query.status = result_status
+            ai_query.answer = answer_text
+            ai_query.latency_ms = elapsed_ms(started)
+
+            # Persist a thread message pair for the no-evidence outcome too,
+            # otherwise the user sees an answer in the UI that vanishes on
+            # reload.  Mirrors the parity contract above.
+            if payload.thread_id is not None:
+                scope = "patient-linked" if effective_patient_id is not None else "general"
+                permission_state = "allowed" if effective_patient_id is not None else "not-required"
+                now = datetime.now(timezone.utc)
+                session.add(
+                    ChatMessage(
+                        thread_id=payload.thread_id,
+                        sender_user_id=current_user.id,
+                        patient_id=effective_patient_id,
+                        role="user",
+                        scope=scope,
+                        content=payload.question,
+                        patient_permission_state=permission_state,
+                        citations=[],
+                        meta={"streaming": True},
+                        trace_id=trace_id,
+                        created_at=now,
+                    )
+                )
+                session.add(
+                    ChatMessage(
+                        thread_id=payload.thread_id,
+                        ai_query_id=ai_query.id,
+                        patient_id=effective_patient_id,
+                        role="assistant",
+                        scope=scope,
+                        content=answer_text,
+                        patient_permission_state=permission_state if not is_blocked else "denied",
+                        citations=[],
+                        meta={"streaming": True, "result": result_status, "confidence": "low"},
+                        trace_id=trace_id,
+                        created_at=datetime.now(timezone.utc),
+                    )
+                )
+                thread = await session.get(ChatThread, payload.thread_id)
+                if thread is not None:
+                    thread.last_message_at = datetime.now(timezone.utc)
+
+            await AuditService(session).record(
+                actor_user_id=current_user.id,
+                action="chat.stream",
+                object_type="ai_query",
+                object_id=ai_query.id,
                 patient_id=effective_patient_id,
-                query_embedding=query_embedding,
-                top_k=payload.top_k,
+                outcome=outcome,
+                trace_id=trace_id,
+                ip_address=get_request_ip(request),
+                metadata={"result": result_status, "evidence_count": 0},
             )
-            if effective_patient_id
-            else []
-        )
+            await session.commit()
 
-    if not evidence or not meets_evidence_threshold(evidence[0], retrieval_mode, settings.evidence_threshold):
-        ai_query.status = "no_evidence"
-        ai_query.answer = SAFE_NO_EVIDENCE_ANSWER
-        ai_query.latency_ms = elapsed_ms(started)
+            async def no_evidence_stream() -> AsyncIterator[str]:
+                event = json.dumps({"type": "token", "content": answer_text})
+                yield f"data: {event}\n\n"
+                done = json.dumps({"type": "done", "query_id": str(ai_query.id), "confidence": "low"})
+                yield f"data: {done}\n\n"
 
-        # Persist a thread message pair for the no-evidence outcome too,
-        # otherwise the user sees an answer in the UI that vanishes on
-        # reload.  Mirrors the parity contract above.
-        if payload.thread_id is not None:
-            scope = "patient-linked" if effective_patient_id is not None else "general"
-            permission_state = "allowed" if effective_patient_id is not None else "not-required"
-            now = datetime.now(timezone.utc)
-            session.add(
-                ChatMessage(
-                    thread_id=payload.thread_id,
-                    sender_user_id=current_user.id,
-                    patient_id=effective_patient_id,
-                    role="user",
-                    scope=scope,
-                    content=payload.question,
-                    patient_permission_state=permission_state,
-                    citations=[],
-                    meta={"streaming": True},
-                    trace_id=trace_id,
-                    created_at=now,
-                )
-            )
-            session.add(
-                ChatMessage(
-                    thread_id=payload.thread_id,
-                    ai_query_id=ai_query.id,
-                    patient_id=effective_patient_id,
-                    role="assistant",
-                    scope=scope,
-                    content=SAFE_NO_EVIDENCE_ANSWER,
-                    patient_permission_state=permission_state,
-                    citations=[],
-                    meta={"streaming": True, "result": "no_evidence", "confidence": "low"},
-                    trace_id=trace_id,
-                    created_at=datetime.now(timezone.utc),
-                )
-            )
-            thread = await session.get(ChatThread, payload.thread_id)
-            if thread is not None:
-                thread.last_message_at = datetime.now(timezone.utc)
+            return StreamingResponse(no_evidence_stream(), media_type="text/event-stream")
 
-        await AuditService(session).record(
-            actor_user_id=current_user.id,
-            action="chat.stream",
-            object_type="ai_query",
-            object_id=ai_query.id,
-            patient_id=effective_patient_id,
-            outcome="allowed",
-            trace_id=trace_id,
-            ip_address=get_request_ip(request),
-            metadata={"result": "no_evidence", "evidence_count": 0},
-        )
-        await session.commit()
-
-        async def no_evidence_stream() -> AsyncIterator[str]:
-            event = json.dumps({"type": "token", "content": SAFE_NO_EVIDENCE_ANSWER})
-            yield f"data: {event}\n\n"
-            done = json.dumps({"type": "done", "query_id": str(ai_query.id), "confidence": "low"})
-            yield f"data: {done}\n\n"
-
-        return StreamingResponse(no_evidence_stream(), media_type="text/event-stream")
+        selected_pipeline = _select_pipeline(payload.pipeline, payload.question)
 
     # Stream response
-    selected_pipeline = _select_pipeline(payload.pipeline, payload.question)
     ai_query.status = "streaming"
     await session.commit()
 

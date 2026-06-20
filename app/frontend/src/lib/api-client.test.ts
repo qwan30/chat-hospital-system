@@ -5,6 +5,7 @@ import {
   verifyToken,
   persistToken,
   clearToken,
+  getToken,
   getStoredApiUrl,
   persistApiUrl,
 } from "./api-client";
@@ -28,36 +29,15 @@ describe("ApiError", () => {
 // localStorage wrappers
 // ---------------------------------------------------------------------------
 describe("persistToken / clearToken", () => {
-  beforeEach(() => {
-    vi.stubGlobal("window", {});
-    const store: Record<string, string> = {};
-    vi.stubGlobal("localStorage", {
-      getItem: vi.fn((key: string) => store[key] ?? null),
-      setItem: vi.fn((key: string, value: string) => {
-        store[key] = value;
-      }),
-      removeItem: vi.fn((key: string) => {
-        delete store[key];
-      }),
-      clear: vi.fn(() => {
-        for (const k in store) delete store[k];
-      }),
-    });
-  });
-
-  afterEach(() => {
-    vi.unstubAllGlobals();
-  });
-
-  it("stores the token in localStorage", () => {
+  it("stores the token in memory", () => {
     persistToken("my-jwt");
-    expect(localStorage.getItem("hospital_ai_token")).toBe("my-jwt");
+    expect(getToken()).toBe("my-jwt");
   });
 
-  it("clears the token from localStorage", () => {
+  it("clears the token from memory", () => {
     persistToken("my-jwt");
     clearToken();
-    expect(localStorage.getItem("hospital_ai_token")).toBeNull();
+    expect(getToken()).toBeNull();
   });
 });
 
@@ -118,8 +98,8 @@ describe("apiFetch", () => {
     vi.unstubAllGlobals();
   });
 
-  it("injects Authorization header when token exists in localStorage", async () => {
-    localStorage.setItem("hospital_ai_token", "test-jwt");
+  it("injects Authorization header when token exists in memory", async () => {
+    persistToken("test-jwt");
 
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,

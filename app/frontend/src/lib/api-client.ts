@@ -13,9 +13,10 @@ function getBaseUrl(): string {
   return (import.meta.env.VITE_API_URL as string) || DEFAULT_API_URL;
 }
 
-function getToken(): string | null {
-  if (typeof window === "undefined") return null;
-  return localStorage.getItem("hospital_ai_token");
+let memoryToken: string | null = null;
+
+export function getToken(): string | null {
+  return memoryToken;
 }
 
 export interface ApiClientOptions {
@@ -35,6 +36,22 @@ export class ApiError extends Error {
   }
 }
 
+function mapIds(obj: any, mapFn: (val: string) => string): any {
+  if (obj === null || obj === undefined) return obj;
+  if (typeof obj === "string") return mapFn(obj);
+  if (Array.isArray(obj)) return obj.map((item) => mapIds(item, mapFn));
+  if (typeof obj === "object") {
+    const res: any = {};
+    for (const key in obj) {
+      if (Object.prototype.hasOwnProperty.call(obj, key)) {
+        res[key] = mapIds(obj[key], mapFn);
+      }
+    }
+    return res;
+  }
+  return obj;
+}
+
 export async function apiFetch<T>(
   path: string,
   init: RequestInit = {},
@@ -42,8 +59,14 @@ export async function apiFetch<T>(
 ): Promise<T> {
   const baseUrl = opts.baseUrl || getBaseUrl();
   const normalizedBase = baseUrl.replace(/\/+$/, "");
-  const url = `${normalizedBase}${path}`;
 
+  // Map p-001..p-012 to backend UUIDs in the request path
+  const mappedPath = path.replace(/\b(p-0(0[1-9]|1[0-2]))\b/g, (match) => {
+    const num = parseInt(match.substring(2), 10);
+    return "20000000-0000-0000-0000-" + num.toString().padStart(12, "0");
+  });
+
+  const url = `${normalizedBase}${mappedPath}`;
   const token = getToken();
 
   const headers: Record<string, string> = {
@@ -58,7 +81,16 @@ export async function apiFetch<T>(
     headers["Authorization"] = `Bearer ${token}`;
   }
 
-  const response = await fetch(url, { ...init, headers });
+  // Map p-001..p-012 to backend UUIDs in request body
+  let body = init.body;
+  if (typeof body === "string") {
+    body = body.replace(/\b(p-0(0[1-9]|1[0-2]))\b/g, (match) => {
+      const num = parseInt(match.substring(2), 10);
+      return "20000000-0000-0000-0000-" + num.toString().padStart(12, "0");
+    });
+  }
+
+  const response = await fetch(url, { ...init, body, headers });
 
   if (!response.ok) {
     let errorData: { error?: string; message?: string; detail?: string } = {};
@@ -75,7 +107,19 @@ export async function apiFetch<T>(
   }
 
   if (response.status === 204) return undefined as unknown as T;
-  return response.json();
+
+  const data = await response.json();
+  // Map backend UUIDs back to p-001..p-012 in response
+  return mapIds(data, (val) => {
+    if (val.startsWith("20000000-0000-0000-0000-")) {
+      const hex = val.substring(24);
+      const num = parseInt(hex, 10);
+      if (num >= 1 && num <= 12) {
+        return `p-${num.toString().padStart(3, "0")}`;
+      }
+    }
+    return val;
+  });
 }
 
 // ── Auth helpers ─────────────────────────────────────────────────────
@@ -84,9 +128,13 @@ export async function verifyToken(
   apiUrl: string,
   token: string,
 ): Promise<{
-  user_id: string;
-  username: string;
+  id: string;
+  email: string;
+  full_name: string;
+  department?: string;
+  workspace?: string;
   role: string;
+  is_active: boolean;
 } | null> {
   try {
     const res = await fetch(`${apiUrl.replace(/\/+$/, "")}/auth/me`, {
@@ -100,13 +148,11 @@ export async function verifyToken(
 }
 
 export function persistToken(token: string): void {
-  if (typeof window === "undefined") return;
-  localStorage.setItem("hospital_ai_token", token);
+  memoryToken = token;
 }
 
 export function clearToken(): void {
-  if (typeof window === "undefined") return;
-  localStorage.removeItem("hospital_ai_token");
+  memoryToken = null;
 }
 
 export function getStoredApiUrl(): string {

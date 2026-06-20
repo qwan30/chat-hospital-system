@@ -10,7 +10,9 @@ from hospital_ai.api.routes import (
     dashboard,
     documents,
     feedback,
+    graph,
     hms,
+    medication_safety,
     patients,
     rag_trace,
     search,
@@ -39,3 +41,5 @@ api_router.include_router(settings.router, prefix="/settings", tags=["settings"]
 api_router.include_router(dashboard.router, prefix="/dashboard", tags=["dashboard"])
 api_router.include_router(search.router, prefix="/search", tags=["search"])
 api_router.include_router(access_requests.router, prefix="/access-requests", tags=["access-requests"])
+api_router.include_router(graph.router, prefix="/graph", tags=["graph"])
+api_router.include_router(medication_safety.router, prefix="/medication-safety", tags=["medication-safety"])

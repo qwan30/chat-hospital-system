@@ -113,9 +113,6 @@ class PermissionService:
         ip_address: Optional[str] = None,
         metadata: Optional[dict] = None,
     ) -> None:
-        if user.role == "admin":
-            return
-
         accepted: set[str] = set(accepted_scopes)
         if await self.has_patient_scope(
             user_id=user.id,
@@ -123,6 +120,32 @@ class PermissionService:
             accepted_scopes=accepted,
         ):
             return
+
+        # Check if there is an expired permission
+        stmt_expired = select(PatientPermission).where(
+            PatientPermission.user_id == user.id,
+            PatientPermission.patient_id == patient_id,
+            PatientPermission.scope.in_(accepted),
+            PatientPermission.expires_at <= datetime.now(timezone.utc),
+            PatientPermission.deleted_at.is_(None),
+        )
+        result_expired = await self.session.execute(stmt_expired)
+        expired_perms = result_expired.scalars().all()
+        if expired_perms:
+            await AuditService(self.session).record(
+                actor_user_id=user.id,
+                action="access_permission.expired",
+                object_type="patient_permission",
+                object_id=expired_perms[0].id,
+                patient_id=patient_id,
+                outcome="failed",
+                trace_id=trace_id,
+                ip_address=ip_address,
+                metadata={
+                    "expired_at": expired_perms[0].expires_at.isoformat() if expired_perms[0].expires_at else None,
+                    "scope": expired_perms[0].scope,
+                },
+            )
 
         await AuditService(self.session).record(
             actor_user_id=user.id,
@@ -185,9 +208,6 @@ class PermissionService:
             )
             await self.session.commit()
             raise PermissionDeniedError("Only records staff or admins can upload documents.")
-
-        if user.role == "admin":
-            return
 
         await self.require_patient_scope(
             user=user,

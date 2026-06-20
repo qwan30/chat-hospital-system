@@ -132,14 +132,14 @@ async def list_documents(
         stmt = stmt.where(Document.patient_id == patient_id)
     if status is not None:
         stmt = stmt.where(Document.status == status)
-    if current_user.role != "admin":
-        stmt = stmt.where(
-            active_patient_permission_exists(
-                user_id=current_user.id,
-                patient_id=Document.patient_id,
-                accepted_scopes=set(PATIENT_READ_SCOPES) | set(PATIENT_UPLOAD_SCOPES),
-            )
+    # Enforce patient permission check on all roles.
+    stmt = stmt.where(
+        active_patient_permission_exists(
+            user_id=current_user.id,
+            patient_id=Document.patient_id,
+            accepted_scopes=set(PATIENT_READ_SCOPES) | set(PATIENT_UPLOAD_SCOPES),
         )
+    )
     result = await session.execute(stmt.limit(limit))
     documents = list(result.scalars().all())
     await AuditService(session).record(

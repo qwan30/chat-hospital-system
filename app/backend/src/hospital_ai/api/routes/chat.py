@@ -23,7 +23,7 @@ async def chat(
 ) -> ChatResponse:
     return await ChatService(session, settings).answer(
         user=current_user,
-        patient_id=payload.patient_id,
+        patient_id=payload.patient_id or (payload.context.patient_id if payload.context else None),
         question=payload.question,
         top_k=payload.top_k,
         trace_id=new_trace_id(),

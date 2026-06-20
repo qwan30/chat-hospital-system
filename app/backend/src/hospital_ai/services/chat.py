@@ -29,6 +29,7 @@ from hospital_ai.services.chat_utils import (  # noqa: F401
 from hospital_ai.services.drug_check import DrugCheckService, DrugWarning
 from hospital_ai.services.embeddings import EmbeddingService
 from hospital_ai.services.graph_rag import extract_entities, find_related_entities
+from hospital_ai.services.memory import MemoryService
 from hospital_ai.services.metrics import MetricsService, TimingBreakdown
 from hospital_ai.services.permissions import PermissionService
 from hospital_ai.services.reasoning import (
@@ -56,7 +57,7 @@ class ChatService:
         self,
         *,
         user: User,
-        patient_id: UUID,
+        patient_id: Optional[UUID],
         question: str,
         top_k: int,
         trace_id: str,
@@ -75,26 +76,27 @@ class ChatService:
         self.session.add(ai_query)
         await self.session.flush()
 
-        has_scope = await PermissionService(self.session).has_patient_scope(
-            user_id=user.id,
-            patient_id=patient_id,
-            accepted_scopes=PATIENT_READ_SCOPES,
-        )
-        if not has_scope:
-            ai_query.status = "denied"
-            await AuditService(self.session).record(
-                actor_user_id=user.id,
-                action="chat.ask",
-                object_type="ai_query",
-                object_id=ai_query.id,
+        if patient_id:
+            has_scope = await PermissionService(self.session).has_patient_scope(
+                user_id=user.id,
                 patient_id=patient_id,
-                outcome="denied",
-                trace_id=trace_id,
-                ip_address=ip_address,
-                metadata={"reason": "missing_patient_read_scope"},
+                accepted_scopes=PATIENT_READ_SCOPES,
             )
-            await self.session.commit()
-            raise PermissionDeniedError("User is not authorized for this patient.")
+            if not has_scope:
+                ai_query.status = "denied"
+                await AuditService(self.session).record(
+                    actor_user_id=user.id,
+                    action="chat.ask",
+                    object_type="ai_query",
+                    object_id=ai_query.id,
+                    patient_id=patient_id,
+                    outcome="denied",
+                    trace_id=trace_id,
+                    ip_address=ip_address,
+                    metadata={"reason": "missing_patient_read_scope"},
+                )
+                await self.session.commit()
+                raise PermissionDeniedError("User is not authorized for this patient.")
 
         # Gather conversation history if thread is provided
         conversation_history = await self._get_conversation_history(thread_id) if thread_id else []
@@ -109,42 +111,47 @@ class ChatService:
         retrieval_svc = RetrievalService(self.session)
         retrieval_mode = self.settings.retrieval_mode
 
-        if retrieval_mode in ("bm25", "hybrid"):
-            evidence = await retrieval_svc.hybrid_search(
-                user_id=user.id,
-                patient_id=patient_id,
-                query_embedding=query_embedding,
-                query_text=question,
-                top_k=top_k,
-                retrieval_mode=retrieval_mode,
-            )
-        else:
-            evidence = await retrieval_svc.search(
-                user_id=user.id,
-                patient_id=patient_id,
-                query_embedding=query_embedding,
-                top_k=top_k,
-            )
+        evidence = []
+        if patient_id:
+            if retrieval_mode in ("bm25", "hybrid"):
+                evidence = await retrieval_svc.hybrid_search(
+                    user_id=user.id,
+                    patient_id=patient_id,
+                    query_embedding=query_embedding,
+                    query_text=question,
+                    top_k=top_k,
+                    retrieval_mode=retrieval_mode,
+                )
+            else:
+                evidence = await retrieval_svc.search(
+                    user_id=user.id,
+                    patient_id=patient_id,
+                    query_embedding=query_embedding,
+                    top_k=top_k,
+                )
 
         # ── Graph RAG: boost evidence with entity relationships ──────
         try:
-            query_entities = extract_entities(question)
-            if query_entities:
-                entity_names = [e.name for e in query_entities]
-                graph_ctx = await find_related_entities(self.session, entity_names, max_hops=2, patient_id=patient_id)
-                if graph_ctx.related_chunk_ids:
-                    existing_ids = {e.chunk_id for e in evidence}
-                    graph_only_ids = graph_ctx.related_chunk_ids - existing_ids
-                    # Add graph-discovered chunks to evidence (with lower score)
-                    if graph_only_ids:
-                        graph_evidence = await retrieval_svc.get_chunks_by_ids(
-                            list(graph_only_ids)[:top_k],
-                            user_id=user.id,
-                            patient_id=patient_id,
-                        )
-                        for ge in graph_evidence:
-                            ge.metadata["retrieval_method"] = "graph"
-                        evidence.extend(graph_evidence)
+            if patient_id:
+                query_entities = extract_entities(question)
+                if query_entities:
+                    entity_names = [e.name for e in query_entities]
+                    graph_ctx = await find_related_entities(
+                        self.session, entity_names, max_hops=2, patient_id=patient_id
+                    )
+                    if graph_ctx.related_chunk_ids:
+                        existing_ids = {e.chunk_id for e in evidence}
+                        graph_only_ids = graph_ctx.related_chunk_ids - existing_ids
+                        # Add graph-discovered chunks to evidence (with lower score)
+                        if graph_only_ids:
+                            graph_evidence = await retrieval_svc.get_chunks_by_ids(
+                                list(graph_only_ids)[:top_k],
+                                user_id=user.id,
+                                patient_id=patient_id,
+                            )
+                            for ge in graph_evidence:
+                                ge.metadata["retrieval_method"] = "graph"
+                            evidence.extend(graph_evidence)
         except Exception:
             logger.warning("Graph RAG enrichment skipped", exc_info=True)
 
@@ -276,6 +283,16 @@ class ChatService:
             },
         )
         await self.session.commit()
+
+        if thread_id is not None:
+            source_ids = [str(item.document_id) for item in evidence]
+            await MemoryService(self.session, self.settings).update_session_memory(
+                thread_id=thread_id,
+                patient_id=patient_id,
+                new_question=question,
+                new_answer=reasoning_result.answer,
+                source_ids=source_ids,
+            )
 
         # Convert drug warnings to schema
         warning_schemas = [

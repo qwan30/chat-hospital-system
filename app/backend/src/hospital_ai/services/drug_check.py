@@ -80,7 +80,7 @@ class DrugCheckService:
     async def check_interactions(
         self,
         query_text: str,
-        patient_id: uuid.UUID,
+        patient_id: uuid.UUID | None,
         *,
         min_severity: str = "low",
     ) -> list[DrugWarning]:
@@ -90,6 +90,9 @@ class DrugCheckService:
         2. Finds graph relations for those drugs within the patient's documents.
         3. Returns structured warnings sorted by severity.
         """
+        if not patient_id:
+            return []
+
         entities = extract_entities(query_text)
         drug_names = [e.name for e in entities if e.entity_type == "drug"]
 
@@ -187,7 +190,7 @@ class DrugCheckService:
 async def check_drug_interactions_for_query(
     session: AsyncSession,
     query_text: str,
-    patient_id: uuid.UUID,
+    patient_id: uuid.UUID | None,
 ) -> list[DrugWarning]:
     """Convenience function wrapping DrugCheckService."""
     return await DrugCheckService(session).check_interactions(

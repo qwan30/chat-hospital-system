@@ -10,7 +10,7 @@ from __future__ import annotations
 import re
 
 
-def tables_to_markdown(tables: list[list[list[str | None]]]) -> str:
+def tables_to_markdown(tables: list[list[list[str]]] | None) -> str:
     """Convert a list of raw tables to markdown format.
 
     Args:
@@ -32,7 +32,7 @@ def tables_to_markdown(tables: list[list[list[str | None]]]) -> str:
     return "\n\n".join(sections)
 
 
-def _single_table_to_markdown(table: list[list[str | None]]) -> str:
+def _single_table_to_markdown(table: list[list[str]] | None) -> str:
     """Convert a single table to markdown format."""
     if not table:
         return ""
@@ -71,7 +71,7 @@ def _single_table_to_markdown(table: list[list[str | None]]) -> str:
 
 
 def normalize_medical_table(
-    table: list[list[str | None]],
+    table: list[list[str]] | None,
 ) -> list[list[str]]:
     """Normalize a raw table for medical document parsing.
 

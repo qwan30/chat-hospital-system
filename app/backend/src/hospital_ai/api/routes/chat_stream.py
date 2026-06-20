@@ -36,6 +36,7 @@ from hospital_ai.services.chat_utils import (
 from hospital_ai.services.embeddings import EmbeddingService
 from hospital_ai.services.llm import LLMManager
 from hospital_ai.services.llm.base import LLMMessage
+from hospital_ai.services.memory import MemoryService
 from hospital_ai.services.permissions import PermissionService
 from hospital_ai.services.retrieval import RetrievalService
 
@@ -352,6 +353,19 @@ async def _apply_stream_completion(
         },
     )
 
+    if thread_id is not None and completion.validation_status == "passed":
+        from hospital_ai.core.config import get_settings
+
+        settings = get_settings()
+        source_ids = [str(item.document_id) for item in evidence]
+        await MemoryService(session, settings).update_session_memory(
+            thread_id=thread_id,
+            patient_id=patient_id,
+            new_question=question,
+            new_answer=completion.answer,
+            source_ids=source_ids,
+        )
+
 
 async def _persist_stream_completion(
     session_factory: async_sessionmaker[AsyncSession],
@@ -383,10 +397,12 @@ async def chat_stream(
     started = time.perf_counter()
     trace_id = new_trace_id()
 
+    effective_patient_id = payload.patient_id or (payload.context.patient_id if payload.context else None)
+
     # Create AI query record
     ai_query = AiQuery(
         user_id=current_user.id,
-        patient_id=payload.patient_id,
+        patient_id=effective_patient_id,
         question=payload.question,
         status="received",
         model=settings.chat_model if settings.chat_provider == "ollama" else "stub",
@@ -395,11 +411,15 @@ async def chat_stream(
     await session.flush()
 
     # Permission check
-    has_scope = await PermissionService(session).has_patient_scope(
-        user_id=current_user.id,
-        patient_id=payload.patient_id,
-        accepted_scopes=PATIENT_READ_SCOPES,
-    )
+    if effective_patient_id:
+        has_scope = await PermissionService(session).has_patient_scope(
+            user_id=current_user.id,
+            patient_id=effective_patient_id,
+            accepted_scopes=PATIENT_READ_SCOPES,
+        )
+    else:
+        has_scope = True
+
     if not has_scope:
         ai_query.status = "denied"
         await AuditService(session).record(
@@ -407,7 +427,7 @@ async def chat_stream(
             action="chat.stream",
             object_type="ai_query",
             object_id=ai_query.id,
-            patient_id=payload.patient_id,
+            patient_id=effective_patient_id,
             outcome="denied",
             trace_id=trace_id,
             ip_address=get_request_ip(request),
@@ -434,20 +454,28 @@ async def chat_stream(
     retrieval_svc = RetrievalService(session)
     retrieval_mode = settings.retrieval_mode
     if retrieval_mode in ("bm25", "hybrid"):
-        evidence = await retrieval_svc.hybrid_search(
-            user_id=current_user.id,
-            patient_id=payload.patient_id,
-            query_embedding=query_embedding,
-            query_text=payload.question,
-            top_k=payload.top_k,
-            retrieval_mode=retrieval_mode,
+        evidence = (
+            await retrieval_svc.hybrid_search(
+                user_id=current_user.id,
+                patient_id=effective_patient_id,
+                query_embedding=query_embedding,
+                query_text=payload.question,
+                top_k=payload.top_k,
+                retrieval_mode=retrieval_mode,
+            )
+            if effective_patient_id
+            else []
         )
     else:
-        evidence = await retrieval_svc.search(
-            user_id=current_user.id,
-            patient_id=payload.patient_id,
-            query_embedding=query_embedding,
-            top_k=payload.top_k,
+        evidence = (
+            await retrieval_svc.search(
+                user_id=current_user.id,
+                patient_id=effective_patient_id,
+                query_embedding=query_embedding,
+                top_k=payload.top_k,
+            )
+            if effective_patient_id
+            else []
         )
 
     if not evidence or not meets_evidence_threshold(evidence[0], retrieval_mode, settings.evidence_threshold):
@@ -459,14 +487,14 @@ async def chat_stream(
         # otherwise the user sees an answer in the UI that vanishes on
         # reload.  Mirrors the parity contract above.
         if payload.thread_id is not None:
-            scope = "patient-linked" if payload.patient_id is not None else "general"
-            permission_state = "allowed" if payload.patient_id is not None else "not-required"
+            scope = "patient-linked" if effective_patient_id is not None else "general"
+            permission_state = "allowed" if effective_patient_id is not None else "not-required"
             now = datetime.now(timezone.utc)
             session.add(
                 ChatMessage(
                     thread_id=payload.thread_id,
                     sender_user_id=current_user.id,
-                    patient_id=payload.patient_id,
+                    patient_id=effective_patient_id,
                     role="user",
                     scope=scope,
                     content=payload.question,
@@ -481,7 +509,7 @@ async def chat_stream(
                 ChatMessage(
                     thread_id=payload.thread_id,
                     ai_query_id=ai_query.id,
-                    patient_id=payload.patient_id,
+                    patient_id=effective_patient_id,
                     role="assistant",
                     scope=scope,
                     content=SAFE_NO_EVIDENCE_ANSWER,
@@ -501,7 +529,7 @@ async def chat_stream(
             action="chat.stream",
             object_type="ai_query",
             object_id=ai_query.id,
-            patient_id=payload.patient_id,
+            patient_id=effective_patient_id,
             outcome="allowed",
             trace_id=trace_id,
             ip_address=get_request_ip(request),
@@ -527,7 +555,7 @@ async def chat_stream(
     # request-bound `session` may be closed by the time streaming finishes.
     session_factory = get_session_factory()
     captured_user_id = current_user.id
-    captured_patient_id = payload.patient_id
+    captured_patient_id = effective_patient_id
     captured_thread_id = payload.thread_id
     captured_query_id = ai_query.id
     captured_question = payload.question

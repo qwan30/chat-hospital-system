@@ -19,12 +19,12 @@ class OcrService:
     def extract_pages(
         self, *, storage_uri: str, mime_type: str, patient_id: str, document_id: str, storage_service
     ) -> list[OcrPage]:
-        import fitz  # PyMuPDF
-
         path = Path(storage_uri)
         if mime_type in self.TEXT_MIME_TYPES or path.suffix.lower() in {".txt", ".md"}:
             text = path.read_text(encoding="utf-8")
             return [OcrPage(page_number=1, text=text, confidence=1.0)]
+
+        import fitz  # PyMuPDF
 
         # If it's a PDF or image, we render images first.
         doc = fitz.open(str(path))

@@ -7,8 +7,8 @@ from typing import Any
 from sqlalchemy import and_, bindparam, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from hospital_ai.core.security import PATIENT_READ_SCOPES
-from hospital_ai.db.models import Document, DocumentChunk, DocumentPage
+from hospital_ai.core.security import PATIENT_READ_SCOPES, ROLE_PERMISSIONS
+from hospital_ai.db.models import Document, DocumentChunk, DocumentPage, User
 from hospital_ai.services.permissions import (
     ACTIVE_PATIENT_PERMISSION_SQL,
     active_patient_permission_exists,
@@ -61,6 +61,40 @@ class RetrievedChunk:
 class RetrievalService:
     def __init__(self, session: AsyncSession) -> None:
         self.session = session
+        self.blocked_chunk_count = 0
+
+    async def _apply_role_filters(self, chunks: list[RetrievedChunk], user_id: uuid.UUID) -> list[RetrievedChunk]:
+        if not chunks:
+            return chunks
+
+        user = await self.session.get(User, user_id)
+        if not user:
+            return chunks
+
+        role_perms = ROLE_PERMISSIONS.get(user.role, {})
+        can_access_full_notes = role_perms.get("can_access_full_notes", True)
+        if can_access_full_notes:
+            return chunks
+
+        allowed_scopes = role_perms.get("allowed_scopes", set())
+
+        doc_ids = list({c.document_id for c in chunks})
+        result = await self.session.execute(select(Document.id, Document.document_type).where(Document.id.in_(doc_ids)))
+        doc_types = {row.id: row.document_type for row in result.all()}
+
+        allowed_chunks = []
+        for c in chunks:
+            doc_type = doc_types.get(c.document_id)
+            chunk_tags = set(c.metadata.get("access_tags", []))
+
+            if chunk_tags and chunk_tags.intersection(allowed_scopes):
+                allowed_chunks.append(c)
+            elif doc_type in allowed_scopes:
+                allowed_chunks.append(c)
+            else:
+                self.blocked_chunk_count += 1
+
+        return allowed_chunks
 
     async def search(
         self,
@@ -72,18 +106,20 @@ class RetrievalService:
     ) -> list[RetrievedChunk]:
         bind = self.session.get_bind()
         if bind.dialect.name == "postgresql":
-            return await self._search_postgres(
+            chunks = await self._search_postgres(
                 user_id=user_id,
                 patient_id=patient_id,
                 query_embedding=query_embedding,
                 top_k=top_k,
             )
-        return await self._search_portable(
-            user_id=user_id,
-            patient_id=patient_id,
-            query_embedding=query_embedding,
-            top_k=top_k,
-        )
+        else:
+            chunks = await self._search_portable(
+                user_id=user_id,
+                patient_id=patient_id,
+                query_embedding=query_embedding,
+                top_k=top_k,
+            )
+        return await self._apply_role_filters(chunks, user_id)
 
     async def hybrid_search(
         self,
@@ -212,7 +248,7 @@ class RetrievalService:
                     metadata=row[3] if row[3] else {},
                 )
             )
-        return chunks
+        return await self._apply_role_filters(chunks, user_id)
 
     async def _bm25_search(
         self,
@@ -225,18 +261,20 @@ class RetrievalService:
         """BM25 full-text search using tsvector (PostgreSQL) or Python fallback."""
         bind = self.session.get_bind()
         if bind.dialect.name == "postgresql":
-            return await self._bm25_search_postgres(
+            chunks = await self._bm25_search_postgres(
                 user_id=user_id,
                 patient_id=patient_id,
                 query_text=query_text,
                 top_k=top_k,
             )
-        return await self._bm25_search_portable(
-            user_id=user_id,
-            patient_id=patient_id,
-            query_text=query_text,
-            top_k=top_k,
-        )
+        else:
+            chunks = await self._bm25_search_portable(
+                user_id=user_id,
+                patient_id=patient_id,
+                query_text=query_text,
+                top_k=top_k,
+            )
+        return await self._apply_role_filters(chunks, user_id)
 
     async def _bm25_search_postgres(
         self,

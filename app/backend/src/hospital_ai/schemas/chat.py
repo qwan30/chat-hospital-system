@@ -1,17 +1,30 @@
 from typing import Optional
 from uuid import UUID
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, root_validator
 
 from hospital_ai.schemas.documents import EvidenceRead
 
 
+class ChatContext(BaseModel):
+    patient_id: Optional[UUID] = None
+    document_ids: Optional[list[UUID]] = None
+
+
 class ChatRequest(BaseModel):
-    patient_id: UUID
+    patient_id: Optional[UUID] = None
     question: str = Field(min_length=1, max_length=4000)
+    context: Optional[ChatContext] = None
     top_k: int = Field(default=5, ge=1, le=20)
     thread_id: Optional[UUID] = None
     pipeline: str = Field(default="auto", description="Reasoning pipeline: auto, simple, decompose, patient_summary")
+    mode: Optional[str] = None
+
+    @root_validator(pre=True)
+    def map_message_to_question(cls, values):
+        if "message" in values and "question" not in values:
+            values["question"] = values["message"]
+        return values
 
 
 class DrugWarningSchema(BaseModel):
@@ -34,6 +47,8 @@ class ChatResponse(BaseModel):
     thread_id: Optional[UUID] = None
     pipeline: Optional[str] = None
     warnings: list[DrugWarningSchema] = []
+    safety_status: Optional[str] = None
+    mode: Optional[str] = None
 
 
 class RagTraceEvidence(BaseModel):

@@ -11,7 +11,7 @@ class Settings(BaseSettings):
     redis_url: str = "redis://localhost:6379/0"
     storage_root: Path = Path(".local_storage")
     worker_inline: bool = False
-    cors_origins: str = "http://localhost:3000,http://127.0.0.1:3000,http://localhost:3001,http://127.0.0.1:3001"
+    cors_origins: str = "http://localhost:3000,http://127.0.0.1:3000,http://localhost:3001,http://127.0.0.1:3001,http://localhost:8082,http://127.0.0.1:8082"
     dev_auto_grant_access: bool = False
     enable_break_glass: bool = False
     demo_mode: bool = True

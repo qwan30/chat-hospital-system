@@ -14,6 +14,7 @@ ADMIN_ID = uuid.UUID("10000000-0000-0000-0000-000000000004")
 
 PATIENT_ALICE_ID = uuid.UUID("20000000-0000-0000-0000-000000000001")
 PATIENT_BOB_ID = uuid.UUID("20000000-0000-0000-0000-000000000002")
+PATIENT_ELEANOR_ID = uuid.UUID("20000000-0000-0000-0000-000000000003")
 
 
 async def seed_synthetic_data(session: AsyncSession) -> None:
@@ -62,6 +63,13 @@ async def seed_synthetic_data(session: AsyncSession) -> None:
             dob=date(1969, 9, 9),
             department="Cardiology",
         ),
+        Patient(
+            id=PATIENT_ELEANOR_ID,
+            mrn="MRN-0003",
+            full_name="Eleanor Vance",
+            dob=date(1951, 3, 14),
+            department="Cardiology",
+        ),
     ]
     permissions = [
         PatientPermission(user_id=DOCTOR_ID, patient_id=PATIENT_ALICE_ID, scope="read"),
@@ -69,6 +77,11 @@ async def seed_synthetic_data(session: AsyncSession) -> None:
         PatientPermission(user_id=DOCTOR_ID, patient_id=PATIENT_ALICE_ID, scope="medication"),
         PatientPermission(user_id=RECORDS_ID, patient_id=PATIENT_ALICE_ID, scope="upload"),
         PatientPermission(user_id=ADMIN_ID, patient_id=PATIENT_ALICE_ID, scope="admin"),
+        PatientPermission(user_id=DOCTOR_ID, patient_id=PATIENT_ELEANOR_ID, scope="read"),
+        PatientPermission(user_id=DOCTOR_ID, patient_id=PATIENT_ELEANOR_ID, scope="summary"),
+        PatientPermission(user_id=DOCTOR_ID, patient_id=PATIENT_ELEANOR_ID, scope="medication"),
+        PatientPermission(user_id=RECORDS_ID, patient_id=PATIENT_ELEANOR_ID, scope="upload"),
+        PatientPermission(user_id=ADMIN_ID, patient_id=PATIENT_ELEANOR_ID, scope="admin"),
     ]
 
     await _add_missing_by_id(session, User, users)

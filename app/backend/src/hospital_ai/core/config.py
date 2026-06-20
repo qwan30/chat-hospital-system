@@ -12,6 +12,9 @@ class Settings(BaseSettings):
     storage_root: Path = Path(".local_storage")
     worker_inline: bool = False
     cors_origins: str = "http://localhost:3000,http://127.0.0.1:3000,http://localhost:3001,http://127.0.0.1:3001"
+    dev_auto_grant_access: bool = False
+    enable_break_glass: bool = False
+    demo_mode: bool = True
 
     # Default tokens are convenience shortcuts for `environment == "local"` only.
     # `token_user_map` refuses to surface them in any other environment unless

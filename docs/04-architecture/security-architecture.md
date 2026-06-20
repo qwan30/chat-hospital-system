@@ -14,7 +14,7 @@
 The AI Copilot does not maintain a separate user registry or credential store. It relies entirely on the **HMS Auth Server** as the single source of identity truth:
 
 ```
-[Next.js Web UI] ──(Bear token: HMS JWT)──> [AI Assistant BFF] ──(Validate token key)──> [HMS Core APIs]
+[TanStack Start Web UI] ──(Bear token: HMS JWT)──> [AI Assistant BFF] ──(Validate token key)──> [HMS Core APIs]
 ```
 
 *   **Token Format**: The UI sends standard OIDC Bearer tokens in the header:

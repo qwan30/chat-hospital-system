@@ -55,7 +55,7 @@ For development, testing, and system demonstrations on standard laptops with a 1
 | **RQ Worker** | Single worker thread | Avoid high concurrency; process OCR jobs sequentially. |
 | **PyMuPDF / OCR** | CPU mode | PyMuPDF for text extraction; optional PaddleOCR for scanned documents (~10-15s per page on CPU). |
 | **Ollama LLM** | Qwen2.5 3B/7B Q4 Quantized | Q4 quantization reduces model footprint to 2.2GB/4.5GB. Avoid models >7B. OpenAI-compatible providers also supported via LLM Manager. |
-| **Next.js Frontend**| Local dev server | Disable heavy compiler source mapping. |
+| **TanStack Start Frontend**| Local dev server | Disable heavy compiler source mapping. |
 
 ---
 

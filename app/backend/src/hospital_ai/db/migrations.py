@@ -11,6 +11,8 @@ DOCTOR_ID = uuid.UUID("10000000-0000-0000-0000-000000000001")
 RECORDS_ID = uuid.UUID("10000000-0000-0000-0000-000000000002")
 SECURITY_ID = uuid.UUID("10000000-0000-0000-0000-000000000003")
 ADMIN_ID = uuid.UUID("10000000-0000-0000-0000-000000000004")
+NURSE_ID = uuid.UUID("10000000-0000-0000-0000-000000000005")
+PHARMACIST_ID = uuid.UUID("10000000-0000-0000-0000-000000000006")
 
 PATIENT_ALICE_ID = uuid.UUID("20000000-0000-0000-0000-000000000001")
 PATIENT_BOB_ID = uuid.UUID("20000000-0000-0000-0000-000000000002")
@@ -47,6 +49,20 @@ async def seed_synthetic_data(session: AsyncSession) -> None:
             department="IT",
             role="admin",
         ),
+        User(
+            id=NURSE_ID,
+            email="nurse@example.test",
+            full_name="RN Jamie Owens",
+            department="Internal Medicine",
+            role="nurse",
+        ),
+        User(
+            id=PHARMACIST_ID,
+            email="pharmacist@example.test",
+            full_name="Pharm. Riya Patel",
+            department="Pharmacy",
+            role="pharmacist",
+        ),
     ]
     patients = [
         Patient(
@@ -82,6 +98,14 @@ async def seed_synthetic_data(session: AsyncSession) -> None:
         PatientPermission(user_id=DOCTOR_ID, patient_id=PATIENT_ELEANOR_ID, scope="medication"),
         PatientPermission(user_id=RECORDS_ID, patient_id=PATIENT_ELEANOR_ID, scope="upload"),
         PatientPermission(user_id=ADMIN_ID, patient_id=PATIENT_ELEANOR_ID, scope="admin"),
+        PatientPermission(user_id=NURSE_ID, patient_id=PATIENT_ALICE_ID, scope="read"),
+        PatientPermission(user_id=NURSE_ID, patient_id=PATIENT_ALICE_ID, scope="summary"),
+        PatientPermission(user_id=NURSE_ID, patient_id=PATIENT_ELEANOR_ID, scope="read"),
+        PatientPermission(user_id=NURSE_ID, patient_id=PATIENT_ELEANOR_ID, scope="summary"),
+        PatientPermission(user_id=PHARMACIST_ID, patient_id=PATIENT_ALICE_ID, scope="read"),
+        PatientPermission(user_id=PHARMACIST_ID, patient_id=PATIENT_ALICE_ID, scope="medication"),
+        PatientPermission(user_id=PHARMACIST_ID, patient_id=PATIENT_ELEANOR_ID, scope="read"),
+        PatientPermission(user_id=PHARMACIST_ID, patient_id=PATIENT_ELEANOR_ID, scope="medication"),
     ]
 
     await _add_missing_by_id(session, User, users)

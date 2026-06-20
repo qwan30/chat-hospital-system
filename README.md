@@ -580,7 +580,7 @@ Configurations in [`infra/observability/`](infra/observability/) — Prometheus 
 
 | Section | Content | Primary Doc |
 |---------|---------|-------------|
-| **00-overview** | Project foundation, conventions, governance | [`project-foundation.md`](docs/00-overview/project-foundation.md) |
+| **00-overview** | Project foundation, live source snapshot, governance | [`current-source-status.md`](docs/00-overview/current-source-status.md) |
 | **01-business** | Business rules, BR-001–BR-007, glossary, scope | [`business-rules.md`](docs/01-business/business-rules.md) |
 | **02-product** | PRD, personas, MVP criteria | [`prd.md`](docs/02-product/prd.md) |
 | **03-requirements** | SRS (24 FRs + 22 NFRs), use cases UC-001–UC-009, permissions | [`srs.md`](docs/03-requirements/srs.md) |

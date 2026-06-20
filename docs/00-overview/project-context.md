@@ -16,7 +16,7 @@
 | Project Name | AI-Powered Hospital Knowledge Assistant |
 | Project Code | HOSP-AI-001 |
 | Repository | chatbot-hospital-system |
-| Type | Web Application (Next.js 16 + FastAPI) |
+| Type | Web Application (TanStack Start + FastAPI) |
 | Domain | Healthcare — Clinical Decision Support |
 | Compliance | HIPAA (audit trail, local PHI processing) |
 | Timeline | Sprint 0 → MVP Build → System Test → UAT → Pilot |
@@ -57,7 +57,7 @@ Hospitals using EMR/HMS systems face significant time penalties when clinicians 
 ## 4. Architecture Summary
 
 ```
-Next.js 16 Frontend (App Router)
+TanStack Start Frontend (App Router)
         ↓ REST /api/v1
 FastAPI BFF (14 route modules)
         ↓

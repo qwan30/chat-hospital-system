@@ -309,7 +309,7 @@ td code{font-size:12px}
       <div class="hero-mockup-body">
         <strong style="color:var(--ink)">FastAPI Backend</strong><br>
         <span style="font-size:12px">14 route modules · LLM Manager · RAG Pipeline · RQ Workers</span><br><br>
-        <strong style="color:var(--ink)">Next.js 16 Frontend</strong><br>
+        <strong style="color:var(--ink)">TanStack Start Frontend</strong><br>
         <span style="font-size:12px">25+ pages · 30+ shadcn/ui components · React 19</span><br><br>
         <strong style="color:var(--ink)">PostgreSQL + pgvector</strong><br>
         <span style="font-size:12px">Vector embeddings (1024-dim) · 13 tables · 6 Alembic migrations</span><br><br>
@@ -411,7 +411,7 @@ td code{font-size:12px}
         <table>
           <thead><tr><th>Layer</th><th>Technology</th><th>Responsibility</th></tr></thead>
           <tbody>
-            <tr><td>Web UI</td><td>Next.js 16 + React 19</td><td>Chat, patient snapshots, document dashboards, metrics</td></tr>
+            <tr><td>Web UI</td><td>TanStack Start + React 19</td><td>Chat, patient snapshots, document dashboards, metrics</td></tr>
             <tr><td>API Backend (BFF)</td><td>FastAPI (Python)</td><td>Request validation, route queries, policy checks, auth bridge</td></tr>
             <tr><td>HMS System</td><td>Spring Boot API</td><td>External system of record — clinical data, logins, appointments</td></tr>
             <tr><td>Worker Queue</td><td>RQ (Redis Queue)</td><td>Async OCR processing, document indexing, HMS sync</td></tr>
@@ -435,7 +435,7 @@ td code{font-size:12px}
 graph TB
     U[👨‍⚕️ Clinician] --> N[Nginx :80]
     N -->|"/api/*"| BE[FastAPI Backend]
-    N -->|"/"| FE[Next.js Frontend]
+    N -->|"/"| FE[TanStack Start Frontend]
     FE --> BE
     BE --> PG[(PostgreSQL + pgvector)]
     BE --> RD[(Redis 7)]
@@ -569,7 +569,7 @@ graph TB
       <div class="accordion-body"><div class="accordion-content">
         <p><strong>Documents:</strong> deployment-guide.md, ci-cd.md, release-checklist.md, rollback-plan.md</p>
         <p><strong>Environments:</strong> Local Lite (16GB PC) → Dev → QA → UAT → Production (Hospital Intranet)</p>
-        <p><strong>Local Lite Stack (16GB RAM):</strong> FastAPI BFF (&lt;100MB), PostgreSQL (512MB buffers), Redis (no AOF), RQ Worker (single thread), PyMuPDF OCR (CPU), Ollama Qwen2.5 3B/7B Q4 (2.2–4.5GB), Next.js dev server.</p>
+        <p><strong>Local Lite Stack (16GB RAM):</strong> FastAPI BFF (&lt;100MB), PostgreSQL (512MB buffers), Redis (no AOF), RQ Worker (single thread), PyMuPDF OCR (CPU), Ollama Qwen2.5 3B/7B Q4 (2.2–4.5GB), TanStack Start dev server.</p>
         <p style="margin-top:12px"><strong>Release Milestones:</strong> Sprint 0 → MVP Build → System Test → UAT → Demo Release → Pilot.</p>
         <p><strong>Alert Thresholds:</strong> API 5xx >2%/5min, Chat P95 >5s, LLM avg >20s, OCR queue >30min stale, RAG no-evidence >30%.</p>
       </div></div>
@@ -601,7 +601,7 @@ graph TB
       </button>
       <div class="accordion-body"><div class="accordion-content">
         <p><strong>Documents:</strong> project-summary.md, final-deliverables.md</p>
-        <p><strong>Final Deliverables:</strong> Complete documentation pack (12 domains), working application codebase (FastAPI + Next.js), 25+ screen designs, test plans with RTM, deployment configuration, operations runbook.</p>
+        <p><strong>Final Deliverables:</strong> Complete documentation pack (12 domains), working application codebase (FastAPI + TanStack Start), 25+ screen designs, test plans with RTM, deployment configuration, operations runbook.</p>
         <p><strong>Project:</strong> HOSP-AI-001 · chatbot-hospital-system · 3,274 symbols · 6,683 edges · 216 execution flows (CodeGraph + GitNexus).</p>
       </div></div>
     </div>
@@ -620,7 +620,7 @@ graph TB
     <div class="arch-diagram">
       <h4 style="margin-bottom:16px">Data Flow</h4>
       <div class="arch-flow">
-        <div class="arch-box accent">Next.js UI</div>
+        <div class="arch-box accent">TanStack Start UI</div>
         <span class="arch-arrow">→</span>
         <div class="arch-box">FastAPI BFF</div>
         <span class="arch-arrow">→</span>
@@ -687,7 +687,7 @@ graph TB
   <div class="container">
     <div class="section-header">
       <h2>Frontend Architecture</h2>
-      <p>Next.js 16 App Router with 14 pages, 30+ shadcn/ui components, and modern SaaS aesthetic.</p>
+      <p>TanStack Start App Router with 14 pages, 30+ shadcn/ui components, and modern SaaS aesthetic.</p>
     </div>
     <div class="card-grid">
       <div class="feature-card">
@@ -712,7 +712,7 @@ graph TB
       <table style="margin-top:8px">
         <thead><tr><th>Category</th><th>Package</th><th>Version</th></tr></thead>
         <tbody>
-          <tr><td>Framework</td><td>Next.js</td><td>16.2</td></tr>
+          <tr><td>Framework</td><td>TanStack Start</td><td>16.2</td></tr>
           <tr><td>UI Library</td><td>React</td><td>19.2</td></tr>
           <tr><td>Styling</td><td>Tailwind CSS</td><td>4.2</td></tr>
           <tr><td>Components</td><td>Radix UI + shadcn/ui</td><td>shadcn 4.5</td></tr>
@@ -859,7 +859,7 @@ graph TB
       </div>
       <div class="footer-col">
         <h5>Application</h5>
-        <a href="#frontend">Frontend (Next.js 16)</a>
+        <a href="#frontend">Frontend (TanStack Start)</a>
         <a href="#api">Backend (FastAPI)</a>
         <a href="#database">Database (PostgreSQL)</a>
         <a href="#operations">Operations</a>

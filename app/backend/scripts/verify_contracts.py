@@ -110,6 +110,7 @@ def verify():
     # Known gaps tracked as TODOs — warn but don't block CI
     KNOWN_MISMATCHES = {
         "/auth/token",  # TODO: backend needs JWT token endpoint (currently uses static tokens)
+        "/api",          # Vite dev proxy prefix — frontend uses /api as base URL, Vite rewrites to /api/v1
     }
 
     errors = 0

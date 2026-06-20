@@ -1,0 +1,15 @@
+# Bulk Patient Import Template
+# ---------------------------
+# Columns: mrn (required, unique), full_name (required), dob, department, status
+# UUID is auto-generated: 20000000-0000-0000-0000-NNNNNNNNNNNN
+# Existing MRNs: MRN-0001 through MRN-0005 (DO NOT reuse)
+# Start new MRNs from MRN-0006
+# Encoding: UTF-8 with BOM
+# Date format: YYYY-MM-DD
+# Status: active, discharged, deceased (default: active)
+# Department examples: Nội Tim Mạch, Nội Tổng Quát, Ngoại Thần Kinh, Sản, Nhi, Hồi Sức Cấp Cứu, Ung Bướu, Chấn Thương Chỉnh Hình
+
+mrn,full_name,dob,department,status
+MRN-0006,Nguyễn Văn An,1985-03-15,Nội Tim Mạch,active
+MRN-0007,Trần Thị Bình,1992-07-22,Sản,active
+MRN-0008,Lê Hoàng Cường,1978-11-08,Ngoại Thần Kinh,active

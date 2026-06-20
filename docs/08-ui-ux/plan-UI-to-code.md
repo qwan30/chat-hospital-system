@@ -1,7 +1,7 @@
 # Plan: Figma-to-Code — React + shadcnUI Frontend Implementation
 
 > **Source**: `master-figma-execution-plan.md` + `master-figma-task-breakdown.md`  
-> **Target**: Convert all 25 Figma screens into a working Next.js + React + shadcnUI frontend  
+> **Target**: Convert all 25 Figma screens into a working TanStack Start + React + shadcnUI frontend
 > **Generated**: 2026-06-10  
 > **Complexity**: EXTRA LARGE (25 screens, ~90 components, design system, API integration)  
 > **Status**: APPROVED — Ready for Execution  
@@ -10,7 +10,7 @@
 
 ## 1. Summary
 
-The Figma design system is complete: 25 screens, ~90 components, and a full token set (colors, typography, spacing, effects). This plan covers converting every screen and component into production React code using Next.js 16 App Router, shadcnUI, Tailwind CSS v4, Recharts, react-hook-form + zod, and the existing backend API. The plan respects the existing project patterns (API client, auth context, app shell layout) and the architectural rule that the frontend is a BFF consumer — no direct HMS DB access.
+The Figma design system is complete: 25 screens, ~90 components, and a full token set (colors, typography, spacing, effects). This plan covers converting every screen and component into production React code using TanStack Start App Router, shadcnUI, Tailwind CSS v4, Recharts, react-hook-form + zod, and the existing backend API. The plan respects the existing project patterns (API client, auth context, app shell layout) and the architectural rule that the frontend is a BFF consumer — no direct HMS DB access.
 
 ---
 
@@ -34,7 +34,7 @@ The Figma design system is complete: 25 screens, ~90 components, and a full toke
 
 | Concern | Library | Purpose |
 |---------|---------|---------|
-| Framework | Next.js 16 (App Router) | Routing, SSR, layouts |
+| Framework | TanStack Start (App Router) | Routing, SSR, layouts |
 | UI primitives | shadcnUI + Radix UI | Accessible, composable components |
 | Styling | Tailwind CSS v4 | Utility-first, design-token mapping |
 | Icons | Lucide React | 1,000+ consistent icons |
@@ -411,7 +411,7 @@ app/frontend/
 
 ### PHASE 0: Project Scaffold & Foundation (Est. 3 hours)
 
-**Goal**: Re-establish the Next.js project with all dependencies, shadcnUI init, and design token setup.
+**Goal**: Re-establish the TanStack Start project with all dependencies, shadcnUI init, and design token setup.
 
 | # | Task | Est. | Validate |
 |---|------|------|----------|
@@ -865,7 +865,7 @@ Build these in order to validate the entire pipeline:
 
 ## 14. Acceptance Criteria
 
-- [ ] **All 25 screens** built as Next.js pages with correct routes
+- [ ] **All 25 screens** built as TanStack Start pages with correct routes
 - [ ] **All ~80 domain components** created using shadcnUI primitives
 - [ ] **All design tokens** mapped to Tailwind CSS custom properties (no hardcoded colors)
 - [ ] **All 18 shadcnUI base components** initialized and available

@@ -11,6 +11,7 @@ import type { Role } from "@/lib/rbac";
 import { mockUsers, type MockUser } from "@/data/mockUsers";
 import { getWorkspace, type Workspace } from "@/data/workspaces";
 import { useAuth } from "@/lib/auth-context";
+import { persistToken, clearToken } from "@/lib/api-client";
 
 const STORAGE_KEY = "hms.session";
 
@@ -47,13 +48,31 @@ function buildSession(
       ? workspaceId
       : user.defaultWorkspaceId;
   const workspace = getWorkspace(wsId)!;
-  return { user, role, workspace, isRealAuth, token };
+
+  let assignedToken = token;
+  if (!isRealAuth && !assignedToken) {
+    if (role === "admin") assignedToken = "dev-admin";
+    else if (role === "pharmacist") assignedToken = "dev-pharmacist";
+    else if (role === "rn") assignedToken = "dev-nurse";
+    else if (role === "front_desk") assignedToken = "dev-records"; // Fallback to records
+    else assignedToken = "dev-doctor";
+  }
+
+  return { user, role, workspace, isRealAuth, token: assignedToken };
 }
 
 export function SessionProvider({ children }: { children: ReactNode }) {
   const { authUser, token, hydrated: authHydrated } = useAuth();
   const [session, setSession] = useState<Session | null>(null);
   const [hydrated, setHydrated] = useState(false);
+
+  useEffect(() => {
+    if (session?.token) {
+      persistToken(session.token);
+    } else {
+      clearToken();
+    }
+  }, [session]);
 
   // Sync with AuthProvider: if JWT user exists, map role to our Role type.
   // Otherwise fall back to localStorage mock session.

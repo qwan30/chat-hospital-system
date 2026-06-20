@@ -31,7 +31,7 @@
 
 | Category | Technology | Version |
 |----------|-----------|---------|
-| Framework | Next.js (App Router) | 16.2 |
+| Framework | TanStack Start (App Router) | 16.2 |
 | UI Library | React | 19.2 |
 | Language | TypeScript | 6.0 |
 | Styling | Tailwind CSS | 4.2 |

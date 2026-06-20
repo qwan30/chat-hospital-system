@@ -42,6 +42,7 @@ ROLE_PERMISSIONS = {
         "can_access_full_notes": True,
     },
     "nurse": {"allowed_scopes": {"hospital_guidelines", "care_plan", "read"}, "can_access_full_notes": False},
+    "rn": {"allowed_scopes": {"hospital_guidelines", "care_plan", "read"}, "can_access_full_notes": False},
     "admin": {
         "allowed_scopes": {"audit", "system_config", "access_request_metadata"},
         "can_access_full_notes": False,  # Must not access PHI by default
@@ -57,6 +58,14 @@ ROLE_PERMISSIONS = {
     "hospitalist": {
         "allowed_scopes": {"read", "summary", "medication", "labs", "imaging", "diagnoses", "care_plan"},
         "can_access_full_notes": True,
+    },
+    "records_staff": {
+        "allowed_scopes": {"upload"},
+        "can_access_full_notes": False,
+    },
+    "security": {
+        "allowed_scopes": {"audit_logs"},
+        "can_access_full_notes": False,
     },
 }
 

@@ -216,7 +216,7 @@ class HmsApiClient:
 
     async def health_check(self) -> bool:
         try:
-            async with httpx.AsyncClient(timeout=5) as client:
+            async with httpx.AsyncClient(timeout=1.5) as client:
                 response = await client.get(f"{self.base_url}/ai/health")
                 return response.status_code == 200
         except httpx.HTTPError:

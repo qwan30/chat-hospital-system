@@ -4,7 +4,7 @@
 > Purpose: one practical design-system contract for fixing the current React/shadcnUI frontend based on the latest screenshots and existing project docs.  
 > Version: **2.1 — UI Fix Contract**  
 > Scope: login, app shell, sidebar/topbar, user dropdown, patients, chat, documents, dashboard error/empty states.  
-> Primary implementation stack: **React / Next.js, shadcnUI, Radix UI, Tailwind CSS, Lucide React**.
+> Primary implementation stack: **React / TanStack Start, shadcnUI, Radix UI, Tailwind CSS, Lucide React**.
 
 ---
 

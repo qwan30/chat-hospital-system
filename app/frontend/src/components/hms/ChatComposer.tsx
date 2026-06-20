@@ -66,18 +66,20 @@ export function ChatComposer({
             variant="ghost"
             size="icon"
             className="h-6 w-6 rounded-full"
+            aria-label={`Remove attached file ${attachedFile.name}`}
             onClick={() => {
               setAttachedFile(null);
               if (fileInputRef.current) fileInputRef.current.value = "";
             }}
           >
-            <X className="h-3 w-3" />
+            <X className="h-3 w-3" aria-hidden="true" />
           </Button>
         </div>
       )}
 
       <Textarea
         value={text}
+        aria-label="Message input"
         onChange={(e) => setText(e.target.value)}
         onKeyDown={(e) => {
           if (e.key === "Enter" && !e.shiftKey) submit(e);
@@ -99,6 +101,7 @@ export function ChatComposer({
                 type="file"
                 ref={fileInputRef}
                 className="hidden"
+                aria-label="File upload input"
                 onChange={handleFileChange}
                 accept=".txt,.pdf,.md,.csv,.json"
               />
@@ -108,9 +111,10 @@ export function ChatComposer({
                 size="sm"
                 className="h-8 px-2"
                 disabled={disabled}
+                aria-label="Attach file"
                 onClick={() => fileInputRef.current?.click()}
               >
-                <Paperclip className="h-4 w-4" />
+                <Paperclip className="h-4 w-4" aria-hidden="true" />
               </Button>
             </>
           )}

@@ -7,6 +7,7 @@ Works with OpenAI API, Azure OpenAI, and any OpenAI-compatible endpoint
 from __future__ import annotations
 
 from collections.abc import AsyncIterator
+from typing import Optional
 
 import httpx
 
@@ -49,7 +50,7 @@ class OpenAILLM(BaseLLM):
         messages: list[LLMMessage],
         *,
         temperature: float = 0.0,
-        max_tokens: int | None = None,
+        max_tokens: Optional[int] = None,
     ) -> LLMResponse:
         url = f"{self._base_url}/chat/completions"
         payload = self._build_payload(messages, temperature, max_tokens, stream=False)
@@ -77,7 +78,7 @@ class OpenAILLM(BaseLLM):
         messages: list[LLMMessage],
         *,
         temperature: float = 0.0,
-        max_tokens: int | None = None,
+        max_tokens: Optional[int] = None,
     ) -> AsyncIterator[str]:
         url = f"{self._base_url}/chat/completions"
         payload = self._build_payload(messages, temperature, max_tokens, stream=True)
@@ -109,7 +110,7 @@ class OpenAILLM(BaseLLM):
         self,
         messages: list[LLMMessage],
         temperature: float,
-        max_tokens: int | None,
+        max_tokens: Optional[int],
         stream: bool,
     ) -> dict:
         payload: dict = {

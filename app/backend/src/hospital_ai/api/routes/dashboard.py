@@ -80,20 +80,18 @@ async def get_dashboard_summary(
     cost_saved_usd = round(metrics_summary.total_cost_saved, 2)
     metrics = {"hours_saved": hours_saved, "cost_saved_usd": cost_saved_usd}
 
-    # 4. Systems health status
-    # Check HMS
+    # 4. Systems health status (non-blocking, fast-fail)
     hms_client = HmsApiClient(settings)
     hms_healthy = await hms_client.health_check()
     hms_api = "healthy" if hms_healthy else "unreachable"
 
-    # Check Ollama
     ollama_healthy = False
     try:
-        async with httpx.AsyncClient(timeout=2) as client:
+        async with httpx.AsyncClient(timeout=1.5) as client:
             res = await client.get(settings.ollama_base_url.rstrip("/"))
             ollama_healthy = res.status_code in (200, 404)
     except Exception:
-        logger.warning("Ollama health check failed", exc_info=True)
+        pass  # Ollama not running is normal in dev
     ollama_inference = "healthy" if ollama_healthy else "unreachable"
 
     systems_health = {"hms_api": hms_api, "ollama_inference": ollama_inference}

@@ -21,6 +21,7 @@ from __future__ import annotations
 import re
 import uuid
 from dataclasses import dataclass
+from typing import Optional
 
 from sqlalchemy import Float, ForeignKey, String, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -87,12 +88,13 @@ class GraphContext:
 
 # ── Entity extraction (heuristic) ────────────────────────────────────────
 
-# Patterns for common medical entities
+# Patterns for common medical entities (English + Vietnamese)
 DRUG_PATTERN = re.compile(
     r"\b(aspirin|metformin|lisinopril|amlodipine|atorvastatin|omeprazole|"
     r"amoxicillin|vancomycin|ciprofloxacin|warfarin|heparin|insulin|"
     r"ibuprofen|acetaminophen|prednisone|hydrochlorothiazide|"
-    r"gabapentin|sertraline|fluoxetine|clopidogrel)\b",
+    r"gabapentin|sertraline|fluoxetine|clopidogrel|losartan|"
+    r"pantoprazole|paracetamol|apixaban|metoprolol)\b",
     re.IGNORECASE,
 )
 
@@ -100,23 +102,26 @@ CONDITION_PATTERN = re.compile(
     r"\b(hypertension|diabetes|pneumonia|sepsis|heart failure|"
     r"atrial fibrillation|copd|asthma|obesity|anemia|"
     r"chronic kidney disease|stroke|myocardial infarction|"
-    r"urinary tract infection|cellulitis|deep vein thrombosis)\b",
+    r"urinary tract infection|cellulitis|deep vein thrombosis|"
+    # Vietnamese conditions
+    r"tăng huyết áp|tang huyet ap|đái tháo đường|dai thao duong|"
+    r"viêm phổi|viem phoi|viêm phế quản|viem phe quan|"
+    r"rối loạn lipid máu|roi loan lipid mau|suy tim|"
+    r"nhồi máu cơ tim|nhoi mau co tim|đột quỵ|dot quy|"
+    r"viêm dạ dày|viem da day|suy thận|suy than)\b",
     re.IGNORECASE,
 )
 
 LAB_PATTERN = re.compile(
     r"\b(hemoglobin|hematocrit|wbc|platelet|creatinine|bun|"
     r"glucose|hba1c|troponin|bnp|alt|ast|albumin|bilirubin|"
-    r"sodium|potassium|chloride|bicarbonate|inr|ptt)\b",
+    r"sodium|potassium|chloride|bicarbonate|inr|ptt|"
+    # Vietnamese lab names
+    r"hồng cầu|hong cau|bạch cầu|bach cau|tiểu cầu|tieu cau|"
+    r"cholesterol|triglyceride|"
+    r"hemoglobin|hematocrit)\b",
     re.IGNORECASE,
 )
-
-RELATION_PATTERNS = [
-    (re.compile(r"(\w+)\s+(?:treats?|for treatment of)\s+(\w+)", re.IGNORECASE), "treats"),
-    (re.compile(r"(\w+)\s+(?:causes?|leads? to)\s+(\w+)", re.IGNORECASE), "causes"),
-    (re.compile(r"(\w+)\s+(?:contraindicat\w+)\s+(\w+)", re.IGNORECASE), "contraindicates"),
-    (re.compile(r"(\w+)\s+(?:interact\w+ with)\s+(\w+)", re.IGNORECASE), "interacts_with"),
-]
 
 
 def extract_entities(text: str) -> list[ExtractedEntity]:
@@ -139,38 +144,57 @@ def extract_entities(text: str) -> list[ExtractedEntity]:
 
 
 def extract_relations(text: str, entities: list[ExtractedEntity]) -> list[ExtractedRelation]:
-    """Extract relations between entities found in the text."""
-    entity_names = {e.name for e in entities}
+    """Extract relations between entities found in the text via co-occurrence."""
     relations: list[ExtractedRelation] = []
+    if len(entities) < 2:
+        return relations
 
-    for pattern, relation_type in RELATION_PATTERNS:
-        for match in pattern.finditer(text):
-            source = match.group(1).lower()
-            target = match.group(2).lower()
-            if source in entity_names and target in entity_names:
-                relations.append(
-                    ExtractedRelation(
-                        source_name=source,
-                        target_name=target,
-                        relation_type=relation_type,
-                    )
-                )
+    seen_pairs: set[tuple[str, str]] = set()
+    text_lower = text.lower()
 
-    # Co-occurrence: if a drug and condition appear in the same sentence,
-    # infer a weak "mentioned_with" relationship.
-    sentences = re.split(r"[.!?]+", text)
-    for sentence in sentences:
-        sentence_lower = sentence.lower()
-        drugs_in_sentence = [e for e in entities if e.entity_type == "drug" and e.name in sentence_lower]
-        conditions_in_sentence = [e for e in entities if e.entity_type == "condition" and e.name in sentence_lower]
+    # Co-occurrence within same chunk: link drugs to conditions, labs to conditions, drugs to labs
+    drugs = [e for e in entities if e.entity_type == "drug"]
+    conditions = [e for e in entities if e.entity_type == "condition"]
+    labs = [e for e in entities if e.entity_type == "lab"]
 
-        for drug in drugs_in_sentence:
-            for condition in conditions_in_sentence:
+    for drug in drugs:
+        for cond in conditions:
+            key = (drug.name, cond.name)
+            if key not in seen_pairs and (drug.name in text_lower and cond.name in text_lower):
+                seen_pairs.add(key)
                 relations.append(
                     ExtractedRelation(
                         source_name=drug.name,
-                        target_name=condition.name,
-                        relation_type="mentioned_with",
+                        target_name=cond.name,
+                        relation_type="treats",
+                        weight=0.7,
+                    )
+                )
+
+    for lab in labs:
+        for cond in conditions:
+            key = (lab.name, cond.name)
+            if key not in seen_pairs and (lab.name in text_lower and cond.name in text_lower):
+                seen_pairs.add(key)
+                relations.append(
+                    ExtractedRelation(
+                        source_name=lab.name,
+                        target_name=cond.name,
+                        relation_type="indicates",
+                        weight=0.6,
+                    )
+                )
+
+    for drug in drugs:
+        for lab in labs:
+            key = (drug.name, lab.name)
+            if key not in seen_pairs and (drug.name in text_lower and lab.name in text_lower):
+                seen_pairs.add(key)
+                relations.append(
+                    ExtractedRelation(
+                        source_name=drug.name,
+                        target_name=lab.name,
+                        relation_type="monitored_by",
                         weight=0.5,
                     )
                 )
@@ -228,7 +252,7 @@ async def find_related_entities(
     entity_names: list[str],
     *,
     max_hops: int = 2,
-    patient_id: uuid.UUID | None = None,
+    patient_id: Optional[uuid.UUID] = None,
 ) -> GraphContext:
     """Find entities related to the given names via graph traversal.
 

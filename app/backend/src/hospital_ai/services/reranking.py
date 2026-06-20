@@ -15,6 +15,7 @@ from __future__ import annotations
 import logging
 import re
 from abc import ABC, abstractmethod
+from typing import Optional
 
 from hospital_ai.core.config import Settings
 from hospital_ai.services.retrieval import RetrievedChunk
@@ -323,9 +324,9 @@ class RerankerService:
     the keyword reranker (MVP behavior).
     """
 
-    def __init__(self, settings: Settings | None = None) -> None:
+    def __init__(self, settings: Optional[Settings] = None) -> None:
         self.settings = settings
-        self._backend: BaseReranker | None = None
+        self._backend: Optional[BaseReranker] = None
 
     def _get_backend(self) -> BaseReranker:
         if self._backend is not None:

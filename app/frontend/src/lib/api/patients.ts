@@ -71,3 +71,66 @@ export async function createPatient(patientData: Partial<PatientRead>): Promise<
     body: JSON.stringify(patientData),
   });
 }
+
+// ── Medications ────────────────────────────────────────────────────
+
+export interface PatientMedicationItem {
+  drug_name: string;
+  dose?: string | null;
+  route?: string | null;
+  frequency?: string | null;
+  started?: string | null;
+  prescriber?: string | null;
+  source_document_id?: string | null;
+  source_document_title?: string | null;
+}
+
+export interface PatientMedicationResponse {
+  patient_id: string;
+  medications: PatientMedicationItem[];
+}
+
+export async function getPatientMedications(patientId: string): Promise<PatientMedicationResponse> {
+  return apiFetch<PatientMedicationResponse>(`/patients/${patientId}/medications`);
+}
+
+// ── Labs ────────────────────────────────────────────────────────────
+
+export interface PatientLabItem {
+  analyte: string;
+  value?: string | null;
+  reference_range?: string | null;
+  flag?: string | null;
+  collected?: string | null;
+  source_document_id?: string | null;
+  source_document_title?: string | null;
+}
+
+export interface PatientLabResponse {
+  patient_id: string;
+  labs: PatientLabItem[];
+}
+
+export async function getPatientLabs(patientId: string): Promise<PatientLabResponse> {
+  return apiFetch<PatientLabResponse>(`/patients/${patientId}/labs`);
+}
+
+// ── Documents ───────────────────────────────────────────────────────
+
+export interface DocumentRead {
+  id: string;
+  patient_id: string;
+  uploaded_by: string;
+  title: string;
+  document_type: string;
+  storage_uri: string;
+  mime_type: string;
+  status: string;
+  page_count?: number | null;
+  ocr_error?: string | null;
+  created_at: string;
+}
+
+export async function getPatientDocuments(patientId: string): Promise<DocumentRead[]> {
+  return apiFetch<DocumentRead[]>(`/patients/${patientId}/documents`);
+}

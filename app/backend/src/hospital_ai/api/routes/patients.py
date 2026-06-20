@@ -11,7 +11,12 @@ from hospital_ai.api.deps import get_current_user, get_request_ip, get_session
 from hospital_ai.core.config import Settings, get_settings
 from hospital_ai.core.security import PATIENT_READ_SCOPES, new_trace_id, sanitize_audit_query
 from hospital_ai.db.models import Document, DocumentChunk, DocumentPage, Patient, User
+from hospital_ai.schemas.documents import DocumentRead
 from hospital_ai.schemas.patients import (
+    PatientLabItem,
+    PatientLabResponse,
+    PatientMedicationItem,
+    PatientMedicationResponse,
     PatientOverviewResponse,
     PatientRead,
     PatientSearchResponse,
@@ -365,3 +370,378 @@ async def get_patient_timeline(
         patient_id=patient_id,
         events=events,
     )
+
+
+@router.get("/{patient_id}/medications", response_model=PatientMedicationResponse)
+async def get_patient_medications(
+    patient_id: uuid.UUID,
+    request: Request,
+    session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(get_current_user),
+) -> PatientMedicationResponse:
+    """Return structured medication list for a patient from indexed documents."""
+    trace_id = new_trace_id()
+    await PermissionService(session).require_read(
+        user=current_user,
+        patient_id=patient_id,
+        action="patient.medications.read",
+        trace_id=trace_id,
+        ip_address=get_request_ip(request),
+    )
+
+    patient = await session.get(Patient, patient_id)
+    if patient is None or patient.deleted_at is not None:
+        from hospital_ai.core.errors import NotFoundError
+
+        raise NotFoundError("Patient not found.")
+
+    # Query medication-related documents: prescriptions and discharge summaries
+    stmt = (
+        select(DocumentChunk, Document)
+        .join(Document, Document.id == DocumentChunk.document_id)
+        .where(
+            DocumentChunk.patient_id == patient_id,
+            Document.patient_id == patient_id,
+            Document.document_type.in_(["prescription", "discharge_summary"]),
+            Document.status == "indexed",
+            DocumentChunk.deleted_at.is_(None),
+            Document.deleted_at.is_(None),
+        )
+        .order_by(Document.created_at.desc())
+        .limit(50)
+    )
+    result = await session.execute(stmt)
+    rows = result.all()
+
+    # Parse structured medications from document content and metadata
+    medications: list[PatientMedicationItem] = []
+    seen_meds: set[str] = set()
+
+    for chunk, doc in rows:
+        content = chunk.content or ""
+        meta = chunk.meta or {}
+        doc_title = doc.title or ""
+
+        # Extract medication entries from chunk metadata if available
+        meds_from_meta = meta.get("medications", meta.get("meds", []))
+        if isinstance(meds_from_meta, list):
+            for med in meds_from_meta:
+                if isinstance(med, dict):
+                    drug = med.get("name", med.get("drug", ""))
+                    if drug and drug.lower() not in seen_meds:
+                        seen_meds.add(drug.lower())
+                        medications.append(
+                            PatientMedicationItem(
+                                drug_name=str(drug),
+                                dose=med.get("dose"),
+                                route=med.get("route"),
+                                frequency=med.get("frequency"),
+                                started=med.get("started"),
+                                prescriber=med.get("prescriber"),
+                                source_document_id=doc.id,
+                                source_document_title=doc_title,
+                            )
+                        )
+        else:
+            # Parse from text content (prescription format: "- Drug dose, frequency")
+            for line in content.split("\n"):
+                line = line.strip()
+                if line.startswith("- ") or line.startswith("• "):
+                    line = line.lstrip("- •").strip()
+                    drug_name = line.split()[0] if line else ""
+                    if drug_name and drug_name.lower() not in seen_meds and len(drug_name) > 2:
+                        seen_meds.add(drug_name.lower())
+                        dose_match = _extract_dose(line)
+                        medications.append(
+                            PatientMedicationItem(
+                                drug_name=drug_name,
+                                dose=dose_match,
+                                route="PO" if "viên" in content.lower() or "uống" in content.lower() else None,
+                                frequency=None,
+                                started=str(doc.created_at.date()) if doc.created_at else None,
+                                prescriber=_extract_doctor(content),
+                                source_document_id=doc.id,
+                                source_document_title=doc_title,
+                            )
+                        )
+
+    await AuditService(session).record(
+        actor_user_id=current_user.id,
+        action="patient.medications.read",
+        object_type="patient",
+        object_id=patient_id,
+        patient_id=patient_id,
+        outcome="allowed",
+        trace_id=trace_id,
+        ip_address=get_request_ip(request),
+        metadata={"medication_count": len(medications)},
+    )
+    await session.commit()
+
+    return PatientMedicationResponse(patient_id=patient_id, medications=medications)
+
+
+@router.get("/{patient_id}/labs", response_model=PatientLabResponse)
+async def get_patient_labs(
+    patient_id: uuid.UUID,
+    request: Request,
+    session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(get_current_user),
+) -> PatientLabResponse:
+    """Return structured lab results for a patient from indexed documents."""
+    trace_id = new_trace_id()
+    await PermissionService(session).require_read(
+        user=current_user,
+        patient_id=patient_id,
+        action="patient.labs.read",
+        trace_id=trace_id,
+        ip_address=get_request_ip(request),
+    )
+
+    patient = await session.get(Patient, patient_id)
+    if patient is None or patient.deleted_at is not None:
+        from hospital_ai.core.errors import NotFoundError
+
+        raise NotFoundError("Patient not found.")
+
+    # Query lab result documents
+    stmt = (
+        select(DocumentChunk, Document)
+        .join(Document, Document.id == DocumentChunk.document_id)
+        .where(
+            DocumentChunk.patient_id == patient_id,
+            Document.patient_id == patient_id,
+            Document.document_type.in_(["lab_result", "hms_lab_result"]),
+            Document.status == "indexed",
+            DocumentChunk.deleted_at.is_(None),
+            Document.deleted_at.is_(None),
+        )
+        .order_by(Document.created_at.desc())
+        .limit(50)
+    )
+    result = await session.execute(stmt)
+    rows = result.all()
+
+    labs: list[PatientLabItem] = []
+
+    for chunk, doc in rows:
+        content = chunk.content or ""
+        meta = chunk.meta or {}
+        doc_title = doc.title or ""
+
+        # Extract lab entries from chunk metadata if available
+        labs_from_meta = meta.get("labs", meta.get("lab_results", []))
+        if isinstance(labs_from_meta, list):
+            for lab in labs_from_meta:
+                if isinstance(lab, dict):
+                    analyte = lab.get("analyte", lab.get("test", lab.get("testName", "")))
+                    if analyte:
+                        value_str = lab.get("value", lab.get("result", ""))
+                        ref_str = lab.get("reference_range", lab.get("referenceRange", lab.get("ref", "")))
+                        flag = _compute_lab_flag(str(value_str), str(ref_str)) if value_str and ref_str else None
+                        labs.append(
+                            PatientLabItem(
+                                analyte=str(analyte),
+                                value=str(value_str) if value_str else None,
+                                reference_range=str(ref_str) if ref_str else None,
+                                flag=flag,
+                                collected=str(doc.created_at.date()) if doc.created_at else None,
+                                source_document_id=doc.id,
+                                source_document_title=doc_title,
+                            )
+                        )
+        else:
+            # Parse from text content: lines with analyte patterns
+            lab_matches = _parse_lab_content(content)
+            for lab_item in lab_matches:
+                lab_item.source_document_id = doc.id
+                lab_item.source_document_title = doc_title
+                if lab_item.collected is None and doc.created_at:
+                    lab_item.collected = str(doc.created_at.date())
+                labs.append(lab_item)
+
+    # Deduplicate by analyte name, keeping the most recent
+    seen_analytes: set[str] = set()
+    deduped_labs: list[PatientLabItem] = []
+    for lab in labs:
+        key = lab.analyte.lower()
+        if key not in seen_analytes:
+            seen_analytes.add(key)
+            deduped_labs.append(lab)
+
+    await AuditService(session).record(
+        actor_user_id=current_user.id,
+        action="patient.labs.read",
+        object_type="patient",
+        object_id=patient_id,
+        patient_id=patient_id,
+        outcome="allowed",
+        trace_id=trace_id,
+        ip_address=get_request_ip(request),
+        metadata={"lab_count": len(deduped_labs)},
+    )
+    await session.commit()
+
+    return PatientLabResponse(patient_id=patient_id, labs=deduped_labs)
+
+
+@router.get("/{patient_id}/documents", response_model=list[DocumentRead])
+async def get_patient_documents(
+    patient_id: uuid.UUID,
+    request: Request,
+    session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(get_current_user),
+) -> list[DocumentRead]:
+    """Return documents for a patient (permission-filtered)."""
+    trace_id = new_trace_id()
+    await PermissionService(session).require_read(
+        user=current_user,
+        patient_id=patient_id,
+        action="patient.documents.read",
+        trace_id=trace_id,
+        ip_address=get_request_ip(request),
+    )
+
+    patient = await session.get(Patient, patient_id)
+    if patient is None or patient.deleted_at is not None:
+        from hospital_ai.core.errors import NotFoundError
+
+        raise NotFoundError("Patient not found.")
+
+    stmt = (
+        select(Document)
+        .where(
+            Document.patient_id == patient_id,
+            Document.deleted_at.is_(None),
+        )
+        .order_by(Document.created_at.desc())
+        .limit(100)
+    )
+    result = await session.execute(stmt)
+    documents = list(result.scalars().all())
+
+    await AuditService(session).record(
+        actor_user_id=current_user.id,
+        action="patient.documents.read",
+        object_type="patient",
+        object_id=patient_id,
+        patient_id=patient_id,
+        outcome="allowed",
+        trace_id=trace_id,
+        ip_address=get_request_ip(request),
+        metadata={"document_count": len(documents)},
+    )
+    await session.commit()
+
+    return [
+        DocumentRead(
+            id=doc.id,
+            patient_id=doc.patient_id,
+            uploaded_by=doc.uploaded_by,
+            title=doc.title,
+            document_type=doc.document_type,
+            storage_uri=doc.storage_uri,
+            mime_type=doc.mime_type,
+            status=doc.status,
+            page_count=doc.page_count,
+            ocr_error=doc.ocr_error,
+            created_at=doc.created_at,
+        )
+        for doc in documents
+    ]
+
+
+# ── Helper parsers ──────────────────────────────────────────────────
+
+
+def _extract_dose(text: str) -> Optional[str]:
+    """Extract dose pattern like '5mg', '500mg', '10mg' from text."""
+    import re
+
+    m = re.search(r"(\d+\.?\d*\s*(?:mg|mcg|g|ml|IU|uL|mmol)(?:\s*(?:BID|TID|QID|daily|/ngày))?)", text, re.IGNORECASE)
+    return m.group(1) if m else None
+
+
+def _extract_doctor(text: str) -> Optional[str]:
+    """Extract doctor name from text like 'BS. Nguyen Thi Lan'."""
+    import re
+
+    m = re.search(r"BS\.\s*([A-ZÀ-Ỹ][a-zà-ỹ]+(?:\s+[A-ZÀ-Ỹ][a-zà-ỹ]+)+)", text)
+    return m.group(1) if m else None
+
+
+def _parse_lab_content(content: str) -> list[PatientLabItem]:
+    """Parse lab results from structured text content."""
+    import re
+
+    results: list[PatientLabItem] = []
+    # Pattern: analyte name followed by value and optional reference range
+    # Match lines like: "Hemoglobin (HGB)                  12.5     12.0-16.0 g/dL"
+    lab_pattern = re.compile(
+        r"^([A-Za-zÀ-Ỹà-ỹ][A-Za-zÀ-Ỹà-ỹ\s\-().,]+?)\s{2,}"  # analyte name
+        r"([\d.]+(?:\s*[x×]\s*\d+[⁰¹²³⁴⁵⁶⁷⁸⁹]*(?:/[A-Za-z]+)?)?)\s+"  # value
+        r"([\d.<>]+\s*[-–]\s*[\d.<>]+(?:\s*[A-Za-z/%]+)?)",  # reference range
+        re.MULTILINE,
+    )
+    for match in lab_pattern.finditer(content):
+        analyte = match.group(1).strip()
+        value = match.group(2).strip()
+        ref_range = match.group(3).strip()
+        flag = _compute_lab_flag(value, ref_range)
+        results.append(
+            PatientLabItem(
+                analyte=analyte,
+                value=value,
+                reference_range=ref_range,
+                flag=flag,
+            )
+        )
+
+    # Also try simpler pattern: "Analyte: Value (Ref: range)"
+    simple_pattern = re.compile(
+        r"^([A-Za-zÀ-Ỹà-ỹ][A-Za-zÀ-Ỹà-ỹ\s\-().]+?):\s*([\d.]+)\s*(?:\(.*?([\d.]+\s*[-–]\s*[\d.]+).*?\))?",
+        re.MULTILINE,
+    )
+    for match in simple_pattern.finditer(content):
+        analyte = match.group(1).strip()
+        value = match.group(2).strip()
+        ref = match.group(3)
+        if analyte.lower() not in {r.analyte.lower() for r in results} and len(analyte) > 2:
+            flag = _compute_lab_flag(value, ref) if ref else None
+            results.append(
+                PatientLabItem(
+                    analyte=analyte,
+                    value=value,
+                    reference_range=ref.strip() if ref else None,
+                    flag=flag,
+                )
+            )
+
+    return results
+
+
+def _compute_lab_flag(value: str, ref_range: Optional[str]) -> Optional[str]:
+    """Compute H/L flag by comparing numeric value to reference range."""
+    import re
+
+    try:
+        val_num = float(re.search(r"[\d.]+", value).group()) if re.search(r"[\d.]+", value) else None
+    except (ValueError, AttributeError):
+        return None
+
+    if val_num is None or not ref_range:
+        return None
+
+    try:
+        ref_nums = re.findall(r"[\d.]+", ref_range)
+        if len(ref_nums) >= 2:
+            low = float(ref_nums[0])
+            high = float(ref_nums[-1])
+            if val_num > high:
+                return "H"
+            if val_num < low:
+                return "L"
+    except (ValueError, AttributeError):
+        pass
+
+    return None

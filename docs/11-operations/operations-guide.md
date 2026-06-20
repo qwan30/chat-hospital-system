@@ -7,7 +7,7 @@
 | Service | Process | Port | Health Check |
 |---------|---------|------|-------------|
 | FastAPI BFF | uvicorn | 8000 | `GET /api/v1/health` |
-| Next.js Frontend | next start/dev | 3000 | `GET /` |
+| TanStack Start Frontend | bun run dev | 8082 | `GET /` |
 | PostgreSQL | Docker/system | 5432 | Connection check |
 | Redis | Docker/system | 6379 | `PING` |
 | RQ Worker | run_worker.py | — | Queue depth |
@@ -17,17 +17,17 @@
 
 ### Local Dev
 ```bash
-# DB + Redis
+# DB + Redis (or use SQLite for local dev — see .env)
 docker compose up -d postgres redis
 
 # Backend
 cd app/backend
-poetry run alembic upgrade head
-poetry run uvicorn hospital_ai.main:create_app --reload --port 8000
+alembic upgrade head
+python -m uvicorn hospital_ai.main:create_app --factory --reload --port 8000
 
-# Worker
+# Worker (optional — inline mode runs jobs in-process)
 cd app/backend
-poetry run python -m hospital_ai.workers.run_worker
+python -m hospital_ai.workers.run_worker
 
 # Frontend
 cd app/frontend

@@ -12,7 +12,7 @@ from __future__ import annotations
 
 import json
 import uuid
-from typing import Any
+from typing import Any, Optional
 
 from sqlalchemy import String, Text, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -36,14 +36,14 @@ class SystemSetting(TimestampMixin, Base):
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
     key: Mapped[str] = mapped_column(String(128), unique=True, nullable=False, index=True)
     value_json: Mapped[str] = mapped_column(Text, nullable=False)
-    updated_by_user_id: Mapped[uuid.UUID | None] = mapped_column(nullable=True)
-    description: Mapped[str | None] = mapped_column(String(512), nullable=True)
+    updated_by_user_id: Mapped[Optional[uuid.UUID]] = mapped_column(nullable=True)
+    description: Mapped[Optional[str]] = mapped_column(String(512), nullable=True)
 
 
 # ── CRUD helpers ─────────────────────────────────────────────────────────
 
 
-async def get_setting(session: AsyncSession, key: str) -> Any | None:
+async def get_setting(session: AsyncSession, key: str) -> Optional[Any]:
     """Return the deserialised value for *key*, or ``None`` if unset."""
     result = await session.execute(select(SystemSetting).where(SystemSetting.key == key))
     row = result.scalar_one_or_none()
@@ -64,8 +64,8 @@ async def upsert_setting(
     key: str,
     value: Any,
     *,
-    user_id: uuid.UUID | None = None,
-    description: str | None = None,
+    user_id: Optional[uuid.UUID] = None,
+    description: Optional[str] = None,
 ) -> SystemSetting:
     """Insert or update a setting, returning the row."""
     result = await session.execute(select(SystemSetting).where(SystemSetting.key == key))
@@ -92,7 +92,7 @@ async def upsert_many(
     session: AsyncSession,
     overrides: dict[str, Any],
     *,
-    user_id: uuid.UUID | None = None,
+    user_id: Optional[uuid.UUID] = None,
 ) -> None:
     """Bulk upsert — used by the PUT settings route."""
     for key, value in overrides.items():

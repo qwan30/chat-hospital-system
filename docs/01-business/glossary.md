@@ -20,7 +20,7 @@
 
 | Term | Definition |
 |------|------------|
-| **BFF** | Backend-for-Frontend — FastAPI single entry point for the Next.js UI |
+| **BFF** | Backend-for-Frontend — FastAPI single entry point for the TanStack Start UI |
 | **RAG** | Retrieval-Augmented Generation: retrieve chunks → rerank → generate cited answer |
 | **LLM** | Large Language Model — Qwen2.5 via Ollama (local) or OpenAI-compatible (cloud) |
 | **LLM Manager** | Provider abstraction: runtime switch between Stub / Ollama / OpenAI |

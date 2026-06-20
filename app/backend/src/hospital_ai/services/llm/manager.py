@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import logging
 from functools import lru_cache
+from typing import Optional
 
 from hospital_ai.core.config import Settings, get_settings
 from hospital_ai.services.llm.base import BaseLLM
@@ -24,9 +25,9 @@ class LLMManager:
     def __init__(self, settings: Settings) -> None:
         self.settings = settings
         self._providers: dict[str, BaseLLM] = {}
-        self._default_provider: str | None = None
+        self._default_provider: Optional[str] = None
 
-    def get(self, provider_name: str | None = None) -> BaseLLM:
+    def get(self, provider_name: Optional[str] = None) -> BaseLLM:
         """Get an LLM provider instance.
 
         Args:
@@ -96,6 +97,6 @@ class LLMManager:
 
 
 @lru_cache(maxsize=1)
-def get_llm_manager(settings: Settings | None = None) -> LLMManager:
+def get_llm_manager(settings: Optional[Settings] = None) -> LLMManager:
     """Get the singleton LLM manager instance."""
     return LLMManager(settings or get_settings())

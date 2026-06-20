@@ -31,12 +31,12 @@ The project uses **5 GitHub Actions workflows** providing defense-in-depth:
 | 2 | `codeql` | Security-extended queries (Python + JS/TS matrix) | SARIF → Security tab |
 | 3 | `backend-test` | Ruff lint + format, Pytest 250+, API contract verify | Test results (7-day) |
 | 4 | `backend-migration` | Alembic upgrade head + model alignment check | — |
-| 5 | `frontend-test` | ESLint, TypeScript strict, Vitest, Next.js build, Playwright E2E | Playwright report (7-day) |
+| 5 | `frontend-test` | ESLint, TypeScript strict, Vitest, TanStack Start build, Playwright E2E | Playwright report (7-day) |
 | 6 | `validate-observability` | Docker Compose config validation (2 files) | — |
 | 7 | `docker-push` | Multi-stage build, Trivy scan, GHCR push | Trivy SARIF → Security tab |
 | 8 | `ci-summary` | Aggregate all results, fail on any failure | Step summary table |
 
-**Key features**: Concurrency cancellation, Playwright browser cache, Next.js build cache, Docker Buildx GHA cache, path-aware job skipping.
+**Key features**: Concurrency cancellation, Playwright browser cache, TanStack Start build cache, Docker Buildx GHA cache, path-aware job skipping.
 
 ---
 

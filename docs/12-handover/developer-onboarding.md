@@ -6,23 +6,30 @@
 
 ```bash
 # Clone and enter
-git clone <repo-url> && cd chatbot-hospital-system/app
+git clone <repo-url> && cd chatbot-hospital-system
+
+# Infrastructure (requires Docker)
+docker compose up -d --wait  # PostgreSQL 16 + Redis 7
 
 # Backend setup
-cd backend
-poetry install
+cd app/backend
+pip install -e ".[dev,postgres]"
 cp .env.example .env
-poetry run alembic upgrade head
-poetry run python scripts/seed_dev.py
-poetry run uvicorn hospital_ai.main:create_app --reload
+# Default .env uses SQLite for local dev (no PostgreSQL needed)
+# Set HOSPITAL_AI_CHAT_PROVIDER=stub for zero-dependency AI
+alembic upgrade head
+python scripts/seed_dev.py
+python -m uvicorn hospital_ai.main:create_app --factory --reload --port 8000
 
 # Frontend setup (new terminal)
-cd ../frontend
-npm install
-npm run dev
+cd app/frontend
+bun install
+bun run dev --port 8082
 ```
 
-**Verify:** `http://localhost:3000` (UI) · `http://localhost:8000/docs` (Swagger)
+**Verify:** `http://localhost:8082` (UI) · `http://localhost:8000/docs` (Swagger)
+
+> **Note:** Default config uses `stub` chat provider (deterministic test responses) and `deterministic` embeddings — no AI API keys required for local dev. The Vite dev server proxies `/api` → `http://localhost:8000/api/v1`.
 
 ## 2. Repository Structure
 
@@ -41,7 +48,7 @@ npm run dev
 │   │       │   ├── embedding/  # 3 providers
 │   │       │   └── llm/        # 3 providers
 │   │       └── workers/     # RQ job definitions
-│   └── frontend/            # Next.js 16 (TypeScript)
+│   └── frontend/            # TanStack Start (TypeScript)
 │       └── src/
 │           ├── app/(app)/   # 14 pages
 │           ├── components/  # 60+ feature + 30 UI
@@ -50,7 +57,7 @@ npm run dev
 
 ## 3. Key Architecture Concepts
 
-- **BFF Pattern:** FastAPI = single entry point for Next.js UI
+- **BFF Pattern:** FastAPI = single entry point for TanStack Start UI
 - **Service Layer:** All business logic in `services/`, not routes
 - **LLM Manager:** Stub/Ollama/OpenAI, runtime-switchable
 - **RAG Pipeline:** Permission → Embed → Retrieve → Rerank → Generate → Validate

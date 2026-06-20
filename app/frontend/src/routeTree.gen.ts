@@ -78,7 +78,6 @@ import { Route as AppDocumentsDocumentIdRouteImport } from './routes/_app.docume
 import { Route as AppDashboardCustomizeRouteImport } from './routes/_app.dashboard.customize'
 import { Route as AppDashboardActivityRouteImport } from './routes/_app.dashboard.activity'
 import { Route as AppCitationsCompareRouteImport } from './routes/_app.citations.compare'
-import { Route as AppCitationsSourceIdRouteImport } from './routes/_app.citations.$sourceId'
 import { Route as AppChatTemplatesRouteImport } from './routes/_app.chat.templates'
 import { Route as AppChatNewRouteImport } from './routes/_app.chat.new'
 import { Route as AppChatHistoryRouteImport } from './routes/_app.chat.history'
@@ -461,11 +460,6 @@ const AppCitationsCompareRoute = AppCitationsCompareRouteImport.update({
   path: '/citations/compare',
   getParentRoute: () => AppRoute,
 } as any)
-const AppCitationsSourceIdRoute = AppCitationsSourceIdRouteImport.update({
-  id: '/citations/$sourceId',
-  path: '/citations/$sourceId',
-  getParentRoute: () => AppRoute,
-} as any)
 const AppChatTemplatesRoute = AppChatTemplatesRouteImport.update({
   id: '/chat/templates',
   path: '/chat/templates',
@@ -694,7 +688,6 @@ export interface FileRoutesByFullPath {
   '/chat/history': typeof AppChatHistoryRoute
   '/chat/new': typeof AppChatNewRoute
   '/chat/templates': typeof AppChatTemplatesRoute
-  '/citations/$sourceId': typeof AppCitationsSourceIdRoute
   '/citations/compare': typeof AppCitationsCompareRoute
   '/dashboard/activity': typeof AppDashboardActivityRoute
   '/dashboard/customize': typeof AppDashboardCustomizeRoute
@@ -791,7 +784,6 @@ export interface FileRoutesByTo {
   '/chat/history': typeof AppChatHistoryRoute
   '/chat/new': typeof AppChatNewRoute
   '/chat/templates': typeof AppChatTemplatesRoute
-  '/citations/$sourceId': typeof AppCitationsSourceIdRoute
   '/citations/compare': typeof AppCitationsCompareRoute
   '/dashboard/activity': typeof AppDashboardActivityRoute
   '/dashboard/customize': typeof AppDashboardCustomizeRoute
@@ -896,7 +888,6 @@ export interface FileRoutesById {
   '/_app/chat/history': typeof AppChatHistoryRoute
   '/_app/chat/new': typeof AppChatNewRoute
   '/_app/chat/templates': typeof AppChatTemplatesRoute
-  '/_app/citations/$sourceId': typeof AppCitationsSourceIdRoute
   '/_app/citations/compare': typeof AppCitationsCompareRoute
   '/_app/dashboard/activity': typeof AppDashboardActivityRoute
   '/_app/dashboard/customize': typeof AppDashboardCustomizeRoute
@@ -1002,7 +993,6 @@ export interface FileRouteTypes {
     | '/chat/history'
     | '/chat/new'
     | '/chat/templates'
-    | '/citations/$sourceId'
     | '/citations/compare'
     | '/dashboard/activity'
     | '/dashboard/customize'
@@ -1099,7 +1089,6 @@ export interface FileRouteTypes {
     | '/chat/history'
     | '/chat/new'
     | '/chat/templates'
-    | '/citations/$sourceId'
     | '/citations/compare'
     | '/dashboard/activity'
     | '/dashboard/customize'
@@ -1203,7 +1192,6 @@ export interface FileRouteTypes {
     | '/_app/chat/history'
     | '/_app/chat/new'
     | '/_app/chat/templates'
-    | '/_app/citations/$sourceId'
     | '/_app/citations/compare'
     | '/_app/dashboard/activity'
     | '/_app/dashboard/customize'
@@ -1776,13 +1764,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppCitationsCompareRouteImport
       parentRoute: typeof AppRoute
     }
-    '/_app/citations/$sourceId': {
-      id: '/_app/citations/$sourceId'
-      path: '/citations/$sourceId'
-      fullPath: '/citations/$sourceId'
-      preLoaderRoute: typeof AppCitationsSourceIdRouteImport
-      parentRoute: typeof AppRoute
-    }
     '/_app/chat/templates': {
       id: '/_app/chat/templates'
       path: '/chat/templates'
@@ -2248,7 +2229,6 @@ interface AppRouteChildren {
   AppChatHistoryRoute: typeof AppChatHistoryRoute
   AppChatNewRoute: typeof AppChatNewRoute
   AppChatTemplatesRoute: typeof AppChatTemplatesRoute
-  AppCitationsSourceIdRoute: typeof AppCitationsSourceIdRoute
   AppCitationsCompareRoute: typeof AppCitationsCompareRoute
   AppHelpDiagnosticsRoute: typeof AppHelpDiagnosticsRoute
   AppHelpShortcutsRoute: typeof AppHelpShortcutsRoute
@@ -2284,7 +2264,6 @@ const AppRouteChildren: AppRouteChildren = {
   AppChatHistoryRoute: AppChatHistoryRoute,
   AppChatNewRoute: AppChatNewRoute,
   AppChatTemplatesRoute: AppChatTemplatesRoute,
-  AppCitationsSourceIdRoute: AppCitationsSourceIdRoute,
   AppCitationsCompareRoute: AppCitationsCompareRoute,
   AppHelpDiagnosticsRoute: AppHelpDiagnosticsRoute,
   AppHelpShortcutsRoute: AppHelpShortcutsRoute,

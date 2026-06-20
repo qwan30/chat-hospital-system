@@ -114,34 +114,37 @@ describe("AuthProvider / useAuth", () => {
     });
   });
 
-  // --- 6. Hydration with valid stored token ---
-  it("sets authUser after mount when a valid stored token exists", async () => {
-    mockLocalStorage({ hospital_ai_token: "valid-jwt" });
-    mockFetch({
-      ok: true,
-      status: 200,
-      json: () => Promise.resolve({ user_id: "u1", username: "dr", role: "admin" }),
-    });
-    renderCapture();
-    await waitFor(() => {
-      expect(captured!.hydrated).toBe(true);
-      expect(captured!.authUser).toEqual({ user_id: "u1", username: "dr", role: "admin" });
-    });
-    expect(captured!.token).toBe("valid-jwt");
-  });
+  // Test removed: Tokens are no longer stored in localStorage.
 
   // --- 3. Logout ---
   it("logout clears authUser, token, and error", async () => {
-    mockLocalStorage({ hospital_ai_token: "valid-jwt" });
-    mockFetch({
-      ok: true,
-      status: 200,
-      json: () => Promise.resolve({ user_id: "u1", username: "dr", role: "admin" }),
+    mockLocalStorage();
+    let callCount = 0;
+    mockFetchWith(() => {
+      callCount++;
+      if (callCount === 1) {
+        return Promise.resolve({
+          ok: true,
+          status: 200,
+          json: () => Promise.resolve({ access_token: "issued-jwt", token_type: "bearer" }),
+        });
+      }
+      return Promise.resolve({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve({ user_id: "u1", username: "dr", role: "admin" }),
+      });
     });
+
     renderCapture();
+    await waitFor(() => expect(captured).not.toBeNull());
+
+    await captured!.login("dr", "password");
+
     await waitFor(() => {
       expect(captured!.hydrated).toBe(true);
       expect(captured!.authUser).not.toBeNull();
+      expect(captured!.token).toBe("issued-jwt");
     });
 
     captured!.logout();

@@ -13,7 +13,7 @@ test.describe("Auth flow lifecycle", () => {
     await expect(page.locator("h2")).toContainText("Welcome back");
     await expect(page.getByRole("tab", { name: /Demo Role/i })).toBeVisible();
     const labels = page.locator("label");
-    await expect(labels).toHaveCount(2);
+    await expect(labels).toHaveCount(3);
   });
 
   test("Demo Role sign-in flow", async ({ page }) => {

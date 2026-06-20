@@ -23,9 +23,13 @@ import {
 } from "@/lib/api-client";
 
 export interface AuthUser {
-  user_id: string;
-  username: string;
+  id: string;
+  email: string;
+  full_name: string;
+  department?: string;
+  workspace?: string;
   role: string;
+  is_active: boolean;
 }
 
 export interface AuthState {
@@ -56,24 +60,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const storedToken = localStorage.getItem("hospital_ai_token");
     const storedUrl = getStoredApiUrl();
     if (storedUrl) setApiUrlState(storedUrl);
 
-    if (storedToken) {
-      setToken(storedToken);
-      verifyToken(storedUrl || DEFAULT_API_URL, storedToken).then((user) => {
-        if (user) {
-          setAuthUser(user);
-        } else {
-          clearToken();
-          setToken(null);
-        }
-        setHydrated(true);
-      });
-    } else {
-      setHydrated(true);
-    }
+    setHydrated(true);
   }, []);
 
   const setApiUrl = useCallback((url: string) => {

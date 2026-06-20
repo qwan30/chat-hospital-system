@@ -20,7 +20,6 @@ function Page() {
         {[
           ["Citations required", "Block answers without retrievable sources", true],
           ["Safe refusal", "Refuse when confidence is below threshold", true],
-          ["PHI redaction", "Strip identifiers before sending to model", true],
           ["Show reasoning trace", "Display retrieval steps", false],
         ].map(([k, v, d], i) => (
           <div key={i} className="flex items-center justify-between rounded-lg border p-4">

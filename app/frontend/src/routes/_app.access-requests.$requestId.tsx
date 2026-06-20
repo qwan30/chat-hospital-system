@@ -4,53 +4,94 @@ import { PageHeader } from "@/components/hms/PageHeader";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { getAccessRequest } from "@/data/accessRequests";
+import { useQuery } from "@tanstack/react-query";
+import { getAccessRequest } from "@/lib/api/access-requests";
 import { formatDateTime } from "@/lib/format";
+import { ErrorState } from "@/components/hms/ErrorState";
 
 export const Route = createFileRoute("/_app/access-requests/$requestId")({
   head: () => ({ meta: [{ title: "Access request — HMS AI Copilot" }] }),
   component: Page,
 });
 
+const tone: Record<string, string> = {
+  pending: "bg-warning/10 text-warning border-transparent",
+  approved: "bg-success/10 text-success border-transparent",
+  denied: "bg-destructive/10 text-destructive border-transparent",
+  pending_info: "bg-info/10 text-info border-transparent",
+};
+
 function Page() {
   const { requestId } = Route.useParams();
-  const r = getAccessRequest(requestId);
-  if (!r)
+  const {
+    data: r,
+    isLoading,
+    error,
+  } = useQuery({
+    queryKey: ["access-request", requestId],
+    queryFn: () => getAccessRequest(requestId),
+  });
+
+  if (isLoading) {
+    return (
+      <AppShell>
+        <PageHeader title="Loading..." />
+      </AppShell>
+    );
+  }
+
+  if (error || !r) {
     return (
       <AppShell>
         <PageHeader title="Request not found" />
+        <ErrorState
+          code="API_ERROR"
+          title="Failed to load access request"
+          description={(error as Error)?.message}
+        />
       </AppShell>
     );
+  }
+
   return (
     <AppShell>
       <PageHeader
-        title={`Request ${r.id}`}
-        description={`${r.patient} · ${r.mrn}`}
+        title={`Request ${r.id.split("-")[0]}`}
+        description={`${r.patient_name} · ${r.patient_mrn}`}
         chips={
-          <Badge variant="secondary" className="capitalize">
-            {r.status}
+          <Badge
+            className={`capitalize ${tone[r.status] || "bg-secondary text-secondary-foreground"}`}
+          >
+            {r.status.replace("_", " ")}
           </Badge>
         }
         actions={
-          <Button asChild>
-            <Link to="/access-requests/$requestId/review" params={{ requestId: r.id }}>
-              Review
-            </Link>
-          </Button>
+          r.status === "pending" || r.status === "pending_info" ? (
+            <Button asChild>
+              <Link to="/access-requests/$requestId/review" params={{ requestId: r.id }}>
+                Review
+              </Link>
+            </Button>
+          ) : null
         }
       />
       <div className="grid gap-4 md:grid-cols-2">
         <Card className="p-5 space-y-3 text-sm">
-          <Row k="Requester" v={`${r.requester} · ${r.role}`} />
-          <Row k="Unit" v={r.unit} />
-          <Row k="Submitted" v={formatDateTime(r.ts)} />
-          {r.reviewer ? <Row k="Reviewer" v={r.reviewer} /> : null}
-          {r.decisionTs ? <Row k="Decision" v={formatDateTime(r.decisionTs)} /> : null}
+          <Row k="Requester" v={`${r.requester_name} · ${r.requester_role}`} />
+          <Row k="Submitted" v={formatDateTime(r.created_at)} />
+          {r.reviewed_by_name ? <Row k="Reviewer" v={r.reviewed_by_name} /> : null}
+          {r.reviewed_at ? <Row k="Decision" v={formatDateTime(r.reviewed_at)} /> : null}
         </Card>
         <Card className="p-5 text-sm">
           <h4 className="mb-2 text-sm font-semibold">Justification</h4>
           <p className="text-muted-foreground">{r.justification}</p>
         </Card>
+        {r.review_notes && (
+          <Card className="p-5 text-sm md:col-span-2">
+            <h4 className="mb-2 text-sm font-semibold">Review Notes</h4>
+            <p className="text-muted-foreground">{r.review_notes}</p>
+          </Card>
+        )}
       </div>
     </AppShell>
   );

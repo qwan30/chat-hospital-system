@@ -2,8 +2,10 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { AppShell } from "@/components/shell/AppShell";
 import { PageHeader } from "@/components/hms/PageHeader";
 import { Card } from "@/components/ui/card";
-import { drugConflicts } from "@/data/conflicts";
+import { getReviewQueue } from "@/lib/api/medication-safety";
 import { ConflictSeverityPill } from "@/components/hms/ConflictSeverityPill";
+import { useQuery } from "@tanstack/react-query";
+import { Loader2 } from "lucide-react";
 
 export const Route = createFileRoute("/_app/pharmacy/review-queue")({
   head: () => ({ meta: [{ title: "Pharmacy review queue — HMS AI Copilot" }] }),
@@ -11,6 +13,15 @@ export const Route = createFileRoute("/_app/pharmacy/review-queue")({
 });
 
 function Page() {
+  const {
+    data: conflicts,
+    isLoading,
+    error,
+  } = useQuery({
+    queryKey: ["pharmacy", "review-queue"],
+    queryFn: getReviewQueue,
+  });
+
   return (
     <AppShell>
       <PageHeader
@@ -18,7 +29,22 @@ function Page() {
         description="AI-flagged drug interactions awaiting pharmacist sign-off."
       />
       <div className="space-y-2">
-        {drugConflicts.map((c) => (
+        {isLoading && (
+          <div className="flex justify-center p-4">
+            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+          </div>
+        )}
+        {error && (
+          <div className="text-destructive p-4 text-sm bg-destructive/10 rounded-md">
+            Failed to load review queue.
+          </div>
+        )}
+        {conflicts?.length === 0 && (
+          <div className="p-4 text-sm text-muted-foreground text-center">
+            No conflicts awaiting review.
+          </div>
+        )}
+        {conflicts?.map((c) => (
           <Link
             key={c.id}
             to="/medication-conflicts/$conflictId"
@@ -32,7 +58,7 @@ function Page() {
                   {c.patient} · {c.conflictsWith}
                 </p>
               </div>
-              <ConflictSeverityPill severity={c.severity} />
+              <ConflictSeverityPill severity={c.severity as any} />
             </Card>
           </Link>
         ))}

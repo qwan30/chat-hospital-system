@@ -16,9 +16,10 @@ import { Badge } from "@/components/ui/badge";
 import { StatusBadge } from "@/components/hms/StatusBadge";
 import { AccessRequestDialog } from "@/components/hms/AccessRequestDialog";
 import { Bell, Bookmark, Filter, Lock, MessageSquare, Search } from "lucide-react";
-import { patients } from "@/data/patients";
+import { searchPatients } from "@/lib/api/patients";
 import { useState } from "react";
 import { useSession } from "@/lib/session";
+import { useQuery } from "@tanstack/react-query";
 
 export const Route = createFileRoute("/_app/patients/")({
   head: () => ({
@@ -32,21 +33,30 @@ export const Route = createFileRoute("/_app/patients/")({
 
 const statusToneClass: Record<string, string> = {
   stable: "bg-success/10 text-success border-success/20",
+  active: "bg-success/10 text-success border-success/20",
   watch: "bg-warning/10 text-warning border-warning/20",
   critical: "bg-destructive/10 text-destructive border-destructive/20",
 };
 
+function calculateAge(dob: string | null): number | string {
+  if (!dob) return "--";
+  const birthDate = new Date(dob);
+  const diffMs = Date.now() - birthDate.getTime();
+  const ageDt = new Date(diffMs);
+  return Math.abs(ageDt.getUTCFullYear() - 1970);
+}
+
 function PatientsPage() {
   const [q, setQ] = useState("");
   const { session } = useSession();
-  const scope = session?.workspace.scope;
-  const scoped = scope ? patients.filter((p) => p.unit.includes(scope)) : patients;
-  const filtered = scoped.filter(
-    (p) =>
-      p.name.toLowerCase().includes(q.toLowerCase()) ||
-      p.mrn.toLowerCase().includes(q.toLowerCase()) ||
-      p.condition.toLowerCase().includes(q.toLowerCase()),
-  );
+
+  const { data: searchResponse, isLoading } = useQuery({
+    queryKey: ["patients", q],
+    queryFn: () => searchPatients(q || undefined, 50),
+  });
+
+  const filtered = searchResponse?.items || [];
+
   return (
     <AppShell
       rightRail={
@@ -96,13 +106,10 @@ function PatientsPage() {
         chips={
           <>
             <Badge variant="secondary">
-              {scoped.length} in {session?.workspace.name ?? "workspace"}
+              {filtered.length} in {session?.workspace.name ?? "workspace"}
             </Badge>
             <Badge variant="secondary" className="bg-success/10 text-success">
-              {scoped.filter((p) => p.access === "allow").length} accessible
-            </Badge>
-            <Badge variant="secondary" className="bg-destructive/10 text-destructive">
-              {scoped.filter((p) => p.access !== "allow").length} restricted
+              {filtered.length} accessible
             </Badge>
           </>
         }
@@ -122,7 +129,7 @@ function PatientsPage() {
             <Input
               value={q}
               onChange={(e) => setQ(e.target.value)}
-              placeholder="Search by name, MRN, condition..."
+              placeholder="Search by name, MRN..."
               className="h-9 pl-8"
             />
           </div>
@@ -133,55 +140,48 @@ function PatientsPage() {
             <TableRow>
               <TableHead>Patient</TableHead>
               <TableHead>MRN</TableHead>
-              <TableHead>Unit</TableHead>
-              <TableHead>Condition</TableHead>
+              <TableHead>Department</TableHead>
               <TableHead>Status</TableHead>
               <TableHead>Access</TableHead>
               <TableHead className="text-right">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {filtered.map((p) => (
-              <TableRow key={p.id}>
-                <TableCell>
-                  <div className="font-medium">{p.name}</div>
-                  <div className="text-xs text-muted-foreground">
-                    {p.age} · {p.sex}
-                  </div>
+            {isLoading ? (
+              <TableRow>
+                <TableCell colSpan={6} className="text-center py-8">
+                  Loading patients...
                 </TableCell>
-                <TableCell className="font-mono text-xs">{p.mrn}</TableCell>
-                <TableCell className="text-sm">{p.unit}</TableCell>
-                <TableCell className="text-sm">{p.condition}</TableCell>
-                <TableCell>
-                  <span
-                    className={`inline-flex rounded-full border px-2 py-0.5 text-xs font-medium capitalize ${statusToneClass[p.status]}`}
-                  >
-                    {p.status}
-                  </span>
-                </TableCell>
-                <TableCell>
-                  <StatusBadge status={p.access} />
-                </TableCell>
-                <TableCell className="text-right">
-                  {p.access === "allow" ? (
+              </TableRow>
+            ) : (
+              filtered.map((p) => (
+                <TableRow key={p.id}>
+                  <TableCell>
+                    <div className="font-medium">{p.full_name}</div>
+                    <div className="text-xs text-muted-foreground">{calculateAge(p.dob)}</div>
+                  </TableCell>
+                  <TableCell className="font-mono text-xs">{p.mrn}</TableCell>
+                  <TableCell className="text-sm">{p.department || "--"}</TableCell>
+                  <TableCell>
+                    <span
+                      className={`inline-flex rounded-full border px-2 py-0.5 text-xs font-medium capitalize ${statusToneClass[p.status] || "bg-secondary/10 text-secondary"}`}
+                    >
+                      {p.status}
+                    </span>
+                  </TableCell>
+                  <TableCell>
+                    <StatusBadge status="allow" />
+                  </TableCell>
+                  <TableCell className="text-right">
                     <Button asChild size="sm" variant="ghost">
                       <Link to="/chat/patients/$patientId" params={{ patientId: p.id }}>
                         <MessageSquare className="mr-1 h-3.5 w-3.5" /> Open chat
                       </Link>
                     </Button>
-                  ) : (
-                    <AccessRequestDialog
-                      patientName={`${p.name} · ${p.mrn}`}
-                      trigger={
-                        <Button size="sm" variant="outline">
-                          <Lock className="mr-1 h-3.5 w-3.5" /> Request access
-                        </Button>
-                      }
-                    />
-                  )}
-                </TableCell>
-              </TableRow>
-            ))}
+                  </TableCell>
+                </TableRow>
+              ))
+            )}
           </TableBody>
         </Table>
       </Card>

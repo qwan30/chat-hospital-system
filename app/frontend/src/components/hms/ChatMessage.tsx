@@ -3,6 +3,8 @@ import { Sparkles, User } from "lucide-react";
 import { CitationChip } from "./CitationChip";
 import type { ReactNode } from "react";
 
+import type { StreamCitation } from "@/lib/stream-client";
+
 export interface ChatCitationRef {
   n: number;
   sourceId: string;
@@ -13,6 +15,7 @@ export interface ChatMessageData {
   role: "user" | "assistant";
   content: string;
   citations?: ChatCitationRef[];
+  rawCitations?: StreamCitation[];
   time?: string;
   extra?: ReactNode;
 }

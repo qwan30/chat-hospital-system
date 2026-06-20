@@ -22,10 +22,11 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
-import { auditEvents, type AuditEvent } from "@/data/audit";
+import { getAuditLogs, type AuditLog } from "@/lib/api/audit";
 import { Download, Filter, Search } from "lucide-react";
 import { useState } from "react";
 import { formatDateTime } from "@/lib/format";
+import { useQuery } from "@tanstack/react-query";
 
 export const Route = createFileRoute("/_app/audit/")({
   head: () => ({
@@ -43,7 +44,15 @@ const categoryColor: Record<string, string> = {
 };
 
 function AuditPage() {
-  const [selected, setSelected] = useState<AuditEvent | null>(null);
+  const [selected, setSelected] = useState<AuditLog | null>(null);
+
+  const { data: auditResponse, isLoading } = useQuery({
+    queryKey: ["audit-logs"],
+    queryFn: () => getAuditLogs(),
+  });
+
+  const auditEvents = auditResponse?.items || [];
+
   return (
     <AppShell>
       <PageHeader
@@ -61,13 +70,12 @@ function AuditPage() {
           <>
             <Badge variant="secondary">{auditEvents.length} events</Badge>
             <Badge variant="secondary" className="bg-success/10 text-success">
-              {auditEvents.filter((e) => e.result === "success").length} success
+              {auditEvents.filter((e) => e.outcome === "allowed" || e.outcome === "success").length}{" "}
+              success
             </Badge>
             <Badge variant="secondary" className="bg-destructive/10 text-destructive">
-              {auditEvents.filter((e) => e.result === "deny").length} denied
-            </Badge>
-            <Badge variant="secondary" className="bg-warning/10 text-warning">
-              {auditEvents.filter((e) => e.result === "pending").length} pending
+              {auditEvents.filter((e) => e.outcome === "denied" || e.outcome === "deny").length}{" "}
+              denied
             </Badge>
           </>
         }
@@ -101,84 +109,91 @@ function AuditPage() {
               <TableHead>Target</TableHead>
               <TableHead>Category</TableHead>
               <TableHead>Result</TableHead>
-              <TableHead>IP</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {auditEvents.map((e) => (
-              <Sheet key={e.id}>
-                <SheetTrigger asChild>
-                  <TableRow onClick={() => setSelected(e)} className="cursor-pointer">
-                    <TableCell className="font-mono text-xs">{formatDateTime(e.ts)}</TableCell>
-                    <TableCell>
-                      <div className="text-sm font-medium">{e.user}</div>
-                      <div className="text-xs text-muted-foreground">{e.role}</div>
-                    </TableCell>
-                    <TableCell className="text-sm">{e.action}</TableCell>
-                    <TableCell className="text-sm">{e.target}</TableCell>
-                    <TableCell>
-                      <span
-                        className={`rounded-full px-2 py-0.5 text-xs font-medium capitalize ${categoryColor[e.category]}`}
-                      >
-                        {e.category}
-                      </span>
-                    </TableCell>
-                    <TableCell>
-                      <StatusBadge
-                        status={
-                          e.result === "success"
-                            ? "success"
-                            : e.result === "deny"
-                              ? "deny"
-                              : "pending"
-                        }
-                      />
-                    </TableCell>
-                    <TableCell className="font-mono text-xs">{e.ip}</TableCell>
-                  </TableRow>
-                </SheetTrigger>
-                <SheetContent className="w-[420px] sm:max-w-[420px]">
-                  <SheetHeader>
-                    <SheetTitle>Event {e.id}</SheetTitle>
-                    <SheetDescription>{e.action}</SheetDescription>
-                  </SheetHeader>
-                  <div className="mt-5 space-y-4 text-sm">
-                    <Field k="Timestamp" v={formatDateTime(e.ts)} />
-                    <Field k="User" v={`${e.user} (${e.role})`} />
-                    <Field k="Target" v={e.target} />
-                    <Field k="Category" v={e.category} />
-                    <Field k="Result" v={e.result} />
-                    <Field k="IP address" v={e.ip} />
-                    <div>
-                      <div className="text-xs uppercase tracking-wider text-muted-foreground">
-                        Details
+            {isLoading ? (
+              <TableRow>
+                <TableCell colSpan={6} className="text-center py-8">
+                  Loading audit logs...
+                </TableCell>
+              </TableRow>
+            ) : (
+              auditEvents.map((e) => (
+                <Sheet key={e.id}>
+                  <SheetTrigger asChild>
+                    <TableRow onClick={() => setSelected(e)} className="cursor-pointer">
+                      <TableCell className="font-mono text-xs">
+                        {formatDateTime(e.created_at)}
+                      </TableCell>
+                      <TableCell>
+                        <div className="text-sm font-medium">{e.user_id}</div>
+                      </TableCell>
+                      <TableCell className="text-sm">{e.action}</TableCell>
+                      <TableCell className="text-sm">{e.resource_id}</TableCell>
+                      <TableCell>
+                        <span
+                          className={`rounded-full px-2 py-0.5 text-xs font-medium capitalize bg-secondary/10 text-secondary`}
+                        >
+                          {e.resource_type}
+                        </span>
+                      </TableCell>
+                      <TableCell>
+                        <StatusBadge
+                          status={
+                            e.outcome === "allowed" || e.outcome === "success"
+                              ? "success"
+                              : e.outcome === "denied" || e.outcome === "deny"
+                                ? "deny"
+                                : "pending"
+                          }
+                        />
+                      </TableCell>
+                    </TableRow>
+                  </SheetTrigger>
+                  <SheetContent className="w-[420px] sm:max-w-[420px]">
+                    <SheetHeader>
+                      <SheetTitle>Event {e.id}</SheetTitle>
+                      <SheetDescription>{e.action}</SheetDescription>
+                    </SheetHeader>
+                    <div className="mt-5 space-y-4 text-sm">
+                      <Field k="Timestamp" v={formatDateTime(e.created_at)} />
+                      <Field k="User" v={`${e.user_id}`} />
+                      <Field k="Target" v={e.resource_id} />
+                      <Field k="Category" v={e.resource_type} />
+                      <Field k="Result" v={e.outcome} />
+                      <Field k="Reason" v={e.reason || "N/A"} />
+                      <div>
+                        <div className="text-xs uppercase tracking-wider text-muted-foreground">
+                          Details
+                        </div>
+                        <p className="mt-1 rounded-md border bg-muted/40 p-3 text-sm leading-relaxed">
+                          {e.action}
+                        </p>
                       </div>
-                      <p className="mt-1 rounded-md border bg-muted/40 p-3 text-sm leading-relaxed">
-                        {e.details}
-                      </p>
+                      <div className="flex flex-wrap gap-2">
+                        <a
+                          href={`/audit/${e.id}/raw`}
+                          className="rounded-md border px-3 py-1.5 text-xs font-medium hover:bg-accent"
+                        >
+                          View raw JSON
+                        </a>
+                        <a
+                          href="/audit/traces/tr-001"
+                          className="rounded-md border px-3 py-1.5 text-xs font-medium hover:bg-accent"
+                        >
+                          Open trace
+                        </a>
+                      </div>
+                      <div className="rounded-md border border-success/30 bg-success/5 p-3 text-xs">
+                        <span className="font-semibold text-success">Tamper-evident</span> · this
+                        event is cryptographically chained to the audit ledger.
+                      </div>
                     </div>
-                    <div className="flex flex-wrap gap-2">
-                      <a
-                        href={`/audit/${e.id}/raw`}
-                        className="rounded-md border px-3 py-1.5 text-xs font-medium hover:bg-accent"
-                      >
-                        View raw JSON
-                      </a>
-                      <a
-                        href="/audit/traces/tr-001"
-                        className="rounded-md border px-3 py-1.5 text-xs font-medium hover:bg-accent"
-                      >
-                        Open trace
-                      </a>
-                    </div>
-                    <div className="rounded-md border border-success/30 bg-success/5 p-3 text-xs">
-                      <span className="font-semibold text-success">Tamper-evident</span> · this
-                      event is cryptographically chained to the audit ledger.
-                    </div>
-                  </div>
-                </SheetContent>
-              </Sheet>
-            ))}
+                  </SheetContent>
+                </Sheet>
+              ))
+            )}
           </TableBody>
         </Table>
       </Card>

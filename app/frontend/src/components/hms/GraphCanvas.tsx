@@ -11,7 +11,7 @@ import {
   Plus,
   RotateCcw,
 } from "lucide-react";
-import type { GraphData, GraphNode } from "@/data/graph";
+import type { GraphDataResponse as GraphData, GraphNode, GraphEdge } from "@/lib/api/graph";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -76,17 +76,19 @@ export function GraphCanvas({ data }: { data: GraphData }) {
   const adjacency = useMemo(() => {
     const map = new Map<string, Set<string>>();
     for (const e of data.edges) {
-      if (!map.has(e.from)) map.set(e.from, new Set());
-      if (!map.has(e.to)) map.set(e.to, new Set());
-      map.get(e.from)!.add(e.to);
-      map.get(e.to)!.add(e.from);
+      if (!map.has(e.from_node)) map.set(e.from_node, new Set());
+      if (!map.has(e.to_node)) map.set(e.to_node, new Set());
+      map.get(e.from_node)!.add(e.to_node);
+      map.get(e.to_node)!.add(e.from_node);
     }
     return map;
   }, [data.edges]);
 
   const visibleNodes = data.nodes.filter((n) => !hidden.has(n.type));
   const visibleIds = new Set(visibleNodes.map((n) => n.id));
-  const visibleEdges = data.edges.filter((e) => visibleIds.has(e.from) && visibleIds.has(e.to));
+  const visibleEdges = data.edges.filter(
+    (e) => visibleIds.has(e.from_node) && visibleIds.has(e.to_node),
+  );
 
   const counts = data.nodes.reduce<Record<string, number>>((acc, n) => {
     acc[n.type] = (acc[n.type] ?? 0) + 1;
@@ -234,11 +236,11 @@ export function GraphCanvas({ data }: { data: GraphData }) {
 
           {/* Edges */}
           {visibleEdges.map((e) => {
-            const from = data.nodes.find((n) => n.id === e.from)!;
-            const to = data.nodes.find((n) => n.id === e.to)!;
+            const from = data.nodes.find((n) => n.id === e.from_node)!;
+            const to = data.nodes.find((n) => n.id === e.to_node)!;
             const midX = (from.x + to.x) / 2;
             const midY = (from.y + to.y) / 2;
-            const dimmed = edgeDimmed(e.from, e.to);
+            const dimmed = edgeDimmed(e.from_node, e.to_node);
             const highlighted = active && !dimmed;
             const dx = to.x - from.x;
             const dy = to.y - from.y;

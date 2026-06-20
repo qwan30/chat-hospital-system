@@ -1,4 +1,6 @@
 import { useState } from "react";
+import { useMutation } from "@tanstack/react-query";
+import { createAccessRequest } from "@/lib/api/access-requests";
 import {
   Dialog,
   DialogContent,
@@ -22,13 +24,29 @@ import { toast } from "sonner";
 import { ShieldCheck } from "lucide-react";
 
 export function AccessRequestDialog({
+  patientId,
   patientName,
   trigger,
 }: {
+  patientId: string;
   patientName: string;
   trigger: React.ReactNode;
 }) {
   const [open, setOpen] = useState(false);
+  const [justification, setJustification] = useState("");
+  const mutation = useMutation({
+    mutationFn: createAccessRequest,
+    onSuccess: () => {
+      toast.success("Access request submitted", {
+        description: "Audit event logged. You will be notified within 15 minutes.",
+      });
+      setOpen(false);
+      setJustification("");
+    },
+    onError: (err: Error) => {
+      toast.error("Failed to submit request", { description: err.message });
+    },
+  });
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>{trigger}</DialogTrigger>
@@ -70,6 +88,8 @@ export function AccessRequestDialog({
               id="justification"
               rows={4}
               placeholder="e.g. Requested second opinion on cardiac imaging from primary care."
+              value={justification}
+              onChange={(e) => setJustification(e.target.value)}
             />
           </div>
         </div>
@@ -78,14 +98,10 @@ export function AccessRequestDialog({
             Cancel
           </Button>
           <Button
-            onClick={() => {
-              toast.success("Access request submitted", {
-                description: "Audit event logged. You will be notified within 15 minutes.",
-              });
-              setOpen(false);
-            }}
+            onClick={() => mutation.mutate({ patient_id: patientId, justification })}
+            disabled={mutation.isPending || justification.length < 15}
           >
-            Submit request
+            {mutation.isPending ? "Submitting..." : "Submit request"}
           </Button>
         </DialogFooter>
       </DialogContent>

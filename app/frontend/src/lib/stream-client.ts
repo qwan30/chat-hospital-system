@@ -44,13 +44,20 @@ export async function streamChat(
   apiUrl: string,
   token: string | null,
   body: {
-    question: string;
+    message?: string;
+    question?: string; // legacy support
+    context?: {
+      patient_id?: string;
+      document_ids?: string[];
+    };
     patient_id?: string;
     thread_id?: string;
     top_k?: number;
     pipeline?: string;
+    mode?: string;
   },
   onEvent?: StreamCallback,
+  abortSignal?: AbortSignal,
 ): Promise<StreamResult> {
   const base = apiUrl.replace(/\/+$/, "");
   const url = `${base}/chat/stream`;
@@ -66,12 +73,15 @@ export async function streamChat(
   const response = await fetch(url, {
     method: "POST",
     headers,
+    signal: abortSignal,
     body: JSON.stringify({
-      question: body.question,
-      patient_id: body.patient_id || null,
-      thread_id: body.thread_id || null,
+      message: body.message || body.question,
+      context: body.context || undefined,
+      patient_id: body.patient_id || undefined,
+      thread_id: body.thread_id || undefined,
       top_k: body.top_k ?? 5,
       pipeline: body.pipeline || "default",
+      mode: body.mode || undefined,
     }),
   });
 

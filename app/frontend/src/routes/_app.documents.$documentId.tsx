@@ -4,7 +4,10 @@ import { PageHeader } from "@/components/hms/PageHeader";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { documents } from "@/data/documents";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { getDocument, getDocumentPage, retryIndex } from "@/lib/api/documents";
+import { Loader2 } from "lucide-react";
+import { ErrorState } from "@/components/hms/ErrorState";
 
 export const Route = createFileRoute("/_app/documents/$documentId")({
   head: () => ({ meta: [{ title: "Document — HMS AI Copilot" }] }),
@@ -13,56 +16,124 @@ export const Route = createFileRoute("/_app/documents/$documentId")({
 
 function Page() {
   const { documentId } = Route.useParams();
-  const d = documents.find((x) => x.id === documentId) || documents[0];
+  const queryClient = useQueryClient();
+
+  const {
+    data: d,
+    isLoading,
+    error,
+  } = useQuery({
+    queryKey: ["document", documentId],
+    queryFn: () => getDocument(documentId),
+    refetchInterval: (query) => {
+      const status = query.state.data?.status;
+      if (status === "uploaded" || status === "ocr_processing" || status === "indexing") {
+        return 2000;
+      }
+      return false;
+    },
+  });
+
+  const { data: pageData, isLoading: pageLoading } = useQuery({
+    queryKey: ["document-page", documentId, 1],
+    queryFn: () => getDocumentPage(documentId, 1),
+    enabled: !!d && d.status === "indexed",
+  });
+
+  const retryMutation = useMutation({
+    mutationFn: () => retryIndex(documentId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["document", documentId] });
+      queryClient.invalidateQueries({ queryKey: ["documents"] });
+    },
+  });
+
+  if (isLoading) {
+    return (
+      <AppShell>
+        <div className="flex h-[50vh] items-center justify-center">
+          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+        </div>
+      </AppShell>
+    );
+  }
+
+  if (error || !d) {
+    return (
+      <AppShell>
+        <div className="p-8">
+          <ErrorState
+            title="Failed to load document"
+            description={error instanceof Error ? error.message : "Document not found"}
+            code="DOC_ERR"
+          />
+        </div>
+      </AppShell>
+    );
+  }
+
   return (
     <AppShell>
       <PageHeader
-        title={d.name}
-        description={`${d.category} · ${d.pages} pages · ${d.size}`}
+        title={d.title}
+        description={`${d.document_type} · ${d.page_count || 0} pages`}
+        backLink={{ to: "/documents", label: "Back to Documents" }}
         chips={
           <Badge variant="secondary" className="capitalize">
             {d.status}
           </Badge>
         }
         actions={
-          <>
-            <Button variant="outline" asChild>
-              <Link to="/documents/$documentId/edit" params={{ documentId: d.id }}>
-                Edit metadata
-              </Link>
-            </Button>
-            <Button asChild>
-              <Link to="/documents/$documentId/review" params={{ documentId: d.id }}>
-                OCR review
-              </Link>
-            </Button>
-          </>
+          <Button
+            variant="outline"
+            onClick={() => retryMutation.mutate()}
+            disabled={retryMutation.isPending}
+          >
+            {retryMutation.isPending ? "Retrying..." : "Retry Indexing"}
+          </Button>
         }
       />
       <div className="grid gap-4 md:grid-cols-3">
         <Card className="md:col-span-2 p-5">
-          <h4 className="text-sm font-semibold mb-2">Extracted text (preview)</h4>
-          <pre className="whitespace-pre-wrap text-xs text-muted-foreground">
-            Lorem ipsum dolor sit amet, consectetur adipiscing elit. {"\n\n"}Patient: Vance, Eleanor
-            — MRN-48201{"\n"}Date: 2026-06-12{"\n\n"}Echocardiogram findings:{"\n"}• LVEF 55%{"\n"}•
-            Mild left atrial dilation{"\n"}• No pericardial effusion
-          </pre>
+          <h4 className="text-sm font-semibold mb-2">Extracted text (preview Page 1)</h4>
+          {pageLoading ? (
+            <div className="flex justify-center p-4">
+              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+            </div>
+          ) : pageData ? (
+            <pre className="whitespace-pre-wrap text-xs text-muted-foreground">
+              {pageData.ocr_text || "No OCR text extracted"}
+            </pre>
+          ) : d.status !== "indexed" ? (
+            <div className="text-xs text-muted-foreground">
+              Document is not indexed yet. Status: {d.status}
+            </div>
+          ) : (
+            <div className="text-xs text-muted-foreground">No page data available</div>
+          )}
         </Card>
         <Card className="p-5 space-y-3 text-sm">
-          <Row k="Uploaded" v={d.uploaded} />
-          <Row k="By" v={d.uploadedBy} />
-          <Row k="Type" v={d.type} />
-          <Row k="OCR confidence" v="94%" />
+          <Row k="Uploaded" v={new Date(d.created_at).toLocaleString()} />
+          <Row k="By" v={d.uploaded_by.substring(0, 8)} />
+          <Row k="Patient" v={d.patient_id.substring(0, 8)} />
+          <Row k="Type" v={d.mime_type} />
+          {d.ocr_error && <Row k="OCR Error" v={d.ocr_error} />}
+          {pageData?.ocr_confidence !== undefined && pageData?.ocr_confidence !== null && (
+            <Row k="OCR Confidence (Pg 1)" v={`${Math.round(pageData.ocr_confidence * 100)}%`} />
+          )}
         </Card>
       </div>
     </AppShell>
   );
 }
+
 function Row({ k, v }: { k: string; v: string }) {
   return (
-    <div className="flex justify-between">
-      <span className="text-muted-foreground">{k}</span>
-      <span className="font-medium">{v}</span>
+    <div className="flex justify-between gap-4">
+      <span className="text-muted-foreground shrink-0">{k}</span>
+      <span className="font-medium text-right truncate" title={v}>
+        {v}
+      </span>
     </div>
   );
 }

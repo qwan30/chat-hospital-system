@@ -50,7 +50,7 @@ describe("CitationChip", () => {
   it("links to the correct citation detail page", () => {
     render(<CitationChip n={5} sourceId="doc-abc" />);
     const link = screen.getByText("[5]");
-    expect(link).toHaveAttribute("href", "/citations/doc-abc");
+    expect(link).toHaveAttribute("href", "/documents/doc-abc");
   });
 
   it("accepts and applies custom className", () => {

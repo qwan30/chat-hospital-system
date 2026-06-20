@@ -3,16 +3,41 @@ import { AppShell } from "@/components/shell/AppShell";
 import { PageHeader } from "@/components/hms/PageHeader";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { useState } from "react";
-import { documents } from "@/data/documents";
+import { Button } from "@/components/ui/button";
+import { useState, useEffect } from "react";
+import { useMutation } from "@tanstack/react-query";
+import { searchDocuments } from "@/lib/api/documents";
+import { Loader2 } from "lucide-react";
+import { z } from "zod";
+
+const searchSchema = z.object({
+  q: z.string().optional(),
+  patientId: z.string().optional(),
+});
 
 export const Route = createFileRoute("/_app/documents/search")({
+  validateSearch: (search) => searchSchema.parse(search),
   head: () => ({ meta: [{ title: "Search documents — HMS AI Copilot" }] }),
   component: Page,
 });
 
 function Page() {
-  const [q, setQ] = useState("apixaban renal");
+  const searchParams = Route.useSearch();
+  const [patientId, setPatientId] = useState(
+    searchParams.patientId || "20000000-0000-0000-0000-000000000001",
+  );
+  const [q, setQ] = useState(searchParams.q || "");
+
+  const searchMutation = useMutation({
+    mutationFn: () => searchDocuments({ patient_id: patientId, query: q, top_k: 5 }),
+  });
+
+  useEffect(() => {
+    if (searchParams.q) {
+      searchMutation.mutate();
+    }
+  }, [searchParams.q, searchParams.patientId]);
+
   return (
     <AppShell>
       <PageHeader
@@ -20,21 +45,49 @@ function Page() {
         description="Hybrid keyword + vector search across the indexed corpus."
       />
       <Card className="p-3">
-        <Input value={q} onChange={(e) => setQ(e.target.value)} />
+        <div className="flex gap-2">
+          <Input
+            placeholder="Patient UUID"
+            className="w-1/3"
+            value={patientId}
+            onChange={(e) => setPatientId(e.target.value)}
+          />
+          <Input
+            placeholder="Search query..."
+            className="flex-1"
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") searchMutation.mutate();
+            }}
+          />
+          <Button onClick={() => searchMutation.mutate()} disabled={searchMutation.isPending || !q}>
+            {searchMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Search"}
+          </Button>
+        </div>
       </Card>
+
+      {searchMutation.error && (
+        <div className="mt-4 rounded-md bg-destructive/15 p-3 text-sm text-destructive">
+          {searchMutation.error instanceof Error ? searchMutation.error.message : "Search failed"}
+        </div>
+      )}
+
       <div className="mt-4 space-y-2">
-        {documents.slice(0, 6).map((d, i) => (
-          <Card key={d.id} className="p-4">
-            <p className="text-sm font-semibold">{d.name}</p>
+        {searchMutation.data?.items.map((d, i) => (
+          <Card key={d.chunk_id} className="p-4">
+            <p className="text-sm font-semibold">{d.document_title}</p>
             <p className="mt-1 text-xs text-muted-foreground">
-              {d.category} · {d.pages}p · score {(0.92 - i * 0.04).toFixed(2)}
+              Page {d.page} · score {d.score.toFixed(3)} · Chunk ID: {d.chunk_id.substring(0, 8)}
             </p>
-            <p className="mt-2 text-sm">
-              …CrCl 30–50 mL/min: reduce apixaban to 2.5 mg BID when co-administered with strong
-              CYP3A4 inhibitors…
+            <p className="mt-2 text-sm text-muted-foreground whitespace-pre-wrap">
+              {d.content || "No text available"}
             </p>
           </Card>
         ))}
+        {searchMutation.data?.items.length === 0 && (
+          <p className="text-sm text-muted-foreground mt-4 text-center">No results found.</p>
+        )}
       </div>
     </AppShell>
   );

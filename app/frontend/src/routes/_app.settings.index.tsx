@@ -94,9 +94,8 @@ function SettingsPage() {
               />
               <Row
                 k="PHI redaction in prompts"
-                v="Strip identifiers before sending to the model"
-                toggle
-                defaultOn
+                v="Uploads are indexed for demo search. PHI redaction is planned for production hardening."
+                badge="Planned"
               />
               <Row
                 k="Show reasoning trace"
@@ -144,7 +143,14 @@ function Row({
       {toggle ? (
         <Switch defaultChecked={defaultOn} />
       ) : badge ? (
-        <Badge variant="secondary" className="bg-success/10 text-success">
+        <Badge
+          variant="secondary"
+          className={
+            badge === "Planned"
+              ? "bg-info/10 text-info border-transparent"
+              : "bg-success/10 text-success border-transparent"
+          }
+        >
           {badge}
         </Badge>
       ) : null}

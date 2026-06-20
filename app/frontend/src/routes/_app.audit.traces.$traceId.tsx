@@ -17,6 +17,7 @@ function Page() {
       <PageHeader
         title={`Trace ${t.id}`}
         description={`${t.query} · ${t.spans.length} spans · ${t.totalMs}ms total`}
+        backLink={{ to: "/audit", label: "Back to Audit" }}
       />
       <TraceTimeline trace={t} />
     </AppShell>

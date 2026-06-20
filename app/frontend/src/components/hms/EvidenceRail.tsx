@@ -11,6 +11,7 @@ export interface EvidenceItem {
   date: string;
   snippet: string;
   relevance: number;
+  document_id: string;
 }
 
 export function EvidenceRail({ items }: { items: EvidenceItem[] }) {
@@ -43,11 +44,11 @@ export function EvidenceRail({ items }: { items: EvidenceItem[] }) {
                     Relevance {(it.relevance * 100).toFixed(0)}%
                   </span>
                   <Link
-                    to="/citations/$sourceId"
-                    params={{ sourceId: it.id }}
+                    to="/documents/$documentId"
+                    params={{ documentId: it.document_id }}
                     className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"
                   >
-                    Open <ExternalLink className="h-3 w-3" />
+                    Open Document <ExternalLink className="h-3 w-3" />
                   </Link>
                 </div>
               </div>

@@ -4,23 +4,50 @@ import { PageHeader } from "@/components/hms/PageHeader";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { StatusBadge } from "@/components/hms/StatusBadge";
-import { getPatient } from "@/data/patients";
+import { getPatient } from "@/lib/api/patients";
 import { MessageSquare, RefreshCw, Lock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useSession } from "@/lib/session";
 import { canAccessPatientTab } from "@/lib/rbac";
+import { useQuery } from "@tanstack/react-query";
 
 export const Route = createFileRoute("/_app/patients/$patientId")({
   head: () => ({ meta: [{ title: "Patient — HMS AI Copilot" }] }),
   component: PatientLayout,
 });
 
+function calculateAge(dob: string | null): number | string {
+  if (!dob) return "--";
+  const birthDate = new Date(dob);
+  const diffMs = Date.now() - birthDate.getTime();
+  const ageDt = new Date(diffMs);
+  return Math.abs(ageDt.getUTCFullYear() - 1970);
+}
+
 function PatientLayout() {
   const { patientId } = Route.useParams();
   const path = useRouterState({ select: (s) => s.location.pathname });
   const { session } = useSession();
-  const p = getPatient(patientId);
-  if (!p) {
+
+  const {
+    data: p,
+    isLoading,
+    isError,
+  } = useQuery({
+    queryKey: ["patient", patientId],
+    queryFn: () => getPatient(patientId),
+  });
+
+  if (isLoading) {
+    return (
+      <AppShell>
+        <PageHeader title="Loading patient..." description="Fetching from HMS" />
+        <Card className="p-6 text-sm text-muted-foreground">Loading...</Card>
+      </AppShell>
+    );
+  }
+
+  if (isError || !p) {
     return (
       <AppShell>
         <PageHeader
@@ -52,15 +79,15 @@ function PatientLayout() {
   return (
     <AppShell>
       <PageHeader
-        title={p.name}
-        description={`${p.age} · ${p.sex} · ${p.unit} · MRN ${p.mrn}`}
+        title={p.full_name}
+        description={`${calculateAge(p.dob)} · ${p.department || "--"} · MRN ${p.mrn}`}
+        backLink={{ to: "/patients", label: "Back to Patients" }}
         chips={
           <>
             <Badge variant="secondary" className="capitalize">
               {p.status}
             </Badge>
-            <StatusBadge status={p.access} />
-            {p.assigned ? <Badge variant="outline">{p.assigned}</Badge> : null}
+            <StatusBadge status="allow" />
           </>
         }
         actions={

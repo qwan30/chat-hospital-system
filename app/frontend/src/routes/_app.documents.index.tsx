@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { AppShell } from "@/components/shell/AppShell";
 import { PageHeader } from "@/components/hms/PageHeader";
 import { Card } from "@/components/ui/card";
@@ -14,8 +14,11 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { FileText, Search, Sparkles, Upload } from "lucide-react";
-import { documents } from "@/data/documents";
+import { FileText, Search, Sparkles, Upload, Loader2 } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import { listDocuments } from "@/lib/api/documents";
+import { ErrorState } from "@/components/hms/ErrorState";
+import { useState } from "react";
 
 export const Route = createFileRoute("/_app/documents/")({
   head: () => ({
@@ -27,12 +30,44 @@ export const Route = createFileRoute("/_app/documents/")({
   component: DocumentsPage,
 });
 
-const counts = documents.reduce(
-  (acc, d) => ((acc[d.status] = (acc[d.status] ?? 0) + 1), acc),
-  {} as Record<string, number>,
-);
-
 function DocumentsPage() {
+  const navigate = useNavigate();
+  const [searchQuery, setSearchQuery] = useState("anticoagulation contraindications in elderly");
+  const { data, isLoading, error } = useQuery({
+    queryKey: ["documents"],
+    queryFn: () => listDocuments(),
+  });
+
+  const docs = data?.items || [];
+  const counts = docs.reduce(
+    (acc, d) => ((acc[d.status] = (acc[d.status] ?? 0) + 1), acc),
+    {} as Record<string, number>,
+  );
+
+  if (isLoading) {
+    return (
+      <AppShell>
+        <div className="flex h-[50vh] items-center justify-center">
+          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+        </div>
+      </AppShell>
+    );
+  }
+
+  if (error) {
+    return (
+      <AppShell>
+        <div className="p-8">
+          <ErrorState
+            title="Failed to load documents"
+            description={error instanceof Error ? error.message : "Unknown error"}
+            code="DOC_LIST_ERR"
+          />
+        </div>
+      </AppShell>
+    );
+  }
+
   return (
     <AppShell
       rightRail={
@@ -60,9 +95,6 @@ function DocumentsPage() {
               <span className="font-semibold text-destructive">{counts.error ?? 0}</span>
             </li>
           </ul>
-          <div className="mt-4 rounded-lg border bg-muted/40 p-3 text-xs text-muted-foreground">
-            All uploads pass through PHI redaction before vector embedding.
-          </div>
         </Card>
       }
     >
@@ -70,8 +102,10 @@ function DocumentsPage() {
         title="Documents & OCR"
         description="Upload, index, and semantically search clinical knowledge."
         actions={
-          <Button size="sm">
-            <Upload className="mr-1 h-4 w-4" /> Upload documents
+          <Button size="sm" asChild>
+            <Link to="/documents/upload">
+              <Upload className="mr-1 h-4 w-4" /> Upload documents
+            </Link>
           </Button>
         }
       />
@@ -99,19 +133,33 @@ function DocumentsPage() {
           <div className="relative flex-1 max-w-2xl">
             <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input
-              defaultValue="anticoagulation contraindications in elderly"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && searchQuery.trim()) {
+                  navigate({ to: "/documents/search", search: { q: searchQuery } });
+                }
+              }}
               className="h-10 pl-8"
               placeholder="Semantic search across the knowledge base..."
             />
           </div>
-          <Button>Search</Button>
+          <Button
+            onClick={() => {
+              if (searchQuery.trim()) {
+                navigate({ to: "/documents/search", search: { q: searchQuery } });
+              }
+            }}
+          >
+            Search
+          </Button>
         </div>
       </Card>
 
       <Card className="mt-6 overflow-hidden p-0">
         <div className="flex items-center justify-between border-b p-4">
           <h3 className="text-sm font-semibold">All documents</h3>
-          <span className="text-xs text-muted-foreground">{documents.length} files</span>
+          <span className="text-xs text-muted-foreground">{docs.length} files</span>
         </div>
         <Table>
           <TableHeader>
@@ -126,23 +174,31 @@ function DocumentsPage() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {documents.map((d) => (
+            {docs.map((d) => (
               <TableRow key={d.id}>
                 <TableCell>
-                  <div className="flex items-center gap-2">
+                  <Link
+                    to="/documents/$documentId"
+                    params={{ documentId: d.id }}
+                    className="flex items-center gap-2 hover:underline"
+                  >
                     <FileText className="h-4 w-4 text-muted-foreground" />
-                    <span className="font-medium">{d.name}</span>
-                  </div>
+                    <span className="font-medium">{d.title}</span>
+                  </Link>
                 </TableCell>
                 <TableCell>
-                  <Badge variant="secondary">{d.category}</Badge>
+                  <Badge variant="secondary">{d.document_type}</Badge>
                 </TableCell>
-                <TableCell className="text-sm">{d.pages || "—"}</TableCell>
-                <TableCell className="text-sm">{d.size}</TableCell>
-                <TableCell className="text-sm">{d.uploadedBy}</TableCell>
-                <TableCell className="text-sm text-muted-foreground">{d.uploaded}</TableCell>
+                <TableCell className="text-sm">{d.page_count || "—"}</TableCell>
+                <TableCell className="text-sm">—</TableCell>
+                <TableCell className="text-sm font-mono" title={d.uploaded_by}>
+                  {d.uploaded_by.substring(0, 8)}
+                </TableCell>
+                <TableCell className="text-sm text-muted-foreground">
+                  {new Date(d.created_at).toLocaleString()}
+                </TableCell>
                 <TableCell>
-                  <StatusBadge status={d.status} />
+                  <StatusBadge status={d.status as any} />
                 </TableCell>
               </TableRow>
             ))}

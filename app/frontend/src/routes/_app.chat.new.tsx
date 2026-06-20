@@ -3,9 +3,10 @@ import { AppShell } from "@/components/shell/AppShell";
 import { PageHeader } from "@/components/hms/PageHeader";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { patients } from "@/data/patients";
+import { searchPatients } from "@/lib/api/patients";
 import { useState } from "react";
 import { StatusBadge } from "@/components/hms/StatusBadge";
+import { useQuery } from "@tanstack/react-query";
 
 export const Route = createFileRoute("/_app/chat/new")({
   head: () => ({ meta: [{ title: "New chat — HMS AI Copilot" }] }),
@@ -14,11 +15,14 @@ export const Route = createFileRoute("/_app/chat/new")({
 
 function Page() {
   const [q, setQ] = useState("");
-  const filtered = patients.filter(
-    (p) =>
-      p.name.toLowerCase().includes(q.toLowerCase()) ||
-      p.mrn.toLowerCase().includes(q.toLowerCase()),
-  );
+
+  const { data: searchResponse, isLoading } = useQuery({
+    queryKey: ["patients", q],
+    queryFn: () => searchPatients(q || undefined, 20),
+  });
+
+  const filtered = searchResponse?.items || [];
+
   return (
     <AppShell>
       <PageHeader
@@ -33,25 +37,24 @@ function Page() {
         />
       </Card>
       <div className="mt-4 grid gap-2">
+        {isLoading && <div className="text-sm text-muted-foreground p-2">Searching...</div>}
         {filtered.map((p) => (
           <Link
             key={p.id}
-            to="/chat/patients/$patientId"
-            params={{ patientId: p.id }}
+            to="/chat"
+            search={{ patient: p.id }}
             className="flex items-center justify-between rounded-md border bg-card p-3 hover:bg-muted"
           >
             <div>
-              <p className="font-medium text-sm">{p.name}</p>
-              <p className="text-xs text-muted-foreground">
-                {p.unit} · {p.condition}
-              </p>
+              <p className="font-medium text-sm">{p.full_name}</p>
+              <p className="text-xs text-muted-foreground">{p.department || "No department"}</p>
             </div>
-            <StatusBadge status={p.access} />
+            <StatusBadge status="allow" />
           </Link>
         ))}
       </div>
       <Card className="mt-4 p-4 text-sm">
-        <Link to="/chat/general" className="text-primary underline">
+        <Link to="/chat" className="text-primary underline">
           Or start a general clinical knowledge chat →
         </Link>
       </Card>

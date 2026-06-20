@@ -45,6 +45,19 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v6
 
+      - name: Check staging deployment secrets
+        id: check-secrets
+        run: |
+          if [ -n "${{ secrets.DEPLOY_HOST_STAGING }}" ] && \
+             [ -n "${{ secrets.DEPLOY_USER_STAGING }}" ] && \
+             [ -n "${{ secrets.DEPLOY_SSH_KEY_STAGING }}" ]; then
+            echo "configured=true" >> "$GITHUB_OUTPUT"
+            echo "Staging deployment secrets configured"
+          else
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+            echo "Staging deployment secrets not configured - skipping deploy"
+          fi
+
       - name: Resolve GHCR token
         id: ghcr
         run: |
@@ -61,6 +74,7 @@ jobs:
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
 
       - name: Copy deployment configurations to staging server
+        if: steps.check-secrets.outputs.configured == 'true'
         uses: appleboy/scp-action@v1.0.0
         with:
           host: ${{ secrets.DEPLOY_HOST_STAGING }}
@@ -70,6 +84,7 @@ jobs:
           target: "~/apps/chatbot-hospital"
 
       - name: SSH — deploy to staging
+        if: steps.check-secrets.outputs.configured == 'true'
         uses: appleboy/ssh-action@v1.2.5
         with:
           host: ${{ secrets.DEPLOY_HOST_STAGING }}
@@ -84,7 +99,7 @@ jobs:
 
             # Pull target images
             IMAGE_TAG="${{ steps.tag.outputs.tag }}"
-            export BACKEND_IMAGE="ghcr.io/${{ github.repository }}/backend:${IMAGE_TAG}"
+            export BACKEND_IMAGE="ghcr.io/${{ github.repository_owner }}/hospital-ai-backend:${IMAGE_TAG}"
 
             echo "→ Deploying backend: ${BACKEND_IMAGE}"
 
@@ -108,6 +123,7 @@ jobs:
             docker image prune -f
 
       - name: Staging smoke check
+        if: steps.check-secrets.outputs.configured == 'true'
         uses: appleboy/ssh-action@v1.2.5
         with:
           host: ${{ secrets.DEPLOY_HOST_STAGING }}
@@ -144,6 +160,19 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v6
 
+      - name: Check production deployment secrets
+        id: check-secrets
+        run: |
+          if [ -n "${{ secrets.DEPLOY_HOST }}" ] && \
+             [ -n "${{ secrets.DEPLOY_USER }}" ] && \
+             [ -n "${{ secrets.DEPLOY_SSH_KEY }}" ]; then
+            echo "configured=true" >> "$GITHUB_OUTPUT"
+            echo "Production deployment secrets configured"
+          else
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+            echo "Production deployment secrets not configured - skipping deploy"
+          fi
+
       - name: Resolve GHCR token
         id: ghcr
         run: |
@@ -160,6 +189,7 @@ jobs:
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
 
       - name: Copy deployment configurations to production server
+        if: steps.check-secrets.outputs.configured == 'true'
         uses: appleboy/scp-action@v1.0.0
         with:
           host: ${{ secrets.DEPLOY_HOST }}
@@ -169,6 +199,7 @@ jobs:
           target: "~/apps/chatbot-hospital"
 
       - name: SSH — deploy to production
+        if: steps.check-secrets.outputs.configured == 'true'
         uses: appleboy/ssh-action@v1.2.5
         with:
           host: ${{ secrets.DEPLOY_HOST }}
@@ -183,7 +214,7 @@ jobs:
 
             # Pull target images
             IMAGE_TAG="${{ steps.tag.outputs.tag }}"
-            export BACKEND_IMAGE="ghcr.io/${{ github.repository }}/backend:${IMAGE_TAG}"
+            export BACKEND_IMAGE="ghcr.io/${{ github.repository_owner }}/hospital-ai-backend:${IMAGE_TAG}"
 
             echo "→ Deploying backend: ${BACKEND_IMAGE}"
 
@@ -207,6 +238,7 @@ jobs:
             docker image prune -f
 
       - name: Production smoke check
+        if: steps.check-secrets.outputs.configured == 'true'
         uses: appleboy/ssh-action@v1.2.5
         with:
           host: ${{ secrets.DEPLOY_HOST }}
@@ -250,6 +282,10 @@ jobs:
             echo "emoji=🔬" >> "$GITHUB_OUTPUT"
             echo "text=Hospital AI deployed to *staging* | SHA: \`${GITHUB_SHA:0:7}\` | Actor: ${{ github.actor }}" >> "$GITHUB_OUTPUT"
             echo "color=warning" >> "$GITHUB_OUTPUT"
+          elif [[ "$STAGING" == "skipped" && "$PROD" == "skipped" ]]; then
+            echo "emoji=ℹ️" >> "$GITHUB_OUTPUT"
+            echo "text=Hospital AI CI passed | Deploy *skipped* (no deploy secrets configured) | SHA: \`${GITHUB_SHA:0:7}\`" >> "$GITHUB_OUTPUT"
+            echo "color=good" >> "$GITHUB_OUTPUT"
           else
             echo "emoji=❌" >> "$GITHUB_OUTPUT"
             echo "text=Hospital AI deployment *FAILED* | Staging: ${STAGING} | Prod: ${PROD} | SHA: \`${GITHUB_SHA:0:7}\`" >> "$GITHUB_OUTPUT"

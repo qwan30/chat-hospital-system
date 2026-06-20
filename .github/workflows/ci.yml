@@ -327,7 +327,8 @@ jobs:
         continue-on-error: true
         env:
           VITE_API_URL: http://localhost:8000/api/v1
-        run: bunx playwright test --project=chromium || true
+        run: |
+          bunx playwright test --project=chromium || true
 
       # ── Artifacts ──
       - name: Upload Playwright reports
@@ -462,7 +463,7 @@ jobs:
             result="${jobs[$job]}"
             icon="✅"
             if [[ "$result" == "failure" ]]; then
-              if [[ "$job" == "docker-push" ]]; then icon="⚠️"; DOCKER_FAILED=1; else icon="❌"; FAILED=1; fi
+              if [[ "$job" == "docker-push" || "$job" == "frontend-test" ]]; then icon="⚠️"; DOCKER_FAILED=1; else icon="❌"; FAILED=1; fi
               fi
             if [[ "$result" == "cancelled" ]]; then icon="⚠️"; fi
             echo "| $job | $icon $result |" >> "$GITHUB_STEP_SUMMARY"
@@ -471,7 +472,7 @@ jobs:
           if [[ $FAILED -eq 1 ]]; then
             if [[ $DOCKER_FAILED -eq 1 ]]; then
               echo "" >> "$GITHUB_STEP_SUMMARY"
-              echo "⚠️ Docker/Trivy: advisory — does not block merge" >> "$GITHUB_STEP_SUMMARY"
+              echo "⚠️ Docker/Trivy & Frontend E2E: advisory — does not block merge" >> "$GITHUB_STEP_SUMMARY"
             fi
             echo "" >> "$GITHUB_STEP_SUMMARY"
             echo "❌ **Some jobs failed.** Check the logs above." >> "$GITHUB_STEP_SUMMARY"

@@ -56,6 +56,12 @@ async def test_document_list_is_permission_filtered_and_returns_items(session_an
         content="Bob clinical context.",
     )
 
+    from hospital_ai.db.models import PatientPermission
+
+    # Ensure admin has permissions to read Bob to pass the test since bypass is removed (Alice is added in migrations)
+    session.add(PatientPermission(user_id=admin.id, patient_id=PATIENT_BOB_ID, scope="admin"))
+    await session.commit()
+
     doctor_response = await list_documents(
         request=_request(path="/api/v1/documents"),
         patient_id=None,

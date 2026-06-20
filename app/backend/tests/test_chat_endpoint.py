@@ -42,11 +42,7 @@ async def test_chat_valid_request_returns_chat_response(session_and_settings):
         patient_id=PATIENT_ALICE_ID,
         uploaded_by=DOCTOR_ID,
         title="Progress Note",
-        content=(
-            "Patient shows signs of recovery. "
-            "Status: improving. "
-            "Vital signs: stable."
-        ),
+        content=("Patient shows signs of recovery. Status: improving. Vital signs: stable."),
     )
 
     payload = ChatRequest(
@@ -119,20 +115,13 @@ async def test_chat_pipeline_dispatch(session_and_settings):
         patient_id=PATIENT_ALICE_ID,
         uploaded_by=DOCTOR_ID,
         title="Lab Report",
-        content=(
-            "Hemoglobin: 13.5. "
-            "White blood cells: 6800. "
-            "Status: stable."
-        ),
+        content=("Hemoglobin: 13.5. White blood cells: 6800. Status: stable."),
     )
 
     for pipeline in ("auto", "simple", "decompose", "patient_summary"):
         payload = ChatRequest(
             patient_id=PATIENT_ALICE_ID,
-            question=(
-                "What are the lab results and what is "
-                "the patient's overall status?"
-            ),
+            question=("What are the lab results and what is the patient's overall status?"),
             pipeline=pipeline,
         )
 
@@ -144,9 +133,7 @@ async def test_chat_pipeline_dispatch(session_and_settings):
             settings=settings,
         )
 
-        assert isinstance(response, ChatResponse), (
-            f"pipeline={pipeline!r} did not produce a ChatResponse"
-        )
+        assert isinstance(response, ChatResponse), f"pipeline={pipeline!r} did not produce a ChatResponse"
         assert len(response.answer) > 0
         assert response.pipeline is not None
 
@@ -161,11 +148,7 @@ async def test_chat_response_matches_schema(session_and_settings):
         patient_id=PATIENT_ALICE_ID,
         uploaded_by=DOCTOR_ID,
         title="Admission Note",
-        content=(
-            "Patient admitted for observation. "
-            "Status: critical. "
-            "Vital signs: unstable."
-        ),
+        content=("Patient admitted for observation. Status: critical. Vital signs: unstable."),
     )
 
     payload = ChatRequest(

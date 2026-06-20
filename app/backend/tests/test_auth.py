@@ -11,7 +11,7 @@ from fastapi.security import HTTPAuthorizationCredentials
 from sqlalchemy import update
 
 from hospital_ai.api.deps import get_current_user
-from hospital_ai.api.routes.auth import me
+from hospital_ai.api.routes.auth import login_for_access_token, me
 from hospital_ai.db.migrations import DOCTOR_ID
 from hospital_ai.db.models import User
 from hospital_ai.schemas.auth import UserRead
@@ -37,6 +37,76 @@ async def test_me_returns_current_user(session_and_settings):
 
     # Verify the response matches the UserRead schema shape
     assert isinstance(UserRead.from_orm(response), UserRead)
+
+
+# ---------------------------------------------------------------------------
+# /auth/token handler
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_login_for_access_token_success(session_and_settings):
+    """POST /auth/token returns token for valid seeded user with 'demo' password."""
+    from fastapi.security import OAuth2PasswordRequestForm
+
+    session, settings = session_and_settings
+    form_data = OAuth2PasswordRequestForm(
+        username="doctor@example.test",
+        password="demo",
+        scope="",
+        client_id=None,
+        client_secret=None,
+        grant_type="password",
+    )
+
+    response = await login_for_access_token(form_data=form_data, session=session, settings=settings)
+    assert response.access_token == "dev-doctor"
+    assert response.user.email == "doctor@example.test"
+    assert response.user.role == "doctor"
+
+
+@pytest.mark.asyncio
+async def test_login_for_access_token_invalid_password(session_and_settings):
+    """POST /auth/token returns 401 for invalid password."""
+    from fastapi.security import OAuth2PasswordRequestForm
+
+    session, settings = session_and_settings
+    form_data = OAuth2PasswordRequestForm(
+        username="doctor@example.test",
+        password="wrong",
+        scope="",
+        client_id=None,
+        client_secret=None,
+        grant_type="password",
+    )
+
+    with pytest.raises(HTTPException) as exc_info:
+        await login_for_access_token(form_data=form_data, session=session, settings=settings)
+
+    assert exc_info.value.status_code == status.HTTP_401_UNAUTHORIZED
+    assert "Invalid credentials" in exc_info.value.detail
+
+
+@pytest.mark.asyncio
+async def test_login_for_access_token_unknown_user(session_and_settings):
+    """POST /auth/token returns 401 for unknown user."""
+    from fastapi.security import OAuth2PasswordRequestForm
+
+    session, settings = session_and_settings
+    form_data = OAuth2PasswordRequestForm(
+        username="unknown@example.test",
+        password="demo",
+        scope="",
+        client_id=None,
+        client_secret=None,
+        grant_type="password",
+    )
+
+    with pytest.raises(HTTPException) as exc_info:
+        await login_for_access_token(form_data=form_data, session=session, settings=settings)
+
+    assert exc_info.value.status_code == status.HTTP_401_UNAUTHORIZED
+    assert "User is not active or seeded" in exc_info.value.detail
 
 
 # ---------------------------------------------------------------------------

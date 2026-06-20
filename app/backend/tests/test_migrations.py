@@ -15,7 +15,7 @@ def test_initial_schema_requires_pgvector_python_package(monkeypatch):
     monkeypatch.setattr(module, "Vector", None)
 
     with pytest.raises(RuntimeError, match="pgvector"):
-        module._embedding_type()
+        module._require_pgvector()
 
 
 def test_document_index_metadata_is_only_added_by_forward_migration():

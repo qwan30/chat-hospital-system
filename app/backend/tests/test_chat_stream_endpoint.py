@@ -20,7 +20,6 @@ from hospital_ai.services.chat import SAFE_NO_EVIDENCE_ANSWER
 from hospital_ai.services.llm.stub_provider import StubLLM
 from tests.conftest import create_indexed_document
 
-
 _client_counter = 0
 
 

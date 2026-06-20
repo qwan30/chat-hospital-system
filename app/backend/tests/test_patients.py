@@ -6,7 +6,7 @@ from starlette.requests import Request
 
 from hospital_ai.api.routes.patients import search_patients
 from hospital_ai.core.security import PATIENT_READ_SCOPES
-from hospital_ai.db.migrations import DOCTOR_ID, PATIENT_ALICE_ID
+from hospital_ai.db.migrations import DOCTOR_ID, PATIENT_ALICE_ID, PATIENT_ELEANOR_ID
 from hospital_ai.db.models import PatientPermission, User
 
 
@@ -46,7 +46,7 @@ async def test_patient_search_excludes_revoked_permissions(session_and_settings)
         update(PatientPermission)
         .where(
             PatientPermission.user_id == DOCTOR_ID,
-            PatientPermission.patient_id == PATIENT_ALICE_ID,
+            PatientPermission.patient_id.in_([PATIENT_ALICE_ID, PATIENT_ELEANOR_ID]),
             PatientPermission.scope.in_(PATIENT_READ_SCOPES),
         )
         .values(deleted_at=datetime.now(timezone.utc))
@@ -72,7 +72,7 @@ async def test_patient_search_excludes_expired_permissions(session_and_settings)
         update(PatientPermission)
         .where(
             PatientPermission.user_id == DOCTOR_ID,
-            PatientPermission.patient_id == PATIENT_ALICE_ID,
+            PatientPermission.patient_id.in_([PATIENT_ALICE_ID, PATIENT_ELEANOR_ID]),
             PatientPermission.scope.in_(PATIENT_READ_SCOPES),
         )
         .values(expires_at=datetime.now(timezone.utc) - timedelta(minutes=1))

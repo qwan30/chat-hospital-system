@@ -4,7 +4,7 @@ from datetime import date
 
 from hospital_ai.core.config import get_settings
 from hospital_ai.core.security import new_trace_id
-from hospital_ai.db.migrations import ADMIN_ID, PATIENT_ALICE_ID
+from hospital_ai.db.migrations import ADMIN_ID, PATIENT_ALICE_ID, PATIENT_ELEANOR_ID
 from hospital_ai.db.migrations import seed_synthetic_data
 from hospital_ai.db.models import User
 from hospital_ai.db.session import get_session_factory
@@ -12,6 +12,7 @@ from hospital_ai.schemas.hms import HmsAppointmentSummaryImport
 from hospital_ai.services.hms_appointments import HmsAppointmentEvidenceImporter
 
 SYNTHETIC_APPOINTMENT_ID = uuid.UUID("30000000-0000-0000-0000-000000000001")
+SYNTHETIC_APPOINTMENT_ID_ELEANOR = uuid.UUID("30000000-0000-0000-0000-000000000002")
 
 
 async def main() -> None:
@@ -35,6 +36,26 @@ async def main() -> None:
                 symptoms="Synthetic dizziness and medication review notes.",
                 vital_signs_summary="Blood pressure 128/78, heart rate 78, oxygen saturation 98%.",
                 follow_up_summary="Review symptoms and medication reconciliation at discharge planning.",
+            ),
+            trace_id=new_trace_id(),
+            ip_address="seed_dev",
+        )
+        await HmsAppointmentEvidenceImporter(session, get_settings()).import_summary(
+            user=admin,
+            payload=HmsAppointmentSummaryImport(
+                source_appointment_id=SYNTHETIC_APPOINTMENT_ID_ELEANOR,
+                patient_id=PATIENT_ELEANOR_ID,
+                source_patient_id=PATIENT_ELEANOR_ID,
+                appointment_date=date(2026, 6, 10),
+                status="COMPLETED",
+                department="Cardiology",
+                doctor_name="Dr. Dev Doctor",
+                start_time="10:00",
+                end_time="10:30",
+                reason="Routine AFib follow up",
+                symptoms="Patient reports occasional palpitations. Denies shortness of breath. History of AFib, CKD stage 3.",
+                vital_signs_summary="Blood pressure 135/85, heart rate 88 (irregular), oxygen 97%.",
+                follow_up_summary="Continue Apixaban. Renal labs: Creatinine 1.6, eGFR 42. Note: Sulfa allergy (hives).",
             ),
             trace_id=new_trace_id(),
             ip_address="seed_dev",

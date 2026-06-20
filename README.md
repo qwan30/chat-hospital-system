@@ -613,6 +613,68 @@ Configurations in [`infra/observability/`](infra/observability/) — Prometheus 
 
 ---
 
+## 🧠 Knowledge Graph Explainability
+
+The Knowledge Graph (previously "Graph RAG") is a backend-backed explainability feature that shows how clinical reasoning connects patient data, diagnoses, medications, labs, and evidence documents.
+
+```mermaid
+graph LR
+    P[👤 Patient] -->|diagnosed with| D[🩺 Diagnosis]
+    D -->|treated with| M[💊 Medication]
+    P -->|allergic to| A[⚠️ Allergy]
+    P -->|lab result| L[🧪 Lab]
+    M -->|documented in| DOC[📄 Document]
+    M -->|contraindicates| A
+    L -->|evidence for| M
+    DOC -->|supports| D
+
+    style P fill:#1e40af,stroke:#3b82f6,color:#fff
+    style D fill:#059669,stroke:#34d399,color:#fff
+    style M fill:#7c3aed,stroke:#a78bfa,color:#fff
+    style A fill:#dc2626,stroke:#f87171,color:#fff
+    style L fill:#0891b2,stroke:#22d3ee,color:#fff
+    style DOC fill:#4b5563,stroke:#9ca3af,color:#fff
+```
+
+**Key capabilities:**
+- **Backend-backed graph data** — nodes/edges come from the database, not hardcoded frontend data
+- **Multi-patient support** — graph works for any accessible seeded patient, not only Eleanor Vance
+- **Node detail side panel** — click any node to see clinical summary, related evidence, and source citations
+- **Edge evidence** — click any relationship to see why two nodes are connected and the source document/page
+- **Interactive controls** — zoom, fullscreen, filter by node type, highlight reasoning paths
+- **Export** — PNG screenshot and JSON data export; PDF report export planned
+
+---
+
+## ⚠️ Known Limitations
+
+This project is a **portfolio demonstration**, not a certified medical device. The following limitations are clearly acknowledged:
+
+| Area | Current Status | Future Plan |
+|------|---------------|-------------|
+| **PHI Redaction** | Not implemented — UI honestly states "PHI redaction is planned for production hardening" | Implement NER-based PHI detection before embedding pipeline |
+| **Break-Glass Emergency Access** | Disabled by default (`ENABLE_BREAK_GLASS=false`) — treated as planned/future | Implement with justification, expiry, audit trail, and mandatory review |
+| **Session-Only Attachments** | All uploaded files go to the knowledge base — session-only temp files are planned | Add ephemeral document scope that expires with the chat thread |
+| **PDF Graph Export** | PNG and JSON export available — PDF clinical report export is planned | Generate formatted PDF reports from graph data |
+| **Multi-Role Users** | One role per account — multi-role mapping documented as future work | Many-to-many user-role table with role-switching workflow |
+| **LLM Provider** | Requires Ollama or OpenAI API key — no built-in LLM bundled | Support additional providers (Anthropic, Azure OpenAI, local models) |
+| **Data Source** | Uses synthetic/de-identified seed data only | Production deployment requires real HMS integration |
+
+---
+
+## 🔮 Future Improvements
+
+- **PHI Redaction Pipeline** — NER-based detection (Presidio/spaCy) with dual-storage: redacted text for embeddings, originals for authorized citation viewing
+- **Break-Glass Emergency Access** — Justification-required emergency override with automatic expiry, audit logging, and mandatory compliance review
+- **Session-Only Chat Attachments** — Temporary file scope that doesn't persist to the hospital knowledge base
+- **PDF Graph Reports** — Formatted clinical reasoning reports generated from Knowledge Graph data
+- **Multi-Role Users** — Role-switching workflow with many-to-many user-role mapping
+- **Advanced RAG Evaluation** — Expanded synthetic evaluation suite with more clinical scenarios and automated regression tracking
+- **Real-Time HMS Integration** — WebSocket-based live sync with Hospital Management System for appointment updates, lab results, and medication orders
+- **Mobile-Responsive UI** — Optimized touch-friendly layout for tablet/mobile clinical use
+
+---
+
 <div align="center">
 
 **Built with ❤️ following Clean Architecture principles, AI safety engineering practices, and healthcare industry compliance standards.**

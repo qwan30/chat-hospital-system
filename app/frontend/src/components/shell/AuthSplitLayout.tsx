@@ -11,10 +11,10 @@ export function AuthSplitLayout({ children }: { children: ReactNode }) {
           src={backgroundLeftLogin}
           alt=""
           aria-hidden="true"
-          className="pointer-events-none absolute inset-y-0 right-0 h-full w-[60%] object-cover object-left animate-in fade-in duration-300"
+          className="pointer-events-none absolute inset-y-0 right-0 h-full w-full object-cover object-[10%_center] animate-in fade-in duration-300"
         />
         {/* Soft transition gradient from solid slate-50 to transparent */}
-        <div className="absolute inset-y-0 left-[40%] w-[20%] bg-gradient-to-r from-slate-50 via-slate-50/70 to-transparent pointer-events-none" />
+        <div className="absolute inset-y-0 right-0 w-[30%] bg-gradient-to-l from-slate-50 via-slate-50/60 to-transparent pointer-events-none" />
 
         <div className="relative">
           <Wordmark />

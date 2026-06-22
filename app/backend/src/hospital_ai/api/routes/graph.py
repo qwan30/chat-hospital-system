@@ -82,7 +82,6 @@ async def get_patient_graph(
         )
 
     entity_id_set = {e.id for e in entities}
-    entity_map = {e.id: e for e in entities}
 
     # Query relations between these entities
     relation_result = await db.execute(

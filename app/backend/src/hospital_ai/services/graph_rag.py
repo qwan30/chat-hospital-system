@@ -170,6 +170,22 @@ def extract_relations(text: str, entities: list[ExtractedEntity]) -> list[Extrac
                         weight=0.7,
                     )
                 )
+                relations.append(
+                    ExtractedRelation(
+                        source_name=drug.name,
+                        target_name=cond.name,
+                        relation_type="mentioned_with",
+                        weight=0.5,
+                    )
+                )
+                relations.append(
+                    ExtractedRelation(
+                        source_name=drug.name,
+                        target_name=cond.name,
+                        relation_type="mentioned_with",
+                        weight=0.5,
+                    )
+                )
 
     for lab in labs:
         for cond in conditions:
@@ -184,6 +200,22 @@ def extract_relations(text: str, entities: list[ExtractedEntity]) -> list[Extrac
                         weight=0.6,
                     )
                 )
+                relations.append(
+                    ExtractedRelation(
+                        source_name=lab.name,
+                        target_name=cond.name,
+                        relation_type="mentioned_with",
+                        weight=0.5,
+                    )
+                )
+                relations.append(
+                    ExtractedRelation(
+                        source_name=lab.name,
+                        target_name=cond.name,
+                        relation_type="mentioned_with",
+                        weight=0.5,
+                    )
+                )
 
     for drug in drugs:
         for lab in labs:
@@ -195,6 +227,22 @@ def extract_relations(text: str, entities: list[ExtractedEntity]) -> list[Extrac
                         source_name=drug.name,
                         target_name=lab.name,
                         relation_type="monitored_by",
+                        weight=0.5,
+                    )
+                )
+                relations.append(
+                    ExtractedRelation(
+                        source_name=drug.name,
+                        target_name=lab.name,
+                        relation_type="mentioned_with",
+                        weight=0.5,
+                    )
+                )
+                relations.append(
+                    ExtractedRelation(
+                        source_name=drug.name,
+                        target_name=lab.name,
+                        relation_type="mentioned_with",
                         weight=0.5,
                     )
                 )

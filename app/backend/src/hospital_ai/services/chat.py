@@ -214,23 +214,22 @@ class ChatService:
         retrieval_mode = self.settings.retrieval_mode
 
         evidence = []
-        if patient_id:
-            if retrieval_mode in ("bm25", "hybrid"):
-                evidence = await retrieval_svc.hybrid_search(
-                    user_id=user.id,
-                    patient_id=patient_id,
-                    query_embedding=query_embedding,
-                    query_text=question,
-                    top_k=top_k,
-                    retrieval_mode=retrieval_mode,
-                )
-            else:
-                evidence = await retrieval_svc.search(
-                    user_id=user.id,
-                    patient_id=patient_id,
-                    query_embedding=query_embedding,
-                    top_k=top_k,
-                )
+        if retrieval_mode in ("bm25", "hybrid"):
+            evidence = await retrieval_svc.hybrid_search(
+                user_id=user.id,
+                patient_id=patient_id,
+                query_embedding=query_embedding,
+                query_text=question,
+                top_k=top_k,
+                retrieval_mode=retrieval_mode,
+            )
+        else:
+            evidence = await retrieval_svc.search(
+                user_id=user.id,
+                patient_id=patient_id,
+                query_embedding=query_embedding,
+                top_k=top_k,
+            )
 
         # ── Graph RAG: boost evidence with entity relationships ──────
         try:

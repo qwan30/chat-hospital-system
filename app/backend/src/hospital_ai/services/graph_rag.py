@@ -199,6 +199,26 @@ def extract_relations(text: str, entities: list[ExtractedEntity]) -> list[Extrac
                     )
                 )
 
+    # `mentioned_with`: all entity pairs that co-occur in the same chunk, regardless
+    # of whether they already have a more specific relation.  Uses its own dedup set.
+    mentioned_seen: set[tuple[str, str]] = set()
+    all_entities = list(entities)
+    for i, e1 in enumerate(all_entities):
+        for e2 in all_entities[i + 1 :]:
+            pair_key = (e1.name, e2.name)
+            rev_pair_key = (e2.name, e1.name)
+            if pair_key not in mentioned_seen and rev_pair_key not in mentioned_seen:
+                if e1.name in text_lower and e2.name in text_lower:
+                    mentioned_seen.add(pair_key)
+                    relations.append(
+                        ExtractedRelation(
+                            source_name=e1.name,
+                            target_name=e2.name,
+                            relation_type="mentioned_with",
+                            weight=0.3,
+                        )
+                    )
+
     return relations
 
 

@@ -64,6 +64,57 @@ async def search_patients(
     return PatientSearchResponse(items=patients)
 
 
+from pydantic import BaseModel, Field
+
+class PatientCreate(BaseModel):
+    mrn: str
+    full_name: str
+    dob: Optional[date] = None
+    department: Optional[str] = None
+    status: str = "active"
+
+
+@router.post("", response_model=PatientRead)
+async def create_patient(
+    payload: PatientCreate,
+    request: Request,
+    session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(get_current_user),
+) -> Patient:
+    patient = Patient(
+        mrn=payload.mrn,
+        full_name=payload.full_name,
+        dob=payload.dob,
+        department=payload.department,
+        status=payload.status,
+    )
+    session.add(patient)
+    await session.flush()
+
+    from hospital_ai.db.models import PatientPermission as PP
+    for scope in ("read", "summary", "medication", "upload", "admin"):
+        perm = PP(
+            user_id=current_user.id,
+            patient_id=patient.id,
+            scope=scope,
+            source="manual",
+        )
+        session.add(perm)
+
+    await AuditService(session).record(
+        actor_user_id=current_user.id,
+        action="patient.create",
+        object_type="patient",
+        object_id=patient.id,
+        outcome="allowed",
+        trace_id=new_trace_id(),
+        ip_address=get_request_ip(request),
+        metadata={"mrn": payload.mrn, "full_name": payload.full_name},
+    )
+    await session.commit()
+    return patient
+
+
 @router.get("/{patient_id}", response_model=PatientRead)
 async def get_patient(
     patient_id: uuid.UUID,

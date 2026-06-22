@@ -127,14 +127,16 @@ async def list_access_requests(
     session: AsyncSession = Depends(get_session),
     current_user: User = Depends(get_current_user),
 ) -> list[AccessRequestListItem]:
-    if current_user.role not in ("admin", "security"):
-        raise HTTPException(status_code=403, detail="Not authorized to list requests")
-
     stmt = (
         select(AccessRequest)
         .options(joinedload(AccessRequest.patient), joinedload(AccessRequest.user))
         .order_by(desc(AccessRequest.created_at))
     )
+
+    # Admin and security see all requests; other roles see only their own.
+    if current_user.role not in ("admin", "security"):
+        stmt = stmt.where(AccessRequest.user_id == current_user.id)
+
     result = await session.execute(stmt)
     requests = result.scalars().all()
 
@@ -161,8 +163,6 @@ async def get_access_request(
     session: AsyncSession = Depends(get_session),
     current_user: User = Depends(get_current_user),
 ) -> AccessRequestDetail:
-    if current_user.role not in ("admin", "security"):
-        raise HTTPException(status_code=403, detail="Not authorized to view requests")
 
     stmt = (
         select(AccessRequest)
@@ -176,6 +176,10 @@ async def get_access_request(
 
     if not req:
         raise HTTPException(status_code=404, detail="Request not found")
+
+    # Non-admin/security users may only view their own requests.
+    if current_user.role not in ("admin", "security") and req.user_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Not authorized to view this request")
 
     return AccessRequestDetail(
         id=req.id,

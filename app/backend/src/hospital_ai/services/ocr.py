@@ -14,13 +14,13 @@ class OcrPage:
 class OcrService:
     """OCR adapter with a lightweight text path and optional PaddleOCR path."""
 
-    TEXT_MIME_TYPES = {"text/plain", "text/markdown", "application/json"}
+    TEXT_MIME_TYPES = {"text/plain", "text/markdown", "application/json", "text/csv"}
 
     def extract_pages(
         self, *, storage_uri: str, mime_type: str, patient_id: str, document_id: str, storage_service
     ) -> list[OcrPage]:
         path = Path(storage_uri)
-        if mime_type in self.TEXT_MIME_TYPES or path.suffix.lower() in {".txt", ".md"}:
+        if mime_type in self.TEXT_MIME_TYPES or path.suffix.lower() in {".txt", ".md", ".csv"}:
             text = path.read_text(encoding="utf-8")
             return [OcrPage(page_number=1, text=text, confidence=1.0)]
 

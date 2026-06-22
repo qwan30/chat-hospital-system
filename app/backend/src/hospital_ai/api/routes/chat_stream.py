@@ -535,28 +535,20 @@ async def chat_stream(
         retrieval_svc = RetrievalService(session)
         retrieval_mode = settings.retrieval_mode
         if retrieval_mode in ("bm25", "hybrid"):
-            evidence = (
-                await retrieval_svc.hybrid_search(
-                    user_id=current_user.id,
-                    patient_id=effective_patient_id,
-                    query_embedding=query_embedding,
-                    query_text=payload.question,
-                    top_k=payload.top_k,
-                    retrieval_mode=retrieval_mode,
-                )
-                if effective_patient_id
-                else []
+            evidence = await retrieval_svc.hybrid_search(
+                user_id=current_user.id,
+                patient_id=effective_patient_id,
+                query_embedding=query_embedding,
+                query_text=payload.question,
+                top_k=payload.top_k,
+                retrieval_mode=retrieval_mode,
             )
         else:
-            evidence = (
-                await retrieval_svc.search(
-                    user_id=current_user.id,
-                    patient_id=effective_patient_id,
-                    query_embedding=query_embedding,
-                    top_k=payload.top_k,
-                )
-                if effective_patient_id
-                else []
+            evidence = await retrieval_svc.search(
+                user_id=current_user.id,
+                patient_id=effective_patient_id,
+                query_embedding=query_embedding,
+                top_k=payload.top_k,
             )
 
         if not evidence or not meets_evidence_threshold(evidence[0], retrieval_mode, settings.evidence_threshold):

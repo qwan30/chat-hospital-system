@@ -180,3 +180,41 @@ async def test_chat_response_matches_schema(session_and_settings):
     assert response.pipeline is not None
     assert response.thread_id is None
     assert isinstance(response.warnings, list)
+
+
+@pytest.mark.asyncio
+async def test_chat_global_query_without_patient_context(session_and_settings):
+    from hospital_ai.services.chat import SAFE_NO_EVIDENCE_ANSWER
+
+    session, settings = session_and_settings
+    doctor = await session.get(User, DOCTOR_ID)
+
+    await create_indexed_document(
+        session,
+        patient_id=None,
+        uploaded_by=DOCTOR_ID,
+        title="Apixaban Guideline",
+        content=(
+            "DOAC renal-dose adjustment rules for apixaban: "
+            "reduce dose to 2.5 mg BID if serum creatinine >= 1.5 mg/dL."
+        ),
+    )
+
+    payload = ChatRequest(
+        patient_id=None,
+        question="What are the DOAC renal-dose adjustment rules for apixaban?",
+        top_k=5,
+    )
+
+    response = await chat(
+        payload=payload,
+        request=_request(),
+        session=session,
+        current_user=doctor,
+        settings=settings,
+    )
+
+    assert isinstance(response, ChatResponse)
+    assert response.answer != SAFE_NO_EVIDENCE_ANSWER
+    assert len(response.citations) >= 1
+    assert response.citations[0].document_title == "Apixaban Guideline"

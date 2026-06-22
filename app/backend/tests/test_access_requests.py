@@ -129,9 +129,10 @@ async def test_get_and_list_access_requests(session_and_settings):
         settings=settings,
     )
 
-    # List endpoints
-    with pytest.raises(HTTPException):
-        await list_access_requests(session=session, current_user=doctor)
+    # List endpoints - non-admin can list and sees their own request
+    requests_list_doctor = await list_access_requests(session=session, current_user=doctor)
+    assert len(requests_list_doctor) == 1
+    assert requests_list_doctor[0].id == res.id
 
     requests_list = await list_access_requests(session=session, current_user=admin)
     assert len(requests_list) >= 1

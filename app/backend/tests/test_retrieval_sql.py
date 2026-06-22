@@ -282,3 +282,39 @@ async def test_authorized_patient_chunks_are_retrieved(session_and_settings):
     assert len(results) == 1
     assert results[0].evidence_id == "E1"
     assert results[0].document_title == "Alice discharge"
+
+
+@pytest.mark.asyncio
+async def test_global_retrieval_without_patient_context(session_and_settings):
+    session, _ = session_and_settings
+
+    # 1. Create a global guideline document (patient_id=None)
+    await create_indexed_document(
+        session,
+        patient_id=None,
+        uploaded_by=DOCTOR_ID,
+        title="Sepsis Guideline",
+        content="Sepsis 1-hour bundle requires lactate measurement, blood cultures, and broad-spectrum antibiotics.",
+    )
+
+    # 2. Create a patient-specific document (patient_id=PATIENT_ALICE_ID)
+    await create_indexed_document(
+        session,
+        patient_id=PATIENT_ALICE_ID,
+        uploaded_by=DOCTOR_ID,
+        title="Alice Clinical Note",
+        content="Alice is undergoing sepsis observation and has normal vitals.",
+    )
+
+    # 3. Retrieve with patient_id=None (Global search)
+    results = await RetrievalService(session).search(
+        user_id=DOCTOR_ID,
+        patient_id=None,
+        query_embedding=deterministic_embedding("sepsis 1-hour bundle lactate"),
+        top_k=5,
+    )
+
+    # Should retrieve the global guideline, but NOT Alice's clinical note
+    assert len(results) >= 1
+    assert any(r.document_title == "Sepsis Guideline" for r in results)
+    assert not any(r.document_title == "Alice Clinical Note" for r in results)

@@ -35,6 +35,8 @@ RECORDS_ID = uuid.UUID("10000000-0000-0000-0000-000000000002")
 SECURITY_ID = uuid.UUID("10000000-0000-0000-0000-000000000003")
 ADMIN_ID = uuid.UUID("10000000-0000-0000-0000-000000000004")
 NURSE_ID = uuid.UUID("10000000-0000-0000-0000-000000000005")
+PHARMACIST_ID = uuid.UUID("10000000-0000-0000-0000-000000000006")
+FRONT_DESK_ID = uuid.UUID("10000000-0000-0000-0000-000000000007")
 
 PATIENT_ALICE_ID = uuid.UUID("20000000-0000-0000-0000-000000000001")
 PATIENT_BOB_ID = uuid.UUID("20000000-0000-0000-0000-000000000002")
@@ -92,6 +94,13 @@ async def seed(session: AsyncSession) -> None:
             full_name="Nancy Nurse",
             department="Internal Medicine",
             role="nurse",
+        ),
+        User(
+            id=FRONT_DESK_ID,
+            email="frontdesk@example.test",
+            full_name="Maria Lopez",
+            department="ER Front Desk",
+            role="front_desk",
         ),
     ]
 

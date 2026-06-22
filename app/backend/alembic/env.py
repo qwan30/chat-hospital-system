@@ -6,6 +6,9 @@ from sqlalchemy.ext.asyncio import async_engine_from_config
 
 from hospital_ai.core.config import get_settings
 from hospital_ai.db.models import Base
+from hospital_ai.services.metrics import MetricEvent, UserFeedback
+from hospital_ai.services.graph_rag import GraphEntity, GraphRelation
+from hospital_ai.db.settings_store import SystemSetting
 
 config = context.config
 if config.config_file_name is not None:

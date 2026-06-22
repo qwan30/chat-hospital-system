@@ -16,6 +16,11 @@ class Settings(BaseSettings):
     enable_break_glass: bool = False
     demo_mode: bool = True
 
+    otel_enabled: bool = False
+    otel_exporter_otlp_endpoint: str = "http://localhost:4318"
+    prometheus_enabled: bool = True
+    log_format: str = "text"
+
     # Default tokens are convenience shortcuts for `environment == "local"` only.
     # `token_user_map` refuses to surface them in any other environment unless
     # the operator explicitly overrides via HOSPITAL_AI_DEV_BEARER_TOKENS, so a
@@ -27,7 +32,8 @@ class Settings(BaseSettings):
         "dev-pharmacist:pharmacist@example.test,"
         "dev-records:records@example.test,"
         "dev-security:security@example.test,"
-        "dev-admin:admin@example.test"
+        "dev-admin:admin@example.test,"
+        "dev-frontdesk:frontdesk@example.test"
     )
 
     embedding_provider: str = "deterministic"

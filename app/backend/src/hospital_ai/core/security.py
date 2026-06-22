@@ -24,6 +24,7 @@ ALLOWED_ROLES = {
     "admin",
     "compliance",
     "hospitalist",
+    "front_desk",
 }
 
 # Granular PHI and clinical access scopes
@@ -60,6 +61,10 @@ ROLE_PERMISSIONS = {
         "can_access_full_notes": True,
     },
     "records_staff": {
+        "allowed_scopes": {"upload"},
+        "can_access_full_notes": False,
+    },
+    "front_desk": {
         "allowed_scopes": {"upload"},
         "can_access_full_notes": False,
     },

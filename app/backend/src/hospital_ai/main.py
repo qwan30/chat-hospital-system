@@ -70,7 +70,34 @@ def create_app(settings: Optional[Settings] = None) -> FastAPI:
         Configured FastAPI application instance.
     """
     active_settings = settings or get_settings()
-    configure_logging()
+    configure_logging(log_format=active_settings.log_format)
+
+    # Initialize OpenTelemetry if enabled
+    if active_settings.otel_enabled:
+        try:
+            from opentelemetry import trace
+            from opentelemetry.sdk.trace import TracerProvider
+            from opentelemetry.sdk.trace.export import BatchSpanProcessor
+            from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
+            from opentelemetry.sdk.resources import Resource
+
+            resource = Resource.create(attributes={"service.name": "hospital-ai-backend"})
+            provider = TracerProvider(resource=resource)
+            
+            endpoint = active_settings.otel_exporter_otlp_endpoint
+            if endpoint:
+                if not endpoint.endswith("/v1/traces"):
+                    endpoint = endpoint.rstrip("/") + "/v1/traces"
+                exporter = OTLPSpanExporter(endpoint=endpoint)
+            else:
+                exporter = OTLPSpanExporter()
+
+            processor = BatchSpanProcessor(exporter)
+            provider.add_span_processor(processor)
+            trace.set_tracer_provider(provider)
+        except Exception as e:
+            import logging
+            logging.getLogger(__name__).warning("Failed to initialize OpenTelemetry tracing: %s", e)
 
     app = FastAPI(
         title="Hospital AI Knowledge Assistant API",
@@ -79,6 +106,24 @@ def create_app(settings: Optional[Settings] = None) -> FastAPI:
     )
     app.state.limiter = limiter
     app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
+    # Instrument FastAPI with OpenTelemetry if enabled
+    if active_settings.otel_enabled:
+        try:
+            from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
+            FastAPIInstrumentor().instrument_app(app)
+        except Exception as e:
+            import logging
+            logging.getLogger(__name__).warning("Failed to instrument FastAPI with OpenTelemetry: %s", e)
+
+    # Instrument FastAPI with Prometheus if enabled
+    if active_settings.prometheus_enabled:
+        try:
+            from prometheus_fastapi_instrumentator import Instrumentator
+            Instrumentator().instrument(app).expose(app, endpoint="/metrics")
+        except Exception as e:
+            import logging
+            logging.getLogger(__name__).warning("Failed to initialize Prometheus metrics: %s", e)
 
     if active_settings.cors_origin_list:
         app.add_middleware(

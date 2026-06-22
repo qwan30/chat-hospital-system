@@ -80,7 +80,7 @@ class User(TimestampMixin, SoftDeleteMixin, Base):
     __tablename__ = "users"
     __table_args__ = (
         CheckConstraint(
-            "role in ('doctor','nurse','pharmacist','lab_staff','records_staff','security','admin')",
+            "role in ('doctor','nurse','pharmacist','lab_staff','records_staff','security','admin','front_desk')",
             name="ck_users_role",
         ),
     )
@@ -161,7 +161,7 @@ class Document(TimestampMixin, SoftDeleteMixin, Base):
     )
 
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
-    patient_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("patients.id"), nullable=False, index=True)
+    patient_id: Mapped[Optional[uuid.UUID]] = mapped_column(ForeignKey("patients.id"), nullable=True, index=True)
     uploaded_by: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"), nullable=False)
     title: Mapped[str] = mapped_column(String(255), nullable=False)
     document_type: Mapped[str] = mapped_column(String(64), nullable=False)
@@ -178,7 +178,7 @@ class Document(TimestampMixin, SoftDeleteMixin, Base):
     )
     indexed_source_sha256: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
 
-    patient: Mapped[Patient] = relationship(back_populates="documents")
+    patient: Mapped[Optional[Patient]] = relationship(back_populates="documents")
     pages: Mapped[list[DocumentPage]] = relationship(back_populates="document", cascade="all, delete-orphan")
     chunks: Mapped[list[DocumentChunk]] = relationship(back_populates="document", cascade="all, delete-orphan")
 
@@ -204,7 +204,7 @@ class DocumentChunk(TimestampMixin, SoftDeleteMixin, Base):
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
     document_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("documents.id"), nullable=False, index=True)
     page_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("document_pages.id"), nullable=False, index=True)
-    patient_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("patients.id"), nullable=False, index=True)
+    patient_id: Mapped[Optional[uuid.UUID]] = mapped_column(ForeignKey("patients.id"), nullable=True, index=True)
     chunk_index: Mapped[int] = mapped_column(Integer, nullable=False)
     content: Mapped[str] = mapped_column(Text, nullable=False)
     token_count: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)

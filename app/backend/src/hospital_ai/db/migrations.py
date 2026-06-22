@@ -13,6 +13,7 @@ SECURITY_ID = uuid.UUID("10000000-0000-0000-0000-000000000003")
 ADMIN_ID = uuid.UUID("10000000-0000-0000-0000-000000000004")
 NURSE_ID = uuid.UUID("10000000-0000-0000-0000-000000000005")
 PHARMACIST_ID = uuid.UUID("10000000-0000-0000-0000-000000000006")
+FRONT_DESK_ID = uuid.UUID("10000000-0000-0000-0000-000000000007")
 
 PATIENT_ALICE_ID = uuid.UUID("20000000-0000-0000-0000-000000000001")
 PATIENT_BOB_ID = uuid.UUID("20000000-0000-0000-0000-000000000002")
@@ -63,6 +64,13 @@ async def seed_synthetic_data(session: AsyncSession) -> None:
             department="Pharmacy",
             role="pharmacist",
         ),
+        User(
+            id=FRONT_DESK_ID,
+            email="frontdesk@example.test",
+            full_name="Maria Lopez",
+            department="ER Front Desk",
+            role="front_desk",
+        ),
     ]
     patients = [
         Patient(
@@ -88,24 +96,29 @@ async def seed_synthetic_data(session: AsyncSession) -> None:
         ),
     ]
     permissions = [
+        # ── Alice Synthetic ──────────────────────────────────────────────────────────────
         PatientPermission(user_id=DOCTOR_ID, patient_id=PATIENT_ALICE_ID, scope="read"),
         PatientPermission(user_id=DOCTOR_ID, patient_id=PATIENT_ALICE_ID, scope="summary"),
         PatientPermission(user_id=DOCTOR_ID, patient_id=PATIENT_ALICE_ID, scope="medication"),
         PatientPermission(user_id=RECORDS_ID, patient_id=PATIENT_ALICE_ID, scope="upload"),
         PatientPermission(user_id=ADMIN_ID, patient_id=PATIENT_ALICE_ID, scope="admin"),
+        PatientPermission(user_id=NURSE_ID, patient_id=PATIENT_ALICE_ID, scope="read"),
+        PatientPermission(user_id=NURSE_ID, patient_id=PATIENT_ALICE_ID, scope="summary"),
+        PatientPermission(user_id=PHARMACIST_ID, patient_id=PATIENT_ALICE_ID, scope="read"),
+        PatientPermission(user_id=PHARMACIST_ID, patient_id=PATIENT_ALICE_ID, scope="medication"),
+        # ── Eleanor Vance ──────────────────────────────────────────────────────────────
         PatientPermission(user_id=DOCTOR_ID, patient_id=PATIENT_ELEANOR_ID, scope="read"),
         PatientPermission(user_id=DOCTOR_ID, patient_id=PATIENT_ELEANOR_ID, scope="summary"),
         PatientPermission(user_id=DOCTOR_ID, patient_id=PATIENT_ELEANOR_ID, scope="medication"),
         PatientPermission(user_id=RECORDS_ID, patient_id=PATIENT_ELEANOR_ID, scope="upload"),
         PatientPermission(user_id=ADMIN_ID, patient_id=PATIENT_ELEANOR_ID, scope="admin"),
-        PatientPermission(user_id=NURSE_ID, patient_id=PATIENT_ALICE_ID, scope="read"),
-        PatientPermission(user_id=NURSE_ID, patient_id=PATIENT_ALICE_ID, scope="summary"),
         PatientPermission(user_id=NURSE_ID, patient_id=PATIENT_ELEANOR_ID, scope="read"),
         PatientPermission(user_id=NURSE_ID, patient_id=PATIENT_ELEANOR_ID, scope="summary"),
-        PatientPermission(user_id=PHARMACIST_ID, patient_id=PATIENT_ALICE_ID, scope="read"),
-        PatientPermission(user_id=PHARMACIST_ID, patient_id=PATIENT_ALICE_ID, scope="medication"),
         PatientPermission(user_id=PHARMACIST_ID, patient_id=PATIENT_ELEANOR_ID, scope="read"),
         PatientPermission(user_id=PHARMACIST_ID, patient_id=PATIENT_ELEANOR_ID, scope="medication"),
+        # NOTE: Bob Synthetic intentionally has NO permissions in base seed.
+        #       Security tests rely on Bob being unauthorized.
+        #       Bob permissions are granted only in seed_dev.py for local dev.
     ]
 
     await _add_missing_by_id(session, User, users)

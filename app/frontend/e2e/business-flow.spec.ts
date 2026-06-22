@@ -49,8 +49,8 @@ test.describe("Happy Path: Full Clinical Workflow", () => {
     await page.waitForTimeout(500);
     await expect(page.getByText("Eleanor Vance")).toBeVisible();
     // Click "Open chat" button for this patient (navigates to chat with patient context)
-    await page.locator('a:has-text("Open chat")').first().click();
-    await page.waitForURL("**/chat/patients/**", { timeout: 10000 });
+    await page.locator('tr:has-text("Eleanor Vance")').locator('a:has-text("Open chat")').click();
+    await page.waitForURL(/\/chat\?patient=/, { timeout: 10000 });
     await expect(page.getByText(/Eleanor|Vance|p-001/i).first()).toBeVisible({ timeout: 5000 });
   });
 
@@ -70,16 +70,14 @@ test.describe("Happy Path: Full Clinical Workflow", () => {
   test("HC-04: Chat landing with suggestions", async ({ page }) => {
     await page.goto("/chat", { waitUntil: "networkidle" });
     await expect(page.getByText("How can I help you")).toBeVisible({ timeout: 5000 });
-    const suggestions = page
-      .locator("button")
-      .filter({ hasText: /guideline|sepsis|DOAC|dyspnea/i });
+    const suggestions = page.locator("button").filter({ hasText: /SBAR|Medication|Wound|fall/i });
     const count = await suggestions.count();
     expect(count).toBeGreaterThanOrEqual(1);
     await expect(page.getByRole("textbox").first()).toBeVisible();
   });
 
   test("HC-05: Chat with patient context", async ({ page }) => {
-    await page.goto("/chat/patients/p-001", { waitUntil: "networkidle" });
+    await page.goto("/chat/patients/p-003", { waitUntil: "networkidle" });
     await page.waitForTimeout(1000);
     await expect(page.getByText(/Eleanor|Vance|p-001/i).first()).toBeVisible({ timeout: 5000 });
     const textbox = page.locator('textarea, input[type="text"], [contenteditable]').first();

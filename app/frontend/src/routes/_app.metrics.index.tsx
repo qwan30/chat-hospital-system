@@ -55,6 +55,14 @@ const sparkLatency = [1.2, 1.1, 1.3, 1.0, 0.9, 1.0, 0.95];
 const sparkDocs = [12200, 12380, 12510, 12640, 12720, 12800, 12842];
 const sparkCited = [91, 92, 93, 92, 94, 94, 95];
 import { Clock, Quote, Sparkles, FileCheck2 } from "lucide-react";
+import { useState } from "react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 export const Route = createFileRoute("/_app/metrics/")({
   head: () => ({
@@ -66,15 +74,23 @@ export const Route = createFileRoute("/_app/metrics/")({
 const pieColors = ["var(--color-chart-1)", "var(--color-chart-3)", "var(--color-chart-5)"];
 
 function MetricsPage() {
+  const [timeRange, setTimeRange] = useState("7d");
   return (
     <AppShell>
       <PageHeader
         title="Metrics"
         description="Adoption, accuracy, latency, and content coverage."
         actions={
-          <Button variant="outline" size="sm">
-            Last 7 days
-          </Button>
+          <Select value={timeRange} onValueChange={setTimeRange}>
+            <SelectTrigger className="w-[150px] h-9 bg-card">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="24h">Last 24 hours</SelectItem>
+              <SelectItem value="7d">Last 7 days</SelectItem>
+              <SelectItem value="30d">Last 30 days</SelectItem>
+            </SelectContent>
+          </Select>
         }
       />
 

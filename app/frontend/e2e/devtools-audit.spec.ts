@@ -86,17 +86,21 @@ test.describe("Flow 1: Login & Authentication", () => {
 
   test("1.3 Demo SSO login as cardiologist", async ({ page }) => {
     const dt = attachDevTools(page, "Login");
-    await page.goto("http://localhost:8082/auth/login");
-    // Try demo tab; if not found, login page structure changed — use seedSession fallback
-    const demoTab = page.locator('button:has-text("Demo Role")');
-    if (await demoTab.isVisible({ timeout: 2_000 }).catch(() => false)) {
-      await demoTab.click();
-      const cardioBtn = page.locator('button:has-text("Cardiologist")');
-      if (await cardioBtn.isVisible({ timeout: 2_000 }).catch(() => false)) {
-        await cardioBtn.click();
-      }
-      await page.locator('button:has-text("Sign in")').click();
-    }
+    await page.goto("http://localhost:8082/auth/login", { waitUntil: "networkidle" });
+    const demoTab = page.getByRole("tab", { name: "Demo Role" });
+    await expect(demoTab).toBeVisible({ timeout: 5000 });
+    await demoTab.click();
+
+    // Ensure the tab transitioned and is active to guarantee hydration and click registration
+    await expect(demoTab).toHaveAttribute("data-state", "active", { timeout: 3000 });
+    await page.waitForTimeout(300);
+
+    const cardioBtn = page.locator('button:has-text("Cardiologist")');
+    await expect(cardioBtn).toBeVisible({ timeout: 5000 });
+    await cardioBtn.click();
+    await page.waitForTimeout(100);
+
+    await page.click('button:has-text("Sign in with Hospital SSO")');
     // Whether SSO worked or not, verify page doesn't crash
     await page.waitForLoadState("networkidle");
     await expect(page.locator("body")).not.toBeEmpty();

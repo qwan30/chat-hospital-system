@@ -30,6 +30,7 @@ function Page() {
   } = useQuery({
     queryKey: ["access-requests"],
     queryFn: listAccessRequests,
+    retry: false,
   });
 
   if (isLoading) {

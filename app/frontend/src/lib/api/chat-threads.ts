@@ -1,11 +1,5 @@
 import { apiFetch } from "@/lib/api-client";
-export interface EvidenceRead {
-  id: string;
-  document_id: string;
-  source: string;
-  snippet: string;
-  relevance: number;
-}
+import type { EvidenceRead } from "./documents";
 
 export interface ChatThreadRead {
   id: string;
@@ -71,4 +65,18 @@ export async function listThreadMessages(threadId: string): Promise<ChatMessageR
     method: "GET",
   });
   return res.items;
+}
+
+export async function updateChatThread(
+  threadId: string,
+  payload: {
+    title?: string;
+    visibility?: "private" | "shared";
+    status?: "active" | "archived";
+  }
+): Promise<ChatThreadRead> {
+  return apiFetch<ChatThreadRead>(`/chat-threads/${threadId}`, {
+    method: "PATCH",
+    body: JSON.stringify(payload),
+  });
 }

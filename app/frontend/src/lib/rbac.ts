@@ -1,4 +1,11 @@
-export type Role = "cardiologist" | "hospitalist" | "rn" | "pharmacist" | "front_desk" | "admin";
+export type Role =
+  | "cardiologist"
+  | "hospitalist"
+  | "rn"
+  | "pharmacist"
+  | "front_desk"
+  | "admin"
+  | "security";
 
 export const ROLES: { id: Role; label: string; description: string }[] = [
   {
@@ -15,6 +22,7 @@ export const ROLES: { id: Role; label: string; description: string }[] = [
   { id: "pharmacist", label: "Pharmacist", description: "Meds + labs · review queue" },
   { id: "front_desk", label: "Front Desk", description: "Demographics + access requests" },
   { id: "admin", label: "Admin", description: "Workspace-wide · full system access" },
+  { id: "security", label: "Security Auditor", description: "Audit trail + compliance logs" },
 ];
 
 export const ROLE_LABEL: Record<Role, string> = {
@@ -24,6 +32,7 @@ export const ROLE_LABEL: Record<Role, string> = {
   pharmacist: "Pharmacist",
   front_desk: "Front Desk",
   admin: "Admin",
+  security: "Security Auditor",
 };
 
 export const ROLE_TONE: Record<Role, string> = {
@@ -33,6 +42,7 @@ export const ROLE_TONE: Record<Role, string> = {
   pharmacist: "bg-ai/10 text-ai border-ai/20",
   front_desk: "bg-warning/10 text-warning border-warning/20",
   admin: "bg-destructive/10 text-destructive border-destructive/20",
+  security: "bg-amber-500/10 text-amber-500 border-amber-500/20",
 };
 
 /** Routes only Admin may access (prefix match). */
@@ -64,15 +74,21 @@ const ROLE_ROUTES: Array<{ prefix: string; roles: Role[] }> = [
   { prefix: "/patients", roles: ["cardiologist", "hospitalist", "rn", "pharmacist", "front_desk"] },
   {
     prefix: "/dashboard",
-    roles: ["cardiologist", "hospitalist", "rn", "pharmacist", "front_desk"],
+    roles: ["cardiologist", "hospitalist", "rn", "pharmacist", "front_desk", "security"],
   },
   {
     prefix: "/notifications",
     roles: ["cardiologist", "hospitalist", "rn", "pharmacist", "front_desk"],
   },
-  { prefix: "/settings", roles: ["cardiologist", "hospitalist", "rn", "pharmacist", "front_desk"] },
-  { prefix: "/help", roles: ["cardiologist", "hospitalist", "rn", "pharmacist", "front_desk"] },
-  { prefix: "/audit", roles: ["cardiologist", "hospitalist", "rn", "pharmacist", "front_desk"] }, // own audit only
+  {
+    prefix: "/settings",
+    roles: ["cardiologist", "hospitalist", "rn", "pharmacist", "front_desk", "security"],
+  },
+  {
+    prefix: "/help",
+    roles: ["cardiologist", "hospitalist", "rn", "pharmacist", "front_desk", "security"],
+  },
+  { prefix: "/audit", roles: ["admin", "security"] },
 ];
 
 /** Patient sub-tabs visible to each role. */
@@ -90,6 +106,7 @@ export const PATIENT_TABS: Record<Role, string[]> = {
   rn: ["overview", "timeline", "medications", "documents"],
   pharmacist: ["overview", "medications", "medication-review", "documents", "labs"],
   front_desk: ["overview"],
+  security: ["overview"],
   admin: [
     "overview",
     "timeline",
@@ -110,6 +127,8 @@ export function landingFor(role: Role): string {
       return "/patients";
     case "front_desk":
       return "/patients";
+    case "security":
+      return "/audit";
     case "admin":
       return "/dashboard";
     default:

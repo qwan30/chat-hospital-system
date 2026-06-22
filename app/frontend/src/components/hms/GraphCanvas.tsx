@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Heart,
   Stethoscope,
@@ -7,6 +7,7 @@ import {
   AlertTriangle,
   FlaskConical,
   Maximize2,
+  Minimize2,
   Minus,
   Plus,
   RotateCcw,
@@ -17,6 +18,9 @@ import { cn } from "@/lib/utils";
 
 type NodeType = GraphNode["type"];
 
+/* ------------------------------------------------------------------ */
+/*  Style map                                                          */
+/* ------------------------------------------------------------------ */
 const nodeStyle: Record<
   NodeType,
   { fill: string; ring: string; chip: string; label: string; Icon: typeof Heart }
@@ -65,28 +69,244 @@ const nodeStyle: Record<
   },
 };
 
+/* ------------------------------------------------------------------ */
+/*  Force-directed layout helpers                                       */
+/* ------------------------------------------------------------------ */
+interface LayoutNode {
+  id: string;
+  x: number;
+  y: number;
+  vx: number;
+  vy: number;
+  type: string;
+  label: string;
+  sublabel?: string | null;
+}
+
+function forceLayout(
+  rawNodes: GraphNode[],
+  edges: GraphEdge[],
+  iterations = 120,
+): Map<string, { x: number; y: number }> {
+  if (rawNodes.length === 0) return new Map();
+
+  // Group nodes by type for initial ring placement
+  const typeGroups = new Map<string, GraphNode[]>();
+  for (const n of rawNodes) {
+    if (!typeGroups.has(n.type)) typeGroups.set(n.type, []);
+    typeGroups.get(n.type)!.push(n);
+  }
+
+  const typeOrder = ["patient", "encounter", "diagnosis", "medication", "allergy", "lab"];
+  const totalNodes = rawNodes.length;
+
+  // Calculate a bounding area that scales with node count
+  const baseRadius = Math.max(300, Math.sqrt(totalNodes) * 80);
+
+  // Place nodes in concentric rings by type
+  const nodes: LayoutNode[] = [];
+  const nodeMap = new Map<string, LayoutNode>();
+
+  let globalIdx = 0;
+  const orderedTypes = typeOrder.filter((t) => typeGroups.has(t));
+
+  for (let tIdx = 0; tIdx < orderedTypes.length; tIdx++) {
+    const type = orderedTypes[tIdx];
+    const group = typeGroups.get(type) || [];
+    const ringRadius = baseRadius * (0.3 + (tIdx / Math.max(orderedTypes.length - 1, 1)) * 0.7);
+
+    for (let i = 0; i < group.length; i++) {
+      const angle = (2 * Math.PI * i) / group.length + (tIdx * Math.PI) / 6;
+      // Add some jitter so nodes don't sit exactly on top of each other
+      const jitterX = (Math.random() - 0.5) * 40;
+      const jitterY = (Math.random() - 0.5) * 40;
+
+      const ln: LayoutNode = {
+        id: group[i].id,
+        x: ringRadius * Math.cos(angle) + jitterX,
+        y: ringRadius * Math.sin(angle) + jitterY,
+        vx: 0,
+        vy: 0,
+        type: group[i].type,
+        label: group[i].label,
+        sublabel: group[i].sublabel,
+      };
+      nodes.push(ln);
+      nodeMap.set(ln.id, ln);
+      globalIdx++;
+    }
+  }
+
+  // Build edge lookup
+  const edgePairs: [LayoutNode, LayoutNode][] = [];
+  for (const e of edges) {
+    const from = nodeMap.get(e.from_node);
+    const to = nodeMap.get(e.to_node);
+    if (from && to) edgePairs.push([from, to]);
+  }
+
+  // Run simulation
+  const repulsionStrength = 50000;
+  const attractionStrength = 0.003;
+  const idealEdgeLen = 200;
+  const damping = 0.85;
+  const minDistance = 160; // Minimum distance between node centers to prevent overlap
+
+  for (let iter = 0; iter < iterations; iter++) {
+    const temp = 1 - iter / iterations; // cooling
+
+    // Repulsion between all pairs
+    for (let i = 0; i < nodes.length; i++) {
+      for (let j = i + 1; j < nodes.length; j++) {
+        const dx = nodes[j].x - nodes[i].x;
+        const dy = nodes[j].y - nodes[i].y;
+        const dist = Math.sqrt(dx * dx + dy * dy) || 1;
+
+        // Stronger repulsion if nodes are closer than minDistance
+        const force = (repulsionStrength / (dist * dist)) * temp;
+
+        // Extra push if overlapping
+        let extraForce = 0;
+        if (dist < minDistance) {
+          extraForce = ((minDistance - dist) / minDistance) * 30 * temp;
+        }
+
+        const totalForce = force + extraForce;
+        const fx = (dx / dist) * totalForce;
+        const fy = (dy / dist) * totalForce;
+
+        nodes[i].vx -= fx;
+        nodes[i].vy -= fy;
+        nodes[j].vx += fx;
+        nodes[j].vy += fy;
+      }
+    }
+
+    // Attraction along edges
+    for (const [a, b] of edgePairs) {
+      const dx = b.x - a.x;
+      const dy = b.y - a.y;
+      const dist = Math.sqrt(dx * dx + dy * dy) || 1;
+      const delta = dist - idealEdgeLen;
+      const force = delta * attractionStrength * temp;
+      const fx = (dx / dist) * force;
+      const fy = (dy / dist) * force;
+      a.vx += fx;
+      a.vy += fy;
+      b.vx -= fx;
+      b.vy -= fy;
+    }
+
+    // Apply velocity
+    for (const n of nodes) {
+      n.vx *= damping;
+      n.vy *= damping;
+      n.x += n.vx;
+      n.y += n.vy;
+    }
+  }
+
+  const result = new Map<string, { x: number; y: number }>();
+  for (const n of nodes) {
+    result.set(n.id, { x: n.x, y: n.y });
+  }
+  return result;
+}
+
+/**
+ * Calculates the offset from the center of a node of width w and height h
+ * to its boundary along the vector (dx, dy).
+ * Margin adjusts the target distance (e.g. 4px padding so arrows touch cleanly).
+ */
+function getIntersectionOffset(
+  dx: number,
+  dy: number,
+  w: number,
+  h: number,
+  margin = 4,
+): { x: number; y: number } {
+  if (dx === 0 && dy === 0) return { x: 0, y: 0 };
+
+  const halfW = w / 2 + margin;
+  const halfH = h / 2 + margin;
+
+  const absDx = Math.abs(dx);
+  const absDy = Math.abs(dy);
+
+  // Intersection times with horizontal and vertical boundaries
+  const tx = absDx > 0 ? halfW / absDx : Infinity;
+  const ty = absDy > 0 ? halfH / absDy : Infinity;
+
+  // The first boundary it hits is the actual intersection point
+  const t = Math.min(tx, ty);
+
+  return {
+    x: dx * t,
+    y: dy * t,
+  };
+}
+
+/* ------------------------------------------------------------------ */
+/*  Component                                                          */
+/* ------------------------------------------------------------------ */
 export function GraphCanvas({ data }: { data: GraphData }) {
   const [hover, setHover] = useState<string | null>(null);
   const [selected, setSelected] = useState<string | null>(null);
   const [hidden, setHidden] = useState<Set<NodeType>>(new Set());
-  const [zoom, setZoom] = useState(1);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const [showCooccurrence, setShowCooccurrence] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const svgRef = useRef<SVGSVGElement>(null);
+
+  // Camera state: pan + zoom
+  const [camera, setCamera] = useState({ x: 0, y: 0, zoom: 1 });
+
+  // Drag state for nodes
+  const [dragging, setDragging] = useState<string | null>(null);
+  const dragStart = useRef({ mx: 0, my: 0, nx: 0, ny: 0 });
+
+  // Pan state
+  const [panning, setPanning] = useState(false);
+  const panStart = useRef({ mx: 0, my: 0, cx: 0, cy: 0 });
 
   const active = selected ?? hover;
 
+  // Filter edges based on co-occurrence toggle
+  const filteredEdges = useMemo(() => {
+    if (showCooccurrence) return data.edges;
+    return data.edges.filter((e) => e.label !== "mentioned_with");
+  }, [data.edges, showCooccurrence]);
+
+  // Run force layout on the data
+  const layoutPositions = useMemo(
+    () => forceLayout(data.nodes, filteredEdges, 150),
+    [data.nodes, filteredEdges],
+  );
+
+  // Mutable node positions (for drag)
+  const [nodePositions, setNodePositions] = useState<Map<string, { x: number; y: number }>>(
+    () => new Map(layoutPositions),
+  );
+
+  // Sync when layout changes (new data)
+  useEffect(() => {
+    setNodePositions(new Map(layoutPositions));
+  }, [layoutPositions]);
+
   const adjacency = useMemo(() => {
     const map = new Map<string, Set<string>>();
-    for (const e of data.edges) {
+    for (const e of filteredEdges) {
       if (!map.has(e.from_node)) map.set(e.from_node, new Set());
       if (!map.has(e.to_node)) map.set(e.to_node, new Set());
       map.get(e.from_node)!.add(e.to_node);
       map.get(e.to_node)!.add(e.from_node);
     }
     return map;
-  }, [data.edges]);
+  }, [filteredEdges]);
 
-  const visibleNodes = data.nodes.filter((n) => !hidden.has(n.type));
+  const visibleNodes = data.nodes.filter((n) => !hidden.has(n.type as NodeType));
   const visibleIds = new Set(visibleNodes.map((n) => n.id));
-  const visibleEdges = data.edges.filter(
+  const visibleEdges = filteredEdges.filter(
     (e) => visibleIds.has(e.from_node) && visibleIds.has(e.to_node),
   );
 
@@ -115,15 +335,199 @@ export function GraphCanvas({ data }: { data: GraphData }) {
     });
   };
 
-  const vbW = 920;
-  const vbH = 480;
-  const z = zoom;
-  const cx = vbW / 2;
-  const cy = vbH / 2;
-  const viewBox = `${cx - vbW / 2 / z} ${cy - vbH / 2 / z} ${vbW / z} ${vbH / z}`;
+  /* ---- Fit all visible nodes ---- */
+  const fitView = useCallback(() => {
+    const positions = Array.from(nodePositions.entries())
+      .filter(([id]) => visibleIds.has(id))
+      .map(([, pos]) => pos);
+
+    if (positions.length === 0) return;
+
+    const pad = 120;
+    let minX = Infinity,
+      maxX = -Infinity,
+      minY = Infinity,
+      maxY = -Infinity;
+    for (const p of positions) {
+      if (p.x < minX) minX = p.x;
+      if (p.x > maxX) maxX = p.x;
+      if (p.y < minY) minY = p.y;
+      if (p.y > maxY) maxY = p.y;
+    }
+
+    minX -= pad;
+    maxX += pad;
+    minY -= pad;
+    maxY += pad;
+
+    const contentW = maxX - minX || 1;
+    const contentH = maxY - minY || 1;
+
+    const svg = svgRef.current;
+    if (!svg) return;
+    const rect = svg.getBoundingClientRect();
+    const svgW = rect.width;
+    const svgH = rect.height;
+
+    const zoom = Math.min(svgW / contentW, svgH / contentH, 2);
+    const cx = (minX + maxX) / 2;
+    const cy = (minY + maxY) / 2;
+
+    setCamera({ x: cx, y: cy, zoom });
+  }, [nodePositions, visibleIds]);
+
+  // Auto-fit on initial load
+  const initialFit = useRef(false);
+  useEffect(() => {
+    if (!initialFit.current && nodePositions.size > 0) {
+      initialFit.current = true;
+      // Small delay so the SVG has rendered
+      requestAnimationFrame(() => fitView());
+    }
+  }, [nodePositions, fitView]);
+
+  /* ---- Fullscreen toggle ---- */
+  const toggleFullscreen = useCallback(() => {
+    if (!containerRef.current) return;
+    if (!document.fullscreenElement) {
+      containerRef.current
+        .requestFullscreen()
+        .then(() => setIsFullscreen(true))
+        .catch(() => {});
+    } else {
+      document
+        .exitFullscreen()
+        .then(() => setIsFullscreen(false))
+        .catch(() => {});
+    }
+  }, []);
+
+  useEffect(() => {
+    const handler = () => setIsFullscreen(!!document.fullscreenElement);
+    document.addEventListener("fullscreenchange", handler);
+    return () => document.removeEventListener("fullscreenchange", handler);
+  }, []);
+
+  /* ---- Compute viewBox from camera ---- */
+  const getViewBox = useCallback(() => {
+    const svg = svgRef.current;
+    if (!svg) return "-500 -500 1000 1000";
+    const rect = svg.getBoundingClientRect();
+    const w = rect.width / camera.zoom;
+    const h = rect.height / camera.zoom;
+    return `${camera.x - w / 2} ${camera.y - h / 2} ${w} ${h}`;
+  }, [camera]);
+
+  /* ---- Mouse wheel for zoom ---- */
+  const handleWheel = useCallback((e: React.WheelEvent<SVGSVGElement>) => {
+    e.preventDefault();
+    const factor = e.deltaY > 0 ? 0.92 : 1.08;
+    setCamera((c) => ({
+      ...c,
+      zoom: Math.min(4, Math.max(0.1, c.zoom * factor)),
+    }));
+  }, []);
+
+  /* ---- SVG coordinate conversion ---- */
+  const svgPoint = useCallback((clientX: number, clientY: number) => {
+    const svg = svgRef.current;
+    if (!svg) return { x: 0, y: 0 };
+    const pt = svg.createSVGPoint();
+    pt.x = clientX;
+    pt.y = clientY;
+    const ctm = svg.getScreenCTM();
+    if (!ctm) return { x: 0, y: 0 };
+    const svgPt = pt.matrixTransform(ctm.inverse());
+    return { x: svgPt.x, y: svgPt.y };
+  }, []);
+
+  /* ---- Node drag handlers ---- */
+  const handleNodeMouseDown = useCallback(
+    (e: React.MouseEvent, nodeId: string) => {
+      e.stopPropagation();
+      e.preventDefault();
+      const pos = nodePositions.get(nodeId);
+      if (!pos) return;
+      const svgPos = svgPoint(e.clientX, e.clientY);
+      dragStart.current = { mx: svgPos.x, my: svgPos.y, nx: pos.x, ny: pos.y };
+      setDragging(nodeId);
+    },
+    [nodePositions, svgPoint],
+  );
+
+  const handleMouseMove = useCallback(
+    (e: React.MouseEvent) => {
+      if (dragging) {
+        const svgPos = svgPoint(e.clientX, e.clientY);
+        const dx = svgPos.x - dragStart.current.mx;
+        const dy = svgPos.y - dragStart.current.my;
+        setNodePositions((prev) => {
+          const next = new Map(prev);
+          next.set(dragging, {
+            x: dragStart.current.nx + dx,
+            y: dragStart.current.ny + dy,
+          });
+          return next;
+        });
+        return;
+      }
+      if (panning) {
+        const dx = (e.clientX - panStart.current.mx) / camera.zoom;
+        const dy = (e.clientY - panStart.current.my) / camera.zoom;
+        setCamera((c) => ({
+          ...c,
+          x: panStart.current.cx - dx,
+          y: panStart.current.cy - dy,
+        }));
+      }
+    },
+    [dragging, panning, camera.zoom, svgPoint],
+  );
+
+  const handleMouseUp = useCallback(
+    (e: React.MouseEvent) => {
+      if (dragging) {
+        // If we barely moved, treat as a click
+        const svgPos = svgPoint(e.clientX, e.clientY);
+        const dx = Math.abs(svgPos.x - dragStart.current.mx);
+        const dy = Math.abs(svgPos.y - dragStart.current.my);
+        if (dx < 3 && dy < 3) {
+          setSelected((cur) => (cur === dragging ? null : dragging));
+        }
+        setDragging(null);
+      }
+      if (panning) {
+        setPanning(false);
+      }
+    },
+    [dragging, panning, svgPoint],
+  );
+
+  /* ---- Pan handlers (background drag) ---- */
+  const handleBgMouseDown = useCallback(
+    (e: React.MouseEvent) => {
+      // Only left button
+      if (e.button !== 0) return;
+      panStart.current = { mx: e.clientX, my: e.clientY, cx: camera.x, cy: camera.y };
+      setPanning(true);
+    },
+    [camera],
+  );
+
+  /* ---- Get node position (use layoutPositions as fallback) ---- */
+  const getPos = useCallback(
+    (id: string) => nodePositions.get(id) || { x: 0, y: 0 },
+    [nodePositions],
+  );
 
   return (
-    <div className="overflow-hidden rounded-2xl border bg-card shadow-sm">
+    <div
+      ref={containerRef}
+      className={cn(
+        "overflow-hidden rounded-2xl border bg-card shadow-sm",
+        isFullscreen && "rounded-none border-0",
+      )}
+    >
       {/* Toolbar */}
       <div className="flex flex-wrap items-center justify-between gap-3 border-b bg-muted/30 px-4 py-2.5">
         <div className="flex flex-wrap items-center gap-1.5">
@@ -148,30 +552,49 @@ export function GraphCanvas({ data }: { data: GraphData }) {
                     s.chip,
                   )}
                 >
-                  <Icon className="h-2.5 w-2.5" />
+                  <Icon className="h-2.5 w-2.5" aria-hidden="true" />
                 </span>
                 <span className="capitalize">{s.label}</span>
                 <span className="ml-0.5 text-[10px] text-muted-foreground">{counts[t] ?? 0}</span>
               </button>
             );
           })}
+          <div className="mx-1.5 h-4 w-[1px] bg-border shrink-0 self-center" />
+          <button
+            onClick={() => setShowCooccurrence((prev) => !prev)}
+            className={cn(
+              "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium transition",
+              !showCooccurrence
+                ? "border-dashed bg-background text-muted-foreground opacity-60 hover:opacity-100"
+                : "border-primary bg-primary/10 text-primary shadow-sm hover:bg-primary/20",
+            )}
+          >
+            <span>Co-occurrence links</span>
+            <span className="text-[10px] opacity-80">
+              ({data.edges.filter((e) => e.label === "mentioned_with").length})
+            </span>
+          </button>
         </div>
         <div className="flex items-center gap-1">
           <Button
             variant="ghost"
             size="icon"
-            onClick={() => setZoom((z) => Math.max(0.5, +(z - 0.1).toFixed(2)))}
+            onClick={() =>
+              setCamera((c) => ({ ...c, zoom: Math.max(0.1, +(c.zoom - 0.1).toFixed(2)) }))
+            }
             aria-label="Zoom out"
           >
             <Minus className="h-4 w-4" />
           </Button>
           <span className="w-10 text-center text-xs tabular-nums text-muted-foreground">
-            {Math.round(zoom * 100)}%
+            {Math.round(camera.zoom * 100)}%
           </span>
           <Button
             variant="ghost"
             size="icon"
-            onClick={() => setZoom((z) => Math.min(2, +(z + 0.1).toFixed(2)))}
+            onClick={() =>
+              setCamera((c) => ({ ...c, zoom: Math.min(4, +(c.zoom + 0.1).toFixed(2)) }))
+            }
             aria-label="Zoom in"
           >
             <Plus className="h-4 w-4" />
@@ -180,31 +603,52 @@ export function GraphCanvas({ data }: { data: GraphData }) {
             variant="ghost"
             size="icon"
             onClick={() => {
-              setZoom(1);
+              setCamera({ x: 0, y: 0, zoom: 1 });
               setSelected(null);
               setHidden(new Set());
+              setNodePositions(new Map(layoutPositions));
             }}
             aria-label="Reset view"
           >
             <RotateCcw className="h-4 w-4" />
           </Button>
-          <Button variant="ghost" size="icon" aria-label="Fit">
+          <Button variant="ghost" size="icon" onClick={fitView} aria-label="Fit all nodes">
             <Maximize2 className="h-4 w-4" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={toggleFullscreen}
+            aria-label={isFullscreen ? "Exit fullscreen" : "Fullscreen"}
+          >
+            {isFullscreen ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
           </Button>
         </div>
       </div>
 
       {/* Canvas */}
       <div className="relative">
-        <svg viewBox={viewBox} className="h-[520px] w-full select-none">
+        <svg
+          ref={svgRef}
+          viewBox={getViewBox()}
+          className={cn(
+            "w-full select-none",
+            isFullscreen ? "h-[calc(100vh-52px)]" : "h-[680px]",
+            dragging ? "cursor-grabbing" : panning ? "cursor-grabbing" : "cursor-grab",
+          )}
+          onWheel={handleWheel}
+          onMouseDown={handleBgMouseDown}
+          onMouseMove={handleMouseMove}
+          onMouseUp={handleMouseUp}
+          onMouseLeave={() => {
+            setDragging(null);
+            setPanning(false);
+          }}
+        >
           <defs>
             <pattern id="graph-grid" width="32" height="32" patternUnits="userSpaceOnUse">
               <circle cx="1" cy="1" r="1" className="fill-border" />
             </pattern>
-            <radialGradient id="graph-fade" cx="50%" cy="50%" r="60%">
-              <stop offset="0%" stopColor="white" stopOpacity="0" />
-              <stop offset="100%" stopColor="white" stopOpacity="1" />
-            </radialGradient>
             <marker
               id="arrow"
               viewBox="0 0 10 10"
@@ -232,25 +676,34 @@ export function GraphCanvas({ data }: { data: GraphData }) {
             </filter>
           </defs>
 
-          <rect x="0" y="0" width={vbW} height={vbH} fill="url(#graph-grid)" opacity="0.6" />
+          {/* Infinite grid background */}
+          <rect
+            x="-10000"
+            y="-10000"
+            width="20000"
+            height="20000"
+            fill="url(#graph-grid)"
+            opacity="0.4"
+          />
 
           {/* Edges */}
           {visibleEdges.map((e) => {
-            const from = data.nodes.find((n) => n.id === e.from_node)!;
-            const to = data.nodes.find((n) => n.id === e.to_node)!;
+            const from = getPos(e.from_node);
+            const to = getPos(e.to_node);
             const midX = (from.x + to.x) / 2;
             const midY = (from.y + to.y) / 2;
             const dimmed = edgeDimmed(e.from_node, e.to_node);
             const highlighted = active && !dimmed;
             const dx = to.x - from.x;
             const dy = to.y - from.y;
-            const len = Math.sqrt(dx * dx + dy * dy) || 1;
-            // Trim line so the arrow doesn't overlap the node card
-            const pad = 78;
-            const x2 = to.x - (dx / len) * pad;
-            const y2 = to.y - (dy / len) * pad;
-            const x1 = from.x + (dx / len) * pad;
-            const y1 = from.y + (dy / len) * pad;
+            // Calculate dynamic padding offsets to align arrows perfectly with node borders
+            const offsetFrom = getIntersectionOffset(dx, dy, 144, 44, 4);
+            const offsetTo = getIntersectionOffset(dx, dy, 144, 44, 8); // slightly larger margin for arrowhead to sit perfectly
+
+            const x1 = from.x + offsetFrom.x;
+            const y1 = from.y + offsetFrom.y;
+            const x2 = to.x - offsetTo.x;
+            const y2 = to.y - offsetTo.y;
             return (
               <g key={e.id} className={cn("transition-opacity", dimmed && "opacity-15")}>
                 <line
@@ -262,44 +715,55 @@ export function GraphCanvas({ data }: { data: GraphData }) {
                   strokeWidth={highlighted ? 2 : 1.25}
                   markerEnd={highlighted ? "url(#arrow-active)" : "url(#arrow)"}
                 />
-                <g transform={`translate(${midX}, ${midY})`}>
-                  <rect
-                    x={-e.label.length * 3.2 - 6}
-                    y={-9}
-                    width={e.label.length * 6.4 + 12}
-                    height={16}
-                    rx={8}
-                    className="fill-card stroke-border"
-                    strokeWidth={0.75}
-                  />
-                  <text
-                    textAnchor="middle"
-                    y={3}
-                    className={cn(
-                      "text-[10px]",
-                      highlighted ? "fill-primary font-medium" : "fill-muted-foreground",
-                    )}
-                  >
-                    {e.label}
-                  </text>
-                </g>
+                {/* Edge label – only show when not too zoomed out */}
+                {camera.zoom > 0.3 && (
+                  <g transform={`translate(${midX}, ${midY})`}>
+                    <rect
+                      x={-e.label.length * 3.2 - 6}
+                      y={-9}
+                      width={e.label.length * 6.4 + 12}
+                      height={16}
+                      rx={8}
+                      className="fill-card stroke-border"
+                      strokeWidth={0.75}
+                    />
+                    <text
+                      textAnchor="middle"
+                      y={3}
+                      className={cn(
+                        "text-[10px]",
+                        highlighted ? "fill-primary font-medium" : "fill-muted-foreground",
+                      )}
+                    >
+                      {e.label}
+                    </text>
+                  </g>
+                )}
               </g>
             );
           })}
 
           {/* Nodes */}
           {visibleNodes.map((n) => {
-            const s = nodeStyle[n.type];
+            const s = nodeStyle[n.type as NodeType];
+            if (!s) return null;
+            const pos = getPos(n.id);
             const isActive = active === n.id;
             const dimmed = isDimmed(n.id);
+            const isDraggingThis = dragging === n.id;
             return (
               <g
                 key={n.id}
-                transform={`translate(${n.x}, ${n.y})`}
-                className={cn("cursor-pointer transition-opacity", dimmed && "opacity-25")}
-                onMouseEnter={() => setHover(n.id)}
-                onMouseLeave={() => setHover(null)}
-                onClick={() => setSelected((cur) => (cur === n.id ? null : n.id))}
+                transform={`translate(${pos.x}, ${pos.y})`}
+                className={cn(
+                  "transition-opacity",
+                  dimmed && "opacity-25",
+                  isDraggingThis ? "cursor-grabbing" : "cursor-grab",
+                )}
+                onMouseEnter={() => !dragging && setHover(n.id)}
+                onMouseLeave={() => !dragging && setHover(null)}
+                onMouseDown={(e) => handleNodeMouseDown(e, n.id)}
+                style={{ pointerEvents: "all" }}
               >
                 {isActive ? (
                   <rect
@@ -348,9 +812,11 @@ export function GraphCanvas({ data }: { data: GraphData }) {
 
         {/* Hint */}
         <div className="pointer-events-none absolute bottom-3 left-3 rounded-md border bg-background/80 px-2 py-1 text-[11px] text-muted-foreground backdrop-blur">
-          {active
-            ? "Click node again to deselect"
-            : "Hover or click a node to highlight relationships"}
+          {dragging
+            ? "Release to drop node"
+            : active
+              ? "Click node again to deselect"
+              : "Drag nodes to rearrange · Scroll to zoom · Drag background to pan"}
         </div>
         <div className="pointer-events-none absolute bottom-3 right-3 rounded-md border bg-background/80 px-2 py-1 text-[11px] text-muted-foreground backdrop-blur">
           {visibleNodes.length} nodes · {visibleEdges.length} edges

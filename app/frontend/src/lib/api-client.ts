@@ -61,11 +61,16 @@ export async function apiFetch<T>(
   const baseUrl = opts.baseUrl || getBaseUrl();
   const normalizedBase = baseUrl.replace(/\/+$/, "");
 
-  // Map p-001..p-012 to backend UUIDs in the request path
-  const mappedPath = path.replace(/\b(p-0(0[1-9]|1[0-2]))\b/g, (match) => {
-    const num = parseInt(match.substring(2), 10);
-    return "20000000-0000-0000-0000-" + num.toString().padStart(12, "0");
-  });
+  // Map p-001..p-012 and ar-001..ar-099 to backend UUIDs in the request path
+  const mappedPath = path
+    .replace(/\b(p-0(0[1-9]|1[0-2]))\b/g, (match) => {
+      const num = parseInt(match.substring(2), 10);
+      return "20000000-0000-0000-0000-" + num.toString().padStart(12, "0");
+    })
+    .replace(/\b(ar-0(0[1-9]|[1-9][0-9]))\b/g, (match) => {
+      const num = parseInt(match.substring(3), 10);
+      return "90000000-0000-0000-0000-" + num.toString().padStart(12, "0");
+    });
 
   const url = `${normalizedBase}${mappedPath}`;
   const token = getToken();
@@ -82,41 +87,76 @@ export async function apiFetch<T>(
     headers["Authorization"] = `Bearer ${token}`;
   }
 
-  // Map p-001..p-012 to backend UUIDs in request body
+  // Map p-001..p-012 and ar-001..ar-099 to backend UUIDs in request body
   let body = init.body;
   if (typeof body === "string") {
-    body = body.replace(/\b(p-0(0[1-9]|1[0-2]))\b/g, (match) => {
-      const num = parseInt(match.substring(2), 10);
-      return "20000000-0000-0000-0000-" + num.toString().padStart(12, "0");
-    });
+    body = body
+      .replace(/\b(p-0(0[1-9]|1[0-2]))\b/g, (match) => {
+        const num = parseInt(match.substring(2), 10);
+        return "20000000-0000-0000-0000-" + num.toString().padStart(12, "0");
+      })
+      .replace(/\b(ar-0(0[1-9]|[1-9][0-9]))\b/g, (match) => {
+        const num = parseInt(match.substring(3), 10);
+        return "90000000-0000-0000-0000-" + num.toString().padStart(12, "0");
+      });
   }
 
   const response = await fetch(url, { ...init, body, headers });
 
   if (!response.ok) {
-    let errorData: { error?: string; message?: string; detail?: string } = {};
+    let errorData: { error?: string; message?: string; detail?: any } = {};
     try {
       errorData = await response.json();
     } catch {
       // ignore parse error
     }
+
+    let errMsg = response.statusText;
+    if (errorData.message) {
+      errMsg = typeof errorData.message === "string" ? errorData.message : JSON.stringify(errorData.message);
+    } else if (errorData.detail) {
+      if (typeof errorData.detail === "string") {
+        errMsg = errorData.detail;
+      } else if (Array.isArray(errorData.detail)) {
+        try {
+          errMsg = errorData.detail
+            .map((err: any) => {
+              const loc = err.loc ? err.loc.filter((l: any) => l !== "body" && l !== "query" && l !== "path").join(".") : "";
+              return loc ? `${loc}: ${err.msg}` : err.msg;
+            })
+            .join("; ");
+        } catch {
+          errMsg = JSON.stringify(errorData.detail);
+        }
+      } else {
+        errMsg = JSON.stringify(errorData.detail);
+      }
+    }
+
     throw new ApiError(
       response.status,
       errorData.error || "UNKNOWN",
-      errorData.message || errorData.detail || response.statusText,
+      errMsg,
     );
   }
 
   if (response.status === 204) return undefined as unknown as T;
 
   const data = await response.json();
-  // Map backend UUIDs back to p-001..p-012 in response
+  // Map backend UUIDs back to p-001..p-012, and ar-001..ar-099 in response
   return mapIds(data, (val) => {
     if (val.startsWith("20000000-0000-0000-0000-")) {
       const hex = val.substring(24);
       const num = parseInt(hex, 10);
       if (num >= 1 && num <= 12) {
         return `p-${num.toString().padStart(3, "0")}`;
+      }
+    }
+    if (val.startsWith("90000000-0000-0000-0000-")) {
+      const hex = val.substring(24);
+      const num = parseInt(hex, 10);
+      if (num >= 1 && num <= 99) {
+        return `ar-${num.toString().padStart(3, "0")}`;
       }
     }
     return val;

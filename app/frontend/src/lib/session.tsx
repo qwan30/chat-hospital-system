@@ -54,7 +54,8 @@ function buildSession(
     if (role === "admin") assignedToken = "dev-admin";
     else if (role === "pharmacist") assignedToken = "dev-pharmacist";
     else if (role === "rn") assignedToken = "dev-nurse";
-    else if (role === "front_desk") assignedToken = "dev-records"; // Fallback to records
+    else if (role === "front_desk") assignedToken = "dev-frontdesk";
+    else if (role === "security") assignedToken = "dev-security";
     else assignedToken = "dev-doctor";
   }
 
@@ -82,6 +83,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     if (authUser && token) {
       const role = mapBackendRole(authUser.role);
       const s = buildSession(role, undefined, true, token);
+      persistToken(s.token!);
       setSession(s);
     } else {
       try {
@@ -89,7 +91,9 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         if (raw) {
           const parsed = JSON.parse(raw) as { role: Role; workspaceId: string };
           if (parsed?.role && mockUsers[parsed.role]) {
-            setSession(buildSession(parsed.role, parsed.workspaceId));
+            const s = buildSession(parsed.role, parsed.workspaceId);
+            if (s.token) persistToken(s.token);
+            setSession(s);
           }
         }
       } catch {
@@ -158,5 +162,6 @@ function mapBackendRole(backendRole: string): Role {
   if (lower.includes("nurse") || lower === "rn") return "rn";
   if (lower.includes("hospital")) return "hospitalist";
   if (lower.includes("front") || lower.includes("desk")) return "front_desk";
+  if (lower.includes("security") || lower.includes("compliance")) return "security";
   return "cardiologist";
 }

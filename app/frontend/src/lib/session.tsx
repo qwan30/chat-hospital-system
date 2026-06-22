@@ -54,7 +54,8 @@ function buildSession(
     if (role === "admin") assignedToken = "dev-admin";
     else if (role === "pharmacist") assignedToken = "dev-pharmacist";
     else if (role === "rn") assignedToken = "dev-nurse";
-    else if (role === "front_desk") assignedToken = "dev-records"; // Fallback to records
+    else if (role === "front_desk")
+      assignedToken = "dev-records"; // Fallback to records
     else assignedToken = "dev-doctor";
   }
 

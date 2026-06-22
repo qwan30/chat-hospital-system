@@ -30,6 +30,7 @@ function Page() {
   } = useQuery({
     queryKey: ["access-request", requestId],
     queryFn: () => getAccessRequest(requestId),
+    retry: false,
   });
 
   if (isLoading) {
@@ -41,13 +42,33 @@ function Page() {
   }
 
   if (error || !r) {
+    // Extract a human-readable message from whatever shape the API error takes
+    const errMsg = (() => {
+      if (!error) return "The requested access record could not be found.";
+      if (typeof error === "string") return error;
+      if (error instanceof Error && error.message) return error.message;
+      
+      // FastAPI/API return shapes
+      const e = error as unknown as Record<string, unknown>;
+      if (e.message && typeof e.message === "string") return e.message;
+      if (e.detail && typeof e.detail === "string") return e.detail;
+      if (e.error && typeof e.error === "string") return e.error;
+      
+      try {
+        const str = JSON.stringify(error);
+        if (str && str !== "{}") return str;
+      } catch {
+        // ignore
+      }
+      return String(error);
+    })();
     return (
       <AppShell>
         <PageHeader title="Request not found" />
         <ErrorState
           code="API_ERROR"
           title="Failed to load access request"
-          description={(error as Error)?.message}
+          description={errMsg}
         />
       </AppShell>
     );

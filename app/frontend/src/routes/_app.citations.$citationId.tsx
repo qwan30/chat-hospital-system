@@ -1,4 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { useQuery } from "@tanstack/react-query";
+import { listDocuments } from "@/lib/api/documents";
 import { z } from "zod";
 import { AppShell } from "@/components/shell/AppShell";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -33,10 +35,14 @@ export const Route = createFileRoute("/_app/citations/$citationId")({
   }),
   component: CitationDetails,
 });
-
 function CitationDetails() {
   const { citationId } = Route.useParams();
   const { state } = Route.useSearch();
+
+  const { data: docList } = useQuery({
+    queryKey: ["documents"],
+    queryFn: () => listDocuments(),
+  });
 
   // Mock citation data matching typical retrieval scenarios
   const citationData = {
@@ -52,6 +58,15 @@ function CitationDetails() {
     snippet: `For patients with non-valvular atrial fibrillation and a CHA₂DS₂-VASc score of 2 or greater in men or 3 or greater in women, oral anticoagulants (OACs) are recommended (Class 1, Level of Evidence: A). Direct oral anticoagulants (DOACs) are recommended in preference to warfarin (Class 1, Level of Evidence: A) for their superior safety profile and lower incidence of intracranial hemorrhage. Dose adjustments should be performed in accordance with renal clearance guidelines (apixaban 2.5mg BID if any two: Age >= 80, Weight <= 60kg, Creatinine >= 1.5mg/dL).`,
     sourceFile: "acc_aha_af_guidelines_2024.pdf",
   };
+
+  const matchedDoc = docList?.items?.find(
+    (d) =>
+      d.title.toLowerCase().includes(citationData.title.toLowerCase()) ||
+      d.title.toLowerCase().includes(citationData.sourceFile.toLowerCase()) ||
+      d.storage_uri.toLowerCase().includes(citationData.sourceFile.toLowerCase())
+  );
+
+  const targetDocId = matchedDoc?.id || docList?.items?.[0]?.id;
 
   const isMissing = state === "missing";
   const hasIntegrityWarning = state === "integrity-warning";
@@ -211,9 +226,19 @@ function CitationDetails() {
                 </div>
 
                 <div className="border-t pt-4">
-                  <Button variant="outline" className="w-full text-xs gap-1.5" disabled={isMissing}>
-                    <ExternalLink className="h-3 w-3" /> View Original Document
-                  </Button>
+                  {targetDocId ? (
+                    <Button variant="outline" className="w-full text-xs gap-1.5" disabled={isMissing} asChild>
+                      <Link to="/documents/$documentId" params={{ documentId: targetDocId }}>
+                        <ExternalLink className="h-3 w-3" /> View Original Document
+                      </Link>
+                    </Button>
+                  ) : (
+                    <Button variant="outline" className="w-full text-xs gap-1.5" disabled={isMissing} asChild>
+                      <Link to="/documents">
+                        <ExternalLink className="h-3 w-3" /> View Original Document
+                      </Link>
+                    </Button>
+                  )}
                 </div>
               </CardContent>
             </Card>

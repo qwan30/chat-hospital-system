@@ -39,13 +39,13 @@ test.describe("Chat GPT-like Flow", () => {
     await expect(sendBtn).toBeEnabled();
     await sendBtn.click();
 
-    // Should navigate to patient chat page
-    await page.waitForURL("**/chat/patients/**", { timeout: 10000 });
+    // Should update URL with thread parameter (stays on consolidated /chat route)
+    await page.waitForURL(/\/chat\?.*thread=/, { timeout: 10000 });
     await page.waitForTimeout(800);
 
-    // Patient context card should be visible
-    await expect(page.getByText(/Eleanor|Vance/i).first()).toBeVisible({ timeout: 5000 });
-    await expect(page.getByText("Access verified")).toBeVisible();
+    // General context should be active and visible
+    await expect(page.getByText(/Active Session/i).first()).toBeVisible({ timeout: 5000 });
+    await expect(page.getByText("Context: General hospital knowledge").first()).toBeVisible();
 
     // Chat composer should still be visible for follow-up
     const followUpComposer = page.locator("textarea").first();
@@ -72,7 +72,7 @@ test.describe("Chat GPT-like Flow", () => {
   });
 
   test("Chat with patient — full conversation with citations", async ({ page }) => {
-    await page.goto("/chat/patients/p-001", {
+    await page.goto("/chat/patients/p-003", {
       waitUntil: "networkidle",
       timeout: 30000,
     });
@@ -102,7 +102,7 @@ test.describe("Chat GPT-like Flow", () => {
     // Suggestion cards should exist (at least 4 clinical suggestions)
     const suggestionBtns = page
       .locator("button")
-      .filter({ hasText: /guideline|sepsis|DOAC|dyspnea/i });
+      .filter({ hasText: /SBAR|Medication|Wound|fall/i });
     const count = await suggestionBtns.count();
     expect(count).toBeGreaterThanOrEqual(1);
 
@@ -152,7 +152,7 @@ test.describe("Chat GPT-like Flow", () => {
   test("Chat full conversation loop — send multiple messages and verify responses", async ({
     page,
   }) => {
-    await page.goto("/chat/patients/p-001", {
+    await page.goto("/chat/patients/p-003", {
       waitUntil: "networkidle",
       timeout: 30000,
     });

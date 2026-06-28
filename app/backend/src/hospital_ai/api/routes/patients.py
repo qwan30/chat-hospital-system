@@ -22,6 +22,7 @@ from hospital_ai.schemas.patients import (
     PatientSearchResponse,
     PatientTimelineResponse,
 )
+from hospital_ai.repositories.patient_repository import PatientRepository
 from hospital_ai.services.audit import AuditService
 from hospital_ai.services.hms_connector import HmsApiClient
 from hospital_ai.services.permissions import PermissionService, active_patient_permission_exists
@@ -39,17 +40,8 @@ async def search_patients(
     session: AsyncSession = Depends(get_session),
     current_user: User = Depends(get_current_user),
 ) -> PatientSearchResponse:
-    permission_exists = active_patient_permission_exists(
-        user_id=current_user.id,
-        patient_id=Patient.id,
-        accepted_scopes=PATIENT_READ_SCOPES,
-    )
-    stmt = select(Patient).where(Patient.deleted_at.is_(None), permission_exists).order_by(Patient.full_name)
-    if q:
-        pattern = f"%{q}%"
-        stmt = stmt.where(or_(Patient.full_name.ilike(pattern), Patient.mrn.ilike(pattern)))
-    result = await session.execute(stmt.limit(limit))
-    patients = list(result.scalars().all())
+    repo = PatientRepository(session)
+    patients = list(await repo.search_accessible_patients(user_id=current_user.id, query=q, limit=limit))
 
     await AuditService(session).record(
         actor_user_id=current_user.id,

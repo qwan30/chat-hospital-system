@@ -9,7 +9,13 @@ from slowapi.errors import RateLimitExceeded
 from hospital_ai.api.limiter import limiter
 from hospital_ai.api.router import api_router
 from hospital_ai.core.config import Settings, get_settings
-from hospital_ai.core.errors import AppError
+from hospital_ai.core.errors import (
+    AppError,
+    PermissionDeniedError,
+    NotFoundError,
+    ValidationAppError,
+    ExternalServiceError,
+)
 from hospital_ai.core.exceptions import (
     AuthenticationException,
     CitationHallucinationException,
@@ -33,6 +39,7 @@ DOMAIN_EXCEPTION_STATUS_MAP: dict[type[AppError], int] = {
     MedicalDataAccessException: 403,
     PermissionDeniedException: 403,
     AuthenticationException: 401,
+    PermissionDeniedError: 403,
     # AI / RAG Quality
     CitationHallucinationException: 422,
     RAGRetrievalException: 502,
@@ -45,6 +52,9 @@ DOMAIN_EXCEPTION_STATUS_MAP: dict[type[AppError], int] = {
     # Data Integrity
     EntityNotFoundException: 404,
     ValidationException: 400,
+    NotFoundError: 404,
+    ValidationAppError: 422,
+    ExternalServiceError: 502,
 }
 
 
@@ -57,7 +67,7 @@ def _resolve_status_code(exc: AppError) -> int:
     for cls in type(exc).__mro__:
         if cls in DOMAIN_EXCEPTION_STATUS_MAP:
             return DOMAIN_EXCEPTION_STATUS_MAP[cls]
-    return 500
+    return getattr(exc, "status_code", 500)
 
 
 def create_app(settings: Optional[Settings] = None) -> FastAPI:

@@ -53,5 +53,18 @@ test-results/
 test-results/
 *_page_*.png
 
+# Ruff & Python verification caches
+.ruff_cache/
+**/.ruff_cache/
+.verify-pycache/
+**/.verify-pycache/
+
+# Reference repositories & third-party clones
+reference/
+
+# Duplicate / generated e2e screenshot directories
+app/screen-demo/
+
 # Windows crash dumps
 *.stackdump
+

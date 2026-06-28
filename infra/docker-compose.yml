@@ -35,7 +35,15 @@ services:
 
   # ── Chatbot Backend (FastAPI) ────────────────────────────────────
   backend:
-    image: ghcr.io/${IMAGE_PREFIX:-qwan30/hospital-ai}-backend:latest
+    image: ${BACKEND_IMAGE:-ghcr.io/qwan30/hospital-ai-backend:latest}
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 2G
+        reservations:
+          cpus: '0.5'
+          memory: 512M
     build:
       context: ../app/backend
       dockerfile: Dockerfile
@@ -90,7 +98,7 @@ services:
 
   # ── RQ Background Worker (document processing) ────────────────────
   worker:
-    image: ghcr.io/${IMAGE_PREFIX:-qwan30/hospital-ai}-backend:latest
+    image: ${BACKEND_IMAGE:-ghcr.io/qwan30/hospital-ai-backend:latest}
     command: python -m hospital_ai.workers.queue
     environment:
       HOSPITAL_AI_DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-hospital_ai}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-hospital_ai}

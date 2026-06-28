@@ -78,16 +78,17 @@ jobs:
             set -e
             cd ~/apps/chatbot-hospital
 
-            REPO="${{ github.repository }}"
+            OWNER="${{ github.repository_owner }}"
             BTAG="${{ steps.params.outputs.backend-tag }}"
+            TARGET_IMAGE="ghcr.io/${OWNER}/hospital-ai-backend:${BTAG}"
 
-            echo "⚠ Rolling back ${{ github.event.inputs.environment }} to backend:${BTAG}"
+            echo "⚠ Rolling back ${{ github.event.inputs.environment }} to ${TARGET_IMAGE}"
 
             # Pull specific image version
-            docker pull "ghcr.io/${REPO}/backend:${BTAG}"
+            docker pull "${TARGET_IMAGE}"
 
             # Override image tag and redeploy
-            BACKEND_IMAGE="ghcr.io/${REPO}/backend:${BTAG}" \
+            BACKEND_IMAGE="${TARGET_IMAGE}" \
             docker compose -f infra/docker-compose.yml up -d --remove-orphans
 
             echo "✓ Rollback complete — backend:${BTAG}"

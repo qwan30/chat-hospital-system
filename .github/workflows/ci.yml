@@ -73,7 +73,6 @@ jobs:
               - 'infra/docker-compose.observability.yml'
               - 'infra/observability/**'
               - 'app/backend/Dockerfile'
-              - 'app/frontend/Dockerfile'
               - 'docker-compose.yml'
 
   # ═══════════════════════════════════════════════════════════════════
@@ -173,7 +172,7 @@ jobs:
           HOSPITAL_AI_DATABASE_URL: "postgresql+asyncpg://hospital_ai:hospital_ai@localhost:5432/hospital_ai_test"
           HOSPITAL_AI_CHAT_PROVIDER: "stub"
           HOSPITAL_AI_EMBEDDING_PROVIDER: "deterministic"
-        run: python -m pytest tests/ -v --tb=short --cov=hospital_ai --cov-report=term --cov-fail-under=60
+        run: python -m pytest tests/ -v --tb=short --cov=hospital_ai --cov-report=term --cov-fail-under=80
 
       # ── API Contract Verification ──
       - name: Verify API contracts

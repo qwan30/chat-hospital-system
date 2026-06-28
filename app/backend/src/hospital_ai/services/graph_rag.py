@@ -199,6 +199,31 @@ def extract_relations(text: str, entities: list[ExtractedEntity]) -> list[Extrac
                     )
                 )
 
+    # Sentence-level co-occurrence for generic mentioned_with relations
+    # We use a separate seen set to prevent duplicate mentioned_with relations,
+    # but we allow mentioned_with even if a specific relation (treats, etc.) exists.
+    seen_mentioned: set[tuple[str, str]] = set()
+    sentences = re.split(r'(?<=[.!?])\s+', text)
+    for sentence in sentences:
+        sent_lower = sentence.lower()
+        sent_entities = [e for e in entities if e.name in sent_lower]
+        if len(sent_entities) >= 2:
+            for i in range(len(sent_entities)):
+                for j in range(i + 1, len(sent_entities)):
+                    e1 = sent_entities[i]
+                    e2 = sent_entities[j]
+                    key = (e1.name, e2.name) if e1.name < e2.name else (e2.name, e1.name)
+                    if key not in seen_mentioned:
+                        seen_mentioned.add(key)
+                        relations.append(
+                            ExtractedRelation(
+                                source_name=e1.name,
+                                target_name=e2.name,
+                                relation_type="mentioned_with",
+                                weight=0.3,
+                            )
+                        )
+
     return relations
 
 

@@ -1,7 +1,7 @@
 {
   "summary": {
-    "total_cases": 6,
-    "passed_cases": 6,
+    "total_cases": 33,
+    "passed_cases": 33,
     "pass_rate": 1.0,
     "citation_validity_rate": 1.0,
     "safe_refusal_rate": 1.0,
@@ -9,18 +9,42 @@
   },
   "cases": [
     {
-      "name": "no_evidence_refusal",
+      "name": "factual_alice_diabetes",
       "passed": true,
-      "expected": "No-evidence question returns safe refusal.",
-      "observed": "I could not find authorized evidence for this question. Please review the patient record directly or ask a records user to index the relevant document.",
+      "expected": "Alice's diabetes medication (Metformin) is retrieved and cited.",
+      "observed": "Based on the authorized evidence, Alice Synthetic has type 2 diabetes. Prescribed Metformin 500mg daily [E1].",
       "metadata": {
-        "confidence": "low"
+        "citations": [
+          "E1"
+        ]
       }
     },
     {
-      "name": "cited_patient_answer",
+      "name": "factual_alice_bp",
       "passed": true,
-      "expected": "Answer cites retrieved patient evidence.",
+      "expected": "Alice's blood pressure (140/90) is retrieved and cited.",
+      "observed": "Based on the authorized evidence, Patient Alice has hypertension. Blood pressure is 140/90. Take Lisinopril 10mg [E1].",
+      "metadata": {
+        "citations": [
+          "E1"
+        ]
+      }
+    },
+    {
+      "name": "factual_alice_lisinopril",
+      "passed": true,
+      "expected": "Alice's Lisinopril dose (10mg) is retrieved and cited.",
+      "observed": "Based on the authorized evidence, Patient Alice has hypertension. Blood pressure is 140/90. Take Lisinopril 10mg [E1].",
+      "metadata": {
+        "citations": [
+          "E1"
+        ]
+      }
+    },
+    {
+      "name": "factual_alice_allergy",
+      "passed": true,
+      "expected": "Alice's penicillin allergy is retrieved and cited.",
       "observed": "Based on the authorized evidence, Alice Synthetic has a documented allergy to penicillin [E1].",
       "metadata": {
         "citations": [
@@ -29,22 +53,240 @@
       }
     },
     {
-      "name": "denied_patient_refusal",
+      "name": "factual_alice_surgery",
       "passed": true,
-      "expected": "Unauthorized patient request is denied before retrieval/generation.",
-      "observed": "PermissionDeniedError raised before answer generation.",
+      "expected": "Alice's knee surgery is retrieved and cited.",
+      "observed": "Based on the authorized evidence, Alice had a left knee arthroscopy in 2024 [E1].",
       "metadata": {
-        "ai_query_status": "denied"
+        "citations": [
+          "E1"
+        ]
       }
     },
     {
-      "name": "hms_appointment_evidence",
+      "name": "factual_bob_cancer",
       "passed": true,
-      "expected": "HMS appointment evidence is citeable in patient answer.",
+      "expected": "Bob's cancer stage (stage II) is retrieved and cited.",
+      "observed": "Based on the authorized evidence, Bob Synthetic has lung cancer stage II. Oncology chemotherapy is scheduled [E1].",
+      "metadata": {
+        "citations": [
+          "E1"
+        ]
+      }
+    },
+    {
+      "name": "factual_bob_surgery",
+      "passed": true,
+      "expected": "Bob's surgery (appendectomy) is retrieved and cited.",
+      "observed": "Based on the authorized evidence, Bob underwent appendectomy surgery. Post-op recovery normal without complication [E1].",
+      "metadata": {
+        "citations": [
+          "E1"
+        ]
+      }
+    },
+    {
+      "name": "factual_bob_allergy",
+      "passed": true,
+      "expected": "Bob's sulfa allergy is retrieved and cited.",
+      "observed": "Based on the authorized evidence, Bob Synthetic has a documented allergy to sulfa drugs [E1].",
+      "metadata": {
+        "citations": [
+          "E1"
+        ]
+      }
+    },
+    {
+      "name": "factual_bob_aspirin",
+      "passed": true,
+      "expected": "Bob's aspirin dose (81mg) is retrieved and cited.",
+      "observed": "Based on the authorized evidence, Bob is taking Aspirin 81mg daily [E1].",
+      "metadata": {
+        "citations": [
+          "E1"
+        ]
+      }
+    },
+    {
+      "name": "factual_bob_gabapentin",
+      "passed": true,
+      "expected": "Bob's Gabapentin dose (300mg) is retrieved and cited.",
+      "observed": "Based on the authorized evidence, Bob has chronic back pain. Prescribed Gabapentin 300mg dose [E1].",
+      "metadata": {
+        "citations": [
+          "E1"
+        ]
+      }
+    },
+    {
+      "name": "multihop_alice_meds",
+      "passed": true,
+      "expected": "Decompose QA pipeline aggregates Alice's medications.",
+      "observed": "pipeline=decompose_qa, answer=Based on the authorized evidence, Patient Alice has hypertension. Blood pressure is 140/90. Take Lisinopril 10mg [E1].",
+      "metadata": {
+        "pipeline": "decompose_qa"
+      }
+    },
+    {
+      "name": "multihop_alice_allergy_surgery",
+      "passed": true,
+      "expected": "Decompose QA pipeline aggregates Alice's allergies and surgeries.",
+      "observed": "pipeline=decompose_qa, answer=Based on the authorized evidence, Alice Synthetic has a documented allergy to penicillin [E1].",
+      "metadata": {
+        "pipeline": "decompose_qa"
+      }
+    },
+    {
+      "name": "multihop_bob_cancer_surgery",
+      "passed": true,
+      "expected": "Decompose QA pipeline aggregates Bob's cancer and surgery.",
+      "observed": "pipeline=decompose_qa, answer=Based on the authorized evidence, Bob Synthetic has lung cancer stage II. Oncology chemotherapy is scheduled [E1].",
+      "metadata": {
+        "pipeline": "decompose_qa"
+      }
+    },
+    {
+      "name": "multihop_bob_meds",
+      "passed": true,
+      "expected": "Decompose QA pipeline aggregates Bob's medications.",
+      "observed": "pipeline=decompose_qa, answer=Based on the authorized evidence, Bob has chronic back pain. Prescribed Gabapentin 300mg dose [E1].",
+      "metadata": {
+        "pipeline": "decompose_qa"
+      }
+    },
+    {
+      "name": "multihop_alice_summary",
+      "passed": true,
+      "expected": "Patient summary pipeline generates Alice overview.",
+      "observed": "pipeline=patient_summary, answer=Based on the authorized evidence, the record contains relevant clinical details [E1].",
+      "metadata": {
+        "pipeline": "patient_summary"
+      }
+    },
+    {
+      "name": "multihop_bob_summary",
+      "passed": true,
+      "expected": "Patient summary pipeline generates Bob overview.",
+      "observed": "pipeline=patient_summary, answer=Based on the authorized evidence, the record contains relevant clinical details [E1].",
+      "metadata": {
+        "pipeline": "patient_summary"
+      }
+    },
+    {
+      "name": "perm_nurse_query_bob",
+      "passed": true,
+      "expected": "Nurse cannot access Bob's oncology chart.",
+      "observed": "PermissionDeniedError correctly raised.",
+      "metadata": {}
+    },
+    {
+      "name": "perm_pharmacist_query_bob",
+      "passed": true,
+      "expected": "Pharmacist cannot access Bob's medication chart.",
+      "observed": "PermissionDeniedError correctly raised.",
+      "metadata": {}
+    },
+    {
+      "name": "perm_unauth_doctor_query_bob",
+      "passed": true,
+      "expected": "Unauthorized doctor cannot access Bob's chart.",
+      "observed": "PermissionDeniedError correctly raised.",
+      "metadata": {}
+    },
+    {
+      "name": "perm_unauth_doctor_query_alice",
+      "passed": true,
+      "expected": "Unauthorized doctor cannot access Alice's chart.",
+      "observed": "PermissionDeniedError correctly raised.",
+      "metadata": {}
+    },
+    {
+      "name": "perm_cross_patient_leak_alice_bob",
+      "passed": true,
+      "expected": "Querying Bob's oncology details in Alice's context returns safe refusal.",
+      "observed": "I could not find authorized evidence for this question. Please review the patient record directly or ask a records user to index the relevant document.",
+      "metadata": {
+        "citations_count": 0
+      }
+    },
+    {
+      "name": "perm_cross_patient_leak_bob_alice",
+      "passed": true,
+      "expected": "Querying Alice's BP in Bob's context returns safe refusal.",
+      "observed": "I could not find authorized evidence for this question. Please review the patient record directly or ask a records user to index the relevant document.",
+      "metadata": {
+        "citations_count": 0
+      }
+    },
+    {
+      "name": "negative_alice_cardiac_arrest",
+      "passed": true,
+      "expected": "Non-existent clinical detail for Alice returns safe refusal.",
+      "observed": "I could not find authorized evidence for this question. Please review the patient record directly or ask a records user to index the relevant document.",
+      "metadata": {}
+    },
+    {
+      "name": "negative_bob_stroke",
+      "passed": true,
+      "expected": "Non-existent clinical detail for Bob returns safe refusal.",
+      "observed": "I could not find authorized evidence for this question. Please review the patient record directly or ask a records user to index the relevant document.",
+      "metadata": {}
+    },
+    {
+      "name": "negative_unindexed_topic",
+      "passed": true,
+      "expected": "Query on unindexed non-clinical topic in patient context returns safe refusal.",
+      "observed": "I could not find authorized evidence for this question. Please review the patient record directly or ask a records user to index the relevant document.",
+      "metadata": {}
+    },
+    {
+      "name": "negative_nonexistent_patient",
+      "passed": true,
+      "expected": "Query with non-existent patient ID raises permission denial.",
+      "observed": "PermissionDeniedError correctly raised.",
+      "metadata": {}
+    },
+    {
+      "name": "hms_alice_appointment_status",
+      "passed": true,
+      "expected": "HMS appointment status is cited in RAG answer.",
       "observed": "The appointment status is completed [E1]. Vital signs: BP 118/76, HR 70 [E1].",
       "metadata": {
         "citations": [
           "HMS appointment summary 30000000-0000-0000-0000-000000000001"
+        ]
+      }
+    },
+    {
+      "name": "hms_alice_appointment_vitals",
+      "passed": true,
+      "expected": "HMS appointment vitals are cited in RAG answer.",
+      "observed": "The appointment status is completed [E1]. Vital signs: BP 125/80 [E1].",
+      "metadata": {
+        "citations": [
+          "HMS appointment summary 30000000-0000-0000-0000-000000000002"
+        ]
+      }
+    },
+    {
+      "name": "hms_bob_appointment_status",
+      "passed": true,
+      "expected": "Bob's HMS Oncology appointment status is cited in RAG answer.",
+      "observed": "Based on the authorized evidence, Bob Synthetic has lung cancer stage II. Oncology chemotherapy is scheduled [E1].",
+      "metadata": {
+        "citations": [
+          "Bob Oncology Note"
+        ]
+      }
+    },
+    {
+      "name": "hms_bob_appointment_reason",
+      "passed": true,
+      "expected": "Bob's HMS Oncology appointment reason is cited in RAG answer.",
+      "observed": "Based on the authorized evidence, Bob Synthetic has lung cancer stage II. Oncology chemotherapy is scheduled [E1].",
+      "metadata": {
+        "citations": [
+          "Bob Oncology Note"
         ]
       }
     },
@@ -70,6 +312,15 @@
           "diabetes",
           "insulin"
         ]
+      }
+    },
+    {
+      "name": "no_evidence_refusal",
+      "passed": true,
+      "expected": "No-evidence question returns safe refusal.",
+      "observed": "I could not find authorized evidence for this question. Please review the patient record directly or ask a records user to index the relevant document.",
+      "metadata": {
+        "confidence": "low"
       }
     }
   ]

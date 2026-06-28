@@ -140,10 +140,23 @@ def _normalize_text(text: str) -> str:
 
 def deterministic_embedding(text: str, dimensions: int = 1024) -> list[float]:
     vector = [0.0] * dimensions
-    words = text.lower().split()
+    # Remove punctuation for better keyword-matching overlap
+    cleaned_text = re.sub(r"[^\w\s]", "", text.lower())
+    words = cleaned_text.split()
     if not words:
         return vector
     for word in words:
+        # Basic suffix stemming to match singular/plural and verb tenses (only for words > 3 chars)
+        if len(word) > 3:
+            if word.endswith("s"):
+                if word.endswith("es"):
+                    word = word[:-2]
+                else:
+                    word = word[:-1]
+            elif word.endswith("ed"):
+                word = word[:-2]
+            elif word.endswith("ing"):
+                word = word[:-3]
         digest = hashlib.sha256(word.encode("utf-8")).digest()
         index = int.from_bytes(digest[:4], "big") % dimensions
         sign = 1.0 if digest[4] % 2 == 0 else -1.0

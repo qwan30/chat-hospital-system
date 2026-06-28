@@ -34,7 +34,8 @@ def test_token_user_map_refuses_default_in_production():
     """The committed default tokens must not be honored in non-local
     environments unless an operator explicitly opts in by setting the
     HOSPITAL_AI_DEV_BEARER_TOKENS env-var."""
-    settings = Settings(environment="production")
+    default_tokens = Settings.__fields__["dev_bearer_tokens"].default
+    settings = Settings(environment="production", dev_bearer_tokens=default_tokens)
     assert settings.token_user_map == {}
 
 

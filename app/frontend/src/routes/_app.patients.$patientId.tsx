@@ -11,6 +11,8 @@ import { useSession } from "@/lib/session";
 import { canAccessPatientTab } from "@/lib/rbac";
 import { useQuery } from "@tanstack/react-query";
 
+import { AccessRequestDialog } from "@/components/hms/AccessRequestDialog";
+
 export const Route = createFileRoute("/_app/patients/$patientId")({
   head: () => ({ meta: [{ title: "Patient — HMS AI Copilot" }] }),
   component: PatientLayout,
@@ -54,11 +56,22 @@ function PatientLayout() {
           title="Patient not found"
           description="No record matches this MRN in your accessible scope."
         />
-        <Card className="p-6 text-sm text-muted-foreground">
-          The record may be archived or outside your unit.{" "}
-          <Link to="/patients" className="text-primary underline">
-            Back to roster
-          </Link>
+        <Card className="p-6 text-sm text-muted-foreground space-y-4">
+          <p>The record may be archived or outside your unit.</p>
+          <div className="flex gap-2">
+            <Link to="/patients" className="inline-flex items-center justify-center rounded-md border border-input bg-background px-4 py-2 text-sm font-medium hover:bg-accent">
+              Back to roster
+            </Link>
+            <AccessRequestDialog
+              patientId={patientId}
+              patientName="Restricted Patient Record"
+              trigger={
+                <Button variant="outline">
+                  Request access
+                </Button>
+              }
+            />
+          </div>
         </Card>
       </AppShell>
     );

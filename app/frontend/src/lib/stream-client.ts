@@ -77,7 +77,14 @@ export async function streamChat(
     body: JSON.stringify({
       message: body.message || body.question,
       context: body.context || undefined,
-      patient_id: body.patient_id || undefined,
+      patient_id: (() => {
+        const pid = body.patient_id;
+        if (pid && /^p-0(0[1-9]|1[0-2])$/.test(pid)) {
+          const num = parseInt(pid.substring(2), 10);
+          return "20000000-0000-0000-0000-" + num.toString().padStart(12, "0");
+        }
+        return pid || undefined;
+      })(),
       thread_id: body.thread_id || undefined,
       top_k: body.top_k ?? 5,
       pipeline: body.pipeline || "default",

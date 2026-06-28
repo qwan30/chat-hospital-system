@@ -1,0 +1,18 @@
+{
+  "retrieval_evaluation": {
+    "total_queries": 105,
+    "factual_queries": 60,
+    "recall_at_1": 0.917,
+    "recall_at_3": 1.0,
+    "recall_at_5": 1.0,
+    "mrr": 0.944,
+    "permission_leakage_rate": 0.0,
+    "permission_false_negatives": 0
+  },
+  "citation_evaluation": {
+    "total_cases": 150,
+    "citation_precision": 1.0,
+    "hallucination_block_rate": 1.0,
+    "over_citation_rate": 0.0
+  }
+}

@@ -41,3 +41,32 @@ This project is indexed by GitNexus as **chat-hospital-system** (21256 symbols, 
 | Index, status, clean, wiki CLI commands | `.claude/skills/gitnexus/gitnexus-cli/SKILL.md` |
 
 <!-- gitnexus:end -->
+
+---
+
+# AI Copilot Assistant & Engineering Guidelines
+
+## Project Summary
+**Chatbot Hospital System (HOSP-AI-001)** is an enterprise-grade AI-powered Hospital Knowledge Assistant. It integrates a **FastAPI** backend (`app/backend`) with a **TanStack Start / React 19** frontend (`app/frontend`), featuring hybrid RAG retrieval, permission-first security scoping, and HIPAA-compliant audit logging.
+
+## Core Commands
+
+### Backend (FastAPI + Pip + Hatchling)
+- **Dev Server**: `cd app/backend && python -m uvicorn hospital_ai.main:create_app --reload`
+- **Run Tests**: `cd app/backend && python -m pytest tests/ -v --cov=hospital_ai --cov-fail-under=80`
+- **Lint Code**: `cd app/backend && ruff check src/ tests/`
+- **Format Code**: `cd app/backend && ruff format --check src/ tests/`
+- **Verify Contracts**: `cd app/backend && python scripts/verify_contracts.py`
+
+### Frontend (TanStack Start + Bun)
+- **Dev Server**: `cd app/frontend && bun run dev` (Port 8082, proxying to 8000)
+- **Build App**: `cd app/frontend && bun run build`
+- **Typecheck**: `cd app/frontend && bun run typecheck`
+- **Lint Code**: `cd app/frontend && bun run lint`
+- **Unit Tests**: `cd app/frontend && bun run test`
+- **E2E Tests**: `cd app/frontend && bun run test:e2e`
+
+## Coding Standards & Architectural Invariants
+1. **Permission First**: Always enforce active patient scope permissions before retrieving chunks or serving LLM completions.
+2. **Repository Layer**: Always isolate database queries inside repositories (`app/backend/src/hospital_ai/repositories/`) rather than putting SQLAlchemy queries inside routes.
+3. **Immutability**: Avoid mutating objects in-place in frontend components; return fresh state copies.

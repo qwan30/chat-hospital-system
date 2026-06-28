@@ -69,8 +69,8 @@ bun run dev --port 8082
 2. Pick task → branch `feature/<desc>`
 3. TDD: Red → Green → Refactor
 4. Follow `04-architecture/coding-standards.md`
-5. Run checks: `ruff check` / `npm run typecheck && npm run lint`
-6. Run tests: `pytest` / `npm test`
+5. Run checks: `ruff check` / `bun run typecheck && bun run lint`
+6. Run tests: `pytest` / `bun run test`
 7. Code review → address CRITICAL/HIGH findings
 8. Commit: `feat(scope): description`
 
@@ -79,23 +79,23 @@ bun run dev --port 8082
 **Backend:**
 ```bash
 cd app/backend
-poetry run uvicorn hospital_ai.main:create_app --reload
-poetry run pytest
-poetry run pytest --cov=src/hospital_ai
-poetry run ruff check src/
-poetry run alembic revision --autogenerate -m "desc"
-poetry run alembic upgrade head
-poetry run python scripts/seed_dev.py
+python -m uvicorn hospital_ai.main:create_app --reload
+python -m pytest tests/
+python -m pytest tests/ --cov=hospital_ai
+ruff check src/ tests/
+alembic revision --autogenerate -m "desc"
+alembic upgrade head
+python scripts/seed_dev.py
 ```
 
 **Frontend:**
 ```bash
 cd app/frontend
-npm run dev
-npm test
-npm run typecheck
-npm run lint
-npm run build
+bun run dev
+bun run test
+bun run typecheck
+bun run lint
+bun run build
 ```
 
 ## 6. Key Files
@@ -117,13 +117,13 @@ npm run build
 ## 7. Environment Variables
 
 ```bash
-DATABASE_URL=postgresql+asyncpg://user:pass@localhost:5432/hospital_ai
-HMS_JWT_SECRET=<shared-secret>
-CHAT_PROVIDER=ollama|stub|openai
-EMBEDDING_PROVIDER=ollama|deterministic|openai
-OLLAMA_BASE_URL=http://localhost:11434
-CHAT_MODEL=qwen2.5:7b
-CORS_ORIGINS=http://localhost:3000
+HOSPITAL_AI_DATABASE_URL=postgresql+asyncpg://user:pass@localhost:5432/hospital_ai
+HOSPITAL_AI_JWT_SECRET=<shared-secret>
+HOSPITAL_AI_CHAT_PROVIDER=ollama|stub|openai
+HOSPITAL_AI_EMBEDDING_PROVIDER=ollama|deterministic|openai
+HOSPITAL_AI_LLM_BASE_URL=http://localhost:11434
+HOSPITAL_AI_CHAT_MODEL=qwen2.5:7b
+HOSPITAL_AI_CORS_ORIGINS=http://localhost:3000
 ```
 
 ## Change Log

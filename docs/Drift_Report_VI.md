@@ -14,7 +14,20 @@ Báo cáo này liệt kê chi tiết các điểm sai lệch giữa tài liệu 
 - **Frontend Components Structure**: Theo tài liệu, frontend components được phân chia theo rất nhiều domain cụ thể (như `app-shell/`, `auth/`, `chat/`, `patient/`, `document/`, `evidence/`,...). Nhưng thực tế, mã nguồn tại `app/frontend/src/components/` chỉ có 3 thư mục `hms/`, `shell/`, và `ui/`. Phần lớn các feature components đang nằm gộp chung trong thư mục `components/hms/` thay vì chia nhỏ theo domain như kiến trúc quy định.
 
 ## 3. Lệch Pha về API (API Docs vs Backend Endpoints)
-(Chưa có dữ liệu)
+- **Thiếu endpoints trong tài liệu (Undocumented Endpoints)**: Rất nhiều endpoints có trong code nhưng không được nhắc đến trong `api-contract.md`:
+  - `access_requests.py`: Có thêm `GET /`, `GET /{request_id}`, `PUT /{request_id}/review`.
+  - `audit.py`: Có thêm `GET /events`.
+  - `chat_threads.py`: Thiếu toàn bộ các endpoints liên quan đến messages và participants (như `POST/GET /{thread_id}/messages`, các operations CRUD cho participants, cập nhật và xóa thread).
+  - `documents.py`: Có thêm truy xuất page (`GET /{document_id}/pages/{page_number}`, `.../image`) và tìm kiếm (`POST /search`).
+  - Toàn bộ endpoints của `graph.py` và `medication_safety.py` hoàn toàn không có trong API Docs.
+  - `hms.py`: Có thêm nhiều endpoint đồng bộ chi tiết như `/sync/appointments`, `/sync/lab-results`, `/sync/medical-records`, `/sync/full` và `GET /health`.
+  - `patients.py`: Có thêm `GET /search` và `GET /{patient_id}/timeline`.
+- **Sai lệch đường dẫn (Path Drift)**:
+  - `documents.py`: Docs ghi `POST /api/v1/documents/upload`, nhưng code thực tế là `POST /`. Docs ghi `/{id}/retry-ocr`, nhưng code là `/{document_id}/retry-index`.
+- **Endpoints có trong Docs nhưng không có trong Code (Ghost Endpoints)**:
+  - `GET /api/v1/hms/jobs/{job_id}`: Không tồn tại trong mã nguồn.
+  - `GET /api/v1/patients`: Trong code dùng `GET /search` thay vì `GET /`.
+  - `GET /api/v1/patients/{id}/summary` và `GET /api/v1/patients/{id}/meds`: Không tồn tại trong `patients.py` (tính năng medication review đã được chuyển sang module riêng `medication_safety.py`).
 
 ## 4. Đánh giá Tổng quan & Đề xuất Cập nhật
 (Chưa có dữ liệu)

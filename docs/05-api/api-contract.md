@@ -15,7 +15,7 @@ The backend is a **FastAPI BFF (Backend-for-Frontend)** serving the Next.js UI. 
 
 ---
 
-## 2. Route Map (14 route modules)
+## 2. Route Map (16 route modules)
 
 All routes are mounted in `app/backend/src/hospital_ai/api/router.py`:
 
@@ -36,6 +36,8 @@ All routes are mounted in `app/backend/src/hospital_ai/api/router.py`:
 | `/search` | `routes/search.py` | Global entity search (rate limited 20/min) |
 | `/access-requests` | `routes/access_requests.py` | Patient access requests |
 | `/feedback` | `routes/feedback.py` | User feedback submission and metrics |
+| `/graph` | `routes/graph.py` | Knowledge graph queries |
+| `/medication-safety` | `routes/medication_safety.py` | Medication safety checks |
 
 ---
 
@@ -102,25 +104,37 @@ Create a new chat thread.
 }
 ```
 
-### `GET /api/v1/patients`
-List patients accessible to the current user, filtered by active `patient_permissions` scopes (read/summary/medication/upload/admin).
+### `GET /api/v1/chat-threads/{thread_id}/messages`
+Get messages for a chat thread.
+
+### `POST /api/v1/chat-threads/{thread_id}/messages`
+Add a message to a chat thread.
+
+### `GET /api/v1/chat-threads/{thread_id}/participants`
+Get thread participants.
+
+### `GET /api/v1/patients/search`
+Search patients accessible to the current user.
 
 ### `GET /api/v1/patients/{id}/overview`
 Merged EMR snapshot + AI summary with citations from HMS connector.
 
-### `GET /api/v1/patients/{id}/summary`
-AI-generated patient summary.
+### `GET /api/v1/patients/{id}/timeline`
+Get patient clinical timeline.
 
-### `GET /api/v1/patients/{id}/meds`
-Medication review with drug interaction checking via `DrugCheckService`.
-
-### `POST /api/v1/documents/upload`
+### `POST /api/v1/documents/`
 Upload a document for OCR processing. Returns document metadata with status.
 
 ### `GET /api/v1/documents`
 List documents accessible to the current user. Supports filtering by `patient_id` and `status`.
 
-### `POST /api/v1/documents/{id}/retry-ocr`
+### `GET /api/v1/documents/{document_id}/pages/{page_number}/image`
+Get document page image.
+
+### `POST /api/v1/documents/search`
+Search inside documents.
+
+### `POST /api/v1/documents/{document_id}/retry-index`
 Re-enqueue a failed document for OCR reprocessing via RQ worker queue.
 
 ### `GET /api/v1/dashboard/summary`
@@ -142,14 +156,35 @@ Command-palette global search across patients, documents, and chat threads. Resu
 ### `POST /api/v1/access-requests`
 Submit clinical justification to request patient access (break-glass scenario).
 
+### `GET /api/v1/access-requests/`
+List access requests.
+
+### `GET /api/v1/access-requests/{request_id}`
+Get access request details.
+
+### `PUT /api/v1/access-requests/{request_id}/review`
+Review an access request.
+
 ### `GET /api/v1/audit/logs`
 List audit events (security/admin role only). Supports filters: `patient_id`, `action`, `outcome`, `limit`.
 
 ### `POST /api/v1/hms/sync/patients/{id}`
 Trigger HMS data synchronization for a specific patient.
 
-### `GET /api/v1/hms/jobs/{job_id}`
-Check HMS sync job status and progress (records synced/skipped/failed).
+### `POST /api/v1/hms/sync/appointments`
+Trigger HMS appointments sync.
+
+### `POST /api/v1/hms/sync/lab-results`
+Trigger HMS lab results sync.
+
+### `POST /api/v1/hms/sync/medical-records`
+Trigger HMS medical records sync.
+
+### `POST /api/v1/hms/sync/full`
+Trigger HMS full sync.
+
+### `GET /api/v1/hms/health`
+HMS integration health check.
 
 ### `POST /api/v1/feedback/queries/{query_id}/feedback`
 Submit thumbs up (+1), neutral (0), or thumbs down (-1) on an AI response. One feedback per query.

@@ -6,6 +6,8 @@ provides summary aggregations for the metrics dashboard.
 
 from __future__ import annotations
 
+from typing import Optional
+
 import uuid
 from dataclasses import dataclass
 from datetime import datetime
@@ -50,7 +52,7 @@ class UserFeedback(Base):
     query_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("ai_queries.id"), nullable=False, index=True)
     user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"), nullable=False, index=True)
     rating: Mapped[int] = mapped_column(Integer, nullable=False)  # -1, 0, 1
-    comment: Mapped[str | None] = mapped_column(Text, nullable=True)
+    comment: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
 
 

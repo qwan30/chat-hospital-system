@@ -69,29 +69,31 @@ Since standard deterministic assertions are insufficient for generative AI model
 
 A comprehensive E2E test suite simulates real clinical user interactions using Playwright. Unlike passive rendering checks, these tests perform actual browser actions — typing, clicking, submitting forms, waiting for responses — exactly as a clinician, nurse, or admin would.
 
-**Location**: `app/frontend/e2e/flows/`  
+**Location**: `app/frontend/e2e/`  
 **Framework**: Playwright (Chromium headless)  
-**Run command**: `npx playwright test e2e/flows/ --workers=1`
+**Run command**: `npx playwright test e2e/ --workers=1`
 
 ### 5.2 Test Architecture
 
 | Layer | File | Purpose |
 |-------|------|---------|
-| **Auth helpers** | `e2e/helpers/auth.ts` | `loginViaSSO()`, `loginViaEmailForm()`, `setupContext()`, `mockAllApiRoutes()` |
-| **Interaction helpers** | `e2e/helpers/interactions.ts` | `waitForLoadingToFinish()`, `typeAndSubmit()`, `clickAndWait()`, `navigateViaSidebar()` |
-| **Flow tests** | `e2e/flows/*.spec.ts` | Real-user interaction tests organized by feature area |
+| **Helpers** | `e2e/_helpers.ts` | All shared playwright setup and routing mocks |
+| **Flow tests** | `e2e/*.spec.ts` | Real-user interaction tests organized by feature area |
 
 ### 5.3 Test Suites & Status
 
 | Suite | Tests | Status | Key Real-User Interactions |
 |-------|-------|--------|---------------------------|
-| **login-flow** | 12 | ✅ 100% | SSO click → dashboard, email/password form fill, invalid credentials error, empty field validation |
-| **chat-flow** | 7 | ✅ 100% | Type clinical question, suggestion cards, multi-turn conversation, thread navigation |
-| **patient-flow** | 11 | ✅ 100% | Type search → filter, click patient → detail + tabs, AI Summary, Meds Review, Access Denied |
-| **document-flow** | 5 | ✅ 100% | Document list badges, upload dropzone, file input, detail page |
-| **navigation-flow** | 16 | ✅ 100% | All 7 sidebar clicks, all 7 direct URLs, user menu, search trigger |
-| **error-flow** | 5 | ✅ 100% | API 500, auth expiry → login, 404, rate limit 429, slow network |
-| **Total** | **56** | **✅ 100%** | All passing (2.9 min, single worker) |
+| **auth-flow** | 2 | ✅ 100% | Đăng nhập thành công và Đăng nhập sai thông tin |
+| **business-flow** | 10 | ✅ 100% | Bệnh án, OCR, Chat bệnh nhân, Feedback, Setting... |
+| **chat-general** | 2 | ✅ 100% | Chat tổng quát và Feedback từ chối |
+| **chat-gpt-flow** | 6 | ✅ 100% | Chat luồng mới, Markdown stream, Lỗi kết nối |
+| **chat-patient** | 3 | ✅ 100% | Chat gắn với patient |
+| **full-plan-verification** | 4 | ✅ 100% | Kiểm tra các màn hình rỗng và truy cập menu |
+| **graph-patient** | 2 | ✅ 100% | Timeline biểu đồ patient |
+| **rbac-flow** | 3 | ✅ 100% | Phân quyền truy cập Patient, Setting |
+| **screenshot-all** | 2 | ✅ 100% | Chụp ảnh tự động toàn hệ thống |
+| **Total** | **34** | **✅ 100%** | All passing |
 
 ### 5.4 Mock Strategy
 
@@ -104,9 +106,9 @@ Tests use Playwright's `context.route()` to mock all API responses. The auth moc
 ### 5.5 CI Commands
 
 ```bash
-cd app/frontend && npx playwright test e2e/flows/ --workers=1   # All 56 tests
-npx playwright test e2e/flows/login-flow.spec.ts                 # Single suite
-npx playwright show-report                                        # HTML report
+cd app/frontend && npx playwright test e2e/ --workers=1   # All tests
+npx playwright test e2e/auth-flow.spec.ts                 # Single suite
+npx playwright show-report                                # HTML report
 ```
 
 ---

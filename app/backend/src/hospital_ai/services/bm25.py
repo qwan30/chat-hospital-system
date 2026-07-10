@@ -6,6 +6,8 @@ or a portable Python-side BM25 scoring fallback for SQLite tests.
 
 from __future__ import annotations
 
+from typing import Optional
+
 import logging
 import math
 import re
@@ -213,7 +215,7 @@ async def bm25_search_postgres(
     query: str,
     *,
     top_k: int = 10,
-    scope_filter: str | None = None,
+    scope_filter: Optional[str] = None,
 ) -> list[RetrievedChunk]:
     """Execute a BM25 full-text search against PostgreSQL tsvector index.
 

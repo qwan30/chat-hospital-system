@@ -7,7 +7,7 @@ name = "hospital-ai-backend"
 version = "0.1.0"
 description = "FastAPI backend for the AI-powered hospital knowledge assistant."
 readme = "README.md"
-requires-python = ">=3.9"
+requires-python = ">=3.11"
 dependencies = [
   "alembic>=1.13.0",
   "fastapi>=0.95.0,<0.100.0",
@@ -36,7 +36,7 @@ postgres = [
   "pgvector>=0.3.0"
 ]
 ocr = [
-  "paddleocr>=3.0.0"
+  "paddleocr<3.0.0"
 ]
 tables = [
   "pdfplumber>=0.10.0"
@@ -60,7 +60,7 @@ testpaths = ["tests"]
 
 [tool.ruff]
 line-length = 120
-target-version = "py39"
+target-version = "py311"
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B"]

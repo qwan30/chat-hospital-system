@@ -5,6 +5,8 @@ Inspired by kotaemon's ktem.llms.manager pattern.
 
 from __future__ import annotations
 
+from typing import Optional
+
 import logging
 from functools import lru_cache
 
@@ -24,9 +26,9 @@ class LLMManager:
     def __init__(self, settings: Settings) -> None:
         self.settings = settings
         self._providers: dict[str, BaseLLM] = {}
-        self._default_provider: str | None = None
+        self._default_provider: Optional[str] = None
 
-    def get(self, provider_name: str | None = None) -> BaseLLM:
+    def get(self, provider_name: Optional[str] = None) -> BaseLLM:
         """Get an LLM provider instance.
 
         Args:

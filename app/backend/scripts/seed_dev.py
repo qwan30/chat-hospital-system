@@ -60,7 +60,28 @@ async def main() -> None:
             trace_id=new_trace_id(),
             ip_address="seed_dev",
         )
-    print("Seeded synthetic users, patients, permissions, and HMS appointment evidence.")
+
+        from hospital_ai.db.models import ChatThread
+        from hospital_ai.db.migrations import DOCTOR_ID
+        import datetime
+        from sqlalchemy import select
+        # Seed a DAPT conversation for E2E testing
+        thread = await session.execute(
+            select(ChatThread).where(ChatThread.title == "DAPT Guideline Query")
+        )
+        if thread.scalar_one_or_none() is None:
+            session.add(ChatThread(
+                title="DAPT Guideline Query",
+                scope="general",
+                visibility="private",
+                status="active",
+                owner_user_id=DOCTOR_ID,
+                created_trace_id="seed_dev_trace",
+                last_message_at=datetime.datetime.now(datetime.timezone.utc),
+            ))
+            await session.commit()
+
+    print("Seeded synthetic users, patients, permissions, HMS appointment evidence, and ChatThreads.")
 
 
 if __name__ == "__main__":

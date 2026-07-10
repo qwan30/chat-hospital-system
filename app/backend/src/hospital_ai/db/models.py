@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import uuid
 from datetime import date, datetime
-from typing import Any
+from typing import Any, Optional
 
 from sqlalchemy import (
     JSON,
@@ -88,7 +88,7 @@ class User(TimestampMixin, SoftDeleteMixin, Base):
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
     email: Mapped[str] = mapped_column(String(320), unique=True, nullable=False, index=True)
     full_name: Mapped[str] = mapped_column(String(255), nullable=False)
-    department: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    department: Mapped[Optional[str]] = mapped_column(String(128), nullable=True)
     role: Mapped[str] = mapped_column(String(32), nullable=False)
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True, server_default="true")
 
@@ -102,7 +102,7 @@ class Patient(TimestampMixin, SoftDeleteMixin, Base):
     mrn: Mapped[str] = mapped_column(String(64), unique=True, nullable=False, index=True)
     full_name: Mapped[str] = mapped_column(String(255), nullable=False)
     dob: Mapped[date | None] = mapped_column(Date, nullable=True)
-    department: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    department: Mapped[Optional[str]] = mapped_column(String(128), nullable=True)
     status: Mapped[str] = mapped_column(String(32), nullable=False, default="active", server_default="active")
 
     permissions: Mapped[list[PatientPermission]] = relationship(back_populates="patient")
@@ -143,7 +143,7 @@ class AccessRequest(TimestampMixin, Base):
     status: Mapped[str] = mapped_column(String(32), nullable=False, default="pending")
     reviewed_by_user_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("users.id"), nullable=True)
     reviewed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
-    review_notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    review_notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
 
     patient: Mapped[Patient] = relationship()
     user: Mapped[User] = relationship(foreign_keys=[user_id])
@@ -169,14 +169,14 @@ class Document(TimestampMixin, SoftDeleteMixin, Base):
     mime_type: Mapped[str] = mapped_column(String(128), nullable=False)
     status: Mapped[str] = mapped_column(String(32), nullable=False, default="uploaded")
     page_count: Mapped[int | None] = mapped_column(Integer, nullable=True)
-    ocr_error: Mapped[str | None] = mapped_column(Text, nullable=True)
+    ocr_error: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     index_generation: Mapped[int] = mapped_column(
         Integer,
         nullable=False,
         default=0,
         server_default="0",
     )
-    indexed_source_sha256: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    indexed_source_sha256: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
 
     patient: Mapped[Patient] = relationship(back_populates="documents")
     pages: Mapped[list[DocumentPage]] = relationship(back_populates="document", cascade="all, delete-orphan")
@@ -227,7 +227,7 @@ class AuditLog(Base):
     patient_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("patients.id"), nullable=True, index=True)
     outcome: Mapped[str] = mapped_column(String(32), nullable=False)
     trace_id: Mapped[str] = mapped_column(String(64), nullable=False)
-    ip_address: Mapped[str | None] = mapped_column(InetAddress(), nullable=True)
+    ip_address: Mapped[Optional[str]] = mapped_column(InetAddress(), nullable=True)
     meta: Mapped[dict[str, Any]] = mapped_column("metadata", JSON, nullable=False, default=dict)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
 
@@ -239,10 +239,10 @@ class AiQuery(Base):
     user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"), nullable=False, index=True)
     patient_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("patients.id"), nullable=True, index=True)
     question: Mapped[str] = mapped_column(Text, nullable=False)
-    answer: Mapped[str | None] = mapped_column(Text, nullable=True)
+    answer: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     status: Mapped[str] = mapped_column(String(32), nullable=False)
     latency_ms: Mapped[int | None] = mapped_column(Integer, nullable=True)
-    model: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    model: Mapped[Optional[str]] = mapped_column(String(128), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
 
     evidence: Mapped[list[RetrievedEvidence]] = relationship(back_populates="query", cascade="all, delete-orphan")
@@ -261,8 +261,8 @@ class RetrievedEvidence(Base):
 
     # RAG trace observability fields
     rerank_score: Mapped[float | None] = mapped_column(Numeric, nullable=True)
-    retrieval_method: Mapped[str | None] = mapped_column(String(32), nullable=True)
-    rerank_method: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    retrieval_method: Mapped[Optional[str]] = mapped_column(String(32), nullable=True)
+    rerank_method: Mapped[Optional[str]] = mapped_column(String(32), nullable=True)
 
     query: Mapped[AiQuery] = relationship(back_populates="evidence")
 
@@ -402,7 +402,7 @@ class HmsSyncLog(TimestampMixin, Base):
     records_synced: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     records_skipped: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     records_failed: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
-    error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
+    error_message: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     trace_id: Mapped[str] = mapped_column(String(64), nullable=False)
     started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)

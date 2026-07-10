@@ -30,20 +30,23 @@ def test_token_user_map_returns_default_in_local_environment():
     assert mapping.get("dev-admin") == "admin@example.test"
 
 
-def test_token_user_map_refuses_default_in_production():
+def test_token_user_map_refuses_default_in_production(monkeypatch):
     """The committed default tokens must not be honored in non-local
     environments unless an operator explicitly opts in by setting the
     HOSPITAL_AI_DEV_BEARER_TOKENS env-var."""
-    settings = Settings(environment="production")
+    monkeypatch.delenv("HOSPITAL_AI_DEV_BEARER_TOKENS", raising=False)
+    settings = Settings(environment="production", _env_file=None)
     assert settings.token_user_map == {}
 
 
-def test_token_user_map_accepts_explicit_override_in_production():
+def test_token_user_map_accepts_explicit_override_in_production(monkeypatch):
     """An explicit override (even if it equals the default text) is treated
     as an operator-authored value and is honored in any environment."""
+    monkeypatch.delenv("HOSPITAL_AI_DEV_BEARER_TOKENS", raising=False)
     settings = Settings(
         environment="production",
         dev_bearer_tokens="ops-token:ops@example.test",
+        _env_file=None,
     )
     assert settings.token_user_map == {"ops-token": "ops@example.test"}
 

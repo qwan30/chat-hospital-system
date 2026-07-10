@@ -30,4 +30,9 @@ Báo cáo này liệt kê chi tiết các điểm sai lệch giữa tài liệu 
   - `GET /api/v1/patients/{id}/summary` và `GET /api/v1/patients/{id}/meds`: Không tồn tại trong `patients.py` (tính năng medication review đã được chuyển sang module riêng `medication_safety.py`).
 
 ## 4. Đánh giá Tổng quan & Đề xuất Cập nhật
-(Chưa có dữ liệu)
+Dựa trên các phân tích trên, dự án đang gặp phải tình trạng lệch pha đáng kể (significant drift) giữa mã nguồn thực tế và tài liệu thiết kế ban đầu. Sự lệch pha xảy ra ở cả ba khía cạnh: Testing, Architecture, và API. Mã nguồn thực tế đã phát triển và thay đổi cấu trúc nhiều hơn so với những gì được ghi nhận trong tài liệu. Đặc biệt là phần API và Architecture đang bị thiếu sót rất nhiều thông tin quan trọng.
+
+**Action Plan (Đề xuất Cập nhật):**
+1. **Cập nhật tài liệu API (Ưu tiên Cao):** Cần tiến hành rà soát và cập nhật `api-contract.md` ngay lập tức để bổ sung các endpoints còn thiếu (như `graph.py`, `medication_safety.py`), sửa lại các đường dẫn bị sai lệch (Path Drift) và loại bỏ các endpoints không còn tồn tại.
+2. **Cập nhật tài liệu Architecture (Ưu tiên Trung bình-Cao):** Chỉnh sửa `docs/04-architecture/module-breakdown.md` để phản ánh đúng danh sách các modules ở tầng Route và Service của Backend. Đồng thời, cập nhật lại cấu trúc thư mục Frontend, thống nhất việc sử dụng `components/hms/` và `components/shell/` thay vì chia quá nhiều domain nhỏ chưa tồn tại.
+3. **Cập nhật tài liệu Testing (Ưu tiên Trung bình):** Đồng bộ hóa `docs/09-testing/test-plan.md` với cấu trúc thư mục thực tế của test E2E, cũng như cập nhật đúng tên các file test E2E và RAG Backend đang có trong mã nguồn.

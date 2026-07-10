@@ -11,6 +11,7 @@ import type { Role } from "@/lib/rbac";
 import { mockUsers, type MockUser } from "@/data/mockUsers";
 import { getWorkspace, type Workspace } from "@/data/workspaces";
 import { useAuth } from "@/lib/auth-context";
+import { persistToken } from "@/lib/api-client";
 
 const STORAGE_KEY = "hms.session";
 
@@ -47,6 +48,18 @@ function buildSession(
       ? workspaceId
       : user.defaultWorkspaceId;
   const workspace = getWorkspace(wsId)!;
+  
+  if (!isRealAuth && !token) {
+    const roleTokens: Record<string, string> = {
+      cardiologist: "dev-doctor",
+      hospitalist: "dev-doctor",
+      rn: "dev-nurse",
+      pharmacist: "dev-pharmacist",
+      front_desk: "dev-frontdesk",
+    };
+    token = roleTokens[role] || "dev-doctor";
+  }
+
   return { user, role, workspace, isRealAuth, token };
 }
 
@@ -63,14 +76,25 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     if (authUser && token) {
       const role = mapBackendRole(authUser.role);
       const s = buildSession(role, undefined, true, token);
+      persistToken(token);
       setSession(s);
     } else {
       try {
         const raw = localStorage.getItem(STORAGE_KEY);
         if (raw) {
-          const parsed = JSON.parse(raw) as { role: Role; workspaceId: string };
-          if (parsed?.role && mockUsers[parsed.role]) {
-            setSession(buildSession(parsed.role, parsed.workspaceId));
+          const parsed = JSON.parse(raw) as Session;
+          if (parsed && parsed.role) {
+            // Re-hydrate full session object with latest mock data + token fallback
+            const hydratedSession = buildSession(
+              parsed.role,
+              parsed.workspace?.id,
+              parsed.isRealAuth,
+              parsed.token,
+            );
+            setSession(hydratedSession);
+            if (hydratedSession.token) {
+              persistToken(hydratedSession.token);
+            }
           }
         }
       } catch {
@@ -85,7 +109,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     if (s) {
       localStorage.setItem(
         STORAGE_KEY,
-        JSON.stringify({ role: s.role, workspaceId: s.workspace.id }),
+        JSON.stringify({ role: s.role, workspaceId: s.workspace.id, token: s.token }),
       );
     } else {
       localStorage.removeItem(STORAGE_KEY);
@@ -94,6 +118,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
 
   const signIn = useCallback((role: Role, workspaceId?: string) => {
     const s = buildSession(role, workspaceId);
+    if (s.token) persistToken(s.token);
     setSession(s);
     persist(s);
   }, []);
@@ -105,6 +130,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
 
   const switchRole = useCallback((role: Role) => {
     const s = buildSession(role);
+    if (s.token) persistToken(s.token);
     setSession(s);
     persist(s);
   }, []);

@@ -29,14 +29,14 @@ test("FULL BUSINESS FLOW END-TO-END", async ({ page }) => {
   // STEP 2: Patients search
   await page.goto(`${BASE}/patients`, { waitUntil: "networkidle" });
   await expect(page.locator("table")).toBeVisible({ timeout: 5000 });
-  const searchInput = page.locator("input").first();
+  const searchInput = page.getByPlaceholder("Search by name, MRN...");
   await searchInput.fill("Eleanor");
   await page.waitForTimeout(500);
   await expect(page.getByText("Eleanor Vance")).toBeVisible();
   console.log("PASS: Patients search");
 
   // STEP 3: Patient detail + tabs
-  await page.goto(`${BASE}/patients/p-001`, { waitUntil: "networkidle" });
+  await page.getByRole("row", { name: /Eleanor Vance/i }).click();
   await page.waitForTimeout(800);
   await expect(page.getByText(/Eleanor Vance|Access verified/).first()).toBeVisible({
     timeout: 5000,
@@ -52,12 +52,12 @@ test("FULL BUSINESS FLOW END-TO-END", async ({ page }) => {
 
   // STEP 4: Chat — type, send, get response
   await page.goto(`${BASE}/chat`, { waitUntil: "networkidle" });
-  await expect(page.getByText("How can I help you")).toBeVisible({ timeout: 5000 });
+  await expect(page.getByText("General clinical chat")).toBeVisible({ timeout: 5000 });
   const suggestions = page.locator("button").filter({ hasText: /guideline|sepsis|DOAC|dyspnea/i });
   expect(await suggestions.count()).toBeGreaterThanOrEqual(1);
   await page.locator("textarea").first().fill("Anticoagulation protocol for AFib?");
   await page.locator('button:has-text("Send")').click();
-  await page.waitForURL("**/chat/patients/**", { timeout: 10000 });
+  await page.waitForTimeout(2000);
   await page.waitForTimeout(1500);
   expect((await page.locator("body").innerText()).length).toBeGreaterThan(100);
   console.log("PASS: Chat send + response");

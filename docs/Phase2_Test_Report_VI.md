@@ -7,7 +7,10 @@
 - **Coverage**: N/A.
 
 ## 2. HMS Data Sync
-*(Sẽ cập nhật sau)*
+- **Trạng thái chạy test**: Thất bại (Bị chặn bởi lỗi syntax cục bộ).
+- **Lỗi phát sinh**: `MappedAnnotationError: Could not resolve all types within mapped annotation: "Mapped[str | None]"`. Lỗi cấu hình Python 3.9 tương tự như phần API & Auth đã chặn toàn bộ quá trình chạy test của file `test_hms_sync.py` và `test_hms_appointment_import.py`.
+- **Số lượng pass/fail**: 0 pass / 0 fail.
+- **Vấn đề bảo mật (PHI leakage)**: Chưa thể xác minh bằng test tự động do không thể khởi chạy test. Cần khắc phục lỗi môi trường/syntax để đảm bảo các bài test xác minh ngăn chặn rò rỉ dữ liệu y tế (PHI) được thực thi thành công.
 
 ## 3. Graph RAG & AI Engine
 *(Sẽ cập nhật sau)*

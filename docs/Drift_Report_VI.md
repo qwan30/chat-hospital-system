@@ -9,7 +9,9 @@ Báo cáo này liệt kê chi tiết các điểm sai lệch giữa tài liệu 
 - **Thay đổi tên test RAG Backend**: Trong thực tế các file test RAG được chia tách chuyên biệt với các tên cụ thể thay vì chung chung, bao gồm: `test_rag_trace.py`, `test_graph_rag_integration.py`, `test_retrieval_postgres_integration.py`, `test_retrieval_sql.py`.
 
 ## 2. Lệch Pha về Architecture (Architecture Docs vs Code Structure)
-(Chưa có dữ liệu)
+- **Backend API Routes (API Layer)**: Tài liệu `docs/04-architecture/module-breakdown.md` liệt kê 14 route modules. Tuy nhiên, cấu trúc thực tế trong `app/backend/src/hospital_ai/api/routes/` bao gồm 16 modules. Hai route `graph.py` và `medication_safety.py` có trong code nhưng chưa được ghi nhận trong document.
+- **Backend Services (Service Layer)**: Tài liệu định nghĩa 18 modules trong service layer. Trong thực tế, thư mục `app/backend/src/hospital_ai/services/` chứa nhiều file và thư mục hơn (như `chunking.py`, `jwt_auth.py`, `memory.py`, `ocr.py`, `reranking.py`, `storage.py` và thư mục `loaders/`) nhưng chưa được cập nhật vào tài liệu.
+- **Frontend Components Structure**: Theo tài liệu, frontend components được phân chia theo rất nhiều domain cụ thể (như `app-shell/`, `auth/`, `chat/`, `patient/`, `document/`, `evidence/`,...). Nhưng thực tế, mã nguồn tại `app/frontend/src/components/` chỉ có 3 thư mục `hms/`, `shell/`, và `ui/`. Phần lớn các feature components đang nằm gộp chung trong thư mục `components/hms/` thay vì chia nhỏ theo domain như kiến trúc quy định.
 
 ## 3. Lệch Pha về API (API Docs vs Backend Endpoints)
 (Chưa có dữ liệu)

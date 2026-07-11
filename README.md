@@ -57,6 +57,11 @@
 
 ## 🏗️ System Architecture
 
+![System Architecture](docs/design/system-architecture.svg)
+
+<details>
+<summary>Mermaid Text Source</summary>
+
 ```mermaid
 graph TB
     subgraph "Client Layer"
@@ -124,6 +129,8 @@ graph TB
     style LK fill:#eab308,stroke:#facc15,color:#000
 ```
 
+</details>
+
 ---
 
 ## 📸 Application Screenshots
@@ -161,6 +168,11 @@ graph TB
 
 This sequence diagram shows how the system ensures **zero PHI leakage** by filtering document access at the database query level before any context reaches the LLM:
 
+![Permission-First RAG Flow](docs/design/permission-first-rag-flow.svg)
+
+<details>
+<summary>Mermaid Text Source</summary>
+
 ```mermaid
 sequenceDiagram
     actor D as 👨‍⚕️ Doctor
@@ -196,9 +208,16 @@ sequenceDiagram
     end
 ```
 
+</details>
+
 ---
 
 ## 🔄 CI/CD Pipeline
+
+![CI/CD Pipeline](docs/design/cicd-pipeline.svg)
+
+<details>
+<summary>Mermaid Text Source</summary>
 
 ```mermaid
 graph LR
@@ -244,6 +263,8 @@ graph LR
     DB --> TV --> GH
     GH --> STG --> SMK --> PRD --> SLK
 ```
+
+</details>
 
 ---
 
@@ -313,9 +334,16 @@ erDiagram
     }
 ```
 
+</details>
+
 ---
 
 ## 🚢 Deployment Architecture
+
+![Deployment Architecture](docs/design/deployment-architecture.svg)
+
+<details>
+<summary>Mermaid Text Source</summary>
 
 ```mermaid
 graph TB
@@ -640,6 +668,11 @@ Configurations in [`infra/observability/`](infra/observability/) — Prometheus 
 
 The Knowledge Graph (previously "Graph RAG") is a backend-backed explainability feature that shows how clinical reasoning connects patient data, diagnoses, medications, labs, and evidence documents.
 
+![Knowledge Graph Explainability](docs/design/knowledge-graph-explainability.svg)
+
+<details>
+<summary>Mermaid Text Source</summary>
+
 ```mermaid
 graph LR
     P[👤 Patient] -->|diagnosed with| D[🩺 Diagnosis]
@@ -658,6 +691,8 @@ graph LR
     style L fill:#0891b2,stroke:#22d3ee,color:#fff
     style DOC fill:#4b5563,stroke:#9ca3af,color:#fff
 ```
+
+</details>
 
 **Key capabilities:**
 - **Backend-backed graph data** — nodes/edges come from the database, not hardcoded frontend data

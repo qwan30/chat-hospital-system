@@ -1,15 +1,13 @@
-import asyncio
 import uuid
+
 import pytest
-from datetime import datetime, timezone
-from sqlalchemy import select, update
-from hospital_ai.core.config import get_settings
-from hospital_ai.db.migrations import PATIENT_ALICE_ID, DOCTOR_ID
-from hospital_ai.db.models import User, DocumentChunk, PatientPermission
+from sqlalchemy import select
+
+from hospital_ai.db.migrations import DOCTOR_ID, PATIENT_ALICE_ID
+from hospital_ai.db.models import DocumentChunk, PatientPermission, User
 from hospital_ai.services.chat import ChatService
-from hospital_ai.services.embeddings import deterministic_embedding
-from hospital_ai.schemas.chat import ChatRequest
 from tests.conftest import create_indexed_document
+
 
 @pytest.mark.asyncio
 async def test_10_chat_scenarios(session_and_settings):

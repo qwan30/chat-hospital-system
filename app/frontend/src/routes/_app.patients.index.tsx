@@ -58,7 +58,11 @@ function PatientsPage() {
     return () => clearTimeout(t);
   }, [q]);
 
-  const { data: searchResponse, isLoading, isError } = useQuery({
+  const {
+    data: searchResponse,
+    isLoading,
+    isError,
+  } = useQuery({
     queryKey: ["patients", debouncedQ],
     queryFn: () => searchPatients(debouncedQ || undefined, 50),
     placeholderData: keepPreviousData,

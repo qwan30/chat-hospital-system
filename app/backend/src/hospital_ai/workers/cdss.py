@@ -28,7 +28,7 @@ async def run_cdss_analysis(session: AsyncSession, document_id: uuid.UUID) -> No
     text_content = "\n".join(chunk.content for chunk in chunks)
 
     # 3. Fetch patient's existing GraphContext summary
-    from hospital_ai.services.graph_rag import GraphEntity, GraphRelation
+    from hospital_ai.services.graph_rag import GraphRelation
 
     entity_result = await session.execute(
         select(GraphEntity)

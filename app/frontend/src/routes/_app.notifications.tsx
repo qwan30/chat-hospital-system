@@ -163,7 +163,10 @@ function NotificationsPage() {
                 <div className="mt-1 text-xs text-muted-foreground">{formatRelative(n.ts)}</div>
               </div>
               {n.href ? (
-                <Link to={n.href as any} className="text-xs font-semibold text-primary hover:underline">
+                <Link
+                  to={n.href as any}
+                  className="text-xs font-semibold text-primary hover:underline"
+                >
                   Open →
                 </Link>
               ) : null}

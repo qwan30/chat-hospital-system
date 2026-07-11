@@ -25,13 +25,12 @@ import uuid
 from dataclasses import dataclass
 
 from sqlalchemy import Float, ForeignKey, String, func, or_, select
-
-from hospital_ai.services.llm.base import LLMMessage
-from hospital_ai.services.llm.manager import get_llm_manager
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Mapped, mapped_column
 
 from hospital_ai.db.models import Base, TimestampMixin
+from hospital_ai.services.llm.base import LLMMessage
+from hospital_ai.services.llm.manager import get_llm_manager
 
 # ── ORM Models ──────────────────────────────────────────────────────────
 

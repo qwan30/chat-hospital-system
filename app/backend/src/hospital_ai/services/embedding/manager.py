@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-from typing import Optional
-
 import logging
 from functools import lru_cache
 
@@ -20,7 +18,7 @@ class EmbeddingManager:
         self.settings = settings
         self._providers: dict[str, BaseEmbedding] = {}
 
-    def get(self, provider_name: Optional[str] = None) -> BaseEmbedding:
+    def get(self, provider_name: str | None = None) -> BaseEmbedding:
         """Get an embedding provider instance."""
         name = provider_name or self.settings.embedding_provider
 

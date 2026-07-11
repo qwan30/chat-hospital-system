@@ -1,5 +1,5 @@
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from fastapi import APIRouter, Depends, Path, Request
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -70,7 +70,7 @@ async def get_patient_graph(
 
     metadata = GraphMetadata(
         patient_id=patient_id,
-        updated_at=datetime.now(timezone.utc).isoformat(),
+        updated_at=datetime.now(UTC).isoformat(),
         node_count=len(nodes),
         edge_count=len(edges),
     )

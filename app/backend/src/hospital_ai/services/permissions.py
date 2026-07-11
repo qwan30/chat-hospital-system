@@ -1,8 +1,8 @@
 import logging
 import uuid
 from collections.abc import Iterable
-from datetime import datetime, timezone
-from typing import Any, Optional
+from datetime import UTC, datetime
+from typing import Any
 
 from sqlalchemy import exists, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -30,9 +30,9 @@ def active_patient_permission_filters(
     user_id: uuid.UUID,
     patient_id: Any,
     accepted_scopes: Iterable[str],
-    now: Optional[datetime] = None,
+    now: datetime | None = None,
 ):
-    active_at = now or datetime.now(timezone.utc)
+    active_at = now or datetime.now(UTC)
     return (
         PatientPermission.user_id == user_id,
         PatientPermission.patient_id == patient_id,
@@ -47,7 +47,7 @@ def active_patient_permission_exists(
     user_id: uuid.UUID,
     patient_id: Any,
     accepted_scopes: Iterable[str],
-    now: Optional[datetime] = None,
+    now: datetime | None = None,
 ):
     return exists().where(
         *active_patient_permission_filters(
@@ -110,10 +110,10 @@ class PermissionService:
         accepted_scopes: Iterable[str],
         action: str,
         object_type: str = "patient",
-        object_id: Optional[uuid.UUID] = None,
+        object_id: uuid.UUID | None = None,
         trace_id: str,
-        ip_address: Optional[str] = None,
-        metadata: Optional[dict] = None,
+        ip_address: str | None = None,
+        metadata: dict | None = None,
     ) -> None:
         accepted: set[str] = set(accepted_scopes)
         if await self.has_patient_scope(
@@ -128,7 +128,7 @@ class PermissionService:
             PatientPermission.user_id == user.id,
             PatientPermission.patient_id == patient_id,
             PatientPermission.scope.in_(accepted),
-            PatientPermission.expires_at <= datetime.now(timezone.utc),
+            PatientPermission.expires_at <= datetime.now(UTC),
             PatientPermission.deleted_at.is_(None),
         )
         result_expired = await self.session.execute(stmt_expired)
@@ -171,8 +171,8 @@ class PermissionService:
         action: str,
         trace_id: str,
         object_type: str = "patient",
-        object_id: Optional[uuid.UUID] = None,
-        ip_address: Optional[str] = None,
+        object_id: uuid.UUID | None = None,
+        ip_address: str | None = None,
     ) -> None:
         await self.require_patient_scope(
             user=user,
@@ -193,8 +193,8 @@ class PermissionService:
         action: str,
         trace_id: str,
         object_type: str = "document",
-        object_id: Optional[uuid.UUID] = None,
-        ip_address: Optional[str] = None,
+        object_id: uuid.UUID | None = None,
+        ip_address: str | None = None,
     ) -> None:
         if user.role not in {"records_staff", "admin"}:
             await AuditService(self.session).record(

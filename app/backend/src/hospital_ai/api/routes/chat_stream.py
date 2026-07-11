@@ -7,10 +7,10 @@ abstraction layer, inspired by kotaemon's generator-based streaming.
 import json
 import logging
 import time
-from collections.abc import AsyncIterator, Awaitable
+from collections.abc import AsyncIterator, Awaitable, Callable
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
-from typing import Any, Callable, Optional
+from datetime import UTC, datetime
+from typing import Any
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Request
@@ -79,7 +79,7 @@ async def _generate_sse_events(
     conversation_history: list,
     query_id: UUID,
     pipeline_name: str,
-    on_complete: Optional[OnCompleteCallback] = None,
+    on_complete: OnCompleteCallback | None = None,
 ) -> AsyncIterator[str]:
     """Generate SSE events with token-by-token streaming.
 
@@ -327,13 +327,13 @@ async def _apply_stream_completion(
     *,
     ai_query_id: UUID,
     user_id: UUID,
-    patient_id: Optional[UUID],
-    thread_id: Optional[UUID],
+    patient_id: UUID | None,
+    thread_id: UUID | None,
     question: str,
     evidence: list,
     retrieval_mode: str,
     trace_id: str,
-    ip_address: Optional[str],
+    ip_address: str | None,
     started: float,
     completion: StreamCompletion,
 ) -> None:
@@ -375,7 +375,7 @@ async def _apply_stream_completion(
     if thread_id is not None:
         scope = "patient-linked" if patient_id is not None else "general"
         permission_state = "allowed" if patient_id is not None else "not-required"
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         user_message = ChatMessage(
             thread_id=thread_id,
             sender_user_id=user_id,
@@ -404,7 +404,7 @@ async def _apply_stream_completion(
                 "validation": completion.validation_status,
             },
             trace_id=trace_id,
-            created_at=datetime.now(timezone.utc),
+            created_at=datetime.now(UTC),
         )
         session.add(user_message)
         session.add(assistant_message)
@@ -578,7 +578,7 @@ async def chat_stream(
             if payload.thread_id is not None:
                 scope = "patient-linked" if effective_patient_id is not None else "general"
                 permission_state = "allowed" if effective_patient_id is not None else "not-required"
-                now = datetime.now(timezone.utc)
+                now = datetime.now(UTC)
                 session.add(
                     ChatMessage(
                         thread_id=payload.thread_id,
@@ -606,12 +606,12 @@ async def chat_stream(
                         citations=[],
                         meta={"streaming": True, "result": result_status, "confidence": "low"},
                         trace_id=trace_id,
-                        created_at=datetime.now(timezone.utc),
+                        created_at=datetime.now(UTC),
                     )
                 )
                 thread = await session.get(ChatThread, payload.thread_id)
                 if thread is not None:
-                    thread.last_message_at = datetime.now(timezone.utc)
+                    thread.last_message_at = datetime.now(UTC)
 
             await AuditService(session).record(
                 actor_user_id=current_user.id,

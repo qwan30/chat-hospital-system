@@ -48,7 +48,11 @@ const categoryColor: Record<string, string> = {
 function AuditPage() {
   const [selected, setSelected] = useState<AuditLog | null>(null);
 
-  const { data: auditResponse, isLoading, isError } = useQuery({
+  const {
+    data: auditResponse,
+    isLoading,
+    isError,
+  } = useQuery({
     queryKey: ["audit-logs"],
     queryFn: () => getAuditLogs(),
   });

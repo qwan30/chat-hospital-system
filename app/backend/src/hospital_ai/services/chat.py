@@ -1,6 +1,5 @@
 import logging
 import time
-from typing import Optional
 from uuid import UUID
 
 from sqlalchemy import select
@@ -62,12 +61,12 @@ class ChatService:
         self,
         *,
         user: User,
-        patient_id: Optional[UUID],
+        patient_id: UUID | None,
         question: str,
         top_k: int,
         trace_id: str,
         ip_address: str,
-        thread_id: Optional[UUID] = None,
+        thread_id: UUID | None = None,
         pipeline: str = "auto",
     ) -> ChatResponse:
         started = time.perf_counter()
@@ -427,7 +426,7 @@ class ChatService:
             warnings=warning_schemas,
         )
 
-    async def _get_conversation_history(self, thread_id: UUID, user_id: UUID, request_patient_id: Optional[UUID]) -> list[dict[str, str]]:
+    async def _get_conversation_history(self, thread_id: UUID, user_id: UUID, request_patient_id: UUID | None) -> list[dict[str, str]]:
         """Fetch recent messages from a chat thread for conversation context."""
         thread = await self.session.get(ChatThread, thread_id)
         if not thread:

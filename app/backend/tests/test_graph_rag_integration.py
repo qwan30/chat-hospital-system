@@ -18,12 +18,12 @@ from hospital_ai.services.graph_rag import (
     GraphContext,
     GraphEntity,
     GraphRelation,
-    extract_entities_and_relations_nlp,
     find_related_entities,
     index_chunk_entities,
 )
 from hospital_ai.services.retrieval import RetrievalService
 from tests.conftest import create_indexed_document
+
 
 @pytest.fixture(autouse=True)
 def mock_extract(monkeypatch):

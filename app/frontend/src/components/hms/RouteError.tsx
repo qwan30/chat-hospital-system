@@ -12,7 +12,8 @@ export function RouteError({ error, reset }: { error: Error; reset: () => void }
       </div>
       <h2 className="text-lg font-semibold mb-2">Something went wrong</h2>
       <p className="text-sm text-muted-foreground mb-6 max-w-md">
-        An error occurred while rendering this section. The rest of the application is still working.
+        An error occurred while rendering this section. The rest of the application is still
+        working.
       </p>
       <div className="flex gap-3">
         <Button

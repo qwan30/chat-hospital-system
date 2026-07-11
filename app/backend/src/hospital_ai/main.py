@@ -1,5 +1,3 @@
-from typing import Optional
-
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
@@ -9,7 +7,13 @@ from slowapi.errors import RateLimitExceeded
 from hospital_ai.api.limiter import limiter
 from hospital_ai.api.router import api_router
 from hospital_ai.core.config import Settings, get_settings
-from hospital_ai.core.errors import AppError
+from hospital_ai.core.errors import (
+    AppError,
+    ExternalServiceError,
+    NotFoundError,
+    PermissionDeniedError,
+    ValidationAppError,
+)
 from hospital_ai.core.exceptions import (
     AuthenticationException,
     CitationHallucinationException,
@@ -32,6 +36,7 @@ DOMAIN_EXCEPTION_STATUS_MAP: dict[type[AppError], int] = {
     # Security / Access Control
     MedicalDataAccessException: 403,
     PermissionDeniedException: 403,
+    PermissionDeniedError: 403,
     AuthenticationException: 401,
     # AI / RAG Quality
     CitationHallucinationException: 422,
@@ -42,9 +47,12 @@ DOMAIN_EXCEPTION_STATUS_MAP: dict[type[AppError], int] = {
     HMSIntegrationException: 502,
     LLMProviderException: 502,
     EmbeddingProviderException: 502,
+    ExternalServiceError: 502,
     # Data Integrity
     EntityNotFoundException: 404,
+    NotFoundError: 404,
     ValidationException: 400,
+    ValidationAppError: 422,
 }
 
 
@@ -60,7 +68,7 @@ def _resolve_status_code(exc: AppError) -> int:
     return 500
 
 
-def create_app(settings: Optional[Settings] = None) -> FastAPI:
+def create_app(settings: Settings | None = None) -> FastAPI:
     """Factory function to create and configure the FastAPI application.
 
     Args:

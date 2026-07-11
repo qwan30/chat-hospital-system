@@ -5,7 +5,6 @@ Extracted to avoid circular imports between chat.py and reasoning.py.
 
 import re
 from collections.abc import Sequence
-from typing import Optional
 
 from hospital_ai.core.config import Settings
 from hospital_ai.schemas.documents import EvidenceRead
@@ -48,7 +47,7 @@ class ChatGenerator:
 def build_grounded_prompt(
     question: str,
     evidence: Sequence[RetrievedChunk],
-    conversation_history: Optional[list[dict[str, str]]] = None,
+    conversation_history: list[dict[str, str]] | None = None,
 ) -> str:
     blocks = []
     for item in evidence:

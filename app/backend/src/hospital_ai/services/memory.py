@@ -1,6 +1,5 @@
 import logging
-from datetime import datetime, timezone
-from typing import Optional
+from datetime import UTC, datetime
 from uuid import UUID
 
 from sqlalchemy import select
@@ -22,7 +21,7 @@ class MemoryService:
     async def update_session_memory(
         self,
         thread_id: UUID,
-        patient_id: Optional[UUID],
+        patient_id: UUID | None,
         new_question: str,
         new_answer: str,
         source_ids: list[str],
@@ -84,7 +83,7 @@ class MemoryService:
                 memory.active_entities = active_entities
                 memory.source_ids = combined_source_ids
                 memory.active_patient_id = patient_id
-                memory.updated_at = datetime.now(timezone.utc)
+                memory.updated_at = datetime.now(UTC)
             else:
                 memory = ChatSessionMemory(
                     thread_id=thread_id,

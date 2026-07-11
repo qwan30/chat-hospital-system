@@ -1,8 +1,7 @@
-from typing import Optional
 from uuid import uuid4
 
 
-def sanitize_audit_query(q: Optional[str]) -> dict:
+def sanitize_audit_query(q: str | None) -> dict:
     """Return non-PHI query metadata for audit logging.
 
     Stores only length and a short prefix so raw query text (which may

@@ -4,17 +4,16 @@ from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
 from typing import Any
 
-from sqlalchemy import and_, bindparam, select, text
+from sqlalchemy import and_, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from hospital_ai.core.security import PATIENT_READ_SCOPES, ROLE_PERMISSIONS
 from hospital_ai.db.models import Document, DocumentChunk, DocumentPage, User
 from hospital_ai.services.permissions import (
-    ACTIVE_PATIENT_PERMISSION_SQL,
     active_patient_permission_exists,
 )
 
-PERMISSION_FILTERED_RETRIEVAL_SQL = f"""
+PERMISSION_FILTERED_RETRIEVAL_SQL = """
 
 with ranked_chunks as (
   select
@@ -287,7 +286,7 @@ class RetrievalService:
         """PostgreSQL BM25 search using tsvector + GIN index."""
         import logging
 
-        sql = text(f"""
+        sql = text("""
             select
                 c.id as chunk_id,
                 c.document_id,

@@ -1,7 +1,6 @@
 import logging
 import uuid
-from datetime import date, datetime, timezone
-from typing import Optional
+from datetime import UTC, date, datetime
 
 from fastapi import APIRouter, Depends, Query, Request
 from sqlalchemy import func, or_, select
@@ -29,7 +28,7 @@ router = APIRouter()
 @router.get("/search", response_model=PatientSearchResponse)
 async def search_patients(
     request: Request,
-    q: Optional[str] = Query(default=None),
+    q: str | None = Query(default=None),
     limit: int = Query(default=20, ge=1, le=100),
     session: AsyncSession = Depends(get_session),
     current_user: User = Depends(get_current_user),
@@ -237,7 +236,7 @@ async def get_patient_overview(
             evidence=chunks,
         )
         ai_summary = summary_res.answer
-        last_updated = datetime.now(timezone.utc)
+        last_updated = datetime.now(UTC)
 
     await AuditService(session).record(
         actor_user_id=current_user.id,
@@ -320,7 +319,7 @@ async def get_patient_timeline(
                             "event_type": event_type,
                             "title": title,
                             "description": description,
-                            "timestamp": timestamp or datetime.now(timezone.utc),
+                            "timestamp": timestamp or datetime.now(UTC),
                         }
                     )
         except Exception:

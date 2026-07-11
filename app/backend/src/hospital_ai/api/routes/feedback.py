@@ -6,8 +6,6 @@ GET  /api/v1/feedback/metrics/summary               — aggregated metrics
 
 from __future__ import annotations
 
-from typing import Optional
-
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -28,14 +26,14 @@ router = APIRouter()
 
 class FeedbackRequest(BaseModel):
     rating: int = Field(..., ge=-1, le=1, description="Thumbs down (-1), neutral (0), or thumbs up (1)")
-    comment: Optional[str] = Field(None, max_length=2000)
+    comment: str | None = Field(None, max_length=2000)
 
 
 class FeedbackResponse(BaseModel):
     id: UUID
     query_id: UUID
     rating: int
-    comment: Optional[str] = None
+    comment: str | None = None
 
 
 class MetricsSummaryResponse(BaseModel):

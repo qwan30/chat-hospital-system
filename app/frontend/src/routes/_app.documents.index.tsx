@@ -103,12 +103,14 @@ function DocumentsPage() {
               </Button>
             }
           />
-    
+
           <Card className="border-dashed p-8 text-center">
             <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10 text-primary">
               <Upload className="h-6 w-6" />
             </div>
-            <p className="mt-3 text-sm font-medium">Drag & drop PDFs, DOCX, scans, or HL7 messages</p>
+            <p className="mt-3 text-sm font-medium">
+              Drag & drop PDFs, DOCX, scans, or HL7 messages
+            </p>
             <p className="text-xs text-muted-foreground">
               Max 50MB per file · OCR runs automatically on scans
             </p>
@@ -120,7 +122,7 @@ function DocumentsPage() {
               <Badge variant="secondary">DICOM SR</Badge>
             </div>
           </Card>
-    
+
           <Card className="mt-6 p-4">
             <div className="flex flex-wrap items-center gap-3">
               <Sparkles className="h-4 w-4 text-ai" />
@@ -149,7 +151,7 @@ function DocumentsPage() {
               </Button>
             </div>
           </Card>
-    
+
           <Card className="mt-6 overflow-hidden p-0">
             <div className="flex items-center justify-between border-b p-4">
               <h3 className="text-sm font-semibold">All documents</h3>

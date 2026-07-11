@@ -11,14 +11,14 @@
 [![Redis](https://img.shields.io/badge/Redis-7-DC382D?style=for-the-badge&logo=redis&logoColor=white)](https://redis.io/)
 [![Docker](https://img.shields.io/badge/Docker-✓-2496ED?style=for-the-badge&logo=docker&logoColor=white)](https://www.docker.com/)
 [![CI/CD](https://img.shields.io/badge/CI%2FCD-Active-2088FF?style=for-the-badge&logo=githubactions&logoColor=white)](https://github.com/qwan30/chat-hospital-system/actions)
-[![Tests](https://img.shields.io/badge/Tests-250%2B_Passing-22C55E?style=for-the-badge)](https://github.com/qwan30/chat-hospital-system/actions)
+[![Tests](https://img.shields.io/badge/Tests-260%2B_Passing-22C55E?style=for-the-badge)](https://github.com/qwan30/chat-hospital-system/actions)
 [![RAG Eval](https://img.shields.io/badge/RAG_Eval-6%2F6_Passed-22C55E?style=for-the-badge)](https://github.com/qwan30/chat-hospital-system)
-[![Release](https://img.shields.io/badge/Release-v4.0-0d7c4b?style=for-the-badge)](https://github.com/qwan30/chat-hospital-system)
+[![Release](https://img.shields.io/badge/Release-v5.0-0d7c4b?style=for-the-badge)](https://github.com/qwan30/chat-hospital-system)
 
 **An AI-powered clinical decision support system** integrating RAG (Retrieval-Augmented Generation) with permission-aware vector search, citation hallucination detection, and HMS (Hospital Management System) data synchronization. Built with a **hybrid Clean/Pipeline architecture** — framework-free domain core, abstract provider interfaces, centralized prompt registry, and domain-driven exceptions. Designed to demonstrate production-grade AI engineering with strict PHI (Protected Health Information) compliance considerations.
 
-> **🟢 Production Status: v4.0 — June 15, 2026**
-> 250+ Pytest tests passing. 6/6 RAG synthetic evaluation scenarios passed. 5 CI/CD workflows active with CodeQL, Trivy, and TruffleHog scanning. Full Grafana observability stack.
+> **🟢 Production Status: v5.0 — July 12, 2026**
+> 260+ Pytest tests passing. 6/6 RAG synthetic evaluation scenarios passed. 5 CI/CD workflows active with CodeQL, Trivy, and TruffleHog scanning. Full Grafana observability stack. **New:** Autonomous CDSS Agent with Knowledge Graph context and real-time clinical alerts.
 >
 > 📚 **[Interactive Documentation Portal →](docs/documentation-portal.html)** | 📂 **[Documentation Index →](docs/README.md)** | 📋 **[API Contract →](docs/05-api/api-contract.md)**
 
@@ -36,6 +36,7 @@
 | 🏥 | **HMS Data Sync** | API bridge to Hospital Management System — imports appointments, lab results, medications; caches as RAG-readable context | Real-time patient context without manual data entry |
 | 💊 | **Drug-Allergy Pre-Check** | Cross-references prescribed medications against patient allergy list + current medications using RAG context + LLM analysis | Prevents adverse drug events at point of care |
 | 🔐 | **RBAC + ABAC Security** | JWT authentication with role-based claims; 7 roles with scoped patient permissions; enforcement at API gateway + RAG retrieval layers | Enforced separation of duties; audit-ready access control |
+| 🚨 | **Autonomous CDSS Agent** | Background RQ worker automatically analyses every ingested document using the patient's Knowledge Graph (entities + relations) as context; feeds LLM a structured risk-analysis prompt; persists `ClinicalAlert` records (severity: low/medium/high) and surfaces them in the Notifications feed | Proactive clinical decision support — alerts clinicians to drug interactions and risk factors before they are noticed manually |
 | 📊 | **Impact Metrics** | Time-saved and cost-saved tracking per AI-assisted query; helpfulness feedback loop; dashboard analytics | Quantifiable ROI for hospital administration |
 | 🔄 | **Streaming SSE** | Server-Sent Events for real-time token streaming; buffered until citation validation passes; client-side progressive rendering | Immediate clinician feedback with safety gate |
 
@@ -67,10 +68,11 @@ graph TB
         FE[⚛️ TanStack Start Frontend<br/><i>Vite 8 · shadcn/ui · Streaming SSE</i>]
         BE[🐍 FastAPI Backend<br/><i>Python 3.12 · Async · JWT Auth</i>]
         W[⚙️ RQ Worker<br/><i>Document Processing · OCR · Embedding</i>]
+        CD[🚨 CDSS Worker<br/><i>Graph Context · LLM Risk Analysis</i>]
     end
 
     subgraph "Data Layer"
-        PG[("🐘 PostgreSQL + pgvector<br/><i>13 Tables · Vector Search · HNSW</i>")]
+        PG[("🐘 PostgreSQL + pgvector<br/><i>14 Tables · Vector Search · HNSW</i>")]
         RD[("🗄️ Redis 7<br/><i>Job Queue · Cache</i>")]
     end
 
@@ -100,6 +102,9 @@ graph TB
     W --> PG
     W --> RD
     W --> EMB
+    W --> CD
+    CD --> PG
+    CD --> LLM
     BE -.-> PR
     BE -.-> LK
 
@@ -112,6 +117,7 @@ graph TB
     style RD fill:#dc2626,stroke:#f87171,color:#fff
     style LLM fill:#b91c1c,stroke:#ef4444,color:#fff
     style EMB fill:#0891b2,stroke:#22d3ee,color:#fff
+    style CD fill:#be185d,stroke:#f472b6,color:#fff
     style HMS fill:#4b5563,stroke:#9ca3af,color:#fff
     style PR fill:#eab308,stroke:#facc15,color:#000
     style GF fill:#eab308,stroke:#facc15,color:#000
@@ -252,6 +258,8 @@ erDiagram
     documents ||--o{ document_chunks : splits_into
     document_chunks ||--o{ embeddings_cache : stores
     patients ||--o{ access_requests : scoped_to
+    patients ||--o{ clinical_alerts : receives
+    documents ||--o{ clinical_alerts : triggers
     chat_messages ||--o{ feedback : receives
     chat_messages ||--o{ citations : references
 
@@ -292,6 +300,16 @@ erDiagram
         uuid user_id FK
         string action
         jsonb details
+    }
+    clinical_alerts {
+        uuid id PK
+        uuid patient_id FK
+        uuid source_document_id FK "nullable"
+        string severity "low|medium|high"
+        string title
+        text description
+        boolean is_acknowledged "default: false"
+        timestamp created_at
     }
 ```
 
@@ -369,11 +387,12 @@ xychart-beta
 
 | Metric | Value | Status |
 |--------|-------|--------|
-| **Backend Pytest Tests** | 250+ (Unit + Integration) | ✅ All Passing |
+| **Backend Pytest Tests** | 260+ (Unit + Integration + CDSS) | ✅ All Passing |
 | **RAG Synthetic Eval** | 6/6 scenarios passed | ✅ 100% Pass Rate |
 | **REST API Endpoints** | 35+ route decorators, 28 OpenAPI paths | ✅ Verified |
-| **Database Schema** | 13 tables, 6 Alembic migrations | ✅ Migrated |
+| **Database Schema** | 14 tables, 7 Alembic migrations | ✅ Migrated |
 | **Frontend Components** | 60+ React components (shadcn/ui) | ✅ Built |
+| **E2E Test Suites** | 3 Playwright suites (business-flow, cdss-flow, +) | ✅ All Passing |
 | **CI/CD Workflows** | 5 pipelines (CI, CD, Security, Rollback, Dependabot) | ✅ Active |
 | **Code Quality** | Ruff + ESLint + TypeScript strict | ✅ Zero Errors |
 
@@ -471,9 +490,10 @@ This is the **Clean Architecture dependency rule** implemented through conventio
 │   │   │   ├── core/           # Framework-free business logic (ZERO FastAPI deps)
 │   │   │   ├── db/             # SQLAlchemy models, sessions, migrations
 │   │   │   ├── schemas/        # Pydantic request/response models
-│   │   │   └── services/       # RAG pipeline, LLM, embedding, HMS integration
+│   │   │   ├── services/       # RAG pipeline, LLM, embedding, HMS integration
+│   │   │   └── workers/        # RQ job handlers: OCR, Graph indexing, CDSS agent
 │   │   ├── alembic/            # Database migration history
-│   │   └── tests/              # 250+ Pytest tests
+│   │   └── tests/              # 260+ Pytest tests (incl. CDSS agent tests)
 │   └── frontend/
 │       ├── src/
 │       │   ├── routes/         # TanStack Router pages (90+ routes)
@@ -552,10 +572,13 @@ cd app/backend && python scripts/run_rag_eval.py
 cd app/backend && python scripts/verify_contracts.py
 
 # Frontend — Unit tests (Vitest)
-cd app/frontend && npm run test
+cd app/frontend && bun run test
 
 # Frontend — E2E tests (Playwright)
-cd app/frontend && npx playwright test --project=chromium
+cd app/frontend && bun run test:e2e
+
+# CDSS-specific E2E test
+cd app/frontend && bun run test:e2e e2e/cdss-flow.spec.ts
 ```
 
 ---
@@ -581,12 +604,12 @@ Configurations in [`infra/observability/`](infra/observability/) — Prometheus 
 | Section | Content | Primary Doc |
 |---------|---------|-------------|
 | **00-overview** | Project foundation, conventions, governance | [`project-foundation.md`](docs/00-overview/project-foundation.md) |
-| **01-business** | Business rules, BR-001–BR-007, glossary, scope | [`business-rules.md`](docs/01-business/business-rules.md) |
+| **01-business** | Business rules, BR-001–BR-007 + BR-CDSS-001, glossary, scope | [`business-rules.md`](docs/01-business/business-rules.md) |
 | **02-product** | PRD, personas, MVP criteria | [`prd.md`](docs/02-product/prd.md) |
-| **03-requirements** | SRS (24 FRs + 22 NFRs), use cases UC-001–UC-009, permissions | [`srs.md`](docs/03-requirements/srs.md) |
+| **03-requirements** | SRS (25 FRs + 22 NFRs), use cases UC-001–UC-009, permissions | [`srs.md`](docs/03-requirements/srs.md) |
 | **04-architecture** | System design, security architecture, ADR-001–ADR-012, coding standards | [`architecture.md`](docs/04-architecture/architecture.md) |
 | **05-api** | API contract, endpoint specs, error codes | [`api-contract.md`](docs/05-api/api-contract.md) |
-| **06-database** | Schema (13 tables), ERD, data dictionary, migrations | [`db-schema.md`](docs/06-database/db-schema.md) |
+| **06-database** | Schema (14 tables), ERD, data dictionary, migrations | [`db-schema.md`](docs/06-database/db-schema.md) |
 | **07-flows** | Business flows, state machines, user journeys | [`end-to-end-business-flow.md`](docs/07-flows/end-to-end-business-flow.md) |
 | **08-ui-ux** | Design system, Figma specs, UI/API traceability | [`00_product_ui_truth.md`](docs/08-ui-ux/00_product_ui_truth.md) |
 | **09-testing** | Test strategy, plan, RTM, 250+ test cases | [`test-plan.md`](docs/09-testing/test-plan.md) |

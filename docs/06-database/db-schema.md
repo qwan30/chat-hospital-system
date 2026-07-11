@@ -2,21 +2,21 @@
 
 > Project: AI Copilot for Hospital Management System (HMS)  
 > Project Code: HOSP-AI-001  
-> Version: 4.0  
+> Version: 4.1  
 > Status: In Sync  
 > Owner: Database Lead / Lead Dev  
-> Last Updated: 2026-06-14  
+> Last Updated: 2026-07-12  
 
 ---
 
 ## 1. Data Ownership Boundary
 
 *   **HMS Core Database (Source of Record)**: Owns master tables for clinical patient records, logins, appointments, and access requests. Accessed via the HMS Spring Boot API.
-*   **AI Assistant Database (Cache & AI Engine)**: Owns vector tables (`document_chunks`), raw OCR extracts (`document_pages`), chat thread histories (`chat_threads`, `chat_messages`), AI query logs (`ai_queries`, `retrieved_evidence`), impact metrics, and security audit trails (`audit_logs`). Synchronized with HMS data via periodic sync jobs tracked in `hms_sync_logs`.
+*   **AI Assistant Database (Cache & AI Engine)**: Owns vector tables (`document_chunks`), raw OCR extracts (`document_pages`), chat thread histories (`chat_threads`, `chat_messages`), AI query logs (`ai_queries`, `retrieved_evidence`), impact metrics, security audit trails (`audit_logs`), and autonomous CDSS clinical alerts (`clinical_alerts`). Synchronized with HMS data via periodic sync jobs tracked in `hms_sync_logs`.
 
 ---
 
-## 2. Core Tables (13 tables)
+## 2. Core Tables (14 tables)
 
 ### users
 | Column | Type | Constraints |
@@ -246,6 +246,24 @@ Tracks HMS data synchronization operations with progress counters.
 Key-value configuration store for runtime application settings (added in migration 0005).
 Stored via `db/settings_store.py` with 14 configurable keys.
 
+### clinical_alerts
+Autonomously generated clinical decision support alerts. Created by the CDSS worker (`hospital_ai/workers/cdss.py`) after each document is fully indexed. Each alert is scoped to a patient and optionally traces back to the source document that triggered the analysis.
+
+| Column | Type | Constraints |
+|--------|------|-------------|
+| id | UUID | PK, default uuid4 |
+| patient_id | UUID | FK → patients.id, NOT NULL, INDEX |
+| source_document_id | UUID | FK → documents.id, NULLABLE, INDEX |
+| severity | VARCHAR(16) | NOT NULL, CHECK: low/medium/high |
+| title | VARCHAR(255) | NOT NULL |
+| description | TEXT | NOT NULL |
+| is_acknowledged | BOOLEAN | NOT NULL, DEFAULT false |
+| created_at | TIMESTAMPTZ | NOT NULL, server_default now() |
+| updated_at | TIMESTAMPTZ | NOT NULL, server_default now(), onupdate now() |
+
+*   Alerts are **immutable after creation** by the CDSS worker. Acknowledgement is the only permitted mutation (`is_acknowledged = true`).
+*   The `source_document_id` FK is nullable to allow future manual or rule-based alert creation that is not tied to a specific uploaded document.
+
 ---
 
 ## 3. Common Patterns
@@ -253,7 +271,7 @@ Stored via `db/settings_store.py` with 14 configurable keys.
 *   **Soft Delete**: `users`, `patients`, `patient_permissions`, `documents`, `document_pages`, `document_chunks`, `chat_threads`, `chat_thread_participants` use `deleted_at` (via `SoftDeleteMixin`).
 *   **Timestamps**: Mutable entities inherit `TimestampMixin` (created_at + updated_at). Immutable entities (`audit_logs`, `ai_queries`, `chat_messages`, `retrieved_evidence`) only have created_at.
 *   **Identity**: All primary keys are UUIDs generated server-side via `uuid.uuid4`.
-*   **Migrations**: Managed by Alembic, 6 migration files under `app/backend/alembic/versions/`.
+*   **Migrations**: Managed by Alembic, 7 migration files under `app/backend/alembic/versions/`.
 
 ---
 
@@ -269,8 +287,10 @@ patients ──< document_chunks (denormalized patient_id)
 patients ──< chat_threads
 patients ──< audit_logs
 patients ──< hms_sync_logs
+patients ──< clinical_alerts
 documents ──< document_pages
 documents ──< document_chunks
+documents ──< clinical_alerts (source_document_id, nullable)
 document_pages ──< document_chunks
 chat_threads ──< chat_thread_participants
 chat_threads ──< chat_messages
@@ -291,6 +311,7 @@ document_chunks ──< retrieved_evidence
 | 0004 | Added hms_sync_logs |
 | 0005 | Added system_settings key-value store |
 | 0006 | Added Phase 4 tables (extended observability and access control) |
+| 0007 | Added clinical_alerts table for Autonomous CDSS Agent output |
 
 ---
 
@@ -301,3 +322,4 @@ document_chunks ──< retrieved_evidence
 | 2.0 | 2026-06-07 | Agent | Restructured into DDL schema guide |
 | 3.0 | 2026-06-07 | Agent | Added read-model caching DDL and RAG join examples |
 | 4.0 | 2026-06-14 | Agent | Full rewrite to match actual 13-table schema from `db/models.py` — replaced fictional cached_* tables, added chat_threads, patient_permissions, hms_sync_logs, retrieved_evidence, migration history |
+| 4.1 | 2026-07-12 | Agent | Added clinical_alerts table (14th table) for Autonomous CDSS Agent — fields, ERD relationships, migration 0007 |

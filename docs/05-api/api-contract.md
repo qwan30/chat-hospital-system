@@ -2,10 +2,10 @@
 
 > Project: AI Copilot for Hospital Management System (HMS)  
 > Project Code: HOSP-AI-001  
-> Version: 4.0  
+> Version: 4.1  
 > Status: In Sync  
 > Owner: API Lead / Data Lead  
-> Last Updated: 2026-06-14  
+> Last Updated: 2026-07-12  
 
 ---
 
@@ -15,7 +15,7 @@ The backend is a **FastAPI BFF (Backend-for-Frontend)** serving the Next.js UI. 
 
 ---
 
-## 2. Route Map (16 route modules)
+## 2. Route Map (16 route modules + CDSS worker pipeline)
 
 All routes are mounted in `app/backend/src/hospital_ai/api/router.py`:
 
@@ -194,7 +194,47 @@ Aggregated impact metrics: total queries, avg latency, helpful rate, cost/time s
 
 ---
 
-## 4. Standard Error Envelope
+## 5. CDSS Clinical Alerts (Autonomous Worker-Driven)
+
+> [!NOTE]
+> `ClinicalAlert` records are **not created via a REST endpoint**. They are generated autonomously by the backend CDSS worker (`hospital_ai/workers/cdss.py`) as part of the document processing pipeline.
+
+### How alerts are created
+
+1. A document is uploaded via `POST /api/v1/documents/` and the `process_document` RQ job is enqueued.
+2. Once OCR and indexing complete, the worker enqueues a `run_cdss_analysis(session, document_id)` job using `asyncio.to_thread` for non-blocking Redis dispatch.
+3. The CDSS worker loads the patient's Knowledge Graph context (`GraphEntity`, `GraphRelation`) from PostgreSQL.
+4. A medical risk analysis prompt is constructed and submitted to the local LLM.
+5. The LLM JSON response is parsed and one or more `ClinicalAlert` rows are written to the `clinical_alerts` table with severity (`low` / `medium` / `high`), a title, and a description.
+
+### Alert fields
+
+| Field | Type | Notes |
+|-------|------|-------|
+| `id` | UUID | Auto-generated PK |
+| `patient_id` | UUID | FK → patients |
+| `source_document_id` | UUID\|null | FK → documents; nullable |
+| `severity` | `low`\|`medium`\|`high` | LLM-assigned risk level |
+| `title` | string | Short alert headline |
+| `description` | string | Full clinical rationale |
+| `is_acknowledged` | boolean | Default `false`; set by clinician |
+| `created_at` / `updated_at` | timestamptz | Auto-managed |
+
+### Future work — planned endpoint
+
+```
+GET /api/v1/patients/{patient_id}/alerts
+```
+
+This endpoint is **not yet implemented**. When added it should:
+- Require an active `read` or higher permission scope for the target patient.
+- Support filtering by `severity` and `is_acknowledged`.
+- Return alerts ordered by `created_at DESC`.
+- Include the `source_document_id` field so the UI can link back to the triggering document.
+
+---
+
+## 6. Standard Error Envelope
 
 ```json
 {
@@ -215,3 +255,4 @@ Error codes defined in [error-codes.md](error-codes.md). The `AppError` base cla
 | 2.0 | 2026-06-07 | Agent | Restructured with BFF/HMS separation |
 | 3.0 | 2026-06-07 | Agent | Added HMS integration and BFF endpoints |
 | 4.0 | 2026-06-14 | Agent | Rewritten to match actual 14 route modules from `api/router.py` — added chat-threads, feedback, rag_trace, chat_stream; corrected endpoint paths |
+| 4.1 | 2026-07-12 | Agent | Added Section 5: CDSS Clinical Alerts — documents autonomous worker pipeline, alert fields, and future GET /patients/{id}/alerts endpoint |

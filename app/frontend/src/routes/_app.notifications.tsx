@@ -70,6 +70,15 @@ export const notifications: AppNotification[] = [
     read: true,
     href: "/integrations/vector-index",
   },
+  {
+    id: "n-007",
+    kind: "ai",
+    title: "High Risk Clinical Alert",
+    body: "CDSS detected severe Bleeding Risk due to new Aspirin prescription. Cross-referenced with patient history.",
+    ts: "2026-07-12T02:15:00Z",
+    read: false,
+    href: "/patients/p-001",
+  },
 ];
 import { KeyRound, ScanText, RotateCw, Sparkles, Cog } from "lucide-react";
 import { useState } from "react";

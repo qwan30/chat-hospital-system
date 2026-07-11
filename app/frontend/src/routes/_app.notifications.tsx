@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { AppShell } from "@/components/shell/AppShell";
 import { PageHeader } from "@/components/hms/PageHeader";
 import { Card } from "@/components/ui/card";
@@ -154,9 +154,9 @@ function NotificationsPage() {
                 <div className="mt-1 text-xs text-muted-foreground">{formatRelative(n.ts)}</div>
               </div>
               {n.href ? (
-                <a href={n.href} className="text-xs font-semibold text-primary hover:underline">
+                <Link to={n.href as any} className="text-xs font-semibold text-primary hover:underline">
                   Open →
-                </a>
+                </Link>
               ) : null}
             </div>
           );

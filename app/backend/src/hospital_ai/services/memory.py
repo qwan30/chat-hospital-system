@@ -31,7 +31,9 @@ class MemoryService:
         try:
             # 1. Fetch existing memory
             result = await self.session.execute(
-                select(ChatSessionMemory).where(ChatSessionMemory.thread_id == thread_id)
+                select(ChatSessionMemory)
+                .where(ChatSessionMemory.thread_id == thread_id)
+                .with_for_update()
             )
             memory = result.scalar_one_or_none()
 

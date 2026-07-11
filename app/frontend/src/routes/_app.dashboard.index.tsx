@@ -94,7 +94,7 @@ function Dashboard() {
     }, 1200);
   };
 
-  const { data: threadsResult } = useQuery({
+  const { data: threadsResult, isError: isThreadsError } = useQuery({
     queryKey: ["chat-threads"],
     queryFn: () => listChatThreads(),
   });
@@ -248,23 +248,29 @@ function Dashboard() {
             </Link>
           </div>
           <ul className="mt-3 space-y-1">
-            {threads.slice(0, 4).map((t) => (
-              <li key={t.id}>
-                <Link
-                  to={t.patient_id ? "/chat/patients/$patientId" : "/chat"}
-                  params={t.patient_id ? { patientId: t.patient_id } : undefined}
-                  className="flex items-start gap-2 rounded-md p-2 hover:bg-muted"
-                >
-                  <MessageSquare className="mt-0.5 h-4 w-4 shrink-0 text-ai" />
-                  <div className="min-w-0">
-                    <p className="truncate text-sm font-medium">{t.title}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {new Date(t.updated_at).toLocaleDateString()}
-                    </p>
-                  </div>
-                </Link>
-              </li>
-            ))}
+            {isThreadsError ? (
+              <li className="text-sm text-destructive py-2">Failed to load threads</li>
+            ) : threads.length === 0 ? (
+              <li className="text-sm text-muted-foreground py-2">No recent threads</li>
+            ) : (
+              threads.slice(0, 4).map((t) => (
+                <li key={t.id}>
+                  <Link
+                    to={t.patient_id ? "/chat/patients/$patientId" : "/chat"}
+                    params={t.patient_id ? { patientId: t.patient_id } : undefined}
+                    className="flex items-start gap-2 rounded-md p-2 hover:bg-muted"
+                  >
+                    <MessageSquare className="mt-0.5 h-4 w-4 shrink-0 text-ai" />
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-medium">{t.title}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {new Date(t.updated_at).toLocaleDateString()}
+                      </p>
+                    </div>
+                  </Link>
+                </li>
+              ))
+            )}
           </ul>
         </Card>
       </div>

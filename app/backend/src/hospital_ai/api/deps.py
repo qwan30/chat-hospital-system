@@ -17,9 +17,8 @@ bearer_scheme = HTTPBearer(auto_error=False)
 
 
 def get_request_ip(request: Request) -> str:
-    forwarded_for = request.headers.get("x-forwarded-for")
-    if forwarded_for:
-        return forwarded_for.split(",")[0].strip()
+    # Uvicorn handles proxy headers securely if --proxy-headers is enabled.
+    # Manually parsing X-Forwarded-For here allows IP spoofing.
     if request.client:
         return request.client.host
     return "unknown"
@@ -42,9 +41,9 @@ async def get_current_user(
         user = result.scalar_one_or_none()
         if user is not None:
             return user
-        logger.warning(
-            "JWT-validated user %s not found in local DB — falling back to static token",
-            jwt_data.email,
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, 
+            detail="User validated via JWT but no active local account found."
         )
 
     # Static token fallback (local dev and legacy clients)

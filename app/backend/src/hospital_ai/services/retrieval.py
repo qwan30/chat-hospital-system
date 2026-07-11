@@ -15,10 +15,8 @@ from hospital_ai.services.permissions import (
 )
 
 PERMISSION_FILTERED_RETRIEVAL_SQL = f"""
-with allowed as (
-{ACTIVE_PATIENT_PERMISSION_SQL}
-),
-ranked_chunks as (
+
+with ranked_chunks as (
   select
     c.id as chunk_id,
     c.document_id,
@@ -31,8 +29,7 @@ ranked_chunks as (
   from document_chunks c
   join documents d on d.id = c.document_id
   join document_pages p on p.id = c.page_id and p.document_id = c.document_id
-  where exists (select 1 from allowed)
-    and c.patient_id = :patient_id
+  where c.patient_id = :patient_id
     and d.patient_id = :patient_id
     and d.status = 'indexed'
     and c.deleted_at is null
@@ -69,10 +66,10 @@ class RetrievalService:
 
         user = await self.session.get(User, user_id)
         if not user:
-            return chunks
+            return []
 
         role_perms = ROLE_PERMISSIONS.get(user.role, {})
-        can_access_full_notes = role_perms.get("can_access_full_notes", True)
+        can_access_full_notes = role_perms.get("can_access_full_notes", False)
         if can_access_full_notes:
             return chunks
 
@@ -87,9 +84,12 @@ class RetrievalService:
             doc_type = doc_types.get(c.document_id)
             chunk_tags = set(c.metadata.get("access_tags", []))
 
-            if chunk_tags and chunk_tags.intersection(allowed_scopes):
-                allowed_chunks.append(c)
-            elif doc_type in allowed_scopes:
+            if chunk_tags:
+                if chunk_tags.intersection(allowed_scopes):
+                    allowed_chunks.append(c)
+                else:
+                    self.blocked_chunk_count += 1
+            elif doc_type in allowed_scopes or "read" in allowed_scopes:
                 allowed_chunks.append(c)
             else:
                 self.blocked_chunk_count += 1
@@ -288,9 +288,6 @@ class RetrievalService:
         import logging
 
         sql = text(f"""
-            with allowed as (
-            {ACTIVE_PATIENT_PERMISSION_SQL}
-            )
             select
                 c.id as chunk_id,
                 c.document_id,
@@ -302,8 +299,7 @@ class RetrievalService:
             from document_chunks c
             join documents d on d.id = c.document_id
             join document_pages p on p.id = c.page_id and p.document_id = c.document_id
-            where exists (select 1 from allowed)
-              and c.patient_id = :patient_id
+            where c.patient_id = :patient_id
               and d.patient_id = :patient_id
               and d.status = 'indexed'
               and c.deleted_at is null
@@ -312,15 +308,13 @@ class RetrievalService:
               and c.search_vector @@ plainto_tsquery('english', :query_text)
             order by rank desc
             limit :top_k
-        """).bindparams(bindparam("accepted_scopes", expanding=True))
+        """)
 
         try:
             result = await self.session.execute(
                 sql,
                 {
-                    "user_id": user_id,
                     "patient_id": patient_id,
-                    "accepted_scopes": tuple(sorted(PATIENT_READ_SCOPES)),
                     "query_text": query_text,
                     "top_k": top_k,
                 },
@@ -362,11 +356,7 @@ class RetrievalService:
         """Portable BM25 search using Python-side scoring for SQLite tests."""
         from hospital_ai.services.bm25 import BM25Scorer
 
-        permission_exists = active_patient_permission_exists(
-            user_id=user_id,
-            patient_id=patient_id,
-            accepted_scopes=PATIENT_READ_SCOPES,
-        )
+
         stmt = (
             select(DocumentChunk, Document, DocumentPage)
             .join(Document, Document.id == DocumentChunk.document_id)
@@ -378,7 +368,6 @@ class RetrievalService:
                 ),
             )
             .where(
-                permission_exists,
                 DocumentChunk.patient_id == patient_id,
                 Document.patient_id == patient_id,
                 Document.status == "indexed",
@@ -414,13 +403,11 @@ class RetrievalService:
         top_k: int,
     ) -> list[RetrievedChunk]:
         result = await self.session.execute(
-            text(PERMISSION_FILTERED_RETRIEVAL_SQL).bindparams(
-                bindparam("accepted_scopes", expanding=True),
-            ),
+            text(PERMISSION_FILTERED_RETRIEVAL_SQL),
             {
                 "user_id": user_id,
                 "patient_id": patient_id,
-                "accepted_scopes": tuple(sorted(PATIENT_READ_SCOPES)),
+
                 "query_embedding": format_pgvector(query_embedding),
                 "top_k": top_k,
             },

@@ -1,4 +1,11 @@
-import { useState, useRef, type FormEvent, type ReactNode, type ChangeEvent, type KeyboardEvent } from "react";
+import {
+  useState,
+  useRef,
+  type FormEvent,
+  type ReactNode,
+  type ChangeEvent,
+  type KeyboardEvent,
+} from "react";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Paperclip, Send, X, FileText } from "lucide-react";
@@ -136,7 +143,11 @@ export function ChatComposer({
               : "Cited answers only · ⇧↵ for newline"}
           </span>
         </div>
-        <Button type="submit" size="sm" disabled={disabled || isSubmitting || (!text.trim() && !attachedFile)}>
+        <Button
+          type="submit"
+          size="sm"
+          disabled={disabled || isSubmitting || (!text.trim() && !attachedFile)}
+        >
           <Send className="mr-1 h-3.5 w-3.5" /> Send
         </Button>
       </div>

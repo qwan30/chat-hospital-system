@@ -9,7 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from hospital_ai.core.config import Settings
 from hospital_ai.core.errors import PermissionDeniedError
 from hospital_ai.core.security import PATIENT_READ_SCOPES
-from hospital_ai.db.models import AiQuery, ChatMessage, RetrievedEvidence, User
+from hospital_ai.db.models import AiQuery, ChatMessage, ChatThread, RetrievedEvidence, User
 from hospital_ai.schemas.chat import ChatResponse, DrugWarningSchema
 from hospital_ai.services.audit import AuditService
 
@@ -104,7 +104,7 @@ class ChatService:
                 raise PermissionDeniedError("User is not authorized for this patient.")
 
         # Gather conversation history if thread is provided
-        conversation_history = await self._get_conversation_history(thread_id) if thread_id else []
+        conversation_history = await self._get_conversation_history(thread_id, user.id, patient_id) if thread_id else []
 
         # Check for chit-chat query
         from hospital_ai.services.chat_utils import is_chitchat_query
@@ -263,7 +263,7 @@ class ChatService:
 
         if not evidence or not meets_evidence_threshold(evidence[0], retrieval_mode, self.settings.evidence_threshold):
             is_blocked = retrieval_svc.blocked_chunk_count > 0
-            answer_text = PERMISSION_DENIED_CHAT_ANSWER if is_blocked else SAFE_NO_EVIDENCE_ANSWER
+            answer_text = SAFE_NO_EVIDENCE_ANSWER
             result_status = "denied" if is_blocked else "no_evidence"
             outcome = "denied" if is_blocked else "allowed"
 
@@ -427,8 +427,26 @@ class ChatService:
             warnings=warning_schemas,
         )
 
-    async def _get_conversation_history(self, thread_id: UUID) -> list[dict[str, str]]:
+    async def _get_conversation_history(self, thread_id: UUID, user_id: UUID, request_patient_id: Optional[UUID]) -> list[dict[str, str]]:
         """Fetch recent messages from a chat thread for conversation context."""
+        thread = await self.session.get(ChatThread, thread_id)
+        if not thread:
+            return []
+            
+        if thread.owner_user_id != user_id:
+            from hospital_ai.db.models import ChatThreadParticipant
+            participant = await self.session.execute(
+                select(ChatThreadParticipant)
+                .where(
+                    ChatThreadParticipant.thread_id == thread_id,
+                    ChatThreadParticipant.user_id == user_id,
+                )
+            )
+            if not participant.scalar_one_or_none():
+                raise PermissionDeniedError("User is not authorized for this thread.")
+            
+        if thread.patient_id and thread.patient_id != request_patient_id:
+            raise PermissionDeniedError("Thread patient mismatch.")
         result = await self.session.execute(
             select(ChatMessage)
             .where(

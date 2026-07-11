@@ -524,7 +524,7 @@ async def chat_stream(
         from hospital_ai.services.chat import ChatService
 
         svc = ChatService(session, settings)
-        conversation_history = await svc._get_conversation_history(payload.thread_id)
+        conversation_history = await svc._get_conversation_history(payload.thread_id, current_user.id, effective_patient_id)
 
     is_chitchat = is_chitchat_query(payload.question)
 

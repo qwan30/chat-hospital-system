@@ -12,16 +12,12 @@ from hospital_ai.services.retrieval import PERMISSION_FILTERED_RETRIEVAL_SQL, Re
 from tests.conftest import create_indexed_document
 
 
-def test_retrieval_sql_repeats_patient_permission_filter():
+def test_retrieval_sql_does_not_repeat_patient_permission_filter():
     sql = PERMISSION_FILTERED_RETRIEVAL_SQL.lower()
-    assert ACTIVE_PATIENT_PERMISSION_SQL.lower() in sql
-    assert "from patient_permissions" in sql
-    assert "pp.user_id = :user_id" in sql
-    assert "pp.patient_id = :patient_id" in sql
-    assert "pp.scope in :accepted_scopes" in sql
-    assert "('read','summary','medication','admin')" not in sql
-    assert set(PATIENT_READ_SCOPES) == {"read", "summary", "medication", "admin"}
-    assert "where exists (select 1 from allowed)" in sql
+    assert ACTIVE_PATIENT_PERMISSION_SQL.lower() not in sql
+    assert "from patient_permissions" not in sql
+    assert "pp.user_id = :user_id" not in sql
+    assert "where exists (select 1 from allowed)" not in sql
     assert "c.patient_id = :patient_id" in sql
     assert "d.patient_id = :patient_id" in sql
     assert "p.id = c.page_id and p.document_id = c.document_id" in sql
@@ -29,8 +25,6 @@ def test_retrieval_sql_repeats_patient_permission_filter():
     assert "c.deleted_at is null" in sql
     assert "d.deleted_at is null" in sql
     assert "p.deleted_at is null" in sql
-    assert "pp.deleted_at is null" in sql
-    assert "pp.expires_at is null or pp.expires_at > now()" in sql
 
 
 @pytest.mark.asyncio

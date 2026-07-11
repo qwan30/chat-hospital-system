@@ -48,7 +48,7 @@ function buildSession(
       ? workspaceId
       : user.defaultWorkspaceId;
   const workspace = getWorkspace(wsId)!;
-  
+
   if (!isRealAuth && !token) {
     const roleTokens: Record<string, string> = {
       cardiologist: "dev-doctor",

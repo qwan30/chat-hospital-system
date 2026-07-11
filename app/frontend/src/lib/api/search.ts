@@ -36,7 +36,5 @@ export async function globalSearch(query: string): Promise<GlobalSearchResponse>
   if (!query || query.trim().length < 2) {
     return { patients: [], documents: [], threads: [] };
   }
-  return apiFetch<GlobalSearchResponse>(
-    `/api/v1/search/global?q=${encodeURIComponent(query.trim())}`,
-  );
+  return apiFetch<GlobalSearchResponse>(`/search/global?q=${encodeURIComponent(query.trim())}`);
 }

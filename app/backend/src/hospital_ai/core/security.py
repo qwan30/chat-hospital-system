@@ -58,6 +58,18 @@ ROLE_PERMISSIONS = {
         "allowed_scopes": {"read", "summary", "medication", "labs", "imaging", "diagnoses", "care_plan"},
         "can_access_full_notes": True,
     },
+    "lab_staff": {
+        "allowed_scopes": {"labs", "read"},
+        "can_access_full_notes": False,
+    },
+    "records_staff": {
+        "allowed_scopes": {"read", "audit"},
+        "can_access_full_notes": False,
+    },
+    "security": {
+        "allowed_scopes": {"audit", "access_requests"},
+        "can_access_full_notes": False,
+    },
 }
 
 

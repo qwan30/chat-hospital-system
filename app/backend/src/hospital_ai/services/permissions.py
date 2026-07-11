@@ -81,7 +81,9 @@ class PermissionService:
             try:
                 hms_perms = await hms_client.check_clinician_permissions(str(patient_id), str(user_id))
                 if hms_perms.get("has_access") or hms_perms.get("hasAccess"):
-                    return True
+                    hms_scopes = hms_perms.get("scopes", ["read"])
+                    if any(scope in accepted_scopes for scope in hms_scopes):
+                        return True
             except Exception:
                 logger.warning(
                     "HMS permission check failed for user=%s patient=%s",

@@ -55,6 +55,7 @@ export async function streamChat(
     top_k?: number;
     pipeline?: string;
     mode?: string;
+    simulate?: string;
   },
   onEvent?: StreamCallback,
   abortSignal?: AbortSignal,
@@ -82,6 +83,7 @@ export async function streamChat(
       top_k: body.top_k ?? 5,
       pipeline: body.pipeline || "default",
       mode: body.mode || undefined,
+      simulate: body.simulate || undefined,
     }),
   });
 

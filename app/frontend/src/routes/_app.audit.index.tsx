@@ -1,4 +1,5 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
+import { RouteError } from "@/components/hms/RouteError";
 import { AppShell } from "@/components/shell/AppShell";
 import { PageHeader } from "@/components/hms/PageHeader";
 import { Card } from "@/components/ui/card";
@@ -33,6 +34,7 @@ export const Route = createFileRoute("/_app/audit/")({
     meta: [{ title: "Audit logs — HMS AI Copilot" }],
   }),
   component: AuditPage,
+  errorComponent: RouteError,
 });
 
 const categoryColor: Record<string, string> = {
@@ -46,7 +48,7 @@ const categoryColor: Record<string, string> = {
 function AuditPage() {
   const [selected, setSelected] = useState<AuditLog | null>(null);
 
-  const { data: auditResponse, isLoading } = useQuery({
+  const { data: auditResponse, isLoading, isError } = useQuery({
     queryKey: ["audit-logs"],
     queryFn: () => getAuditLogs(),
   });
@@ -118,6 +120,12 @@ function AuditPage() {
                   Loading audit logs...
                 </TableCell>
               </TableRow>
+            ) : isError ? (
+              <TableRow>
+                <TableCell colSpan={6} className="text-center py-8 text-destructive">
+                  Failed to load audit logs. Please try again later.
+                </TableCell>
+              </TableRow>
             ) : (
               auditEvents.map((e) => (
                 <Sheet key={e.id}>
@@ -172,18 +180,18 @@ function AuditPage() {
                         </p>
                       </div>
                       <div className="flex flex-wrap gap-2">
-                        <a
-                          href={`/audit/${e.id}/raw`}
+                        <Link
+                          to={`/audit/${e.id}/raw` as any}
                           className="rounded-md border px-3 py-1.5 text-xs font-medium hover:bg-accent"
                         >
                           View raw JSON
-                        </a>
-                        <a
-                          href="/audit/traces/tr-001"
+                        </Link>
+                        <Link
+                          to={"/audit/traces/tr-001" as any}
                           className="rounded-md border px-3 py-1.5 text-xs font-medium hover:bg-accent"
                         >
                           Open trace
-                        </a>
+                        </Link>
                       </div>
                       <div className="rounded-md border border-success/30 bg-success/5 p-3 text-xs">
                         <span className="font-semibold text-success">Tamper-evident</span> · this

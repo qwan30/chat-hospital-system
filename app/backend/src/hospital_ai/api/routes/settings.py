@@ -67,15 +67,15 @@ class SettingsUpdateRequest(BaseModel):
     openai_base_url: Optional[str] = None
     ollama_base_url: Optional[str] = None
     system_prompt: Optional[str] = None
-    streaming_enabled: bool | None = None
+    streaming_enabled: Optional[bool] = None
     embedding_provider: Optional[str] = None
     embedding_model: Optional[str] = None
-    embedding_dimensions: int | None = Field(None, ge=64, le=4096)
+    embedding_dimensions: Optional[int] = Field(None, ge=64, le=4096)
     openai_embedding_model: Optional[str] = None
-    retrieval_top_k: int | None = Field(None, ge=1, le=50)
-    evidence_threshold: float | None = Field(None, ge=0.0, le=1.0)
-    chunk_size: int | None = Field(None, ge=64, le=4096)
-    chunk_overlap: int | None = Field(None, ge=0, le=512)
+    retrieval_top_k: Optional[int] = Field(None, ge=1, le=50)
+    evidence_threshold: Optional[float] = Field(None, ge=0.0, le=1.0)
+    chunk_size: Optional[int] = Field(None, ge=64, le=4096)
+    chunk_overlap: Optional[int] = Field(None, ge=0, le=512)
 
 
 # ── Routes ───────────────────────────────────────────────────────────

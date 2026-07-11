@@ -13,90 +13,32 @@ from sqlalchemy import select
 
 from hospital_ai.db.migrations import DOCTOR_ID, PATIENT_ALICE_ID
 from hospital_ai.services.graph_rag import (
+    ExtractedEntity,
+    ExtractedRelation,
     GraphContext,
     GraphEntity,
     GraphRelation,
-    extract_entities,
-    extract_relations,
+    extract_entities_and_relations_nlp,
     find_related_entities,
     index_chunk_entities,
 )
 from hospital_ai.services.retrieval import RetrievalService
 from tests.conftest import create_indexed_document
 
-# ── Unit: extract_entities ────────────────────────────────────────────
-
-
-def test_extract_drug_entities():
-    text = "Patient is currently on metformin 500mg and lisinopril 10mg."
-    entities = extract_entities(text)
-    names = {e.name for e in entities}
-    assert "metformin" in names
-    assert "lisinopril" in names
-    assert all(e.entity_type == "drug" for e in entities if e.name in ("metformin", "lisinopril"))
-
-
-def test_extract_condition_entities():
-    text = "Diagnosed with hypertension and diabetes mellitus type 2."
-    entities = extract_entities(text)
-    names = {e.name for e in entities}
-    assert "hypertension" in names
-    assert "diabetes" in names
-
-
-def test_extract_lab_entities():
-    text = "Lab results: hemoglobin 12.5, creatinine 1.1, hba1c 7.2%."
-    entities = extract_entities(text)
-    names = {e.name for e in entities}
-    assert "hemoglobin" in names
-    assert "creatinine" in names
-    assert "hba1c" in names
-
-
-def test_extract_entities_deduplicates():
-    text = "Metformin was started. Metformin dose increased."
-    entities = extract_entities(text)
-    metformin_count = sum(1 for e in entities if e.name == "metformin")
-    assert metformin_count == 1
-
-
-def test_extract_entities_empty_text():
-    entities = extract_entities("")
-    assert entities == []
-
-
-def test_extract_entities_no_medical_terms():
-    entities = extract_entities("The patient had lunch and went for a walk.")
-    assert entities == []
-
-
-# ── Unit: extract_relations ──────────────────────────────────────────
-
-
-def test_extract_co_occurrence_relations():
-    text = "Metformin treats diabetes. Lisinopril treats hypertension."
-    entities = extract_entities(text)
-    relations = extract_relations(text, entities)
-    assert len(relations) > 0
-    types = {r.relation_type for r in relations}
-    # Should have at least mentioned_with from co-occurrence
-    assert len(types) > 0
-
-
-def test_extract_mentioned_with_drug_condition():
-    text = "Patient takes aspirin for heart failure."
-    entities = extract_entities(text)
-    relations = extract_relations(text, entities)
-    # aspirin and heart failure co-occur in the same sentence
-    mentioned = [r for r in relations if r.relation_type == "mentioned_with"]
-    assert len(mentioned) >= 1
-    assert any(r.source_name == "aspirin" for r in mentioned)
-
-
-def test_extract_relations_empty_entities():
-    relations = extract_relations("Some text.", [])
-    assert relations == []
-
+@pytest.fixture(autouse=True)
+def mock_extract(monkeypatch):
+    async def mock_extract_nlp(content):
+        # some dummy entities
+        return [
+            ExtractedEntity("metformin", "drug"),
+            ExtractedEntity("diabetes", "condition"),
+            ExtractedEntity("lisinopril", "drug"),
+            ExtractedEntity("hypertension", "condition")
+        ], [
+            ExtractedRelation("metformin", "diabetes", "treats"),
+            ExtractedRelation("lisinopril", "hypertension", "treats"),
+        ]
+    monkeypatch.setattr("hospital_ai.services.graph_rag.extract_entities_and_relations_nlp", mock_extract_nlp)
 
 # ── Integration: index_chunk_entities ────────────────────────────────
 

@@ -28,7 +28,7 @@ from hospital_ai.services.chat_utils import (  # noqa: F401
 )
 from hospital_ai.services.drug_check import DrugCheckService, DrugWarning
 from hospital_ai.services.embeddings import EmbeddingService
-from hospital_ai.services.graph_rag import extract_entities, find_related_entities
+from hospital_ai.services.graph_rag import extract_entities_and_relations_nlp, find_related_entities
 from hospital_ai.services.memory import MemoryService
 from hospital_ai.services.metrics import MetricsService, TimingBreakdown
 from hospital_ai.services.permissions import PermissionService
@@ -237,7 +237,7 @@ class ChatService:
         # ── Graph RAG: boost evidence with entity relationships ──────
         try:
             if patient_id:
-                query_entities = extract_entities(question)
+                query_entities, _ = await extract_entities_and_relations_nlp(question)
                 if query_entities:
                     entity_names = [e.name for e in query_entities]
                     graph_ctx = await find_related_entities(

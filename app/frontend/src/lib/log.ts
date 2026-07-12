@@ -29,7 +29,7 @@ export function logError(err: unknown, context?: Record<string, unknown>) {
     message,
     context,
   };
-  // eslint-disable-next-line no-console
+
   console.error("[hms]", entry.code ?? "error", message, context ?? "");
   push(entry);
   return entry;

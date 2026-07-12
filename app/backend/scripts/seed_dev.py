@@ -4,8 +4,7 @@ from datetime import date
 
 from hospital_ai.core.config import get_settings
 from hospital_ai.core.security import new_trace_id
-from hospital_ai.db.migrations import ADMIN_ID, PATIENT_ALICE_ID, PATIENT_ELEANOR_ID
-from hospital_ai.db.migrations import seed_synthetic_data
+from hospital_ai.db.migrations import ADMIN_ID, PATIENT_ALICE_ID, PATIENT_ELEANOR_ID, seed_synthetic_data
 from hospital_ai.db.models import User
 from hospital_ai.db.session import get_session_factory
 from hospital_ai.schemas.hms import HmsAppointmentSummaryImport
@@ -38,7 +37,7 @@ async def main() -> None:
                 follow_up_summary="Review symptoms and medication reconciliation at discharge planning.",
             ),
             trace_id=new_trace_id(),
-            ip_address="seed_dev",
+            ip_address="127.0.0.1",
         )
         await HmsAppointmentEvidenceImporter(session, get_settings()).import_summary(
             user=admin,
@@ -58,27 +57,30 @@ async def main() -> None:
                 follow_up_summary="Continue Apixaban. Renal labs: Creatinine 1.6, eGFR 42. Note: Sulfa allergy (hives).",
             ),
             trace_id=new_trace_id(),
-            ip_address="seed_dev",
+            ip_address="127.0.0.1",
         )
 
-        from hospital_ai.db.models import ChatThread
-        from hospital_ai.db.migrations import DOCTOR_ID
         import datetime
+
         from sqlalchemy import select
+
+        from hospital_ai.db.migrations import DOCTOR_ID
+        from hospital_ai.db.models import ChatThread
+
         # Seed a DAPT conversation for E2E testing
-        thread = await session.execute(
-            select(ChatThread).where(ChatThread.title == "DAPT Guideline Query")
-        )
+        thread = await session.execute(select(ChatThread).where(ChatThread.title == "DAPT Guideline Query"))
         if thread.scalar_one_or_none() is None:
-            session.add(ChatThread(
-                title="DAPT Guideline Query",
-                scope="general",
-                visibility="private",
-                status="active",
-                owner_user_id=DOCTOR_ID,
-                created_trace_id="seed_dev_trace",
-                last_message_at=datetime.datetime.now(datetime.timezone.utc),
-            ))
+            session.add(
+                ChatThread(
+                    title="DAPT Guideline Query",
+                    scope="general",
+                    visibility="private",
+                    status="active",
+                    owner_user_id=DOCTOR_ID,
+                    created_trace_id="seed_dev_trace",
+                    last_message_at=datetime.datetime.now(datetime.UTC),
+                )
+            )
             await session.commit()
 
     print("Seeded synthetic users, patients, permissions, HMS appointment evidence, and ChatThreads.")

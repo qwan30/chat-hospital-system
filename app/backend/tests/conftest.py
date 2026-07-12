@@ -19,10 +19,11 @@ from hospital_ai.services.embeddings import deterministic_embedding  # noqa: E40
 @pytest.fixture(autouse=True)
 def mock_extract_entities_and_relations_nlp(monkeypatch):
     from hospital_ai.services.graph_rag import ExtractedEntity, ExtractedRelation
+
     async def mock_extract_nlp(content):
         entities = []
         relations = []
-        
+
         if "metformin" in content.lower():
             entities.append(ExtractedEntity("metformin", "drug"))
         if "diabetes" in content.lower():
@@ -39,9 +40,11 @@ def mock_extract_entities_and_relations_nlp(monkeypatch):
         if "metformin" in content.lower() and "aspirin" in content.lower():
             # Add an explicit relation to simulate the test's expectation for Bob's text
             relations.append(ExtractedRelation("metformin", "aspirin", "prescribed_for"))
-            
+
         return entities, relations
+
     monkeypatch.setattr("hospital_ai.services.graph_rag.extract_entities_and_relations_nlp", mock_extract_nlp)
+
 
 @pytest_asyncio.fixture
 async def session_and_settings(tmp_path: Path) -> AsyncIterator[tuple[AsyncSession, Settings]]:

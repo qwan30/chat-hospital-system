@@ -86,9 +86,8 @@ class PermissionService:
                         return True
             except Exception:
                 logger.warning(
-                    "HMS permission check failed for user=%s patient=%s",
+                    "HMS permission check failed for user=%s patient=[REDACTED]",
                     user_id,
-                    patient_id,
                     exc_info=True,
                 )
 

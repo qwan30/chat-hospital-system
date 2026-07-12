@@ -1,6 +1,6 @@
-import sys
 import os
 import re
+import sys
 
 # Ensure src is in sys.path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "../src")))
@@ -45,7 +45,7 @@ def get_frontend_paths(frontend_root, scan_files):
         file_path = os.path.join(frontend_root, rel_file)
         if not os.path.exists(file_path):
             continue
-        with open(file_path, "r", encoding="utf-8") as f:
+        with open(file_path, encoding="utf-8") as f:
             content = f.read()
 
         # Find apiFetch<...>("..." or `...`) calls — direct string literal args

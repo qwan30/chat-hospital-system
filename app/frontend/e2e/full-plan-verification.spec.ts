@@ -29,7 +29,7 @@ test("FULL BUSINESS FLOW END-TO-END", async ({ page }) => {
   // STEP 2: Patients search
   await page.goto(`${BASE}/patients`, { waitUntil: "networkidle" });
   await expect(page.locator("table")).toBeVisible({ timeout: 5000 });
-  const searchInput = page.getByPlaceholder("Search by name, MRN...");
+  const searchInput = page.getByTestId("search-input");
   await searchInput.fill("Eleanor");
   await page.waitForTimeout(500);
   await expect(page.getByText("Eleanor Vance")).toBeVisible();

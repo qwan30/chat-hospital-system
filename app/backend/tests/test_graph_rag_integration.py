@@ -33,12 +33,14 @@ def mock_extract(monkeypatch):
             ExtractedEntity("metformin", "drug"),
             ExtractedEntity("diabetes", "condition"),
             ExtractedEntity("lisinopril", "drug"),
-            ExtractedEntity("hypertension", "condition")
+            ExtractedEntity("hypertension", "condition"),
         ], [
             ExtractedRelation("metformin", "diabetes", "treats"),
             ExtractedRelation("lisinopril", "hypertension", "treats"),
         ]
+
     monkeypatch.setattr("hospital_ai.services.graph_rag.extract_entities_and_relations_nlp", mock_extract_nlp)
+
 
 # ── Integration: index_chunk_entities ────────────────────────────────
 

@@ -2,8 +2,8 @@ from unittest.mock import patch
 
 import pytest
 
-from hospital_ai.services.guardrails import InputGuardrail, OutputGuardrail
 import hospital_ai.services.guardrails as guardrails_module
+from hospital_ai.services.guardrails import InputGuardrail, OutputGuardrail
 
 # Mock scanner classes if llm-guard is not installed to prevent NameError in tests
 if not getattr(guardrails_module, "_LLM_GUARD_AVAILABLE", False):

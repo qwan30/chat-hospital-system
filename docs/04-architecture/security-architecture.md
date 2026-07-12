@@ -58,9 +58,23 @@ flowchart TD
 
 ---
 
+## 4. LLM Input/Output Guardrails (AI Engineering Hardening)
+
+To prevent Prompt Injection and PHI Data Leakage to unauthorized topics, the system implements runtime AI Guardrails using the `llm_guard` library:
+
+1.  **Input Guardrails (PromptInjection)**: Scans the user query and context payload before dispatching to the LLM. Blocks queries that attempt to override instructions (e.g., "Ignore previous instructions") or jailbreak the system.
+2.  **Output Guardrails (BanTopics, Deanonymize)**: Scans the generated output from the LLM. 
+    *   **BanTopics**: Prevents the assistant from generating restricted content, such as providing direct medical advice.
+    *   **Deanonymize (Presidio)**: Detects if the output leaks PII/PHI (like SSN or phone numbers) inappropriately.
+
+*Performance note: To minimize Time-To-First-Token (TTFT) impact, these guardrails are wrapped in `asyncio.to_thread` with an explicit `3.0s` timeout. If the guardrail system hangs or is slow, it fails closed (safe refusal).*
+
+---
+
 ## Change Log
 | Version | Date | Author | Change |
 |---|---|---|---|
 | 1.0 | 2026-04-27 | Security Lead | Initial security guidelines |
 | 2.0 | 2026-06-07 | Agent | Restructured into standalone doc |
 | 3.0 | 2026-06-07 | Agent | Realigned to HMS SSO Auth bridge and detailed justification flows |
+| 4.0 | 2026-07-12 | Agent | Added LLM Input/Output Guardrails (AI Engineering Hardening) |

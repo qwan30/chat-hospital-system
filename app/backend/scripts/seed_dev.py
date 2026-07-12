@@ -37,7 +37,7 @@ async def main() -> None:
                 follow_up_summary="Review symptoms and medication reconciliation at discharge planning.",
             ),
             trace_id=new_trace_id(),
-            ip_address="seed_dev",
+            ip_address="127.0.0.1",
         )
         await HmsAppointmentEvidenceImporter(session, get_settings()).import_summary(
             user=admin,
@@ -57,7 +57,7 @@ async def main() -> None:
                 follow_up_summary="Continue Apixaban. Renal labs: Creatinine 1.6, eGFR 42. Note: Sulfa allergy (hives).",
             ),
             trace_id=new_trace_id(),
-            ip_address="seed_dev",
+            ip_address="127.0.0.1",
         )
 
         import datetime

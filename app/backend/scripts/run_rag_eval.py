@@ -13,10 +13,10 @@ import json
 import sys
 import tempfile
 import uuid
-from dataclasses import dataclass, asdict
+from dataclasses import asdict, dataclass
 from datetime import date
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
@@ -48,7 +48,7 @@ class EvalCase:
     passed: bool
     expected: str
     observed: str
-    metadata: Dict[str, Any]
+    metadata: dict[str, Any]
 
 
 async def create_indexed_document(
@@ -97,7 +97,7 @@ async def create_indexed_document(
     return document
 
 
-async def run_eval() -> Dict[str, Any]:
+async def run_eval() -> dict[str, Any]:
     with tempfile.TemporaryDirectory(prefix="hospital-ai-rag-eval-") as tmp:
         db_path = Path(tmp) / "eval.sqlite3"
         settings = Settings(
@@ -118,7 +118,7 @@ async def run_eval() -> Dict[str, Any]:
             doctor = await session.get(User, DOCTOR_ID)
             records = await session.get(User, RECORDS_ID)
 
-            cases: List[EvalCase] = []
+            cases: list[EvalCase] = []
 
             no_evidence = await ChatService(session, settings).answer(
                 user=doctor,
@@ -294,7 +294,7 @@ async def run_eval() -> Dict[str, Any]:
     return {"summary": summary, "cases": [asdict(case) for case in cases]}
 
 
-def write_reports(result: Dict[str, Any], output_dir: Path) -> None:
+def write_reports(result: dict[str, Any], output_dir: Path) -> None:
     output_dir.mkdir(parents=True, exist_ok=True)
     json_path = output_dir / "rag-eval-report.json"
     md_path = output_dir / "rag-eval-report.md"

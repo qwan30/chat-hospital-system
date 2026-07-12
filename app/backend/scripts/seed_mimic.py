@@ -1,12 +1,10 @@
 import asyncio
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime
 
-from hospital_ai.core.config import get_settings
-from hospital_ai.core.security import new_trace_id
-from hospital_ai.db.models import Document, DocumentPage, DocumentChunk, Patient, User
-from hospital_ai.db.session import get_session_factory
 from hospital_ai.db.migrations import DOCTOR_ID
+from hospital_ai.db.models import Document, DocumentChunk, DocumentPage, Patient, User
+from hospital_ai.db.session import get_session_factory
 from hospital_ai.services.graph_rag import GraphEntity, GraphRelation
 
 MOCK_CLINICAL_NOTES = [
@@ -22,14 +20,14 @@ MOCK_CLINICAL_NOTES = [
             {"name": "type 2 diabetes mellitus", "type": "condition"},
             {"name": "peripheral neuropathy", "type": "condition"},
             {"name": "severe asthma", "type": "condition"},
-            {"name": "headache", "type": "symptom"}
+            {"name": "headache", "type": "symptom"},
         ],
         "relations": [
             ("metoprolol", "acute myocardial infarction", "treats"),
             ("type 2 diabetes mellitus", "peripheral neuropathy", "causes"),
             ("metoprolol", "severe asthma", "contraindicates"),
-            ("metoprolol", "headache", "has_symptom")
-        ]
+            ("metoprolol", "headache", "has_symptom"),
+        ],
     },
     {
         "subject_id": "10002",
@@ -42,20 +40,21 @@ MOCK_CLINICAL_NOTES = [
             {"name": "nausea", "type": "symptom"},
             {"name": "ibuprofen", "type": "drug"},
             {"name": "joint pain", "type": "symptom"},
-            {"name": "fatigue", "type": "symptom"}
+            {"name": "fatigue", "type": "symptom"},
         ],
         "relations": [
             ("methotrexate", "rheumatoid arthritis", "treats"),
             ("methotrexate", "nausea", "causes"),
             ("ibuprofen", "joint pain", "treats"),
-            ("ibuprofen", "fatigue", "has_symptom")
-        ]
-    }
+            ("ibuprofen", "fatigue", "has_symptom"),
+        ],
+    },
 ]
+
 
 async def main() -> None:
     session_factory = get_session_factory()
-    
+
     async with session_factory() as session:
         doctor = await session.get(User, DOCTOR_ID)
         if not doctor:
@@ -64,11 +63,12 @@ async def main() -> None:
 
         print("Clearing old MIMIC synthetic patients...")
         from sqlalchemy import delete
+
         await session.execute(delete(Patient).where(Patient.mrn.like("MIMIC-%")))
         await session.commit()
-        
+
         print("Seeding synthetic MIMIC notes to test Graph RAG NLP Extraction (Mocking LLM due to 429)...")
-        
+
         for note in MOCK_CLINICAL_NOTES:
             patient_id = uuid.uuid4()
             patient = Patient(
@@ -77,11 +77,11 @@ async def main() -> None:
                 dob=datetime(1970, 1, 1).date(),
                 mrn=f"MIMIC-{note['subject_id']}",
                 department="Cardiology",
-                status="active"
+                status="active",
             )
             session.add(patient)
             await session.flush()
-            
+
             doc_id = uuid.uuid4()
             doc = Document(
                 id=doc_id,
@@ -91,31 +91,27 @@ async def main() -> None:
                 storage_uri="local://mock",
                 mime_type="text/plain",
                 status="indexed",
-                uploaded_by=DOCTOR_ID
+                uploaded_by=DOCTOR_ID,
             )
             session.add(doc)
-            
+
             page_id = uuid.uuid4()
             page = DocumentPage(
-                id=page_id,
-                document_id=doc_id,
-                page_number=1,
-                ocr_text=note['text'],
-                ocr_confidence=1.0
+                id=page_id, document_id=doc_id, page_number=1, ocr_text=note["text"], ocr_confidence=1.0
             )
             session.add(page)
-            
+
             chunk = DocumentChunk(
                 id=uuid.uuid4(),
                 document_id=doc_id,
                 page_id=page_id,
                 patient_id=patient_id,
-                content=note['text'],
-                chunk_index=0
+                content=note["text"],
+                chunk_index=0,
             )
             session.add(chunk)
             await session.flush()
-            
+
             # Mock LLM Extraction output
             entity_rows = {}
             for e in note["entities"]:
@@ -124,13 +120,13 @@ async def main() -> None:
                     entity_type=e["type"],
                     source_chunk_id=chunk.id,
                     source_document_id=doc.id,
-                    confidence=1.0
+                    confidence=1.0,
                 )
                 session.add(row)
                 entity_rows[e["name"]] = row
-            
+
             await session.flush()
-            
+
             for src, tgt, rel in note["relations"]:
                 s_row = entity_rows.get(src)
                 t_row = entity_rows.get(tgt)
@@ -140,14 +136,17 @@ async def main() -> None:
                         target_entity_id=t_row.id,
                         relation_type=rel,
                         weight=1.0,
-                        source_chunk_id=chunk.id
+                        source_chunk_id=chunk.id,
                     )
                     session.add(r_row)
-            
-            print(f" -> Mock Extracted {len(note['entities'])} entities and {len(note['relations'])} relations for patient {note['subject_id']}.")
-        
+
+            print(
+                f" -> Mock Extracted {len(note['entities'])} entities and {len(note['relations'])} relations for patient {note['subject_id']}."
+            )
+
         await session.commit()
         print("Successfully seeded MIMIC patients and populated the Graph RAG Knowledge Graph!")
+
 
 if __name__ == "__main__":
     asyncio.run(main())

@@ -129,10 +129,5 @@ async def test_10_chat_scenarios(session_and_settings):
             f"**Status:** {status}\n**AI Response:** {answer_preview}\n"
         )
 
-    with open(
-        "C:/Users/NITRO/.gemini/antigravity/brain/340ed16e-6aa9-4af3-a95c-2b034f67f732/chat_results.md",
-        "w",
-        encoding="utf-8",
-    ) as f:
-        f.write("# Kết quả 10 câu Chat sau khi Fix Bugs\n\n")
-        f.write("\n".join(results))
+    # Results collected, test passes if no unhandled exceptions.
+    assert len(results) == len(scenarios)

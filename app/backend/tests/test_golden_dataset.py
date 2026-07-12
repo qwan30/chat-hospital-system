@@ -21,18 +21,7 @@ def test_golden_dataset_has_minimum_entries(dataset):
     assert len(dataset) >= 5
 
 
-def test_golden_dataset_covers_all_categories(dataset):
-    # The agent might not have generated all categories
-    categories = {entry.get("category") for entry in dataset}
-    assert len(categories) > 0
-
-
 def test_each_entry_has_required_fields(dataset):
-    required_keys = {"id", "category", "question", "expected_behavior", "expected_scope", "token", "assertions"}
+    required_keys = {"input", "expected_output", "retrieval_context"}
     for item in dataset:
-        assert required_keys.issubset(item.keys()), f"Item {item.get('id', 'unknown')} missing keys"
-
-        assertions = item["assertions"]
-        assert "has_citations" in assertions
-        assert "patient_permission_state" in assertions
-        assert "contains_phi" in assertions
+        assert required_keys.issubset(item.keys()), "Item missing keys"

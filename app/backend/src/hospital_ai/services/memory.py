@@ -95,4 +95,5 @@ class MemoryService:
             await self.session.flush()
 
         except Exception as e:
-            logger.warning("Failed to update session memory for thread %s: %s", thread_id, e, exc_info=True)
+            safe_thread = str(thread_id).replace("\r", "").replace("\n", "")
+            logger.warning("Failed to update session memory for thread %s: %s", safe_thread, e, exc_info=True)

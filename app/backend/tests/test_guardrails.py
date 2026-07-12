@@ -2,7 +2,7 @@ from unittest.mock import patch
 
 import pytest
 
-from hospital_ai.services.guardrails import GuardrailResult, InputGuardrail, OutputGuardrail
+from hospital_ai.services.guardrails import InputGuardrail, OutputGuardrail
 
 
 @pytest.fixture

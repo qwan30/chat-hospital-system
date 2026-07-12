@@ -77,7 +77,7 @@ export async function streamChat(
     abortSignal.addEventListener("abort", onExternalAbort);
   }
 
-  let watchdogTimer: ReturnType<typeof setTimeout>;
+  let watchdogTimer: ReturnType<typeof setTimeout> | undefined;
   let timeoutTriggered = false;
 
   const resetWatchdog = () => {

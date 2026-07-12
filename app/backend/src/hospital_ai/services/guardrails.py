@@ -12,7 +12,6 @@ try:
     from llm_guard.input_scanners import PromptInjection
     from llm_guard.output_scanners import BanTopics, Deanonymize
     from llm_guard.vault import Vault
-    from tenacity import retry, stop_after_attempt
 
     _LLM_GUARD_AVAILABLE = True
 except ImportError:
@@ -56,7 +55,7 @@ class InputGuardrail:
             return GuardrailResult(blocked=False, reason="")
         try:
             return await asyncio.wait_for(asyncio.to_thread(self._scan_sync, prompt), timeout=3.0)
-        except asyncio.TimeoutError:
+        except TimeoutError:
             logger.warning("InputGuardrail scanner timed out")
             return GuardrailResult(blocked=True, reason="Safe refusal: Guardrail system unavailable or timed out")
 
@@ -81,7 +80,7 @@ class OutputGuardrail:
             return GuardrailResult(blocked=False, reason="")
         try:
             return await asyncio.wait_for(asyncio.to_thread(self._scan_sync, prompt, output), timeout=3.0)
-        except asyncio.TimeoutError:
+        except TimeoutError:
             logger.warning("OutputGuardrail scanner timed out")
             return GuardrailResult(blocked=True, reason="Safe refusal: Guardrail system unavailable or timed out")
 

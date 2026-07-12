@@ -55,8 +55,8 @@ class InputGuardrail:
             return GuardrailResult(blocked=False, reason="")
         try:
             return await asyncio.wait_for(asyncio.to_thread(self._scan_sync, prompt), timeout=3.0)
-        except TimeoutError:
-            logger.warning("InputGuardrail scanner timed out")
+        except Exception as e:
+            logger.warning("InputGuardrail scanner timed out or failed: %s", e)
             return GuardrailResult(blocked=True, reason="Safe refusal: Guardrail system unavailable or timed out")
 
 
@@ -80,8 +80,8 @@ class OutputGuardrail:
             return GuardrailResult(blocked=False, reason="")
         try:
             return await asyncio.wait_for(asyncio.to_thread(self._scan_sync, prompt, output), timeout=3.0)
-        except TimeoutError:
-            logger.warning("OutputGuardrail scanner timed out")
+        except Exception as e:
+            logger.warning("OutputGuardrail scanner timed out or failed: %s", e)
             return GuardrailResult(blocked=True, reason="Safe refusal: Guardrail system unavailable or timed out")
 
 

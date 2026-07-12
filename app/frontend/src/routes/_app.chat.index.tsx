@@ -75,6 +75,14 @@ function GlobalChat() {
   };
 
   useEffect(() => {
+    return () => {
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+    };
+  }, []);
+
+  useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, streamingText, streamError]);
 
@@ -281,15 +289,13 @@ function GlobalChat() {
           err instanceof Error ? err.message : "Backend stream failed. Please try again.",
         );
       }
-      if (fullText) {
-        const reply: ChatMessageData = {
-          id: replyId,
-          role: "assistant",
-          content: fullText,
-          time: "now",
-        };
-        setMessages((m) => [...m, reply]);
-      }
+      const reply: ChatMessageData = {
+        id: replyId,
+        role: "assistant",
+        content: fullText || "I couldn't generate a response. Please try again.",
+        time: "now",
+      };
+      setMessages((m) => [...m, reply]);
       setStreamingId(null);
       setStreamingText("");
     } finally {
@@ -405,9 +411,35 @@ function GlobalChat() {
             </Card>
           )}
 
-          {messages.map((m) => (
-            <ChatMessage key={m.id} msg={m} />
-          ))}
+          {messages.map((m, index) => {
+            const isLast = index === messages.length - 1;
+            const hasError = isLast && streamError !== null;
+            return (
+              <ChatMessage
+                key={m.id}
+                msg={m}
+                isError={hasError}
+                errorControls={
+                  hasError ? (
+                    <StreamingControls
+                      status="interrupted"
+                      error={streamError}
+                      progress={0}
+                      total={0}
+                      onRetry={() => {
+                        const lastUserMsg = [...messages].reverse().find(m => m.role === "user");
+                        if (lastUserMsg) {
+                          send(lastUserMsg.content);
+                        }
+                      }}
+                      onResume={() => {}}
+                      onStop={stopStream}
+                    />
+                  ) : undefined
+                }
+              />
+            );
+          })}
           {streamingId !== null && (
             <div className="rounded-lg bg-muted/50 p-4 text-sm relative border shadow-sm shrink-0">
               <p className="whitespace-pre-wrap leading-relaxed">
@@ -427,24 +459,6 @@ function GlobalChat() {
                   <Square className="mr-1 h-3 w-3" /> Stop
                 </Button>
               </div>
-            </div>
-          )}
-          {streamError && (
-            <div className="shrink-0">
-              <StreamingControls
-                status="interrupted"
-                error={streamError}
-                progress={0}
-                total={0}
-                onRetry={() => {
-                  const lastMsg = messages[messages.length - 1];
-                  if (lastMsg && lastMsg.role === "user") {
-                    send(lastMsg.content);
-                  }
-                }}
-                onResume={() => {}}
-                onStop={stopStream}
-              />
             </div>
           )}
           <div ref={messagesEndRef} />

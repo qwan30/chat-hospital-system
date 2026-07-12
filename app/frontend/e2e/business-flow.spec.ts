@@ -49,7 +49,7 @@ test.describe("Happy Path: Full Clinical Workflow", () => {
   test("HC-02: Patients list → search → navigate to detail", async ({ page }) => {
     await page.goto("/patients", { waitUntil: "networkidle" });
     await expect(page.locator("table")).toBeVisible({ timeout: 5000 });
-    const searchInput = page.getByPlaceholder("Search by name, MRN...");
+    const searchInput = page.getByTestId("search-input");
     await searchInput.fill("Eleanor");
     await page.waitForTimeout(500);
     await expect(page.getByText("Alice Synthetic")).not.toBeVisible({ timeout: 5000 });

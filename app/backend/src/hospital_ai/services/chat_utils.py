@@ -69,6 +69,18 @@ def build_grounded_prompt(
     return "\n".join(parts)
 
 
+SAFE_NO_EVIDENCE_ANSWER = (
+    "I could not find authorized evidence for this question. "
+    "Please review the patient record directly or ask a records user to index the relevant document."
+)
+
+SAFE_INJECTION_DETECTED_ANSWER = "Your request was blocked due to a detected security policy violation."
+
+SAFE_PHI_LEAK_BLOCKED_ANSWER = (
+    "The generated response was blocked because it contained sensitive information or uncited medical advice."
+)
+
+
 def build_stub_answer(prompt: str) -> str:
     evidence = parse_prompt_evidence(prompt)
     if not evidence:

@@ -28,6 +28,7 @@ from hospital_ai.services.chat_utils import (  # noqa: F401
 from hospital_ai.services.drug_check import DrugCheckService, DrugWarning
 from hospital_ai.services.embeddings import EmbeddingService
 from hospital_ai.services.graph_rag import extract_entities_and_relations_nlp, find_related_entities
+from hospital_ai.services.guardrails import get_input_guardrail, get_output_guardrail
 from hospital_ai.services.memory import MemoryService
 from hospital_ai.services.metrics import MetricsService, TimingBreakdown
 from hospital_ai.services.permissions import PermissionService
@@ -44,6 +45,12 @@ logger = logging.getLogger(__name__)
 SAFE_NO_EVIDENCE_ANSWER = (
     "I could not find authorized evidence for this question. "
     "Please review the patient record directly or ask a records user to index the relevant document."
+)
+
+SAFE_INJECTION_DETECTED_ANSWER = "Your request was blocked due to a detected security policy violation."
+
+SAFE_PHI_LEAK_BLOCKED_ANSWER = (
+    "The generated response was blocked because it contained sensitive information or uncited medical advice."
 )
 
 PERMISSION_DENIED_CHAT_ANSWER = (
@@ -102,6 +109,37 @@ class ChatService:
                 await self.session.commit()
                 raise PermissionDeniedError("User is not authorized for this patient.")
 
+        # --- Input Guardrail Check ---
+        input_guard = get_input_guardrail()
+        input_result = await input_guard.scan(question)
+
+        if input_result.blocked:
+            blocked_reason = input_result.reason
+            ai_query.status = "denied"
+            ai_query.answer = SAFE_INJECTION_DETECTED_ANSWER
+            ai_query.latency_ms = elapsed_ms(started)
+            await AuditService(self.session).record(
+                actor_user_id=user.id,
+                action="chat.ask",
+                object_type="ai_query",
+                object_id=ai_query.id,
+                patient_id=patient_id,
+                outcome="denied",
+                trace_id=trace_id,
+                ip_address=ip_address,
+                metadata={"reason": "input_guardrail_blocked", "details": blocked_reason},
+            )
+            await self.session.commit()
+            return ChatResponse(
+                query_id=ai_query.id,
+                answer=SAFE_INJECTION_DETECTED_ANSWER,
+                citations=[],
+                confidence="low",
+                thread_id=thread_id,
+                pipeline="blocked",
+            )
+
+        # Continue with question
         # Gather conversation history if thread is provided
         conversation_history = await self._get_conversation_history(thread_id, user.id, patient_id) if thread_id else []
 
@@ -206,13 +244,44 @@ class ChatService:
 
         # ── Timing: embedding ────────────────────────────────────────
         t_embed_start = time.perf_counter()
-        query_embedding = await EmbeddingService(self.settings).embed(question)
+
+        hyde_text = question
+        if self.settings.enable_hyde:
+            from hospital_ai.services.llm import LLMManager
+            from hospital_ai.services.llm.base import LLMMessage
+
+            manager = LLMManager(settings=self.settings)
+            llm = manager.get()
+            messages = [
+                LLMMessage(
+                    role="system",
+                    content=(
+                        "You are a medical assistant. Provide a brief, "
+                        "authoritative hypothetical answer to the following question. "
+                        "Do not include disclaimers, just provide the expected hypothetical answer content. "
+                        "Focus on keywords and relevant entities."
+                    ),
+                ),
+                LLMMessage(role="user", content=question),
+            ]
+            try:
+                response = await llm.generate(messages)
+                hyde_text = f"{question}\n{response.text}"
+            except Exception as e:
+                logger.warning(f"HyDE generation failed: {e}")
+
+        query_embedding = await EmbeddingService(self.settings).embed(hyde_text)
         t_embed_ms = int((time.perf_counter() - t_embed_start) * 1000)
 
         # ── Timing: retrieval ────────────────────────────────────────
         t_retrieval_start = time.perf_counter()
         retrieval_svc = RetrievalService(self.session)
         retrieval_mode = self.settings.retrieval_mode
+
+        if getattr(self.settings, "ab_test_retrieval", False):
+            import random
+
+            retrieval_mode = "hybrid" if random.random() > 0.5 else "vector"
 
         evidence = []
         if patient_id:
@@ -311,6 +380,36 @@ class ChatService:
             await self.session.commit()
             raise
         t_gen_ms = int((time.perf_counter() - t_gen_start) * 1000)
+
+        # --- Output Guardrail Check ---
+        output_guard = get_output_guardrail()
+        output_result = await output_guard.scan(question, reasoning_result.answer)
+
+        if output_result.blocked:
+            blocked_reason = output_result.reason
+            ai_query.status = "denied"
+            ai_query.answer = SAFE_PHI_LEAK_BLOCKED_ANSWER
+            ai_query.latency_ms = elapsed_ms(started)
+            await AuditService(self.session).record(
+                actor_user_id=user.id,
+                action="chat.ask",
+                object_type="ai_query",
+                object_id=ai_query.id,
+                patient_id=patient_id,
+                outcome="denied",
+                trace_id=trace_id,
+                ip_address=ip_address,
+                metadata={"reason": "output_guardrail_blocked", "details": blocked_reason},
+            )
+            await self.session.commit()
+            return ChatResponse(
+                query_id=ai_query.id,
+                answer=SAFE_PHI_LEAK_BLOCKED_ANSWER,
+                citations=[],
+                confidence="low",
+                thread_id=thread_id,
+                pipeline="blocked",
+            )
 
         # F-RAG-005: defense-in-depth citation validation.  Each pipeline
         # already enforces this internally, but a service-level re-check
@@ -426,24 +525,26 @@ class ChatService:
             warnings=warning_schemas,
         )
 
-    async def _get_conversation_history(self, thread_id: UUID, user_id: UUID, request_patient_id: UUID | None) -> list[dict[str, str]]:
+    async def _get_conversation_history(
+        self, thread_id: UUID, user_id: UUID, request_patient_id: UUID | None
+    ) -> list[dict[str, str]]:
         """Fetch recent messages from a chat thread for conversation context."""
         thread = await self.session.get(ChatThread, thread_id)
         if not thread:
             return []
-            
+
         if thread.owner_user_id != user_id:
             from hospital_ai.db.models import ChatThreadParticipant
+
             participant = await self.session.execute(
-                select(ChatThreadParticipant)
-                .where(
+                select(ChatThreadParticipant).where(
                     ChatThreadParticipant.thread_id == thread_id,
                     ChatThreadParticipant.user_id == user_id,
                 )
             )
             if not participant.scalar_one_or_none():
                 raise PermissionDeniedError("User is not authorized for this thread.")
-            
+
         if thread.patient_id and thread.patient_id != request_patient_id:
             raise PermissionDeniedError("Thread patient mismatch.")
         result = await self.session.execute(

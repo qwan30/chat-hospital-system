@@ -1,4 +1,5 @@
 import math
+import time
 import uuid
 from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
@@ -8,6 +9,7 @@ from sqlalchemy import and_, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from hospital_ai.core.security import PATIENT_READ_SCOPES, ROLE_PERMISSIONS
+from hospital_ai.core.telemetry import RAG_EVIDENCE_COUNT, RAG_RETRIEVAL_DURATION
 from hospital_ai.db.models import Document, DocumentChunk, DocumentPage, User
 from hospital_ai.services.permissions import (
     active_patient_permission_exists,
@@ -103,6 +105,7 @@ class RetrievalService:
         query_embedding: Sequence[float],
         top_k: int,
     ) -> list[RetrievedChunk]:
+        start_time = time.perf_counter()
         bind = self.session.get_bind()
         if bind.dialect.name == "postgresql":
             chunks = await self._search_postgres(
@@ -118,7 +121,13 @@ class RetrievalService:
                 query_embedding=query_embedding,
                 top_k=top_k,
             )
-        return await self._apply_role_filters(chunks, user_id)
+        results = await self._apply_role_filters(chunks, user_id)
+
+        duration = time.perf_counter() - start_time
+        RAG_RETRIEVAL_DURATION.labels(mode="vector").observe(duration)
+        RAG_EVIDENCE_COUNT.labels(scope="patient-linked" if patient_id else "general").observe(len(results))
+
+        return results
 
     async def hybrid_search(
         self,
@@ -143,21 +152,32 @@ class RetrievalService:
         Returns:
             Merged and de-duplicated chunks sorted by relevance.
         """
+        start_time = time.perf_counter()
+
         if retrieval_mode == "vector":
-            return await self.search(
+            results = await self.search(
                 user_id=user_id,
                 patient_id=patient_id,
                 query_embedding=query_embedding,
                 top_k=top_k,
             )
+            # metrics already recorded in search()
+            return results
 
         if retrieval_mode == "bm25":
-            return await self._bm25_search(
+            results = await self._bm25_search(
                 user_id=user_id,
                 patient_id=patient_id,
                 query_text=query_text,
                 top_k=top_k,
             )
+            results = await self._apply_role_filters(results, user_id)
+
+            duration = time.perf_counter() - start_time
+            RAG_RETRIEVAL_DURATION.labels(mode="bm25").observe(duration)
+            RAG_EVIDENCE_COUNT.labels(scope="patient-linked" if patient_id else "general").observe(len(results))
+
+            return results
 
         # Hybrid mode: run both and fuse with RRF
         from hospital_ai.services.bm25 import reciprocal_rank_fusion
@@ -184,6 +204,10 @@ class RetrievalService:
             bm25_results,
             top_k=top_k,
         )
+
+        duration = time.perf_counter() - start_time
+        RAG_RETRIEVAL_DURATION.labels(mode="hybrid").observe(duration)
+        RAG_EVIDENCE_COUNT.labels(scope="patient-linked" if patient_id else "general").observe(len(fused))
 
         return fused
 
@@ -355,7 +379,6 @@ class RetrievalService:
         """Portable BM25 search using Python-side scoring for SQLite tests."""
         from hospital_ai.services.bm25 import BM25Scorer
 
-
         stmt = (
             select(DocumentChunk, Document, DocumentPage)
             .join(Document, Document.id == DocumentChunk.document_id)
@@ -406,7 +429,6 @@ class RetrievalService:
             {
                 "user_id": user_id,
                 "patient_id": patient_id,
-
                 "query_embedding": format_pgvector(query_embedding),
                 "top_k": top_k,
             },

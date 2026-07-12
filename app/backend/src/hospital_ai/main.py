@@ -6,6 +6,7 @@ from slowapi.errors import RateLimitExceeded
 
 from hospital_ai.api.limiter import limiter
 from hospital_ai.api.router import api_router
+from hospital_ai.api.routes import metrics_endpoint
 from hospital_ai.core.config import Settings, get_settings
 from hospital_ai.core.errors import (
     AppError,
@@ -28,6 +29,7 @@ from hospital_ai.core.exceptions import (
     ValidationException,
 )
 from hospital_ai.core.logging import configure_logging
+from hospital_ai.core.telemetry import setup_metrics, setup_telemetry
 
 # ── Domain Exception → HTTP Status Code Mapping ─────────────────────
 # Keeps the domain layer framework-free — only the presentation layer
@@ -79,6 +81,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     """
     active_settings = settings or get_settings()
     configure_logging()
+    setup_metrics(active_settings)
+    setup_telemetry()
 
     app = FastAPI(
         title="Hospital AI Knowledge Assistant API",
@@ -97,6 +101,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             allow_headers=["*"],
         )
     app.include_router(api_router, prefix=active_settings.api_v1_prefix)
+    app.include_router(metrics_endpoint.router)
 
     @app.exception_handler(AppError)
     async def app_error_handler(_: Request, exc: AppError) -> JSONResponse:

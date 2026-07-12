@@ -13,6 +13,8 @@ if not getattr(guardrails_module, "_LLM_GUARD_AVAILABLE", False):
     guardrails_module.BanTopics = MagicMock()
     guardrails_module.Deanonymize = MagicMock()
     guardrails_module.Vault = MagicMock()
+    guardrails_module.scan_prompt = MagicMock()
+    guardrails_module.scan_output = MagicMock()
 
 
 @pytest.fixture

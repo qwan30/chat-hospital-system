@@ -427,7 +427,7 @@ function GlobalChat() {
                       progress={0}
                       total={0}
                       onRetry={() => {
-                        const lastUserMsg = [...messages].reverse().find(m => m.role === "user");
+                        const lastUserMsg = [...messages].reverse().find((m) => m.role === "user");
                         if (lastUserMsg) {
                           send(lastUserMsg.content);
                         }

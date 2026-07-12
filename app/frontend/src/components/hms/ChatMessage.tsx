@@ -20,7 +20,15 @@ export interface ChatMessageData {
   extra?: ReactNode;
 }
 
-export function ChatMessage({ msg, isError, errorControls }: { msg: ChatMessageData; isError?: boolean; errorControls?: ReactNode }) {
+export function ChatMessage({
+  msg,
+  isError,
+  errorControls,
+}: {
+  msg: ChatMessageData;
+  isError?: boolean;
+  errorControls?: ReactNode;
+}) {
   const isAssistant = msg.role === "assistant";
 
   // Render assistant content with inline [n] markers replaced by chips

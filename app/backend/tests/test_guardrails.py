@@ -20,6 +20,7 @@ if not getattr(guardrails_module, "_LLM_GUARD_AVAILABLE", False):
 @pytest.fixture(autouse=True)
 def enable_guardrails():
     from hospital_ai.core.config import get_settings
+
     settings = get_settings()
     original = settings.disable_guardrails
     settings.disable_guardrails = False

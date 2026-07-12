@@ -268,7 +268,7 @@ class ChatService:
                 response = await llm.generate(messages)
                 hyde_text = f"{question}\n{response.text}"
             except Exception as e:
-                logger.warning(f"HyDE generation failed: {e}")
+                logger.warning("HyDE generation failed: %s", e)
 
         query_embedding = await EmbeddingService(self.settings).embed(hyde_text)
         t_embed_ms = int((time.perf_counter() - t_embed_start) * 1000)

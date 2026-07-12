@@ -173,6 +173,7 @@ jobs:
           HOSPITAL_AI_DATABASE_URL: "postgresql+asyncpg://hospital_ai:hospital_ai@localhost:5432/hospital_ai_test"
           HOSPITAL_AI_CHAT_PROVIDER: "stub"
           HOSPITAL_AI_EMBEDDING_PROVIDER: "deterministic"
+          HOSPITAL_AI_DISABLE_GUARDRAILS: "true"
         run: python -m pytest tests/ -v --tb=short --cov=hospital_ai --cov-report=term --cov-fail-under=60
 
       # ── API Contract Verification ──

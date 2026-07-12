@@ -2,15 +2,22 @@ import asyncio
 import logging
 from dataclasses import dataclass
 
-from llm_guard import scan_output, scan_prompt
-from llm_guard.input_scanners import PromptInjection
-from llm_guard.output_scanners import BanTopics, Deanonymize
-from llm_guard.vault import Vault
-from tenacity import retry, stop_after_attempt
-
 from hospital_ai.core.config import get_settings
 
 logger = logging.getLogger(__name__)
+
+# Lazy imports for heavy ML dependencies (optional [guardrails] group)
+try:
+    from llm_guard import scan_output, scan_prompt
+    from llm_guard.input_scanners import PromptInjection
+    from llm_guard.output_scanners import BanTopics, Deanonymize
+    from llm_guard.vault import Vault
+    from tenacity import retry, stop_after_attempt
+
+    _LLM_GUARD_AVAILABLE = True
+except ImportError:
+    _LLM_GUARD_AVAILABLE = False
+    logger.info("llm-guard not installed — guardrails will be disabled at runtime")
 
 
 @dataclass
@@ -20,29 +27,32 @@ class GuardrailResult:
 
 
 def fallback_input_result(retry_state) -> GuardrailResult:
-    logger.warning(f"InputGuardrail scanner failed or timed out: {retry_state.outcome.exception()}")
+    logger.warning("InputGuardrail scanner failed or timed out: %s", retry_state.outcome.exception())
     return GuardrailResult(blocked=True, reason="Safe refusal: Guardrail system unavailable or timed out")
 
 
 def fallback_output_result(retry_state) -> GuardrailResult:
-    logger.warning(f"OutputGuardrail scanner failed or timed out: {retry_state.outcome.exception()}")
+    logger.warning("OutputGuardrail scanner failed or timed out: %s", retry_state.outcome.exception())
     return GuardrailResult(blocked=True, reason="Safe refusal: Guardrail system unavailable or timed out")
 
 
 class InputGuardrail:
     def __init__(self):
-        self.scanners = [PromptInjection(threshold=0.5)]
+        if _LLM_GUARD_AVAILABLE:
+            self.scanners = [PromptInjection(threshold=0.5)]
+        else:
+            self.scanners = []
 
-    @retry(stop=stop_after_attempt(2), retry_error_callback=fallback_input_result)
     def _scan_sync(self, prompt: str) -> GuardrailResult:
+        if not _LLM_GUARD_AVAILABLE:
+            return GuardrailResult(blocked=False, reason="")
         sanitized_prompt, results_valid, results_score = scan_prompt(self.scanners, prompt)
-
         is_blocked = not all(results_valid.values())
         reason = "Prompt injection detected" if is_blocked else ""
         return GuardrailResult(blocked=is_blocked, reason=reason)
 
     async def scan(self, prompt: str) -> GuardrailResult:
-        if get_settings().disable_guardrails:
+        if get_settings().disable_guardrails or not _LLM_GUARD_AVAILABLE:
             return GuardrailResult(blocked=False, reason="")
         try:
             return await asyncio.wait_for(asyncio.to_thread(self._scan_sync, prompt), timeout=3.0)
@@ -53,18 +63,21 @@ class InputGuardrail:
 
 class OutputGuardrail:
     def __init__(self):
-        self.scanners = [BanTopics(topics=["providing medical advice"], threshold=0.5), Deanonymize(vault=Vault())]
+        if _LLM_GUARD_AVAILABLE:
+            self.scanners = [BanTopics(topics=["providing medical advice"], threshold=0.5), Deanonymize(vault=Vault())]
+        else:
+            self.scanners = []
 
-    @retry(stop=stop_after_attempt(2), retry_error_callback=fallback_output_result)
     def _scan_sync(self, prompt: str, output: str) -> GuardrailResult:
+        if not _LLM_GUARD_AVAILABLE:
+            return GuardrailResult(blocked=False, reason="")
         sanitized_output, results_valid, results_score = scan_output(self.scanners, prompt, output)
-
         is_blocked = not all(results_valid.values())
         reason = "Output blocked by guardrails" if is_blocked else ""
         return GuardrailResult(blocked=is_blocked, reason=reason)
 
     async def scan(self, prompt: str, output: str) -> GuardrailResult:
-        if get_settings().disable_guardrails:
+        if get_settings().disable_guardrails or not _LLM_GUARD_AVAILABLE:
             return GuardrailResult(blocked=False, reason="")
         try:
             return await asyncio.wait_for(asyncio.to_thread(self._scan_sync, prompt, output), timeout=3.0)

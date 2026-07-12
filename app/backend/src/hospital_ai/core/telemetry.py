@@ -4,7 +4,13 @@ from __future__ import annotations
 
 import logging
 
-import openlit
+try:
+    import openlit
+
+    _OPENLIT_AVAILABLE = True
+except ImportError:
+    _OPENLIT_AVAILABLE = False
+
 from prometheus_client import Counter, Histogram, Info
 
 from hospital_ai.core.config import Settings
@@ -13,7 +19,10 @@ logger = logging.getLogger(__name__)
 
 
 def setup_telemetry() -> None:
-    openlit.init(environment="production")
+    if _OPENLIT_AVAILABLE:
+        openlit.init(environment="production")
+    else:
+        logger.info("openlit not installed — LLM observability disabled")
 
 
 # Define metrics

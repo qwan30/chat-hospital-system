@@ -17,6 +17,16 @@ if not getattr(guardrails_module, "_LLM_GUARD_AVAILABLE", False):
     guardrails_module.scan_output = MagicMock()
 
 
+@pytest.fixture(autouse=True)
+def enable_guardrails():
+    from hospital_ai.core.config import get_settings
+    settings = get_settings()
+    original = settings.disable_guardrails
+    settings.disable_guardrails = False
+    yield
+    settings.disable_guardrails = original
+
+
 @pytest.fixture
 def input_guardrail():
     with patch("hospital_ai.services.guardrails._LLM_GUARD_AVAILABLE", True):

@@ -30,7 +30,7 @@ dependencies = [
   "opentelemetry-instrumentation-sqlalchemy>=0.41b0",
   "prometheus-client>=0.17.0",
   "tenacity>=8.0.0",
-  "setuptools<70.0.0",
+  "setuptools<84.0.0",
   "numpy<2.0.0"
 ]
 

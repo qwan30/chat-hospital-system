@@ -6,6 +6,7 @@ import sys
 def install(package):
     subprocess.check_call([sys.executable, "-m", "pip", "install", package])
 
+
 try:
     import pandas as pd
     from datasets import load_dataset
@@ -24,11 +25,11 @@ out_file = os.path.join(out_dir, "NOTEEVENTS.csv")
 
 df = dataset.to_pandas()
 # Map to MIMIC-like schema
-df['subject_id'] = df.index.astype(str)
-df['category'] = 'Discharge summary'
-df['description'] = 'Clinical Note'
+df["subject_id"] = df.index.astype(str)
+df["category"] = "Discharge summary"
+df["description"] = "Clinical Note"
 # Ensure 'text' column exists
-if 'text' not in df.columns:
+if "text" not in df.columns:
     print("Warning: 'text' column not found in dataset. Checking columns:", df.columns)
 
 df.to_csv(out_file, index=False)

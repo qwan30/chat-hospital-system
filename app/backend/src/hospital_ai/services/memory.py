@@ -30,9 +30,7 @@ class MemoryService:
         try:
             # 1. Fetch existing memory
             result = await self.session.execute(
-                select(ChatSessionMemory)
-                .where(ChatSessionMemory.thread_id == thread_id)
-                .with_for_update()
+                select(ChatSessionMemory).where(ChatSessionMemory.thread_id == thread_id).with_for_update()
             )
             memory = result.scalar_one_or_none()
 
@@ -97,4 +95,5 @@ class MemoryService:
             await self.session.flush()
 
         except Exception as e:
-            logger.warning(f"Failed to update session memory for thread {thread_id}: {e}", exc_info=True)
+            safe_thread = str(thread_id).replace("\r", "").replace("\n", "")
+            logger.warning("Failed to update session memory for thread %s: %s", safe_thread, e, exc_info=True)

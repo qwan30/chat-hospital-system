@@ -32,11 +32,8 @@ test.describe("/chat/general stream lifecycle", () => {
   test("forced interruption renders one retry/resume alert", async ({ page }) => {
     // Intercept the stream and mock a failure halfway through
     await page.route("**/api/v1/chat/stream", async (route) => {
-      const headers = { "Content-Type": "text/event-stream" };
-      const response = await route.fetch();
-
       route.fulfill({
-        headers,
+        headers: { "Content-Type": "text/event-stream" },
         status: 200,
         body: 'data: {"type":"token","content":"This is a "}\n\ndata: {"type":"token","content":"simulated "}\n\ndata: {"type":"error","message":"Simulated stream failure"}\n\n',
       });

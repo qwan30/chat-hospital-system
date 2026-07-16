@@ -37,7 +37,7 @@ async def main() -> None:
                 follow_up_summary="Review symptoms and medication reconciliation at discharge planning.",
             ),
             trace_id=new_trace_id(),
-            ip_address="seed_dev",
+            ip_address="127.0.0.1",
         )
         await HmsAppointmentEvidenceImporter(session, get_settings()).import_summary(
             user=admin,
@@ -57,7 +57,7 @@ async def main() -> None:
                 follow_up_summary="Continue Apixaban. Renal labs: Creatinine 1.6, eGFR 42. Note: Sulfa allergy (hives).",
             ),
             trace_id=new_trace_id(),
-            ip_address="seed_dev",
+            ip_address="127.0.0.1",
         )
 
         import datetime
@@ -66,20 +66,21 @@ async def main() -> None:
 
         from hospital_ai.db.migrations import DOCTOR_ID
         from hospital_ai.db.models import ChatThread
+
         # Seed a DAPT conversation for E2E testing
-        thread = await session.execute(
-            select(ChatThread).where(ChatThread.title == "DAPT Guideline Query")
-        )
+        thread = await session.execute(select(ChatThread).where(ChatThread.title == "DAPT Guideline Query"))
         if thread.scalar_one_or_none() is None:
-            session.add(ChatThread(
-                title="DAPT Guideline Query",
-                scope="general",
-                visibility="private",
-                status="active",
-                owner_user_id=DOCTOR_ID,
-                created_trace_id="seed_dev_trace",
-                last_message_at=datetime.datetime.now(datetime.UTC),
-            ))
+            session.add(
+                ChatThread(
+                    title="DAPT Guideline Query",
+                    scope="general",
+                    visibility="private",
+                    status="active",
+                    owner_user_id=DOCTOR_ID,
+                    created_trace_id="seed_dev_trace",
+                    last_message_at=datetime.datetime.now(datetime.UTC),
+                )
+            )
             await session.commit()
 
     print("Seeded synthetic users, patients, permissions, HMS appointment evidence, and ChatThreads.")

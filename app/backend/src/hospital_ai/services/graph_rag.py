@@ -91,24 +91,30 @@ class GraphContext:
 
 # ── Entity extraction (NLP) ──────────────────────────────────────────────
 
+
 async def extract_entities_and_relations_nlp(content: str) -> tuple[list[ExtractedEntity], list[ExtractedRelation]]:
     """Extract entities and relations from text using the LLM via Proposition Transfer."""
     llm = get_llm_manager().get()
 
-    prompt = """You are a medical NLP engine. Your task is to extract medical entities and explicitly stated relations from the provided text.
-Entities must be medical concepts such as conditions, drugs, labs, symptoms, or procedures.
-Explicit relations must be one of: treats, causes, contraindicates, prescribed_for, has_symptom. Do NOT extract fuzzy 'mentioned_with' relations.
-Only extract a relation if the text explicitly states or strongly implies it (e.g. "X treats Y", "X causes Y").
-
-Respond ONLY with valid JSON in the exact following format, without markdown wrapping:
-{
-  "entities": [
-    {"name": "entity name in lowercase", "entity_type": "drug"}
-  ],
-  "relations": [
-    {"source_name": "entity 1", "target_name": "entity 2", "relation_type": "treats"}
-  ]
-}"""
+    prompt = (
+        "You are a medical NLP engine. Your task is to extract medical entities "
+        "and explicitly stated relations from the provided text.\n"
+        "Entities must be medical concepts such as conditions, drugs, labs, symptoms, or procedures.\n"
+        "Explicit relations must be one of: treats, causes, contraindicates, "
+        "prescribed_for, has_symptom. Do NOT extract fuzzy 'mentioned_with' relations.\n"
+        "Only extract a relation if the text explicitly states or strongly implies it "
+        '(e.g. "X treats Y", "X causes Y").\n'
+        "\n"
+        "Respond ONLY with valid JSON in the exact following format, without markdown wrapping:\n"
+        "{\n"
+        '  "entities": [\n'
+        '    {"name": "entity name in lowercase", "entity_type": "drug"}\n'
+        "  ],\n"
+        '  "relations": [\n'
+        '    {"source_name": "entity 1", "target_name": "entity 2", "relation_type": "treats"}\n'
+        "  ]\n"
+        "}"
+    )
 
     messages = [
         LLMMessage(role="system", content=prompt),
@@ -268,16 +274,18 @@ async def find_related_entities(
 
         result = await session.execute(
             _scope_relations_to_patient(
-                select(GraphRelation).where(
+                select(GraphRelation)
+                .where(
                     or_(
                         GraphRelation.source_entity_id.in_(frontier_ids),
                         GraphRelation.target_entity_id.in_(frontier_ids),
                     )
-                ).where(GraphRelation.relation_type != "mentioned_with")
+                )
+                .where(GraphRelation.relation_type != "mentioned_with")
             )
         )
         relations = list(result.scalars().all())
-        
+
         new_relations = [r for r in relations if r.id not in visited_relation_ids]
         all_relations.extend(new_relations)
         for r in new_relations:

@@ -5,17 +5,18 @@ Revises: 209270610b31
 Create Date: 2026-07-12 02:05:54.829275
 
 """
-from typing import Sequence, Union
+from collections.abc import Sequence
 
-from alembic import op
 import sqlalchemy as sa
 
+import hospital_ai.db.models
+from alembic import op
 
 # revision identifiers, used by Alembic.
 revision: str = '68666b884f62'
-down_revision: Union[str, None] = '209270610b31'
-branch_labels: Union[str, Sequence[str], None] = None
-depends_on: Union[str, Sequence[str], None] = None
+down_revision: str | None = '209270610b31'
+branch_labels: str | Sequence[str] | None = None
+depends_on: str | Sequence[str] | None = None
 
 
 def upgrade() -> None:
@@ -78,7 +79,8 @@ def upgrade() -> None:
         batch_op.alter_column('ip_address',
                existing_type=sa.VARCHAR(length=45),
                type_=hospital_ai.db.models.InetAddress(length=64),
-               existing_nullable=True)
+               existing_nullable=True,
+               postgresql_using='ip_address::inet')
         batch_op.drop_index(batch_op.f('ix_audit_logs_actor_created'))
         batch_op.drop_index(batch_op.f('ix_audit_logs_patient_created'))
         batch_op.create_index(batch_op.f('ix_audit_logs_actor_user_id'), ['actor_user_id'], unique=False)
@@ -151,7 +153,8 @@ def downgrade() -> None:
         batch_op.alter_column('ip_address',
                existing_type=hospital_ai.db.models.InetAddress(length=64),
                type_=sa.VARCHAR(length=45),
-               existing_nullable=True)
+               existing_nullable=True,
+               postgresql_using='ip_address::varchar')
 
     with op.batch_alter_table('ai_queries', schema=None) as batch_op:
         batch_op.drop_index(batch_op.f('ix_ai_queries_user_id'))

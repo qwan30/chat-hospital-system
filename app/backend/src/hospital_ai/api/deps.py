@@ -42,8 +42,7 @@ async def get_current_user(
         if user is not None:
             return user
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED, 
-            detail="User validated via JWT but no active local account found."
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="User validated via JWT but no active local account found."
         )
 
     # Static token fallback (local dev and legacy clients)

@@ -35,15 +35,31 @@ async def process_document(
     await session.commit()
 
     try:
-        from hospital_ai.services.storage import LocalStorageService
+        if document.storage_uri.startswith("local://") or document.storage_uri.startswith("hms://"):
+            result = await session.execute(
+                select(DocumentPage)
+                .where(DocumentPage.document_id == document.id)
+                .order_by(DocumentPage.page_number)
+            )
+            db_pages = result.scalars().all()
+            if not db_pages:
+                raise RuntimeError(f"Virtual document has no existing pages to re-index. URI: {document.storage_uri}")
+            
+            from hospital_ai.services.ocr import OcrPage
+            pages = [
+                OcrPage(page_number=p.page_number, text=p.ocr_text, confidence=p.ocr_confidence)
+                for p in db_pages
+            ]
+        else:
+            from hospital_ai.services.storage import LocalStorageService
 
-        pages = OcrService().extract_pages(
-            storage_uri=document.storage_uri,
-            mime_type=document.mime_type,
-            patient_id=str(document.patient_id),
-            document_id=str(document.id),
-            storage_service=LocalStorageService(settings),
-        )
+            pages = OcrService().extract_pages(
+                storage_uri=document.storage_uri,
+                mime_type=document.mime_type,
+                patient_id=str(document.patient_id),
+                document_id=str(document.id),
+                storage_service=LocalStorageService(settings),
+            )
     except Exception as exc:
         await _mark_failed_if_current(
             session,
@@ -227,6 +243,8 @@ async def _index_graph_entities(
 
 
 def _source_sha256(settings: Settings, storage_uri: str) -> str | None:
+    if storage_uri == "pending" or storage_uri.startswith("local://") or storage_uri.startswith("hms://"):
+        return None
     try:
         storage_root = settings.storage_root.resolve()
         source_path = Path(storage_uri)

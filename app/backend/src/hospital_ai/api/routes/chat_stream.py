@@ -584,17 +584,17 @@ async def chat_stream(
                 if effective_patient_id
                 else []
             )
-            else:
-                evidence = (
-                    await retrieval_svc.search(
-                        user_id=current_user.id,
-                        patient_id=effective_patient_id,
-                        query_embedding=query_embedding,
-                        top_k=payload.top_k,
-                    )
-                    if effective_patient_id
-                    else []
+        else:
+            evidence = (
+                await retrieval_svc.search(
+                    user_id=current_user.id,
+                    patient_id=effective_patient_id,
+                    query_embedding=query_embedding,
+                    top_k=payload.top_k,
                 )
+                if effective_patient_id
+                else []
+            )
 
         # ── Graph RAG Enrichment ─────────────────────────────────────────────
         try:

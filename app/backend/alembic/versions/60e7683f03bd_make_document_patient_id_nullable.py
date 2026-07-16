@@ -29,6 +29,7 @@ def upgrade() -> None:
         batch_op.create_index(batch_op.f('ix_ai_queries_patient_id'), ['patient_id'], unique=False)
         batch_op.create_index(batch_op.f('ix_ai_queries_user_id'), ['user_id'], unique=False)
 
+    with op.batch_alter_table('audit_logs', schema=None) as batch_op:
         batch_op.alter_column('ip_address',
                existing_type=sa.VARCHAR(length=45),
                type_=hospital_ai.db.models.InetAddress(length=64),

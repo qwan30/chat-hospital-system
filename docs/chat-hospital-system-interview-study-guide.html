@@ -1,0 +1,963 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Chat Hospital System — Interview Study Guide</title>
+<style>
+  :root{
+    --canvas:#f7f7f4;
+    --canvas-soft:#fafaf7;
+    --card:#ffffff;
+    --ink:#26251e;
+    --body:#5a5852;
+    --muted:#807d72;
+    --muted-soft:#a09c92;
+    --hairline:#e6e5e0;
+    --hairline-soft:#efeee8;
+    --hairline-strong:#cfcdc4;
+    --primary:#f54e00;
+    --primary-active:#d04200;
+    --strong:#e6e5e0;
+    --success:#1f8a65;
+    --error:#cf2d56;
+
+    --thinking:#dfa88f;
+    --grep:#9fc9a2;
+    --read:#9fbbe0;
+    --edit:#c0a8dd;
+    --done:#c08532;
+
+    --radius-xs:4px;
+    --radius-sm:6px;
+    --radius-md:8px;
+    --radius-lg:12px;
+    --radius-xl:16px;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{
+    margin:0;
+    background:var(--canvas);
+    color:var(--ink);
+    font-family:Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    line-height:1.55;
+  }
+  a{color:inherit}
+  code, pre, .mono{font-family:"JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace}
+  .wrap{max-width:1200px;margin:0 auto;padding:0 24px}
+  .topbar{
+    position:sticky;top:0;z-index:20;
+    background:rgba(247,247,244,.95);
+    backdrop-filter:blur(12px);
+    border-bottom:1px solid var(--hairline);
+  }
+  .topbar-inner{height:64px;display:flex;align-items:center;justify-content:space-between;gap:18px}
+  .brand{font-weight:650;letter-spacing:-.02em;white-space:nowrap}
+  .brand span{color:var(--primary)}
+  .nav{display:flex;gap:8px;align-items:center;overflow:auto}
+  .nav a{
+    text-decoration:none;font-size:14px;font-weight:500;
+    padding:8px 10px;border-radius:8px;white-space:nowrap;
+  }
+  .nav a:hover{background:var(--card)}
+  .progress{
+    height:3px;background:var(--hairline-soft);
+  }
+  .progress > div{height:100%;width:0;background:var(--primary);transition:width .15s}
+  .hero{padding:72px 0 48px;border-bottom:1px solid var(--hairline)}
+  .eyebrow{
+    display:inline-flex;align-items:center;gap:8px;
+    text-transform:uppercase;letter-spacing:.08em;font-size:11px;font-weight:700;
+    padding:5px 10px;border-radius:999px;background:var(--strong)
+  }
+  h1{
+    font-size:clamp(40px,7vw,72px);line-height:1.05;
+    font-weight:400;letter-spacing:-.03em;margin:20px 0 18px;max-width:980px
+  }
+  .lead{font-size:18px;color:var(--body);max-width:860px;margin:0 0 24px}
+  .hero-actions{display:flex;gap:10px;flex-wrap:wrap}
+  .btn{
+    display:inline-flex;align-items:center;justify-content:center;gap:8px;
+    height:40px;padding:0 18px;border-radius:8px;border:1px solid var(--hairline-strong);
+    background:var(--card);color:var(--ink);font-size:14px;font-weight:600;cursor:pointer;text-decoration:none
+  }
+  .btn.primary{background:var(--primary);border-color:var(--primary);color:#fff}
+  .btn.primary:hover{background:var(--primary-active)}
+  .btn:hover{border-color:#b9b7ae}
+  .section{padding:72px 0;border-bottom:1px solid var(--hairline)}
+  .section-head{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:end;gap:20px;margin-bottom:28px}
+  .section h2{font-size:36px;font-weight:400;letter-spacing:-.02em;line-height:1.2;margin:8px 0}
+  .section .desc{color:var(--body);max-width:780px;margin:0}
+  .tools{display:flex;gap:8px;flex-wrap:wrap}
+  .grid{display:grid;grid-template-columns:repeat(12,1fr);gap:16px}
+  .card{
+    background:var(--card);border:1px solid var(--hairline);border-radius:12px;padding:24px;
+  }
+  .card h3{font-size:18px;line-height:1.35;margin:0 0 10px}
+  .card p{color:var(--body);margin:0}
+  .metric{grid-column:span 3}
+  .metric .n{font-size:34px;letter-spacing:-.03em;margin-bottom:2px}
+  .metric .label{font-size:13px;color:var(--muted)}
+  .toc{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+  .toc a{
+    background:var(--card);border:1px solid var(--hairline);border-radius:12px;
+    padding:18px;text-decoration:none;display:block
+  }
+  .toc a:hover{border-color:var(--hairline-strong)}
+  .toc .k{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:700}
+  .toc .t{margin-top:5px;font-weight:650}
+  .q-list{display:flex;flex-direction:column;gap:14px}
+  .q{
+    background:var(--card);border:1px solid var(--hairline);border-radius:12px;overflow:hidden;
+  }
+  .q-header{
+    width:100%;border:0;background:transparent;color:inherit;text-align:left;
+    display:grid;grid-template-columns:auto 1fr auto;align-items:start;gap:14px;
+    padding:20px 22px;cursor:pointer
+  }
+  .q-num{
+    min-width:34px;height:34px;border-radius:8px;background:var(--canvas);
+    display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;border:1px solid var(--hairline)
+  }
+  .q-title{font-size:18px;font-weight:650;line-height:1.4}
+  .q-sub{margin-top:5px;color:var(--muted);font-size:13px}
+  .chev{font-size:20px;color:var(--muted);transition:transform .2s}
+  .q.open .chev{transform:rotate(45deg)}
+  .q-body{display:none;border-top:1px solid var(--hairline);padding:22px;background:var(--canvas-soft)}
+  .q.open .q-body{display:block}
+  .answer-grid{display:grid;grid-template-columns:1.15fr .85fr;gap:16px}
+  .answer-box{
+    background:var(--card);border:1px solid var(--hairline);border-radius:12px;padding:20px;
+  }
+  .answer-box h4{
+    margin:0 0 10px;font-size:12px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted)
+  }
+  .answer-box p{margin:0 0 12px;color:var(--body)}
+  .answer-box p:last-child{margin-bottom:0}
+  ul.clean{margin:8px 0 0;padding-left:18px;color:var(--body)}
+  ul.clean li{margin:5px 0}
+  .script{
+    white-space:pre-wrap;background:#fff;border:1px solid var(--hairline);
+    border-radius:12px;padding:18px;margin:0;color:var(--ink);font-size:13px;line-height:1.65
+  }
+  .tagrow{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0 0}
+  .pill{
+    border-radius:999px;padding:4px 10px;font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase
+  }
+  .thinking{background:var(--thinking)}
+  .grep{background:var(--grep)}
+  .read{background:var(--read)}
+  .edit{background:var(--edit)}
+  .done{background:var(--done);color:white}
+  .danger{border-left:3px solid var(--error)}
+  .good{border-left:3px solid var(--success)}
+  .method{
+    display:grid;grid-template-columns:repeat(4,1fr);gap:12px
+  }
+  .method .step{
+    background:var(--card);border:1px solid var(--hairline);border-radius:12px;padding:18px
+  }
+  .step .label{font-size:11px;text-transform:uppercase;letter-spacing:.08em;font-weight:700;color:var(--muted)}
+  .step .title{font-weight:650;margin:6px 0 8px}
+  .step p{margin:0;color:var(--body);font-size:14px}
+  .searchbar{
+    display:flex;gap:10px;align-items:center;background:var(--card);
+    border:1px solid var(--hairline-strong);border-radius:12px;padding:10px 12px;
+    min-width:min(420px,100%)
+  }
+  .searchbar input{
+    border:0;outline:0;background:transparent;width:100%;font:inherit;color:var(--ink)
+  }
+  .note{
+    border:1px solid var(--hairline);border-radius:12px;background:var(--card);padding:18px;color:var(--body)
+  }
+  .note strong{color:var(--ink)}
+  .matrix{width:100%;border-collapse:collapse;background:var(--card);border:1px solid var(--hairline);border-radius:12px;overflow:hidden}
+  .matrix th,.matrix td{padding:12px 14px;border-bottom:1px solid var(--hairline);text-align:left;vertical-align:top}
+  .matrix th{font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);background:var(--canvas-soft)}
+  .matrix tr:last-child td{border-bottom:0}
+  .footer{padding:56px 0 72px;color:var(--muted);font-size:14px}
+  .hidden{display:none!important}
+  .mini{font-size:13px;color:var(--muted)}
+  .kbd{font-family:ui-monospace,monospace;border:1px solid var(--hairline-strong);border-bottom-width:2px;border-radius:6px;padding:1px 6px;background:#fff;font-size:12px}
+  @media(max-width:900px){
+    .metric{grid-column:span 6}
+    .toc{grid-template-columns:1fr 1fr}
+    .answer-grid{grid-template-columns:1fr}
+    .method{grid-template-columns:1fr 1fr}
+    .section-head{grid-template-columns:1fr}
+  }
+  @media(max-width:640px){
+    .wrap{padding:0 16px}
+    .nav{display:none}
+    .hero{padding-top:48px}
+    .section{padding:54px 0}
+    .section h2{font-size:30px}
+    .metric{grid-column:span 12}
+    .toc{grid-template-columns:1fr}
+    .method{grid-template-columns:1fr}
+    .q-header{grid-template-columns:auto 1fr}
+    .chev{display:none}
+  }
+  @media print{
+    .topbar,.hero-actions,.tools,.progress{display:none}
+    .q-body{display:block!important}
+    .q{break-inside:avoid}
+    body{background:#fff}
+  }
+</style>
+</head>
+<body>
+<div class="topbar">
+  <div class="wrap topbar-inner">
+    <div class="brand">Hospital AI <span>Interview Kit</span></div>
+    <nav class="nav">
+      <a href="#strategy">Cách trả lời</a>
+      <a href="#architecture">Architecture</a>
+      <a href="#rag">RAG</a>
+      <a href="#security">Security</a>
+      <a href="#backend">Backend & DB</a>
+      <a href="#safety">AI Safety</a>
+      <a href="#testing">Testing</a>
+    </nav>
+  </div>
+  <div class="progress"><div id="progressBar"></div></div>
+</div>
+
+<header class="hero">
+  <div class="wrap">
+    <span class="eyebrow">Interview Study Guide · Chat Hospital System</span>
+    <h1>Ôn project theo cách interviewer thật sự sẽ hỏi.</h1>
+    <p class="lead">
+      Bộ câu hỏi – câu trả lời chuyên sâu dành cho project AI Hospital Knowledge Assistant:
+      permission-aware RAG, citation validation, hybrid retrieval, FastAPI, PostgreSQL + pgvector,
+      Redis/RQ, SSE, CDSS, observability và những “điểm bắt lỗi” mà senior interviewer có thể đào sâu.
+    </p>
+    <div class="hero-actions">
+      <a class="btn primary" href="#architecture">Bắt đầu ôn</a>
+      <button class="btn" onclick="expandAll()">Mở tất cả câu trả lời</button>
+      <button class="btn" onclick="collapseAll()">Thu gọn</button>
+      <button class="btn" onclick="window.print()">In / Lưu PDF</button>
+    </div>
+  </div>
+</header>
+
+<main>
+<section class="section" id="overview">
+  <div class="wrap">
+    <div class="section-head">
+      <div>
+        <div class="eyebrow">Tổng quan</div>
+        <h2>Ưu tiên đúng thứ cần học</h2>
+        <p class="desc">Interviewer thường không hỏi đều mọi feature. Họ sẽ chọn vài điểm “đắt” nhất rồi hỏi liên tục: tại sao, trade-off, failure mode, security boundary và cách bạn kiểm chứng claim trong README bằng code.</p>
+      </div>
+    </div>
+    <div class="grid">
+      <div class="card metric"><div class="n">Tier 1</div><div class="label">12 câu gần như bắt buộc phải nắm</div></div>
+      <div class="card metric"><div class="n">Tier 2</div><div class="label">Câu đào sâu cho Backend / AI / Senior</div></div>
+      <div class="card metric"><div class="n">Tier 3</div><div class="label">Câu “bắt lỗi” claim ↔ implementation</div></div>
+      <div class="card metric"><div class="n">5 trục</div><div class="label">RAG · Security · System Design · AI Safety · Debugging</div></div>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="strategy">
+  <div class="wrap">
+    <div class="section-head">
+      <div>
+        <div class="eyebrow">Interview Method</div>
+        <h2>Công thức trả lời để “ăn điểm”</h2>
+        <p class="desc">Không cần học thuộc từng chữ. Hãy trả lời theo một cấu trúc ổn định để interviewer thấy bạn có tư duy hệ thống, biết trade-off và không “overclaim”.</p>
+      </div>
+    </div>
+
+    <div class="method">
+      <div class="step"><div class="label">1 · Context</div><div class="title">Bối cảnh</div><p>Vấn đề gì đang được giải quyết? Constraint nào quan trọng: healthcare, PHI, latency, scale, audit?</p></div>
+      <div class="step"><div class="label">2 · Decision</div><div class="title">Quyết định</div><p>Bạn chọn giải pháp nào và vì sao? Nêu một lựa chọn thay thế để chứng minh bạn hiểu trade-off.</p></div>
+      <div class="step"><div class="label">3 · Execution</div><div class="title">Cách chạy</div><p>Đi end-to-end qua flow thực tế, chỉ rõ điểm enforce permission, transaction, retry, validation.</p></div>
+      <div class="step"><div class="label">4 · Evidence</div><div class="title">Kết quả & giới hạn</div><p>Nêu metric/test/trace. Nếu prototype chưa production-grade, nói rõ và đề xuất bước tiếp theo.</p></div>
+    </div>
+
+    <div class="note" style="margin-top:16px">
+      <strong>Gợi ý dùng trong phỏng vấn:</strong> với câu hỏi hành vi dùng <span class="kbd">STAR</span>; với câu kỹ thuật dùng <span class="kbd">Context → Decision → Trade-off → Failure mode → Validation</span>.
+      Một câu trả lời senior thường có ít nhất một câu kiểu: “Cách hiện tại hoạt động ở scope portfolio, nhưng để production tôi sẽ thêm…”.
+    </div>
+  </div>
+</section>
+
+<section class="section">
+  <div class="wrap">
+    <div class="section-head">
+      <div>
+        <div class="eyebrow">Quick Navigation</div>
+        <h2>Mục lục ôn tập</h2>
+      </div>
+      <div class="searchbar">🔎 <input id="search" placeholder="Tìm câu hỏi, ví dụ: permission, pgvector, SSE..." oninput="filterQuestions()" /></div>
+    </div>
+    <div class="toc">
+      <a href="#architecture"><div class="k">01</div><div class="t">Architecture & Project Story</div></a>
+      <a href="#rag"><div class="k">02</div><div class="t">RAG & Retrieval</div></a>
+      <a href="#security"><div class="k">03</div><div class="t">Security & Permission</div></a>
+      <a href="#backend"><div class="k">04</div><div class="t">Backend, Async, DB</div></a>
+      <a href="#safety"><div class="k">05</div><div class="t">AI Safety, Citation, CDSS</div></a>
+      <a href="#testing"><div class="k">06</div><div class="t">Testing, Observability, Scale</div></a>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="architecture">
+<div class="wrap">
+  <div class="section-head">
+    <div>
+      <div class="eyebrow">01 · Architecture</div>
+      <h2>Project story & system design</h2>
+      <p class="desc">Đây là nơi interviewer xác minh bạn có thật sự làm project và hiểu toàn hệ thống hay chỉ biết README.</p>
+    </div>
+  </div>
+  <div class="q-list">
+
+    <article class="q searchable open">
+      <button class="q-header" onclick="toggleQ(this)">
+        <span class="q-num">01</span>
+        <span><div class="q-title">Hãy giới thiệu project này trong 2–3 phút.</div><div class="q-sub">Câu mở đầu gần như chắc chắn xuất hiện.</div></span>
+        <span class="chev">+</span>
+      </button>
+      <div class="q-body">
+        <div class="answer-grid">
+          <div class="answer-box good">
+            <h4>Câu trả lời mẫu</h4>
+            <p>“Project của em là một AI Hospital Knowledge Assistant hỗ trợ nhân viên y tế truy vấn thông tin bệnh nhân và tài liệu lâm sàng bằng RAG. Điểm em tập trung không chỉ là chatbot mà là <strong>security boundary của RAG trong healthcare</strong>: trước retrieval hệ thống kiểm tra quyền truy cập bệnh nhân; sau đó mới retrieve evidence, tạo câu trả lời grounded và validate citation trước khi trả về client.</p>
+            <p>Backend dùng FastAPI, PostgreSQL + pgvector để kết hợp relational data và vector search, Redis/RQ cho document processing background jobs, frontend dùng TanStack Start và SSE cho streaming. Ngoài luồng RAG, hệ thống có OCR/indexing pipeline, Knowledge Graph và CDSS worker để phát hiện rủi ro từ tài liệu mới.</p>
+            <p>Phần em muốn highlight nhất là thiết kế permission-aware retrieval, hybrid search, citation validation và cách em cân bằng giữa latency với safety trong streaming.”</p>
+          </div>
+          <div class="answer-box">
+            <h4>Điểm interviewer đang đánh giá</h4>
+            <ul class="clean">
+              <li>Bạn có nói rõ <strong>problem → solution → architecture → contribution</strong>.</li>
+              <li>Bạn có biết đâu là “USP” thay vì liệt kê tech stack.</li>
+              <li>Bạn có chủ động dẫn interviewer vào phần mình hiểu sâu nhất.</li>
+            </ul>
+            <div class="tagrow"><span class="pill thinking">Problem</span><span class="pill grep">Design</span><span class="pill read">Trade-off</span><span class="pill done">Impact</span></div>
+          </div>
+        </div>
+      </div>
+    </article>
+
+    <article class="q searchable">
+      <button class="q-header" onclick="toggleQ(this)">
+        <span class="q-num">02</span>
+        <span><div class="q-title">Trong toàn bộ hệ thống này, phần nào là do chính em thiết kế và implement?</div><div class="q-sub">Câu xác minh ownership — cực kỳ quan trọng.</div></span>
+        <span class="chev">+</span>
+      </button>
+      <div class="q-body">
+        <div class="answer-grid">
+          <div class="answer-box good">
+            <h4>Cách trả lời ăn điểm</h4>
+            <p>Không nói “em làm tất cả” nếu không đúng. Chia thành 3 tầng:</p>
+            <ul class="clean">
+              <li><strong>Owned:</strong> phần bạn trực tiếp thiết kế và code.</li>
+              <li><strong>Integrated:</strong> phần bạn kết nối / cấu hình / mở rộng.</li>
+              <li><strong>Prototype:</strong> phần còn giới hạn và bạn biết rõ limitation.</li>
+            </ul>
+            <p>Ví dụ: “Em trực tiếp thiết kế luồng RAG, permission check trước retrieval, retrieval service, citation validation và trace/debugging. OCR worker và CDSS em tích hợp trên cùng pipeline, còn phần clinical validation hiện mới ở mức prototype nên em không coi nó là production medical decision system.”</p>
+          </div>
+          <div class="answer-box danger">
+            <h4>Tránh</h4>
+            <p>“Em làm full hết từ A–Z.” Nếu interviewer mở code và hỏi sâu từng module, câu này dễ phản tác dụng.</p>
+          </div>
+        </div>
+      </div>
+    </article>
+
+    <article class="q searchable">
+      <button class="q-header" onclick="toggleQ(this)">
+        <span class="q-num">03</span>
+        <span><div class="q-title">Hãy mô tả end-to-end flow từ lúc user gửi câu hỏi đến lúc nhận câu trả lời.</div><div class="q-sub">Một câu trả lời tốt phải chỉ rõ security boundary và safety gate.</div></span>
+        <span class="chev">+</span>
+      </button>
+      <div class="q-body">
+        <pre class="script">1. Frontend gửi query + patient context.
+2. FastAPI xác thực JWT → lấy current user.
+3. Permission service kiểm tra user có quyền với patient và scope tương ứng hay không.
+4. Nếu pass, hệ thống tạo query embedding.
+5. Retrieval chạy trong patient scope, sau đó role/document-level filtering.
+6. Hybrid retrieval có thể kết hợp vector + BM25 bằng RRF.
+7. Top-K evidence được chuẩn hóa thành context.
+8. Nếu evidence dưới threshold → từ chối / trả no-evidence.
+9. LLM sinh answer có citation IDs.
+10. Citation validator kiểm tra ID có thuộc retrieved evidence không.
+11. Persist AI query, evidence, audit/trace.
+12. Trả response về client; với RAG an toàn hơn thì buffer trước khi emit final.</pre>
+      </div>
+    </article>
+
+    <article class="q searchable">
+      <button class="q-header" onclick="toggleQ(this)">
+        <span class="q-num">04</span>
+        <span><div class="q-title">Tại sao chọn kiến trúc hiện tại thay vì full Clean Architecture hoặc DDD?</div><div class="q-sub">Interviewer muốn nghe lý do thực dụng, không phải định nghĩa sách vở.</div></span>
+        <span class="chev">+</span>
+      </button>
+      <div class="q-body">
+        <div class="answer-box good">
+          <h4>Câu trả lời mẫu</h4>
+          <p>“Em chọn hybrid Clean/Pipeline vì domain hiện tập trung nhiều vào các luồng xử lý tuần tự — document ingestion, retrieval, generation, validation — nên pipeline rõ hơn việc ép mọi thứ thành aggregate/domain service. Em vẫn giữ separation: API layer chỉ nhận request, service layer điều phối, DB layer persistence, provider abstraction cho LLM/embedding.</p>
+          <p>Trade-off là dependency rule không được enforce mạnh như hexagonal/clean thuần. Nếu team lớn hơn, em sẽ thêm boundary test hoặc import-linter để ngăn core/service phụ thuộc ngược vào FastAPI hoặc infrastructure.”</p>
+        </div>
+      </div>
+    </article>
+
+    <article class="q searchable">
+      <button class="q-header" onclick="toggleQ(this)">
+        <span class="q-num">05</span>
+        <span><div class="q-title">Tại sao PostgreSQL vừa lưu relational data vừa lưu vector? Tại sao không dùng Pinecone/Qdrant/Milvus?</div><div class="q-sub">Câu trade-off kinh điển.</div></span>
+        <span class="chev">+</span>
+      </button>
+      <div class="q-body">
+        <div class="answer-grid">
+          <div class="answer-box good">
+            <h4>Câu trả lời mẫu</h4>
+            <p>“Ở quy mô hiện tại, PostgreSQL + pgvector giúp em đặt relational data, permission metadata và vector cùng một consistency boundary. Em có thể filter theo patient/document/status gần data, giảm operational complexity và không phải đồng bộ thêm một distributed vector system.</p>
+            <p>Dedicated vector DB sẽ hợp lý hơn khi vector volume hoặc QPS lớn, cần distributed ANN, sharding chuyên dụng hoặc advanced retrieval features. Lúc đó em sẽ đánh đổi sự đơn giản hiện tại để lấy scalability.”</p>
+          </div>
+          <div class="answer-box">
+            <h4>Follow-up nên chủ động nói</h4>
+            <ul class="clean">
+              <li>HNSW index cần memory.</li>
+              <li>Filter + ANN có thể ảnh hưởng recall/performance.</li>
+              <li>Scale lớn cần partitioning, read replica hoặc tách vector tier.</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </article>
+
+  </div>
+</div>
+</section>
+
+<section class="section" id="rag">
+<div class="wrap">
+  <div class="section-head">
+    <div>
+      <div class="eyebrow">02 · RAG</div>
+      <h2>Retrieval, ranking, embedding & grounding</h2>
+      <p class="desc">Đây thường là phần bị hỏi sâu nhất nếu bạn apply AI Engineer hoặc Backend có AI.</p>
+    </div>
+  </div>
+  <div class="q-list">
+
+    <article class="q searchable">
+      <button class="q-header" onclick="toggleQ(this)">
+        <span class="q-num">06</span><span><div class="q-title">RAG pipeline của em hoạt động cụ thể như thế nào?</div><div class="q-sub">Không dừng ở “embedding → vector DB → LLM”.</div></span><span class="chev">+</span>
+      </button>
+      <div class="q-body">
+        <pre class="script">Query
+→ Auth + patient permission
+→ Query embedding
+→ Patient-scoped retrieval
+→ BM25 / Vector / Hybrid
+→ RRF fusion
+→ Role / document filtering
+→ Top-K + threshold
+→ Context construction
+→ LLM generation
+→ Citation ID extraction
+→ Citation allow-list validation
+→ Persist trace/evidence/audit
+→ Final response</pre>
+      </div>
+    </article>
+
+    <article class="q searchable">
+      <button class="q-header" onclick="toggleQ(this)">
+        <span class="q-num">07</span><span><div class="q-title">Tại sao cần Hybrid Search? Vector Search chưa đủ sao?</div><div class="q-sub">Phân biệt lexical precision và semantic recall.</div></span><span class="chev">+</span>
+      </button>
+      <div class="q-body">
+        <div class="answer-box good">
+          <h4>Câu trả lời mẫu</h4>
+          <p>“Vector search tốt với truy vấn semantic, nhưng healthcare có nhiều token chính xác như mã thuốc, lab values, ICD codes, đơn vị đo. BM25 mạnh ở exact lexical match. Vì vậy hybrid search giúp tận dụng cả semantic recall và lexical precision.</p>
+          <p>Ví dụ ‘BNP 1250 pg/mL’ phù hợp BM25, còn ‘patient có dấu hiệu heart failure không?’ phù hợp semantic search. Em fuse ranking bằng Reciprocal Rank Fusion vì nó không yêu cầu score của hai retriever phải cùng scale.”</p>
+        </div>
+      </div>
+    </article>
+
+    <article class="q searchable">
+      <button class="q-header" onclick="toggleQ(this)">
+        <span class="q-num">08</span><span><div class="q-title">RRF là gì? Tại sao dùng RRF thay vì cộng trực tiếp score?</div><div class="q-sub">Câu follow-up rất thường gặp.</div></span><span class="chev">+</span>
+      </button>
+      <div class="q-body">
+        <div class="answer-box">
+          <h4>Ý chính</h4>
+          <p>RRF xếp hạng theo vị trí rank thay vì phụ thuộc raw score. Với mỗi document, điểm được cộng theo dạng <span class="mono">1 / (k + rank)</span> từ mỗi retriever. Điều này hữu ích vì cosine similarity và BM25 score không cùng scale.</p>
+          <p>Điểm yếu: RRF bỏ qua magnitude thật của score. Nếu cần tối ưu sâu hơn, có thể học weight, normalize score hoặc dùng reranker cross-encoder.</p>
+        </div>
+      </div>
+    </article>
+
+    <article class="q searchable">
+      <button class="q-header" onclick="toggleQ(this)">
+        <span class="q-num">09</span><span><div class="q-title">Top-K chọn bao nhiêu? K quá nhỏ/quá lớn thì sao?</div><div class="q-sub">Không có “con số thần kỳ”; interviewer muốn nghe cách tune.</div></span><span class="chev">+</span>
+      </button>
+      <div class="q-body">
+        <div class="answer-grid">
+          <div class="answer-box">
+            <h4>Trade-off</h4>
+            <ul class="clean">
+              <li><strong>K nhỏ:</strong> recall thấp, thiếu context quan trọng.</li>
+              <li><strong>K lớn:</strong> tăng token cost, noise, lost-in-the-middle, LLM dễ bị distraction.</li>
+            </ul>
+          </div>
+          <div class="answer-box good">
+            <h4>Cách trả lời senior</h4>
+            <p>“Em không chọn K cố định chỉ bằng trực giác. Em tune bằng retrieval recall@K, answer faithfulness, latency và token cost trên evaluation set. Có thể retrieve rộng hơn rồi rerank xuống context nhỏ hơn.”</p>
+          </div>
+        </div>
+      </div>
+    </article>
+
+    <article class="q searchable">
+      <button class="q-header" onclick="toggleQ(this)">
+        <span class="q-num">10</span><span><div class="q-title">Chunking strategy của em là gì?</div><div class="q-sub">Đây là câu để phân biệt người build RAG thật với người chỉ gọi API.</div></span><span class="chev">+</span>
+      </button>
+      <div class="q-body">
+        <div class="answer-box good">
+          <h4>Câu trả lời mẫu</h4>
+          <p>“Chunking cần phụ thuộc document type. Với narrative note có thể dùng token/semantic chunk có overlap; với bảng lab hoặc medication list nên ưu tiên structure-aware chunk để tránh tách hàng/cột có quan hệ. Mục tiêu là một chunk đủ tự-contained để retrieve được nhưng không quá lớn làm giảm precision.</p>
+          <p>Em sẽ version chunking strategy cùng embedding model, vì thay chunking thường yêu cầu re-index.”</p>
+        </div>
+      </div>
+    </article>
+
+    <article class="q searchable">
+      <button class="q-header" onclick="toggleQ(this)">
+        <span class="q-num">11</span><span><div class="q-title">Nếu đổi embedding model từ 1024 dimensions sang 768 thì chuyện gì xảy ra?</div><div class="q-sub">Schema migration + re-embedding + zero downtime.</div></span><span class="chev">+</span>
+      </button>
+      <div class="q-body">
+        <div class="answer-box">
+          <h4>Câu trả lời mẫu</h4>
+          <p>“Vector dimension là một phần của schema/index contract. Đổi model khác dimension thì không thể chỉ switch config. Em cần tạo vector column/index mới hoặc migration, chạy re-embedding toàn bộ corpus, version embedding model trên từng chunk và rebuild ANN index.</p>
+          <p>Nếu cần zero downtime, em dùng dual-write/dual-index: tạo generation mới, backfill, đánh dấu ready rồi atomically switch retrieval sang generation mới; sau đó mới retire index cũ.”</p>
+        </div>
+      </div>
+    </article>
+
+  </div>
+</div>
+</section>
+
+<section class="section" id="security">
+<div class="wrap">
+  <div class="section-head">
+    <div>
+      <div class="eyebrow">03 · Security</div>
+      <h2>Permission-aware RAG & PHI boundaries</h2>
+      <p class="desc">Trong healthcare, câu hỏi security thường được đánh giá nặng hơn việc “AI trả lời hay”.</p>
+    </div>
+  </div>
+  <div class="q-list">
+
+    <article class="q searchable">
+      <button class="q-header" onclick="toggleQ(this)">
+        <span class="q-num">12</span><span><div class="q-title">Permission-aware RAG thực sự hoạt động thế nào?</div><div class="q-sub">Phải chỉ ra lớp enforce và thứ tự check.</div></span><span class="chev">+</span>
+      </button>
+      <div class="q-body">
+        <pre class="script">Layer 1 — Authentication
+JWT → current user
+
+Layer 2 — Patient-level ABAC
+user_id + patient_id + permission scope + expires_at
+
+Layer 3 — Retrieval scope
+chỉ retrieve trong patient/document scope được phép
+
+Layer 4 — Role/document filtering
+Doctor / Nurse / Pharmacist có evidence visibility khác nhau
+
+Layer 5 — Citation allow-list
+LLM chỉ được cite evidence đã retrieve hợp lệ
+
+Layer 6 — Audit
+trace query → evidence → model → response</pre>
+      </div>
+    </article>
+
+    <article class="q searchable">
+      <button class="q-header" onclick="toggleQ(this)">
+        <span class="q-num">13</span><span><div class="q-title">RBAC và ABAC khác nhau thế nào trong project?</div><div class="q-sub">Interviewer muốn nghe policy thực tế, không chỉ định nghĩa.</div></span><span class="chev">+</span>
+      </button>
+      <div class="q-body">
+        <div class="answer-grid">
+          <div class="answer-box">
+            <h4>RBAC</h4>
+            <p>Quyền dựa trên role: Doctor, Nurse, Pharmacist, Admin… Phù hợp để định nghĩa capability chung.</p>
+          </div>
+          <div class="answer-box">
+            <h4>ABAC</h4>
+            <p>Quyền dựa trên attribute/context: user_id, patient_id, scope, document type, access tags, expires_at. Phù hợp với quyền truy cập theo bệnh nhân và thời hạn.</p>
+          </div>
+        </div>
+      </div>
+    </article>
+
+    <article class="q searchable">
+      <button class="q-header" onclick="toggleQ(this)">
+        <span class="q-num">14</span><span><div class="q-title">Filter trước hay sau vector search? Nếu retrieve rồi mới filter có data leakage không?</div><div class="q-sub">Câu hỏi security boundary rất sâu.</div></span><span class="chev">+</span>
+      </button>
+      <div class="q-body">
+        <div class="answer-box good">
+          <h4>Câu trả lời tốt</h4>
+          <p>“Tốt nhất enforce coarse permission càng gần data càng tốt: patient scope và hard access boundary nên đi vào retrieval query/filter trước khi candidate evidence rời data layer. Role-specific presentation filtering có thể ở bước sau, nhưng dữ liệu user hoàn toàn không được phép truy cập thì không nên trở thành candidate.</p>
+          <p>Nếu retrieve toàn index rồi filter trong application memory, dù cuối cùng không show cho user, hệ thống đã mở rộng blast radius: logs, traces, cache hoặc bug có thể làm lộ evidence. Vì vậy em coi pre-filter là security control, post-filter chỉ là defense-in-depth.”</p>
+        </div>
+      </div>
+    </article>
+
+    <article class="q searchable">
+      <button class="q-header" onclick="toggleQ(this)">
+        <span class="q-num">15</span><span><div class="q-title">README nói SQL-level permission filtering nhưng query retrieval không JOIN patient_permissions thì sao?</div><div class="q-sub">Một “bẫy” claim ↔ implementation.</div></span><span class="chev">+</span>
+      </button>
+      <div class="q-body">
+        <div class="answer-box danger">
+          <h4>Cách trả lời trung thực mà vẫn ăn điểm</h4>
+          <p>“Hiện implementation đang check permission ở orchestration layer trước retrieval, còn SQL retrieval filter theo patient/document state. Vì vậy access control vẫn có lớp bảo vệ, nhưng claim ‘permission enforced at SQL JOIN level’ trong README đang mạnh hơn implementation hiện tại.</p>
+          <p>Em sẽ sửa theo hai hướng: hoặc cập nhật tài liệu cho đúng boundary hiện có, hoặc tốt hơn là đưa hard permission predicate vào retrieval SQL/view/RLS để giảm khả năng bypass. Em ưu tiên source of truth là code + tests, README phải phản ánh đúng.”</p>
+        </div>
+      </div>
+    </article>
+
+    <article class="q searchable">
+      <button class="q-header" onclick="toggleQ(this)">
+        <span class="q-num">16</span><span><div class="q-title">Nếu dùng OpenAI/Gemini, PHI có bị gửi ra ngoài không? Local-first được enforce bằng gì?</div><div class="q-sub">Không nên trả lời “production sẽ dùng Ollama” rồi dừng.</div></span><span class="chev">+</span>
+      </button>
+      <div class="q-body">
+        <div class="answer-box good">
+          <h4>Câu trả lời mẫu</h4>
+          <p>“Provider abstraction cho phép nhiều provider, nhưng production policy không nên chỉ dựa vào convention. Em sẽ enforce bằng environment allow-list, deployment guardrail, secret/config policy, network egress restriction và audit log. Nếu external provider được phép, cần data processing agreement phù hợp, PHI minimization/redaction và policy rõ ràng theo environment.</p>
+          <p>Nói cách khác, ‘local-first’ phải là một deployment invariant chứ không chỉ là một comment trong README.”</p>
+        </div>
+      </div>
+    </article>
+
+  </div>
+</div>
+</section>
+
+<section class="section" id="backend">
+<div class="wrap">
+  <div class="section-head">
+    <div>
+      <div class="eyebrow">04 · Backend & Database</div>
+      <h2>Async workers, failure modes & data modeling</h2>
+      <p class="desc">Những câu này thường xuất hiện nếu bạn apply Backend Engineer hoặc Fullstack thiên backend.</p>
+    </div>
+  </div>
+  <div class="q-list">
+
+    <article class="q searchable">
+      <button class="q-header" onclick="toggleQ(this)">
+        <span class="q-num">17</span><span><div class="q-title">Tại sao dùng Redis + RQ mà không dùng Celery/Kafka?</div><div class="q-sub">Chọn công cụ theo độ phức tạp, không theo “độ nổi tiếng”.</div></span><span class="chev">+</span>
+      </button>
+      <div class="q-body">
+        <div class="answer-box good">
+          <h4>Câu trả lời mẫu</h4>
+          <p>“Document OCR/indexing là background job pattern tương đối đơn giản: enqueue, retry, status. RQ giúp stack nhẹ vì đã có Redis, setup nhỏ và phù hợp portfolio/scope hiện tại.</p>
+          <p>Nếu cần routing phức tạp, scheduled workflows, rate limit mạnh hoặc distributed retry policy, Celery hợp hơn. Nếu cần event streaming, replay, consumer groups và decoupled domain events ở quy mô lớn, Kafka phù hợp hơn nhưng operational cost cao hơn.”</p>
+        </div>
+      </div>
+    </article>
+
+    <article class="q searchable">
+      <button class="q-header" onclick="toggleQ(this)">
+        <span class="q-num">18</span><span><div class="q-title">Worker chết giữa lúc OCR/indexing thì sao? Làm sao đảm bảo idempotency?</div><div class="q-sub">Failure mode + state machine.</div></span><span class="chev">+</span>
+      </button>
+      <div class="q-body">
+        <div class="answer-box">
+          <h4>Khung trả lời</h4>
+          <ul class="clean">
+            <li>Document có state machine: uploaded → processing → indexed hoặc failed.</li>
+            <li>Job retry phải an toàn: cùng source SHA / generation không tạo duplicate chunk.</li>
+            <li>Chunk/embedding write dùng unique key theo document + generation + chunk index.</li>
+            <li>Chỉ mark indexed sau khi toàn bộ transaction/index generation hoàn tất.</li>
+            <li>Dead-letter/manual retry cho job fail nhiều lần.</li>
+          </ul>
+        </div>
+      </div>
+    </article>
+
+    <article class="q searchable">
+      <button class="q-header" onclick="toggleQ(this)">
+        <span class="q-num">19</span><span><div class="q-title">Tại sao denormalize patient_id vào document_chunks?</div><div class="q-sub">Performance vs consistency.</div></span><span class="chev">+</span>
+      </button>
+      <div class="q-body">
+        <div class="answer-grid">
+          <div class="answer-box">
+            <h4>Lợi ích</h4>
+            <p>Filter patient trực tiếp trên bảng vector, giảm JOIN trong hot retrieval path, thuận lợi cho ANN pre-filter.</p>
+          </div>
+          <div class="answer-box">
+            <h4>Chi phí</h4>
+            <p>Duplicate data và consistency risk. Cần enforce bằng FK/trigger/application invariant hoặc coi chunk immutable theo document generation.</p>
+          </div>
+        </div>
+      </div>
+    </article>
+
+    <article class="q searchable">
+      <button class="q-header" onclick="toggleQ(this)">
+        <span class="q-num">20</span><span><div class="q-title">Tại sao dùng UUID làm primary key? UUID v4 vs bigint vs UUID v7?</div><div class="q-sub">Câu DB nền tảng thường được hỏi nối tiếp.</div></span><span class="chev">+</span>
+      </button>
+      <div class="q-body">
+        <div class="answer-box">
+          <h4>Câu trả lời ngắn gọn nhưng sâu</h4>
+          <p>UUID phù hợp khi ID cần generate phân tán hoặc khó đoán, nhưng UUID v4 random gây locality kém hơn bigint trên B-tree. Bigint nhỏ, nhanh, cache-friendly nhưng centralized sequence và dễ enumerate. UUID v7 giữ tính globally unique nhưng có time ordering tốt hơn, giảm page split so với v4.</p>
+        </div>
+      </div>
+    </article>
+
+    <article class="q searchable">
+      <button class="q-header" onclick="toggleQ(this)">
+        <span class="q-num">21</span><span><div class="q-title">Nếu xóa document, embeddings và citations cũ xử lý thế nào?</div><div class="q-sub">Soft delete, auditability và right-to-erasure.</div></span><span class="chev">+</span>
+      </button>
+      <div class="q-body">
+        <div class="answer-box">
+          <h4>Ý chính</h4>
+          <p>Hot retrieval phải loại document/chunk deleted. Historical audit có thể giữ immutable reference/metadata tùy policy nhưng nội dung PHI có thể phải purge theo retention/right-to-erasure. Chat cũ nên giữ citation tombstone hoặc immutable evidence snapshot theo policy, tránh link đến dữ liệu đã biến mất mà không giải thích.</p>
+        </div>
+      </div>
+    </article>
+
+  </div>
+</div>
+</section>
+
+<section class="section" id="safety">
+<div class="wrap">
+  <div class="section-head">
+    <div>
+      <div class="eyebrow">05 · AI Safety</div>
+      <h2>Citation validation, streaming & CDSS</h2>
+      <p class="desc">Đây là nơi một senior interviewer có thể “đánh” mạnh nhất vì project liên quan healthcare.</p>
+    </div>
+  </div>
+  <div class="q-list">
+
+    <article class="q searchable">
+      <button class="q-header" onclick="toggleQ(this)">
+        <span class="q-num">22</span><span><div class="q-title">Citation validation của em thực sự validate điều gì?</div><div class="q-sub">Câu bẫy: citation ID đúng chưa chắc claim đúng.</div></span><span class="chev">+</span>
+      </button>
+      <div class="q-body">
+        <div class="answer-grid">
+          <div class="answer-box danger">
+            <h4>Hiện tại thường chỉ chứng minh</h4>
+            <p>LLM cite <span class="mono">[E1]</span> và <span class="mono">E1</span> thuộc allow-list evidence đã retrieve.</p>
+          </div>
+          <div class="answer-box good">
+            <h4>Chưa chứng minh</h4>
+            <p>Claim mà LLM viết thực sự được E1 support về mặt ngữ nghĩa.</p>
+          </div>
+        </div>
+        <div class="answer-box" style="margin-top:16px">
+          <h4>Cách nâng cấp</h4>
+          <p>Claim segmentation → citation span mapping → NLI/LLM entailment check → confidence threshold → refuse/flag nếu unsupported. Đây là khác biệt giữa <strong>citation existence validation</strong> và <strong>semantic grounding validation</strong>.</p>
+        </div>
+      </div>
+    </article>
+
+    <article class="q searchable">
+      <button class="q-header" onclick="toggleQ(this)">
+        <span class="q-num">23</span><span><div class="q-title">Em gọi là streaming nhưng tại sao lại buffer toàn bộ LLM response trước?</div><div class="q-sub">Safety vs perceived latency.</div></span><span class="chev">+</span>
+      </button>
+      <div class="q-body">
+        <div class="answer-box good">
+          <h4>Câu trả lời mẫu</h4>
+          <p>“True token streaming tối ưu time-to-first-token nhưng token đã gửi thì không thể thu hồi. Với healthcare, nếu cần validate citation trước khi user thấy nội dung, em chấp nhận buffer final answer như một safety gate. Đây là trade-off có chủ ý: safety cao hơn perceived latency.</p>
+          <p>Nếu muốn cải thiện, có thể buffer theo sentence/claim, dùng structured generation hoặc two-stage draft → validate → stream.”</p>
+        </div>
+      </div>
+    </article>
+
+    <article class="q searchable">
+      <button class="q-header" onclick="toggleQ(this)">
+        <span class="q-num">24</span><span><div class="q-title">Tại sao để LLM tự sinh severity cho Clinical Alert? Có dám deploy vào bệnh viện thật không?</div><div class="q-sub">Câu AI Safety quan trọng nhất của CDSS.</div></span><span class="chev">+</span>
+      </button>
+      <div class="q-body">
+        <div class="answer-box danger">
+          <h4>Câu trả lời ăn điểm nhất là không overclaim</h4>
+          <p>“Không, implementation hiện tại nên được coi là prototype/decision-support demo, không phải medical device. LLM có thể hallucinate hoặc bỏ sót nên không nên là source of truth cho alert severity.</p>
+          <p>Production architecture nên dùng deterministic rule engine + trusted drug interaction/clinical knowledge base + Knowledge Graph, còn LLM chủ yếu giải thích, tóm tắt hoặc đề xuất để clinician review. Cần human-in-the-loop, threshold, audit, clinical evaluation, false-positive/false-negative analysis và regulatory process.”</p>
+        </div>
+      </div>
+    </article>
+
+    <article class="q searchable">
+      <button class="q-header" onclick="toggleQ(this)">
+        <span class="q-num">25</span><span><div class="q-title">Nếu LLM hallucinate drug interaction thì sao? Nếu bỏ sót contraindication thì sao?</div><div class="q-sub">Interviewer đang kiểm tra failure containment.</div></span><span class="chev">+</span>
+      </button>
+      <div class="q-body">
+        <div class="answer-box">
+          <h4>Câu trả lời mẫu</h4>
+          <p>“Em tách detection khỏi explanation. High-risk rule nên dựa trên deterministic/verified sources. LLM output chỉ trở thành suggestion, không trực tiếp actionable. Với alert quan trọng, cần evidence trace, confidence, source provenance và clinician confirmation. Đồng thời đo cả precision lẫn recall vì healthcare không thể chỉ tối ưu một phía.”</p>
+        </div>
+      </div>
+    </article>
+
+  </div>
+</div>
+</section>
+
+<section class="section" id="testing">
+<div class="wrap">
+  <div class="section-head">
+    <div>
+      <div class="eyebrow">06 · Testing & Operations</div>
+      <h2>RAG evaluation, observability & scale</h2>
+      <p class="desc">Một câu trả lời tốt không dừng ở “có 250+ tests”; interviewer muốn biết test gì là quan trọng.</p>
+    </div>
+  </div>
+  <div class="q-list">
+
+    <article class="q searchable">
+      <button class="q-header" onclick="toggleQ(this)">
+        <span class="q-num">26</span><span><div class="q-title">Em test RAG thế nào khi output LLM không deterministic?</div><div class="q-sub">Assert invariant thay vì exact string.</div></span><span class="chev">+</span>
+      </button>
+      <div class="q-body">
+        <div class="answer-box good">
+          <h4>Câu trả lời mẫu</h4>
+          <p>“Em tách test theo layer. Retrieval test đo recall@K/precision@K trên golden set; permission test đảm bảo cross-patient leakage bằng 0; citation test kiểm tra allow-list; generation test assert cấu trúc, refusal/no-evidence behavior và grounded claims thay vì exact sentence. E2E chỉ giữ một số scenario quan trọng để tránh flaky.”</p>
+        </div>
+      </div>
+    </article>
+
+    <article class="q searchable">
+      <button class="q-header" onclick="toggleQ(this)">
+        <span class="q-num">27</span><span><div class="q-title">Test quan trọng nhất trong project là test nào?</div><div class="q-sub">Một câu trả lời mạnh: security invariant.</div></span><span class="chev">+</span>
+      </button>
+      <div class="q-body">
+        <div class="answer-box good">
+          <h4>Câu trả lời gợi ý</h4>
+          <p>“Test quan trọng nhất với em không phải endpoint trả 200, mà là invariant: <strong>User A không bao giờ retrieve evidence của Patient B nếu không có permission</strong>. Em muốn test ở cả service layer và integration DB layer để tránh bypass do refactor.”</p>
+        </div>
+      </div>
+    </article>
+
+    <article class="q searchable">
+      <button class="q-header" onclick="toggleQ(this)">
+        <span class="q-num">28</span><span><div class="q-title">Một user báo “AI trả lời sai”, em debug thế nào?</div><div class="q-sub">Trace theo pipeline, không “đổ lỗi cho model”.</div></span><span class="chev">+</span>
+      </button>
+      <div class="q-body">
+        <pre class="script">trace_id
+→ user / patient permission
+→ normalized query
+→ embedding model + version
+→ retrieved chunks
+→ vector/BM25 rank
+→ rerank/fusion score
+→ top-K evidence
+→ context sent to model
+→ model + prompt version
+→ raw output
+→ citations
+→ validation result
+→ persisted response / latency</pre>
+      </div>
+    </article>
+
+    <article class="q searchable">
+      <button class="q-header" onclick="toggleQ(this)">
+        <span class="q-num">29</span><span><div class="q-title">Nếu PostgreSQL vector search chậm khi có 10 triệu chunks thì sao?</div><div class="q-sub">Câu scale-up cho senior.</div></span><span class="chev">+</span>
+      </button>
+      <div class="q-body">
+        <div class="answer-box">
+          <h4>Các bước trả lời nên theo thứ tự</h4>
+          <ul class="clean">
+            <li>Đo trước: query latency, HNSW recall, memory, filter selectivity.</li>
+            <li>Partition theo tenant/patient/document domain nếu hợp lý.</li>
+            <li>Tune HNSW params và reduce candidate set bằng metadata pre-filter.</li>
+            <li>Read replica / scale-up memory.</li>
+            <li>Archive cold corpus.</li>
+            <li>Khi operational limit vượt ngưỡng, tách sang dedicated vector database.</li>
+          </ul>
+        </div>
+      </div>
+    </article>
+
+    <article class="q searchable">
+      <button class="q-header" onclick="toggleQ(this)">
+        <span class="q-num">30</span><span><div class="q-title">README và actual dependencies không khớp. Source of truth là gì?</div><div class="q-sub">Documentation drift cũng là tín hiệu engineering maturity.</div></span><span class="chev">+</span>
+      </button>
+      <div class="q-body">
+        <div class="answer-box danger">
+          <h4>Câu trả lời mẫu</h4>
+          <p>“Source of truth cho runtime phải là lockfile/pyproject/package config và code đang deploy. README là documentation và có thể drift. Em sẽ sửa mismatch ngay, thêm CI check cho version badges nếu cần, và tách architecture docs thành ADR/versioned docs để giảm stale documentation.”</p>
+        </div>
+      </div>
+    </article>
+
+  </div>
+</div>
+</section>
+
+<section class="section" id="cheatsheet">
+<div class="wrap">
+  <div class="section-head">
+    <div>
+      <div class="eyebrow">Cheat Sheet</div>
+      <h2>30 giây trước khi vào phỏng vấn</h2>
+    </div>
+  </div>
+  <table class="matrix">
+    <thead><tr><th>Chủ đề</th><th>Câu bạn phải nói được</th><th>Từ khóa ghi điểm</th></tr></thead>
+    <tbody>
+      <tr><td>Project pitch</td><td>Healthcare RAG với permission boundary và citation safety.</td><td>Problem → architecture → contribution</td></tr>
+      <tr><td>RAG</td><td>Hybrid vector + BM25, RRF, top-K/threshold, context grounding.</td><td>Recall, precision, rerank, evaluation</td></tr>
+      <tr><td>Security</td><td>Patient permission trước retrieval; hard boundary càng gần data càng tốt.</td><td>RBAC, ABAC, pre-filter, defense-in-depth</td></tr>
+      <tr><td>Citation</td><td>ID validation ≠ semantic entailment.</td><td>Allow-list, claim-evidence mapping, NLI</td></tr>
+      <tr><td>Streaming</td><td>Buffer là trade-off có chủ ý để safety gate trước client.</td><td>TTFT vs safety, sentence-level buffering</td></tr>
+      <tr><td>CDSS</td><td>Prototype, không phải medical device; LLM không là source of truth.</td><td>Human-in-the-loop, deterministic verification</td></tr>
+      <tr><td>Async worker</td><td>Retry phải idempotent; state machine rõ ràng.</td><td>Generation, dedup, dead-letter</td></tr>
+      <tr><td>Testing</td><td>Quan trọng nhất là security invariant, không phải 200 OK.</td><td>No cross-patient leakage</td></tr>
+    </tbody>
+  </table>
+
+  <div class="note" style="margin-top:16px">
+    <strong>Một câu kết rất “senior”:</strong> “Implementation hiện tại phù hợp scope portfolio và đã có safety boundaries cơ bản. Nếu đưa production, em sẽ tăng enforcement gần data, versioning/index migration, semantic citation validation, deterministic CDSS verification và operational guardrails.”
+  </div>
+</div>
+</section>
+</main>
+
+<footer class="footer">
+  <div class="wrap">
+    <div><strong>Chat Hospital System — Interview Study Guide</strong></div>
+    <div class="mini">Thiết kế để ôn theo kiểu: đọc câu hỏi → tự trả lời → mở đáp án → so sánh trade-off → luyện follow-up.</div>
+  </div>
+</footer>
+
+<script>
+function toggleQ(btn){
+  btn.closest('.q').classList.toggle('open');
+}
+function expandAll(){
+  document.querySelectorAll('.q:not(.hidden)').forEach(q=>q.classList.add('open'));
+}
+function collapseAll(){
+  document.querySelectorAll('.q').forEach(q=>q.classList.remove('open'));
+}
+function filterQuestions(){
+  const v=document.getElementById('search').value.trim().toLowerCase();
+  document.querySelectorAll('.searchable').forEach(q=>{
+    const hit=q.innerText.toLowerCase().includes(v);
+    q.classList.toggle('hidden',!hit);
+    if(v && hit) q.classList.add('open');
+  });
+}
+window.addEventListener('scroll',()=>{
+  const h=document.documentElement;
+  const max=h.scrollHeight-h.clientHeight;
+  const pct=max>0?(h.scrollTop/max)*100:0;
+  document.getElementById('progressBar').style.width=pct+'%';
+});
+</script>
+</body>
+</html>

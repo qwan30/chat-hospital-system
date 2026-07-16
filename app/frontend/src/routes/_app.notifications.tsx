@@ -77,7 +77,7 @@ export const notifications: AppNotification[] = [
     body: "CDSS detected severe Bleeding Risk due to new Aspirin prescription. Cross-referenced with patient history.",
     ts: "2026-07-12T02:15:00Z",
     read: false,
-    href: "/patients/p-001",
+    href: "/patients/11111111-1111-1111-1111-111111111111",
   },
 ];
 import { KeyRound, ScanText, RotateCw, Sparkles, Cog } from "lucide-react";

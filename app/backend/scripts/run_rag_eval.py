@@ -247,12 +247,29 @@ async def run_eval() -> dict[str, Any]:
                 title="Synthetic graph relation note",
                 content="Metformin treats diabetes. Insulin also treats diabetes.",
             )
-            chunk = (
+            alice_graph_chunk = (
                 (await session.execute(select(DocumentChunk).where(DocumentChunk.document_id == graph_doc.id)))
                 .scalars()
                 .first()
             )
-            await index_chunk_entities(session, chunk_id=chunk.id, document_id=graph_doc.id, content=chunk.content)
+            bob_graph_doc = await create_indexed_document(
+                session,
+                patient_id=PATIENT_BOB_ID,
+                uploaded_by=RECORDS_ID,
+                title="Synthetic cross-patient graph relation note",
+                content="Metformin treats diabetes. Insulin also treats diabetes.",
+            )
+            bob_graph_chunk = (
+                (await session.execute(select(DocumentChunk).where(DocumentChunk.document_id == bob_graph_doc.id)))
+                .scalars()
+                .first()
+            )
+            await index_chunk_entities(
+                session, chunk_id=alice_graph_chunk.id, document_id=graph_doc.id, content=alice_graph_chunk.content
+            )
+            await index_chunk_entities(
+                session, chunk_id=bob_graph_chunk.id, document_id=bob_graph_doc.id, content=bob_graph_chunk.content
+            )
             await session.commit()
             graph_context = await find_related_entities(
                 session,
@@ -263,10 +280,17 @@ async def run_eval() -> dict[str, Any]:
             cases.append(
                 EvalCase(
                     name="graph_relation_scope",
-                    passed=chunk.id in graph_context.related_chunk_ids,
-                    expected="Graph relation lookup returns only patient-scoped chunk context.",
+                    passed=graph_context.related_chunk_ids == {alice_graph_chunk.id},
+                    expected=(
+                        "Graph relation lookup returns exactly Alice's chunk and excludes Bob's same-entity chunk."
+                    ),
                     observed=f"{len(graph_context.related_chunk_ids)} related chunk(s)",
-                    metadata={"entities": [entity.name for entity in graph_context.entities]},
+                    metadata={
+                        "entities": [entity.name for entity in graph_context.entities],
+                        "expected_chunk_id": str(alice_graph_chunk.id),
+                        "excluded_chunk_id": str(bob_graph_chunk.id),
+                        "returned_chunk_ids": sorted(str(chunk_id) for chunk_id in graph_context.related_chunk_ids),
+                    },
                 )
             )
 

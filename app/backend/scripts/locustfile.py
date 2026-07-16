@@ -1,4 +1,5 @@
-from locust import HttpUser, task, between
+from locust import HttpUser, between, task
+
 
 class ChatbotUser(HttpUser):
     wait_time = between(1, 3)
@@ -9,13 +10,7 @@ class ChatbotUser(HttpUser):
 
     @task(3)
     def ask_general_question(self):
-        self.client.post(
-            "/api/v1/chat",
-            json={
-                "question": "What is the hospital policy on visitors?",
-                "top_k": 3
-            }
-        )
+        self.client.post("/api/v1/chat", json={"question": "What is the hospital policy on visitors?", "top_k": 3})
 
     @task(1)
     def get_dashboard(self):

@@ -1,0 +1,51 @@
+{
+  "project": "AI-Powered Hospital Knowledge Assistant (HOSP-AI-001)",
+  "generated_at": "2026-06-21T00:00:00Z",
+  "source_instruction": "dataset_generation_instruction.md",
+  "normalization": {
+    "input_patient_file": "patients_100.xlsx contains MRN-0006..MRN-0105",
+    "output_scope": "MRN-0001..MRN-0100",
+    "seeded_patients_from_migration": [
+      "MRN-0001",
+      "MRN-0002",
+      "MRN-0003"
+    ],
+    "synthetic_fill": [
+      "MRN-0004",
+      "MRN-0005"
+    ],
+    "ignored_input_records": [
+      "MRN-0101",
+      "MRN-0102",
+      "MRN-0103",
+      "MRN-0104",
+      "MRN-0105"
+    ]
+  },
+  "counts": {
+    "patient_documents_pdf": 100,
+    "patient_lab_csv": 100,
+    "drug_interaction_rows": 500,
+    "nursing_guideline_md": 5,
+    "audit_log_jsonl_lines": 10000,
+    "patient_seed_records": 100,
+    "ingestion_metadata_records": 200
+  },
+  "document_distribution": {
+    "clinical_note": 20,
+    "discharge_summary": 10,
+    "encounter_note": 10,
+    "imaging_report": 15,
+    "lab_result": 25,
+    "prescription": 20
+  },
+  "directories": {
+    "patient_documents": "app/backend/data/patients_documents/",
+    "patient_labs": "app/backend/data/patients_labs/",
+    "drugs": "app/backend/data/drugs/",
+    "security": "app/backend/data/security/",
+    "nursing_guidelines": "app/backend/data/guidelines/nursing/",
+    "metadata": "app/backend/data/metadata/"
+  },
+  "disclaimer": "All clinical content is synthetic, generated for software testing only, and must not be used for clinical care."
+}

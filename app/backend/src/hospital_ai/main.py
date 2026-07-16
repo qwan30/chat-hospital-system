@@ -103,7 +103,8 @@ def create_app(settings: Optional[Settings] = None) -> FastAPI:
             allow_headers=["*"],
         )
     app.include_router(api_router, prefix=active_settings.api_v1_prefix)
-    app.include_router(metrics_endpoint.router)
+    if active_settings.prometheus_enabled:
+        app.include_router(metrics_endpoint.router)
 
     @app.exception_handler(AppError)
     async def app_error_handler(_: Request, exc: AppError) -> JSONResponse:

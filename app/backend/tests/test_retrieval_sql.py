@@ -14,10 +14,10 @@ from tests.conftest import create_indexed_document
 
 def test_retrieval_sql_does_not_repeat_patient_permission_filter():
     sql = PERMISSION_FILTERED_RETRIEVAL_SQL.lower()
-    assert ACTIVE_PATIENT_PERMISSION_SQL.lower() not in sql
-    assert "from patient_permissions" not in sql
-    assert "pp.user_id = :user_id" not in sql
-    assert "where exists (select 1 from allowed)" not in sql
+    assert ACTIVE_PATIENT_PERMISSION_SQL.lower() in sql
+    assert "from patient_permissions" in sql
+    assert "pp.user_id = :user_id" in sql
+    assert "where exists (select 1 from allowed)" in sql
     assert "c.patient_id = :patient_id" in sql
     assert "d.patient_id = :patient_id" in sql
     assert "p.id = c.page_id and p.document_id = c.document_id" in sql

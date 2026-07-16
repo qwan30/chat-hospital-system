@@ -1,3 +1,4 @@
+from typing import Optional
 """Demo setup script for the Hospital Knowledge Assistant.
 
 Creates a complete demo environment with:
@@ -210,7 +211,7 @@ DEMO_AUDIT_ENTRIES = [
 ]
 
 
-async def setup_demo(settings: Settings | None = None) -> None:
+async def setup_demo(settings: Optional[Settings] = None) -> None:
     """Seed the database with demo data."""
     if settings is None:
         settings = Settings()

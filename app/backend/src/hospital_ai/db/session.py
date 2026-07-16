@@ -1,3 +1,4 @@
+from typing import Optional
 from collections.abc import AsyncIterator
 
 from sqlalchemy.ext.asyncio import (
@@ -9,11 +10,11 @@ from sqlalchemy.ext.asyncio import (
 
 from hospital_ai.core.config import Settings, get_settings
 
-_engine: AsyncEngine | None = None
-_session_factory: async_sessionmaker[AsyncSession] | None = None
+_engine: Optional[AsyncEngine] = None
+_session_factory: Optional[async_sessionmaker[AsyncSession]] = None
 
 
-def create_engine(settings: Settings | None = None) -> AsyncEngine:
+def create_engine(settings: Optional[Settings] = None) -> AsyncEngine:
     active_settings = settings or get_settings()
     return create_async_engine(active_settings.database_url, pool_pre_ping=True)
 

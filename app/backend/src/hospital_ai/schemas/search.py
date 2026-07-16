@@ -1,3 +1,4 @@
+from typing import Optional
 from datetime import date
 from uuid import UUID
 
@@ -8,8 +9,8 @@ class SearchPatient(ApiSchema):
     id: UUID
     full_name: str
     mrn: str
-    dob: date | None = None
-    department: str | None = None
+    dob: Optional[date] = None
+    department: Optional[str] = None
     status: str
 
 
@@ -22,7 +23,7 @@ class SearchDocument(ApiSchema):
 
 class SearchThread(ApiSchema):
     id: UUID
-    title: str | None = None
+    title: Optional[str] = None
     patient_id: UUID
 
 

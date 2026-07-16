@@ -1,3 +1,4 @@
+from typing import Optional
 """Drug interaction and allergy checking service.
 
 Uses the graph RAG entity/relation tables to detect potential
@@ -80,7 +81,7 @@ class DrugCheckService:
     async def check_interactions(
         self,
         query_text: str,
-        patient_id: uuid.UUID | None,
+        patient_id: uuid.Optional[UUID],
         *,
         min_severity: str = "low",
     ) -> list[DrugWarning]:
@@ -190,7 +191,7 @@ class DrugCheckService:
 async def check_drug_interactions_for_query(
     session: AsyncSession,
     query_text: str,
-    patient_id: uuid.UUID | None,
+    patient_id: uuid.Optional[UUID],
 ) -> list[DrugWarning]:
     """Convenience function wrapping DrugCheckService."""
     return await DrugCheckService(session).check_interactions(

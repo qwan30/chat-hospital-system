@@ -26,7 +26,7 @@ class AppError(Exception):
         metadata: Optional dict of contextual data (e.g. patient_id, role).
     """
 
-    def __init__(self, code: str, message: str, metadata: dict[str, Any] | None = None) -> None:
+    def __init__(self, code: str, message: str, metadata: dict[str, Optional[Any]] = None) -> None:
         self.code = code
         self.message = message
         self.metadata = metadata or {}

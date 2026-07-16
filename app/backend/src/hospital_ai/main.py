@@ -1,3 +1,4 @@
+from typing import Optional
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
@@ -70,7 +71,7 @@ def _resolve_status_code(exc: AppError) -> int:
     return 500
 
 
-def create_app(settings: Settings | None = None) -> FastAPI:
+def create_app(settings: Optional[Settings] = None) -> FastAPI:
     """Factory function to create and configure the FastAPI application.
 
     Args:

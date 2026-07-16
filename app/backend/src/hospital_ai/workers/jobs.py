@@ -1,3 +1,4 @@
+from typing import Optional
 import asyncio
 import hashlib
 import uuid
@@ -226,7 +227,7 @@ async def _index_graph_entities(
         )
 
 
-def _source_sha256(settings: Settings, storage_uri: str) -> str | None:
+def _source_sha256(settings: Settings, storage_uri: str) -> Optional[str]:
     try:
         storage_root = settings.storage_root.resolve()
         source_path = Path(storage_uri)
@@ -249,7 +250,7 @@ def _failure_status(preserve_existing_index: bool, failed_status: str) -> str:
 async def _locked_current_document(
     session: AsyncSession,
     document_id: uuid.UUID,
-) -> Document | None:
+) -> Optional[Document]:
     result = await session.execute(
         select(Document).where(Document.id == document_id).with_for_update().execution_options(populate_existing=True)
     )

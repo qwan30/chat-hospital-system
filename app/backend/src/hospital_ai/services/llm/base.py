@@ -1,3 +1,4 @@
+from typing import Optional
 """Base LLM interface."""
 
 from __future__ import annotations
@@ -34,7 +35,7 @@ class BaseLLM(ABC):
         messages: list[LLMMessage],
         *,
         temperature: float = 0.0,
-        max_tokens: int | None = None,
+        max_tokens: Optional[int] = None,
     ) -> LLMResponse:
         """Generate a chat completion.
 
@@ -53,7 +54,7 @@ class BaseLLM(ABC):
         messages: list[LLMMessage],
         *,
         temperature: float = 0.0,
-        max_tokens: int | None = None,
+        max_tokens: Optional[int] = None,
     ) -> AsyncIterator[str]:
         """Stream a chat completion token by token.
 

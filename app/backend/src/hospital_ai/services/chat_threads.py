@@ -1,3 +1,4 @@
+from typing import Optional
 import json
 import uuid
 from collections.abc import Iterable
@@ -34,7 +35,7 @@ class ChatThreadService:
         user: User,
         payload: ChatThreadCreate,
         trace_id: str,
-        ip_address: str | None = None,
+        ip_address: Optional[str] = None,
     ) -> ChatThread:
         if payload.scope == "patient-linked":
             await PermissionService(self.session).require_read(
@@ -110,7 +111,7 @@ class ChatThreadService:
         user: User,
         thread_id: uuid.UUID,
         trace_id: str,
-        ip_address: str | None = None,
+        ip_address: Optional[str] = None,
     ) -> ChatThread:
         thread = await self._get_accessible_thread(
             user=user,
@@ -148,7 +149,7 @@ class ChatThreadService:
         thread_id: uuid.UUID,
         payload: ChatThreadUpdate,
         trace_id: str,
-        ip_address: str | None = None,
+        ip_address: Optional[str] = None,
     ) -> ChatThread:
         changes = payload.dict(exclude_unset=True)
         if not changes:
@@ -201,7 +202,7 @@ class ChatThreadService:
         user: User,
         thread_id: uuid.UUID,
         trace_id: str,
-        ip_address: str | None = None,
+        ip_address: Optional[str] = None,
     ) -> ChatThread:
         thread = await self._get_accessible_thread(
             user=user,
@@ -239,7 +240,7 @@ class ChatThreadService:
         user: User,
         thread_id: uuid.UUID,
         trace_id: str,
-        ip_address: str | None = None,
+        ip_address: Optional[str] = None,
     ) -> list[ChatThreadParticipant]:
         thread = await self._get_accessible_thread(
             user=user,
@@ -271,7 +272,7 @@ class ChatThreadService:
         thread_id: uuid.UUID,
         payload: ChatThreadParticipantCreate,
         trace_id: str,
-        ip_address: str | None = None,
+        ip_address: Optional[str] = None,
     ) -> ChatThreadParticipant:
         if payload.access_level == "owner":
             raise ValidationAppError("New participants cannot be added as owners.")
@@ -354,7 +355,7 @@ class ChatThreadService:
         participant_id: uuid.UUID,
         payload: ChatThreadParticipantUpdate,
         trace_id: str,
-        ip_address: str | None = None,
+        ip_address: Optional[str] = None,
     ) -> ChatThreadParticipant:
         thread = await self._get_accessible_thread(
             user=user,
@@ -403,7 +404,7 @@ class ChatThreadService:
         thread_id: uuid.UUID,
         participant_id: uuid.UUID,
         trace_id: str,
-        ip_address: str | None = None,
+        ip_address: Optional[str] = None,
     ) -> ChatThreadParticipant:
         thread = await self._get_accessible_thread(
             user=user,
@@ -448,7 +449,7 @@ class ChatThreadService:
         payload: ChatThreadMessageRequest,
         settings: Settings,
         trace_id: str,
-        ip_address: str | None = None,
+        ip_address: Optional[str] = None,
     ) -> tuple[ChatMessage, ChatMessage]:
         thread = await self._get_accessible_thread(
             user=user,
@@ -549,7 +550,7 @@ class ChatThreadService:
         payload: ChatThreadMessageRequest,
         settings: Settings,
         trace_id: str,
-        ip_address: str | None,
+        ip_address: Optional[str],
     ) -> tuple[ChatMessage, ChatMessage]:
         response = await GeneralKnowledgeService(settings).answer(
             question=payload.question,
@@ -615,7 +616,7 @@ class ChatThreadService:
         user: User,
         thread_id: uuid.UUID,
         trace_id: str,
-        ip_address: str | None = None,
+        ip_address: Optional[str] = None,
     ) -> list[ChatMessage]:
         thread = await self._get_accessible_thread(
             user=user,
@@ -644,7 +645,7 @@ class ChatThreadService:
         allowed_access: Iterable[str],
         action: str,
         trace_id: str,
-        ip_address: str | None,
+        ip_address: Optional[str],
         with_detail: bool = False,
     ) -> ChatThread:
         stmt = (
@@ -688,7 +689,7 @@ class ChatThreadService:
         thread: ChatThread,
         action: str,
         trace_id: str,
-        ip_address: str | None,
+        ip_address: Optional[str],
     ) -> None:
         if thread.scope != "patient-linked":
             return
@@ -709,7 +710,7 @@ class ChatThreadService:
         thread: ChatThread,
         action: str,
         trace_id: str,
-        ip_address: str | None,
+        ip_address: Optional[str],
     ) -> None:
         if thread.status == "active":
             return
@@ -735,7 +736,7 @@ class ChatThreadService:
         thread: ChatThread,
         action: str,
         trace_id: str,
-        ip_address: str | None,
+        ip_address: Optional[str],
     ) -> None:
         if thread.scope != "patient-linked":
             return

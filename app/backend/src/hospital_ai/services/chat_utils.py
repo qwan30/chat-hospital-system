@@ -1,3 +1,4 @@
+from typing import Optional
 """Shared utilities for chat and reasoning pipelines.
 
 Extracted to avoid circular imports between chat.py and reasoning.py.
@@ -47,7 +48,7 @@ class ChatGenerator:
 def build_grounded_prompt(
     question: str,
     evidence: Sequence[RetrievedChunk],
-    conversation_history: list[dict[str, str]] | None = None,
+    conversation_history: list[dict[str, Optional[str]]] = None,
 ) -> str:
     blocks = []
     for item in evidence:

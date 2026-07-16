@@ -1,3 +1,4 @@
+from typing import Optional
 from fastapi import APIRouter, Depends, Query, Request
 from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -17,7 +18,7 @@ router = APIRouter()
 @limiter.limit("20/minute")
 async def global_search(
     request: Request,
-    q: str | None = Query(default=None),
+    q: Optional[str] = Query(default=None),
     session: AsyncSession = Depends(get_session),
     current_user: User = Depends(get_current_user),
 ) -> GlobalSearchResponse:

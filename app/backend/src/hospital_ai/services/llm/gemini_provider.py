@@ -1,3 +1,4 @@
+from typing import Optional
 """Google Gemini LLM provider.
 
 Uses the Gemini REST API (generativelanguage.googleapis.com).
@@ -43,7 +44,7 @@ class GeminiLLM(BaseLLM):
         messages: list[LLMMessage],
         *,
         temperature: float = 0.0,
-        max_tokens: int | None = None,
+        max_tokens: Optional[int] = None,
     ) -> LLMResponse:
         url = f"{self._base_url()}/models/{self._model}:generateContent?key={self._api_key}"
         payload = self._build_payload(messages, temperature, max_tokens)
@@ -63,7 +64,7 @@ class GeminiLLM(BaseLLM):
         messages: list[LLMMessage],
         *,
         temperature: float = 0.0,
-        max_tokens: int | None = None,
+        max_tokens: Optional[int] = None,
     ) -> AsyncIterator[str]:
         url = f"{self._base_url()}/models/{self._model}:streamGenerateContent?alt=sse&key={self._api_key}"
         payload = self._build_payload(messages, temperature, max_tokens)
@@ -96,7 +97,7 @@ class GeminiLLM(BaseLLM):
         self,
         messages: list[LLMMessage],
         temperature: float,
-        max_tokens: int | None,
+        max_tokens: Optional[int],
     ) -> dict:
         """Build Gemini API request payload from internal message format."""
         contents = []

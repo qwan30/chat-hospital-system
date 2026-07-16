@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Literal
+from typing import Optional, Literal
 from uuid import UUID
 
 from pydantic import Field, root_validator
@@ -17,7 +17,7 @@ PatientPermissionState = Literal["not-required", "pending", "allowed", "denied"]
 
 class PatientScopeMixin(ApiSchema):
     scope: ThreadScope = "general"
-    patient_id: UUID | None = None
+    patient_id: Optional[UUID] = None
 
     @root_validator
     def validate_patient_scope(cls, values: dict[str, object]) -> dict[str, object]:
@@ -38,9 +38,9 @@ class ChatThreadCreate(PatientScopeMixin):
 
 
 class ChatThreadUpdate(ApiSchema):
-    title: str | None = Field(default=None, min_length=1, max_length=255)
-    visibility: ThreadVisibility | None = None
-    status: ThreadStatus | None = None
+    title: Optional[str] = Field(default=None, min_length=1, max_length=255)
+    visibility: Optional[ThreadVisibility] = None
+    status: Optional[ThreadStatus] = None
 
 
 class ChatThreadRead(PatientScopeMixin):
@@ -50,7 +50,7 @@ class ChatThreadRead(PatientScopeMixin):
     status: ThreadStatus
     owner_user_id: UUID
     created_trace_id: str
-    last_message_at: datetime | None = None
+    last_message_at: Optional[datetime] = None
     created_at: datetime
     updated_at: datetime
 
@@ -62,8 +62,8 @@ class ChatThreadParticipantCreate(ApiSchema):
 
 
 class ChatThreadParticipantUpdate(ApiSchema):
-    access_level: ParticipantAccessLevel | None = None
-    can_share: bool | None = None
+    access_level: Optional[ParticipantAccessLevel] = None
+    can_share: Optional[bool] = None
 
 
 class ChatThreadParticipantRead(ApiSchema):
@@ -74,7 +74,7 @@ class ChatThreadParticipantRead(ApiSchema):
     can_share: bool
     added_by_user_id: UUID
     created_trace_id: str
-    last_read_at: datetime | None = None
+    last_read_at: Optional[datetime] = None
     created_at: datetime
     updated_at: datetime
 
@@ -90,8 +90,8 @@ class ChatMessageCreate(PatientScopeMixin):
 class ChatMessageRead(ChatMessageCreate):
     id: UUID
     thread_id: UUID
-    sender_user_id: UUID | None = None
-    ai_query_id: UUID | None = None
+    sender_user_id: Optional[UUID] = None
+    ai_query_id: Optional[UUID] = None
     trace_id: str
     created_at: datetime
 

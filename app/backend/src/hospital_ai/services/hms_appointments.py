@@ -1,3 +1,4 @@
+from typing import Optional
 import hashlib
 import uuid
 from datetime import UTC, datetime
@@ -30,7 +31,7 @@ class HmsAppointmentEvidenceImporter:
         user: User,
         payload: HmsAppointmentSummaryImport,
         trace_id: str,
-        ip_address: str | None = None,
+        ip_address: Optional[str] = None,
     ) -> Document:
         if payload.patient_id != payload.source_patient_id:
             raise ValidationAppError("HMS appointment patient ownership mismatch.")

@@ -1,3 +1,4 @@
+from typing import Optional
 import logging
 from datetime import UTC, datetime
 from uuid import UUID
@@ -21,7 +22,7 @@ class MemoryService:
     async def update_session_memory(
         self,
         thread_id: UUID,
-        patient_id: UUID | None,
+        patient_id: Optional[UUID],
         new_question: str,
         new_answer: str,
         source_ids: list[str],

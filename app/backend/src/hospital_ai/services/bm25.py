@@ -1,3 +1,4 @@
+from typing import Optional
 """BM25 / full-text search service for hybrid retrieval.
 
 Provides keyword-based search using PostgreSQL tsvector/GIN indexes
@@ -213,7 +214,7 @@ async def bm25_search_postgres(
     query: str,
     *,
     top_k: int = 10,
-    scope_filter: str | None = None,
+    scope_filter: Optional[str] = None,
 ) -> list[RetrievedChunk]:
     """Execute a BM25 full-text search against PostgreSQL tsvector index.
 

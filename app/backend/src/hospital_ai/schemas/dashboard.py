@@ -1,3 +1,4 @@
+from typing import Optional
 from datetime import datetime
 from uuid import UUID
 
@@ -8,7 +9,7 @@ class RecentPatient(ApiSchema):
     id: UUID
     full_name: str
     mrn: str
-    last_accessed: datetime | None = None
+    last_accessed: Optional[datetime] = None
 
 
 class DocumentStats(ApiSchema):

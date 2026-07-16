@@ -1,3 +1,4 @@
+from typing import Optional
 """Ollama LLM provider — local models via Ollama API."""
 
 from __future__ import annotations
@@ -36,7 +37,7 @@ class OllamaLLM(BaseLLM):
         messages: list[LLMMessage],
         *,
         temperature: float = 0.0,
-        max_tokens: int | None = None,
+        max_tokens: Optional[int] = None,
     ) -> LLMResponse:
         url = f"{self._base_url}/api/chat"
         payload = self._build_payload(messages, temperature, max_tokens, stream=False)
@@ -65,7 +66,7 @@ class OllamaLLM(BaseLLM):
         messages: list[LLMMessage],
         *,
         temperature: float = 0.0,
-        max_tokens: int | None = None,
+        max_tokens: Optional[int] = None,
     ) -> AsyncIterator[str]:
         url = f"{self._base_url}/api/chat"
         payload = self._build_payload(messages, temperature, max_tokens, stream=True)
@@ -94,7 +95,7 @@ class OllamaLLM(BaseLLM):
         self,
         messages: list[LLMMessage],
         temperature: float,
-        max_tokens: int | None,
+        max_tokens: Optional[int],
         stream: bool,
     ) -> dict:
         payload: dict = {

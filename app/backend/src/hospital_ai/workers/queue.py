@@ -1,3 +1,4 @@
+from typing import Optional
 """Worker queue helpers — Redis-backed document processing queue.
 
 Wraps rq with retry and dead-letter support so that transient OCR/embedding
@@ -25,7 +26,7 @@ def enqueue_document_indexing(
     settings: Settings,
     *,
     max_retries: int = DEFAULT_MAX_RETRIES,
-    retry_intervals: list[int] | None = None,
+    retry_intervals: Optional[list[int]] = None,
 ) -> str:
     """Enqueue a document for indexing with automatic retry support.
 

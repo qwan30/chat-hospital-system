@@ -1,3 +1,4 @@
+from typing import Optional
 """Graph RAG — SQL-backed entity-relationship extraction and traversal.
 
 This is a lightweight "graph RAG" implementation that uses SQL tables to
@@ -208,7 +209,7 @@ async def find_related_entities(
     entity_names: list[str],
     *,
     max_hops: int = 2,
-    patient_id: uuid.UUID | None = None,
+    patient_id: uuid.Optional[UUID] = None,
 ) -> GraphContext:
     """Find entities related to the given names via graph traversal.
 

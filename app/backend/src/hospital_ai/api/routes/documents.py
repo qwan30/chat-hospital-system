@@ -1,3 +1,4 @@
+from typing import Optional
 import uuid
 
 from fastapi import APIRouter, Depends, File, Form, Query, Request, UploadFile
@@ -120,8 +121,8 @@ async def upload_document(
 @router.get("", response_model=DocumentListResponse)
 async def list_documents(
     request: Request,
-    patient_id: uuid.UUID | None = None,
-    status: str | None = Query(default=None, min_length=1, max_length=32),
+    patient_id: uuid.Optional[UUID] = None,
+    status: Optional[str] = Query(default=None, min_length=1, max_length=32),
     limit: int = Query(default=50, ge=1, le=200),
     session: AsyncSession = Depends(get_session),
     current_user: User = Depends(get_current_user),

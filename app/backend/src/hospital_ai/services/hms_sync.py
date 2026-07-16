@@ -8,7 +8,7 @@ import hashlib
 import logging
 import uuid
 from datetime import UTC, datetime
-from typing import Any
+from typing import Optional, Any
 
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -39,9 +39,9 @@ class HmsSyncService:
         *,
         patient_id: uuid.UUID,
         actor_user_id: uuid.UUID,
-        jwt_token: str | None = None,
+        jwt_token: Optional[str] = None,
         trace_id: str,
-        ip_address: str | None = None,
+        ip_address: Optional[str] = None,
     ) -> list[Document]:
         """Fetch appointments from HMS and ingest as evidence documents."""
         patient = await self.session.get(Patient, patient_id)
@@ -75,9 +75,9 @@ class HmsSyncService:
         *,
         patient_id: uuid.UUID,
         actor_user_id: uuid.UUID,
-        jwt_token: str | None = None,
+        jwt_token: Optional[str] = None,
         trace_id: str,
-        ip_address: str | None = None,
+        ip_address: Optional[str] = None,
     ) -> list[Document]:
         """Fetch lab results from HMS and ingest as evidence documents."""
         patient = await self.session.get(Patient, patient_id)
@@ -111,9 +111,9 @@ class HmsSyncService:
         *,
         patient_id: uuid.UUID,
         actor_user_id: uuid.UUID,
-        jwt_token: str | None = None,
+        jwt_token: Optional[str] = None,
         trace_id: str,
-        ip_address: str | None = None,
+        ip_address: Optional[str] = None,
     ) -> list[Document]:
         """Fetch medical records from HMS and ingest as evidence documents."""
         patient = await self.session.get(Patient, patient_id)
@@ -147,9 +147,9 @@ class HmsSyncService:
         *,
         patient_id: uuid.UUID,
         actor_user_id: uuid.UUID,
-        jwt_token: str | None = None,
+        jwt_token: Optional[str] = None,
         trace_id: str,
-        ip_address: str | None = None,
+        ip_address: Optional[str] = None,
     ) -> dict[str, int]:
         """Run all sync operations for a patient."""
         kwargs = dict(
@@ -184,7 +184,7 @@ class HmsSyncService:
         content: str,
         metadata: dict[str, Any],
         trace_id: str,
-        ip_address: str | None = None,
+        ip_address: Optional[str] = None,
     ) -> Document:
         """Upsert a single HMS record as a Document with embedded chunks."""
         storage_uri = f"hms://{source_family}/{source_record_id}"

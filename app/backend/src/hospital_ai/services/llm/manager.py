@@ -1,3 +1,4 @@
+from typing import Optional
 """LLM Manager — registry and factory for LLM providers.
 
 Inspired by kotaemon's ktem.llms.manager pattern.
@@ -25,9 +26,9 @@ class LLMManager:
     def __init__(self, settings: Settings) -> None:
         self.settings = settings
         self._providers: dict[str, BaseLLM] = {}
-        self._default_provider: str | None = None
+        self._default_provider: Optional[str] = None
 
-    def get(self, provider_name: str | None = None) -> BaseLLM:
+    def get(self, provider_name: Optional[str] = None) -> BaseLLM:
         """Get an LLM provider instance.
 
         Args:
@@ -98,6 +99,6 @@ class LLMManager:
 
 
 @lru_cache(maxsize=1)
-def get_llm_manager(settings: Settings | None = None) -> LLMManager:
+def get_llm_manager(settings: Optional[Settings] = None) -> LLMManager:
     """Get the singleton LLM manager instance."""
     return LLMManager(settings or get_settings())

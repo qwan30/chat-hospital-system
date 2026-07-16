@@ -1,3 +1,4 @@
+from typing import Optional
 import logging
 import uuid
 from datetime import UTC, date, datetime
@@ -28,7 +29,7 @@ router = APIRouter()
 @router.get("/search", response_model=PatientSearchResponse)
 async def search_patients(
     request: Request,
-    q: str | None = Query(default=None),
+    q: Optional[str] = Query(default=None),
     limit: int = Query(default=20, ge=1, le=100),
     session: AsyncSession = Depends(get_session),
     current_user: User = Depends(get_current_user),

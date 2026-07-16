@@ -1,3 +1,4 @@
+from typing import Optional
 """Re-ranking service for improving retrieval quality.
 
 Inspired by kotaemon's rerankings module — applies a second-pass scoring
@@ -323,9 +324,9 @@ class RerankerService:
     the keyword reranker (MVP behavior).
     """
 
-    def __init__(self, settings: Settings | None = None) -> None:
+    def __init__(self, settings: Optional[Settings] = None) -> None:
         self.settings = settings
-        self._backend: BaseReranker | None = None
+        self._backend: Optional[BaseReranker] = None
 
     def _get_backend(self) -> BaseReranker:
         if self._backend is not None:

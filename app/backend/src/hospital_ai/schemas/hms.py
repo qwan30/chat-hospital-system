@@ -1,3 +1,4 @@
+from typing import Optional
 from datetime import date, datetime
 from uuid import UUID
 
@@ -12,16 +13,16 @@ class HmsAppointmentSummaryImport(ApiSchema):
     source_patient_id: UUID
     appointment_date: date
     status: str = Field(min_length=1, max_length=64)
-    department: str | None = Field(default=None, max_length=128)
-    doctor_name: str | None = Field(default=None, max_length=255)
-    start_time: str | None = Field(default=None, max_length=32)
-    end_time: str | None = Field(default=None, max_length=32)
-    reason: str | None = Field(default=None, max_length=500)
-    symptoms: str | None = None
-    notes: str | None = None
-    vital_signs_summary: str | None = None
-    follow_up_summary: str | None = None
-    source_updated_at: datetime | None = None
+    department: Optional[str] = Field(default=None, max_length=128)
+    doctor_name: Optional[str] = Field(default=None, max_length=255)
+    start_time: Optional[str] = Field(default=None, max_length=32)
+    end_time: Optional[str] = Field(default=None, max_length=32)
+    reason: Optional[str] = Field(default=None, max_length=500)
+    symptoms: Optional[str] = None
+    notes: Optional[str] = None
+    vital_signs_summary: Optional[str] = None
+    follow_up_summary: Optional[str] = None
+    source_updated_at: Optional[datetime] = None
     metadata: dict[str, object] = Field(default_factory=dict)
 
     @root_validator

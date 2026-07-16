@@ -1,3 +1,4 @@
+from typing import Optional
 """Embedding Manager — registry and factory for embedding providers."""
 
 from __future__ import annotations
@@ -18,7 +19,7 @@ class EmbeddingManager:
         self.settings = settings
         self._providers: dict[str, BaseEmbedding] = {}
 
-    def get(self, provider_name: str | None = None) -> BaseEmbedding:
+    def get(self, provider_name: Optional[str] = None) -> BaseEmbedding:
         """Get an embedding provider instance."""
         name = provider_name or self.settings.embedding_provider
 
@@ -67,6 +68,6 @@ class EmbeddingManager:
 
 
 @lru_cache(maxsize=1)
-def get_embedding_manager(settings: Settings | None = None) -> EmbeddingManager:
+def get_embedding_manager(settings: Optional[Settings] = None) -> EmbeddingManager:
     """Get the singleton embedding manager instance."""
     return EmbeddingManager(settings or get_settings())

@@ -10,7 +10,7 @@ import time
 from collections.abc import AsyncIterator, Awaitable, Callable
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
-from typing import Any
+from typing import Optional, Any
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Request
@@ -79,7 +79,7 @@ async def _generate_sse_events(
     conversation_history: list,
     query_id: UUID,
     pipeline_name: str,
-    on_complete: OnCompleteCallback | None = None,
+    on_complete: Optional[OnCompleteCallback] = None,
 ) -> AsyncIterator[str]:
     """Generate SSE events with token-by-token streaming.
 
@@ -298,13 +298,13 @@ async def _apply_stream_completion(
     *,
     ai_query_id: UUID,
     user_id: UUID,
-    patient_id: UUID | None,
-    thread_id: UUID | None,
+    patient_id: Optional[UUID],
+    thread_id: Optional[UUID],
     question: str,
     evidence: list,
     retrieval_mode: str,
     trace_id: str,
-    ip_address: str | None,
+    ip_address: Optional[str],
     started: float,
     completion: StreamCompletion,
 ) -> None:

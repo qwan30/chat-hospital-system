@@ -1,3 +1,4 @@
+from typing import Optional
 """Composite document loader — auto-detect + fallback chain.
 
 Inspired by kotaemon's composite_loader.py pattern.
@@ -21,7 +22,7 @@ class CompositeLoader:
     and falls back to OCR for unrecognized binary formats.
     """
 
-    def __init__(self, loaders: list[BaseDocumentLoader] | None = None) -> None:
+    def __init__(self, loaders: Optional[list[BaseDocumentLoader]] = None) -> None:
         if loaders is not None:
             self._loaders = loaders
         else:

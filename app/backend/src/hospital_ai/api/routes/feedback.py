@@ -1,3 +1,4 @@
+from typing import Optional
 """Feedback and metrics summary API routes.
 
 POST /api/v1/feedback/queries/{query_id}/feedback   — submit rating
@@ -26,14 +27,14 @@ router = APIRouter()
 
 class FeedbackRequest(BaseModel):
     rating: int = Field(..., ge=-1, le=1, description="Thumbs down (-1), neutral (0), or thumbs up (1)")
-    comment: str | None = Field(None, max_length=2000)
+    comment: Optional[str] = Field(None, max_length=2000)
 
 
 class FeedbackResponse(BaseModel):
     id: UUID
     query_id: UUID
     rating: int
-    comment: str | None = None
+    comment: Optional[str] = None
 
 
 class MetricsSummaryResponse(BaseModel):

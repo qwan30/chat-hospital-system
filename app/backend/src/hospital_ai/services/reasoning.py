@@ -1,3 +1,4 @@
+from typing import Optional
 """Reasoning pipelines inspired by kotaemon's ktem/reasoning module.
 
 Provides multiple strategies for answering questions:
@@ -50,7 +51,7 @@ class ReasoningResult:
     confidence: str
     disclaimer: str
     pipeline: str
-    sub_questions: list[str] | None = None
+    sub_questions: Optional[list[str]] = None
 
 
 class SimpleQAPipeline:
@@ -65,7 +66,7 @@ class SimpleQAPipeline:
         *,
         question: str,
         evidence: list[RetrievedChunk],
-        conversation_history: list[dict[str, str]] | None = None,
+        conversation_history: list[dict[str, Optional[str]]] = None,
     ) -> ReasoningResult:
         reranked = self.reranker.rerank(question, evidence, top_k=self.settings.retrieval_top_k)
 
@@ -112,7 +113,7 @@ class DecomposeQAPipeline:
         *,
         question: str,
         evidence: list[RetrievedChunk],
-        conversation_history: list[dict[str, str]] | None = None,
+        conversation_history: list[dict[str, Optional[str]]] = None,
     ) -> ReasoningResult:
         sub_questions = _decompose_question(question)
 

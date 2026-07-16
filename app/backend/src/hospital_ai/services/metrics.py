@@ -1,3 +1,4 @@
+from typing import Optional
 """Impact metrics capture and analysis service.
 
 Records timing breakdowns, calculates time/cost savings, and
@@ -25,19 +26,19 @@ class MetricEvent(Base):
     __tablename__ = "metric_events"
 
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
-    query_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("ai_queries.id"), nullable=True, index=True)
-    user_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("users.id"), nullable=True, index=True)
+    query_id: Mapped[uuid.Optional[UUID]] = mapped_column(ForeignKey("ai_queries.id"), nullable=True, index=True)
+    user_id: Mapped[uuid.Optional[UUID]] = mapped_column(ForeignKey("users.id"), nullable=True, index=True)
     task_type: Mapped[str] = mapped_column(String(64), nullable=False)
-    baseline_manual_time_sec: Mapped[int | None] = mapped_column(Integer, nullable=True)
-    actual_ai_time_sec: Mapped[int | None] = mapped_column(Integer, nullable=True)
-    estimated_time_saved_sec: Mapped[int | None] = mapped_column(Integer, nullable=True)
-    estimated_cost_saved: Mapped[float | None] = mapped_column(Numeric(12, 2), nullable=True)
-    documents_retrieved: Mapped[int | None] = mapped_column(Integer, nullable=True)
-    citations_count: Mapped[int | None] = mapped_column(Integer, nullable=True)
-    query_latency_ms: Mapped[int | None] = mapped_column(Integer, nullable=True)
-    retrieval_latency_ms: Mapped[int | None] = mapped_column(Integer, nullable=True)
-    generation_latency_ms: Mapped[int | None] = mapped_column(Integer, nullable=True)
-    shared_thread_id: Mapped[uuid.UUID | None] = mapped_column(nullable=True)
+    baseline_manual_time_sec: Optional[Mapped[int]] = mapped_column(Integer, nullable=True)
+    actual_ai_time_sec: Optional[Mapped[int]] = mapped_column(Integer, nullable=True)
+    estimated_time_saved_sec: Optional[Mapped[int]] = mapped_column(Integer, nullable=True)
+    estimated_cost_saved: Optional[Mapped[float]] = mapped_column(Numeric(12, 2), nullable=True)
+    documents_retrieved: Optional[Mapped[int]] = mapped_column(Integer, nullable=True)
+    citations_count: Optional[Mapped[int]] = mapped_column(Integer, nullable=True)
+    query_latency_ms: Optional[Mapped[int]] = mapped_column(Integer, nullable=True)
+    retrieval_latency_ms: Optional[Mapped[int]] = mapped_column(Integer, nullable=True)
+    generation_latency_ms: Optional[Mapped[int]] = mapped_column(Integer, nullable=True)
+    shared_thread_id: Mapped[uuid.Optional[UUID]] = mapped_column(nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
 
 
@@ -50,7 +51,7 @@ class UserFeedback(Base):
     query_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("ai_queries.id"), nullable=False, index=True)
     user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"), nullable=False, index=True)
     rating: Mapped[int] = mapped_column(Integer, nullable=False)  # -1, 0, 1
-    comment: Mapped[str | None] = mapped_column(Text, nullable=True)
+    comment: Optional[Mapped[str]] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
 
 
@@ -104,7 +105,7 @@ class MetricsService:
         timing: TimingBreakdown,
         documents_retrieved: int = 0,
         citations_count: int = 0,
-        thread_id: uuid.UUID | None = None,
+        thread_id: uuid.Optional[UUID] = None,
     ) -> MetricEvent:
         """Record impact metrics for a completed query."""
         baseline_sec = BASELINE_MANUAL_SECONDS.get(task_type, BASELINE_MANUAL_SECONDS["general"])

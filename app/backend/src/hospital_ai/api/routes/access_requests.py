@@ -1,3 +1,4 @@
+from typing import Optional
 import logging
 from datetime import UTC, datetime, timedelta
 from uuid import UUID
@@ -48,9 +49,9 @@ class AccessRequestListItem(BaseModel):
 
 
 class AccessRequestDetail(AccessRequestListItem):
-    reviewed_by_name: str | None = None
-    reviewed_at: datetime | None = None
-    review_notes: str | None = None
+    reviewed_by_name: Optional[str] = None
+    reviewed_at: Optional[datetime] = None
+    review_notes: Optional[str] = None
 
 
 class AccessRequestReview(BaseModel):

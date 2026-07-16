@@ -1,3 +1,4 @@
+from typing import Optional
 from uuid import UUID
 
 from pydantic import BaseModel
@@ -7,7 +8,7 @@ class GraphNode(BaseModel):
     id: str
     type: str
     label: str
-    sublabel: str | None = None
+    sublabel: Optional[str] = None
     x: int = 0
     y: int = 0
 

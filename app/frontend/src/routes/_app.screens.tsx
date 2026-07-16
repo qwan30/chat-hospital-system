@@ -65,9 +65,24 @@ const groups: Group[] = [
         href: "/patients/11111111-1111-1111-1111-111111111111/overview",
         priority: "MVP",
       },
-      { id: "PAT-004", title: "Timeline", href: "/patients/11111111-1111-1111-1111-111111111111/timeline", priority: "Should" },
-      { id: "PAT-005", title: "Documents", href: "/patients/11111111-1111-1111-1111-111111111111/documents", priority: "MVP" },
-      { id: "PAT-006", title: "Labs & vitals", href: "/patients/11111111-1111-1111-1111-111111111111/labs", priority: "Should" },
+      {
+        id: "PAT-004",
+        title: "Timeline",
+        href: "/patients/11111111-1111-1111-1111-111111111111/timeline",
+        priority: "Should",
+      },
+      {
+        id: "PAT-005",
+        title: "Documents",
+        href: "/patients/11111111-1111-1111-1111-111111111111/documents",
+        priority: "MVP",
+      },
+      {
+        id: "PAT-006",
+        title: "Labs & vitals",
+        href: "/patients/11111111-1111-1111-1111-111111111111/labs",
+        priority: "Should",
+      },
       {
         id: "PAT-007",
         title: "Medications & allergies",
@@ -125,7 +140,12 @@ const groups: Group[] = [
         href: "/chat/patients/11111111-1111-1111-1111-111111111111?state=streaming",
         priority: "MVP",
       },
-      { id: "CHAT-004", title: "Cited answer", href: "/chat/patients/11111111-1111-1111-1111-111111111111", priority: "MVP" },
+      {
+        id: "CHAT-004",
+        title: "Cited answer",
+        href: "/chat/patients/11111111-1111-1111-1111-111111111111",
+        priority: "MVP",
+      },
       {
         id: "CHAT-005",
         title: "Safe refusal",

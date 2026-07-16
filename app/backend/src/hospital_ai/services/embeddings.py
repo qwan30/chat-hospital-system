@@ -67,7 +67,7 @@ class EmbeddingService:
                 # Batch request to Gemini
                 uncached_texts = [text for _, text in uncached]
                 embeddings = await self._embed_gemini_batch(uncached_texts)
-                for (idx, text), embedding in zip(uncached, embeddings):
+                for (idx, text), embedding in zip(uncached, embeddings, strict=False):
                     cache_key = _cache_key(text, self.settings.embedding_provider)
                     self._put_cache(cache_key, embedding)
                     results.append((idx, embedding))
@@ -127,14 +127,13 @@ class EmbeddingService:
             )
         return [[float(v) for v in vec] for vec in embeddings]
 
-
     async def _embed_gemini(self, text: str) -> list[float]:
         api_key = self.settings.gemini_api_key
         url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-embedding-2:embedContent?key={api_key}"
         payload = {
             "model": "models/gemini-embedding-2",
             "content": {"parts": [{"text": text}]},
-            "outputDimensionality": self.settings.embedding_dimensions
+            "outputDimensionality": self.settings.embedding_dimensions,
         }
         try:
             async with httpx.AsyncClient(timeout=60) as client:
@@ -156,7 +155,7 @@ class EmbeddingService:
             {
                 "model": "models/gemini-embedding-2",
                 "content": {"parts": [{"text": t}]},
-                "outputDimensionality": self.settings.embedding_dimensions
+                "outputDimensionality": self.settings.embedding_dimensions,
             }
             for t in texts
         ]
@@ -175,6 +174,7 @@ class EmbeddingService:
                 f"Gemini batch embedding returned {len(embeddings)} results for {len(texts)} inputs."
             )
         return [[float(v) for v in e.get("values", [])] for e in embeddings]
+
 
 def _cache_key(text: str, provider: str) -> str:
     """Create a stable cache key from text and provider."""

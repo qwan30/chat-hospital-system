@@ -8,11 +8,16 @@ test.describe("Chat Stream Flow - QA/QC Phase 5", () => {
 
   test("Vietnamese query returns citations and bypasses No Evidence block", async ({ page }) => {
     // Navigate to patient chat
-    await page.goto("/chat/patients/20000000-0000-0000-0000-000000000003", { waitUntil: "networkidle", timeout: 30000 });
+    await page.goto("/chat/patients/20000000-0000-0000-0000-000000000003", {
+      waitUntil: "networkidle",
+      timeout: 30000,
+    });
     await page.waitForTimeout(1000);
 
     // Verify chat landing loaded
-    await expect(page.getByRole("heading", { name: "Eleanor Vance" })).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: "Eleanor Vance" })).toBeVisible({
+      timeout: 15_000,
+    });
 
     // Type the Vietnamese question in the composer
     const composer = page.locator("textarea").first();
@@ -30,7 +35,7 @@ test.describe("Chat Stream Flow - QA/QC Phase 5", () => {
     // Verify the response contains substantial content
     const assistantMessages = page.locator('[data-msg-role="assistant"]');
     await expect(assistantMessages.last()).toBeVisible();
-    
+
     const responseText = await assistantMessages.last().innerText();
 
     // 1. Assert that the No Evidence error is NO LONGER triggered
@@ -42,13 +47,14 @@ test.describe("Chat Stream Flow - QA/QC Phase 5", () => {
 
     // 2. Assert that the LLM returns standard Citations
     // Check for inline citations like [1], [2], or a Sources list
-    const hasCitations = /\[\d+\]/.test(responseText) || 
-                         /sources?:/i.test(responseText) || 
-                         /tài liệu tham khảo:/i.test(responseText) ||
-                         /nguồn:/i.test(responseText);
-    
+    const hasCitations =
+      /\[\d+\]/.test(responseText) ||
+      /sources?:/i.test(responseText) ||
+      /tài liệu tham khảo:/i.test(responseText) ||
+      /nguồn:/i.test(responseText);
+
     console.log("RESPONSE TEXT:\n", responseText);
-    
+
     expect(hasCitations).toBe(true);
   });
 });

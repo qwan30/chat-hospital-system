@@ -347,18 +347,24 @@ async def test_clinical_staff_can_upload(session_and_settings, tmp_path: Path):
     from hospital_ai.db.migrations import DOCTOR_ID
 
     session, settings = session_and_settings
-    
+
     # Create an upload file
     file_content = b"Patient reports dizziness. Follow up with cardiology."
-    file = UploadFile(filename="note.txt", file=BytesIO(file_content), size=len(file_content), headers=Headers({"content-type": "text/plain"}))
-    
+    file = UploadFile(  # noqa: E501
+        filename="note.txt",
+        file=BytesIO(file_content),
+        size=len(file_content),
+        headers=Headers({"content-type": "text/plain"}),
+    )
+
     # Mock request
     request = Request({"type": "http", "client": ("127.0.0.1", 8000)})
-    
+
     # Mock current_user as a doctor
     from hospital_ai.db.models import User
+
     current_user = await session.get(User, DOCTOR_ID)
-    
+
     # Execute
     document = await upload_document(
         request=request,
@@ -370,7 +376,7 @@ async def test_clinical_staff_can_upload(session_and_settings, tmp_path: Path):
         current_user=current_user,
         settings=settings,
     )
-    
+
     assert document.id is not None
     assert document.document_type == "clinical_note"
     assert document.uploaded_by == DOCTOR_ID
@@ -384,18 +390,24 @@ async def test_audit_log_does_not_leak_phi(session_and_settings, tmp_path: Path)
     from starlette.datastructures import Headers
 
     from hospital_ai.api.routes.documents import upload_document
-    from hospital_ai.db.migrations import DOCTOR_ID
+    from hospital_ai.db.migrations import DOCTOR_ID  # noqa: E501
     from hospital_ai.db.models import AuditLog
 
     session, settings = session_and_settings
-    
+
     file_content = b"Patient reports dizziness. Follow up with cardiology."
-    file = UploadFile(filename="note.txt", file=BytesIO(file_content), size=len(file_content), headers=Headers({"content-type": "text/plain"}))
+    file = UploadFile(
+        filename="note.txt",
+        file=BytesIO(file_content),
+        size=len(file_content),
+        headers=Headers({"content-type": "text/plain"}),
+    )
     request = Request({"type": "http", "client": ("127.0.0.1", 8000)})
-    
+
     from hospital_ai.db.models import User
+
     current_user = await session.get(User, DOCTOR_ID)
-    
+
     # Execute upload with a title containing PHI
     sensitive_title = "Alice Smith's HIV Test Results"
     document = await upload_document(
@@ -408,15 +420,12 @@ async def test_audit_log_does_not_leak_phi(session_and_settings, tmp_path: Path)
         current_user=current_user,
         settings=settings,
     )
-    
+
     # Check audit log
-    stmt = select(AuditLog).where(
-        AuditLog.action == "document.upload",
-        AuditLog.object_id == document.id
-    )
+    stmt = select(AuditLog).where(AuditLog.action == "document.upload", AuditLog.object_id == document.id)
     result = await session.execute(stmt)
     audit_log = result.scalar_one_or_none()
-    
+
     assert audit_log is not None
     # Ensure title is not leaked in the metadata
     assert "title" not in audit_log.meta

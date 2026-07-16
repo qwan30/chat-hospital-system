@@ -36,13 +36,7 @@ ALLOWED_MIME_TYPES = {
     "image/jpeg",
 }
 
-ALLOWED_DOCUMENT_TYPES = {
-    "clinical_note",
-    "lab_result",
-    "prescription",
-    "discharge_summary",
-    "imaging_report"
-}
+ALLOWED_DOCUMENT_TYPES = {"clinical_note", "lab_result", "prescription", "discharge_summary", "imaging_report"}
 
 
 @router.post("", response_model=DocumentRead)
@@ -71,7 +65,7 @@ async def upload_document(
     document_type = document_type.strip()
     if not title or not document_type:
         raise ValidationAppError("Title and document_type must not be blank.")
-    
+
     if document_type not in ALLOWED_DOCUMENT_TYPES:
         raise ValidationAppError(f"Invalid document type. Allowed types: {', '.join(sorted(ALLOWED_DOCUMENT_TYPES))}")
 

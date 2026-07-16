@@ -468,8 +468,9 @@ def _log_telemetry(
     failure_reason: str | None = None,
 ) -> None:
     import hashlib
+
     pseudo_patient_id = hashlib.sha256(str(patient_id).encode()).hexdigest() if patient_id else None
-    
+
     ev_list = evidence or []
     telemetry = {
         "pseudonymized_patient_id": pseudo_patient_id,
@@ -539,11 +540,7 @@ async def chat_stream(
         )
         await session.commit()
 
-        _log_telemetry(
-            settings=settings,
-            patient_id=effective_patient_id,
-            failure_reason="permission_denied"
-        )
+        _log_telemetry(settings=settings, patient_id=effective_patient_id, failure_reason="permission_denied")
 
         async def denied_stream() -> AsyncIterator[str]:
             event = json.dumps({"type": "error", "message": "User is not authorized for this patient."})
@@ -601,13 +598,15 @@ async def chat_stream(
         # ── Graph RAG Enrichment ─────────────────────────────────────────────
         try:
             if effective_patient_id and evidence:
-                from hospital_ai.services.graph_rag import find_related_entities
-                from hospital_ai.db.models import GraphEntity
                 from sqlalchemy import select
+
+                from hospital_ai.db.models import GraphEntity
+                from hospital_ai.services.graph_rag import find_related_entities
+
                 chunk_ids = [c.chunk_id for c in evidence]
                 res = await session.execute(select(GraphEntity.name).where(GraphEntity.source_chunk_id.in_(chunk_ids)))
                 entity_names = list(set(res.scalars().all()))
-                
+
                 if entity_names:
                     graph_ctx = await find_related_entities(
                         session, entity_names, max_hops=2, patient_id=effective_patient_id
@@ -617,7 +616,7 @@ async def chat_stream(
                         graph_only_ids = graph_ctx.related_chunk_ids - existing_ids
                         if graph_only_ids:
                             graph_evidence = await retrieval_svc.get_chunks_by_ids(
-                                list(graph_only_ids)[:payload.top_k],
+                                list(graph_only_ids)[: payload.top_k],
                                 user_id=current_user.id,
                                 patient_id=effective_patient_id,
                             )

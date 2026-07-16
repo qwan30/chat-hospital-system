@@ -264,8 +264,12 @@ async def run_eval() -> dict[str, Any]:
                 .scalars()
                 .first()
             )
-            await index_chunk_entities(session, chunk_id=alice_graph_chunk.id, document_id=graph_doc.id, content=alice_graph_chunk.content)
-            await index_chunk_entities(session, chunk_id=bob_graph_chunk.id, document_id=bob_graph_doc.id, content=bob_graph_chunk.content)
+            await index_chunk_entities(
+                session, chunk_id=alice_graph_chunk.id, document_id=graph_doc.id, content=alice_graph_chunk.content
+            )
+            await index_chunk_entities(
+                session, chunk_id=bob_graph_chunk.id, document_id=bob_graph_doc.id, content=bob_graph_chunk.content
+            )
             await session.commit()
             graph_context = await find_related_entities(
                 session,

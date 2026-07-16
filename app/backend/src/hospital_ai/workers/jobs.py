@@ -37,19 +37,15 @@ async def process_document(
     try:
         if document.storage_uri.startswith("local://") or document.storage_uri.startswith("hms://"):
             result = await session.execute(
-                select(DocumentPage)
-                .where(DocumentPage.document_id == document.id)
-                .order_by(DocumentPage.page_number)
+                select(DocumentPage).where(DocumentPage.document_id == document.id).order_by(DocumentPage.page_number)
             )
             db_pages = result.scalars().all()
             if not db_pages:
                 raise RuntimeError(f"Virtual document has no existing pages to re-index. URI: {document.storage_uri}")
-            
+
             from hospital_ai.services.ocr import OcrPage
-            pages = [
-                OcrPage(page_number=p.page_number, text=p.ocr_text, confidence=p.ocr_confidence)
-                for p in db_pages
-            ]
+
+            pages = [OcrPage(page_number=p.page_number, text=p.ocr_text, confidence=p.ocr_confidence) for p in db_pages]
         else:
             from hospital_ai.services.storage import LocalStorageService
 

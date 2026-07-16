@@ -37,7 +37,6 @@ export class ApiError extends Error {
   }
 }
 
-
 export async function apiFetch<T>(
   path: string,
   init: RequestInit = {},

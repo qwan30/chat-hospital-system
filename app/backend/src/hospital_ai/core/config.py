@@ -29,7 +29,7 @@ class Settings(BaseSettings):
         "dev-admin:admin@example.test"
     )
 
-    embedding_provider: str = "deterministic"
+    embedding_provider: str = "ollama"
     chat_provider: str = "stub"
     ollama_base_url: str = "http://localhost:11434"
     embedding_model: str = "bge-m3"

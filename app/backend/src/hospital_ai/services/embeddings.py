@@ -26,6 +26,8 @@ class EmbeddingService:
 
         if self.settings.embedding_provider == "ollama":
             result = await self._embed_ollama(normalized)
+        elif self.settings.embedding_provider == "gemini":
+            result = await self._embed_gemini(normalized)
         else:
             result = deterministic_embedding(normalized, self.settings.embedding_dimensions)
 
@@ -36,7 +38,7 @@ class EmbeddingService:
         """Batch embed with cache awareness and text normalization.
 
         For deterministic/stub providers, processes sequentially.
-        For Ollama, batches texts that aren't cached.
+        For Ollama or Gemini, batches texts that aren't cached.
         """
         text_list = [_normalize_text(t) for t in texts]
         if not text_list:
@@ -57,6 +59,14 @@ class EmbeddingService:
                 # Batch request to Ollama
                 uncached_texts = [text for _, text in uncached]
                 embeddings = await self._embed_ollama_batch(uncached_texts)
+                for (idx, text), embedding in zip(uncached, embeddings, strict=False):
+                    cache_key = _cache_key(text, self.settings.embedding_provider)
+                    self._put_cache(cache_key, embedding)
+                    results.append((idx, embedding))
+            elif self.settings.embedding_provider == "gemini":
+                # Batch request to Gemini
+                uncached_texts = [text for _, text in uncached]
+                embeddings = await self._embed_gemini_batch(uncached_texts)
                 for (idx, text), embedding in zip(uncached, embeddings, strict=False):
                     cache_key = _cache_key(text, self.settings.embedding_provider)
                     self._put_cache(cache_key, embedding)
@@ -116,6 +126,54 @@ class EmbeddingService:
                 f"Ollama batch embedding returned {len(embeddings or [])} results for {len(texts)} inputs."
             )
         return [[float(v) for v in vec] for vec in embeddings]
+
+    async def _embed_gemini(self, text: str) -> list[float]:
+        api_key = self.settings.gemini_api_key
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-embedding-2:embedContent?key={api_key}"
+        payload = {
+            "model": "models/gemini-embedding-2",
+            "content": {"parts": [{"text": text}]},
+            "outputDimensionality": self.settings.embedding_dimensions,
+        }
+        try:
+            async with httpx.AsyncClient(timeout=60) as client:
+                response = await client.post(url, json=payload)
+                response.raise_for_status()
+        except httpx.HTTPError as exc:
+            raise ExternalServiceError("Gemini embedding request failed.") from exc
+
+        data = response.json()
+        embeddings = data.get("embedding", {}).get("values")
+        if not embeddings:
+            raise ExternalServiceError("Gemini embedding response did not include embeddings.")
+        return [float(value) for value in embeddings]
+
+    async def _embed_gemini_batch(self, texts: list[str]) -> list[list[float]]:
+        api_key = self.settings.gemini_api_key
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-embedding-2:batchEmbedContents?key={api_key}"
+        requests = [
+            {
+                "model": "models/gemini-embedding-2",
+                "content": {"parts": [{"text": t}]},
+                "outputDimensionality": self.settings.embedding_dimensions,
+            }
+            for t in texts
+        ]
+        payload = {"requests": requests}
+        try:
+            async with httpx.AsyncClient(timeout=120) as client:
+                response = await client.post(url, json=payload)
+                response.raise_for_status()
+        except httpx.HTTPError as exc:
+            raise ExternalServiceError("Gemini batch embedding request failed.") from exc
+
+        data = response.json()
+        embeddings = data.get("embeddings", [])
+        if not embeddings or len(embeddings) != len(texts):
+            raise ExternalServiceError(
+                f"Gemini batch embedding returned {len(embeddings)} results for {len(texts)} inputs."
+            )
+        return [[float(v) for v in e.get("values", [])] for e in embeddings]
 
 
 def _cache_key(text: str, provider: str) -> str:

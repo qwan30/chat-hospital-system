@@ -195,7 +195,7 @@ class PermissionService:
         object_id: uuid.UUID | None = None,
         ip_address: str | None = None,
     ) -> None:
-        if user.role not in {"records_staff", "admin"}:
+        if user.role not in {"records_staff", "admin", "doctor", "nurse", "pharmacist"}:
             await AuditService(self.session).record(
                 actor_user_id=user.id,
                 action=action,
@@ -208,7 +208,7 @@ class PermissionService:
                 metadata={"reason": "role_not_allowed", "role": user.role},
             )
             await self.session.commit()
-            raise PermissionDeniedError("Only records staff or admins can upload documents.")
+            raise PermissionDeniedError("Only clinical and records staff or admins can upload documents.")
 
         await self.require_patient_scope(
             user=user,

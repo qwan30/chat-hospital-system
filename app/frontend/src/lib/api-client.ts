@@ -36,21 +36,6 @@ export class ApiError extends Error {
   }
 }
 
-function mapIds(obj: any, mapFn: (val: string) => string): any {
-  if (obj === null || obj === undefined) return obj;
-  if (typeof obj === "string") return mapFn(obj);
-  if (Array.isArray(obj)) return obj.map((item) => mapIds(item, mapFn));
-  if (typeof obj === "object") {
-    const res: any = {};
-    for (const key in obj) {
-      if (Object.prototype.hasOwnProperty.call(obj, key)) {
-        res[key] = mapIds(obj[key], mapFn);
-      }
-    }
-    return res;
-  }
-  return obj;
-}
 
 export async function apiFetch<T>(
   path: string,
@@ -60,13 +45,7 @@ export async function apiFetch<T>(
   const baseUrl = opts.baseUrl || getBaseUrl();
   const normalizedBase = baseUrl.replace(/\/+$/, "");
 
-  // Map p-001..p-012 to backend UUIDs in the request path
-  const mappedPath = path.replace(/\b(p-0(0[1-9]|1[0-2]))\b/g, (match) => {
-    const num = parseInt(match.substring(2), 10);
-    return "20000000-0000-0000-0000-" + num.toString().padStart(12, "0");
-  });
-
-  const url = `${normalizedBase}${mappedPath}`;
+  const url = `${normalizedBase}${path}`;
   const token = getToken();
 
   const headers: Record<string, string> = {
@@ -81,16 +60,7 @@ export async function apiFetch<T>(
     headers["Authorization"] = `Bearer ${token}`;
   }
 
-  // Map p-001..p-012 to backend UUIDs in request body
-  let body = init.body;
-  if (typeof body === "string") {
-    body = body.replace(/\b(p-0(0[1-9]|1[0-2]))\b/g, (match) => {
-      const num = parseInt(match.substring(2), 10);
-      return "20000000-0000-0000-0000-" + num.toString().padStart(12, "0");
-    });
-  }
-
-  const response = await fetch(url, { ...init, body, headers });
+  const response = await fetch(url, { ...init, headers });
 
   if (!response.ok) {
     let errorData: { error?: string; message?: string; detail?: string } = {};
@@ -109,17 +79,7 @@ export async function apiFetch<T>(
   if (response.status === 204) return undefined as unknown as T;
 
   const data = await response.json();
-  // Map backend UUIDs back to p-001..p-012 in response
-  return mapIds(data, (val) => {
-    if (val.startsWith("20000000-0000-0000-0000-")) {
-      const hex = val.substring(24);
-      const num = parseInt(hex, 10);
-      if (num >= 1 && num <= 12) {
-        return `p-${num.toString().padStart(3, "0")}`;
-      }
-    }
-    return val;
-  });
+  return data as unknown as T;
 }
 
 // ── Auth helpers ─────────────────────────────────────────────────────

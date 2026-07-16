@@ -1,3 +1,4 @@
+from __future__ import annotations
 from typing import Optional
 """Google Gemini LLM provider.
 
@@ -5,7 +6,6 @@ Uses the Gemini REST API (generativelanguage.googleapis.com).
 API key is passed as a query parameter.
 """
 
-from __future__ import annotations
 
 import json
 from collections.abc import AsyncIterator

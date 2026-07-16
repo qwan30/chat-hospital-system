@@ -1,9 +1,9 @@
+from __future__ import annotations
 """Deterministic embedding provider for testing.
 
 Wraps the existing deterministic_embedding function from embeddings.py.
 """
 
-from __future__ import annotations
 
 from hospital_ai.services.embedding.base import BaseEmbedding
 from hospital_ai.services.embeddings import deterministic_embedding

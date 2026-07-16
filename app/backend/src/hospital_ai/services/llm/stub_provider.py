@@ -1,7 +1,7 @@
+from __future__ import annotations
 from typing import Optional
 """Stub LLM provider for testing without external dependencies."""
 
-from __future__ import annotations
 
 from collections.abc import AsyncIterator
 

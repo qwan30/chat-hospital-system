@@ -1,10 +1,10 @@
+from __future__ import annotations
 from typing import Optional
 """LLM Manager — registry and factory for LLM providers.
 
 Inspired by kotaemon's ktem.llms.manager pattern.
 """
 
-from __future__ import annotations
 
 import logging
 from functools import lru_cache

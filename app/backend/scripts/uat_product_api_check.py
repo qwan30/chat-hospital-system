@@ -1,10 +1,10 @@
+from __future__ import annotations
 """Run product-level UAT checks against a live Hospital AI API.
 
 This script intentionally uses HTTP requests instead of in-process services so
 it exercises the same API boundary the frontend uses during UAT.
 """
 
-from __future__ import annotations
 
 import argparse
 import json

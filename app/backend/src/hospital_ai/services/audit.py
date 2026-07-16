@@ -13,13 +13,13 @@ class AuditService:
     async def record(
         self,
         *,
-        actor_user_id: uuid.Optional[UUID],
+        actor_user_id: Optional[uuid.UUID],
         action: str,
         object_type: str,
         outcome: str,
         trace_id: str,
-        object_id: uuid.Optional[UUID] = None,
-        patient_id: uuid.Optional[UUID] = None,
+        object_id: Optional[uuid.UUID] = None,
+        patient_id: Optional[uuid.UUID] = None,
         ip_address: Optional[str] = None,
         metadata: dict[str, Optional[Any]] = None,
     ) -> AuditLog:

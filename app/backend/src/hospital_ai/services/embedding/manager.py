@@ -1,7 +1,7 @@
+from __future__ import annotations
 from typing import Optional
 """Embedding Manager — registry and factory for embedding providers."""
 
-from __future__ import annotations
 
 import logging
 from functools import lru_cache

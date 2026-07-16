@@ -1,6 +1,6 @@
+from __future__ import annotations
 """Plain text and markdown loader."""
 
-from __future__ import annotations
 
 from pathlib import Path
 

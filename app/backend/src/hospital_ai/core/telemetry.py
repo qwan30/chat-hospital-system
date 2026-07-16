@@ -1,6 +1,6 @@
+from __future__ import annotations
 """OpenTelemetry and Prometheus instrumentation for Hospital AI backend."""
 
-from __future__ import annotations
 
 import logging
 

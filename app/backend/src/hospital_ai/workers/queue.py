@@ -1,3 +1,4 @@
+from __future__ import annotations
 from typing import Optional
 """Worker queue helpers — Redis-backed document processing queue.
 
@@ -6,7 +7,6 @@ failures are retried automatically and permanently-failed jobs are moved to
 a dead-letter queue for manual inspection.
 """
 
-from __future__ import annotations
 
 import logging
 import uuid

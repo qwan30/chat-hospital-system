@@ -1,3 +1,4 @@
+from __future__ import annotations
 from typing import Optional
 """Impact metrics capture and analysis service.
 
@@ -5,7 +6,6 @@ Records timing breakdowns, calculates time/cost savings, and
 provides summary aggregations for the metrics dashboard.
 """
 
-from __future__ import annotations
 
 import uuid
 from dataclasses import dataclass
@@ -26,8 +26,8 @@ class MetricEvent(Base):
     __tablename__ = "metric_events"
 
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
-    query_id: Mapped[uuid.Optional[UUID]] = mapped_column(ForeignKey("ai_queries.id"), nullable=True, index=True)
-    user_id: Mapped[uuid.Optional[UUID]] = mapped_column(ForeignKey("users.id"), nullable=True, index=True)
+    query_id: Mapped[Optional[uuid.UUID]] = mapped_column(ForeignKey("ai_queries.id"), nullable=True, index=True)
+    user_id: Mapped[Optional[uuid.UUID]] = mapped_column(ForeignKey("users.id"), nullable=True, index=True)
     task_type: Mapped[str] = mapped_column(String(64), nullable=False)
     baseline_manual_time_sec: Optional[Mapped[int]] = mapped_column(Integer, nullable=True)
     actual_ai_time_sec: Optional[Mapped[int]] = mapped_column(Integer, nullable=True)
@@ -38,7 +38,7 @@ class MetricEvent(Base):
     query_latency_ms: Optional[Mapped[int]] = mapped_column(Integer, nullable=True)
     retrieval_latency_ms: Optional[Mapped[int]] = mapped_column(Integer, nullable=True)
     generation_latency_ms: Optional[Mapped[int]] = mapped_column(Integer, nullable=True)
-    shared_thread_id: Mapped[uuid.Optional[UUID]] = mapped_column(nullable=True)
+    shared_thread_id: Mapped[Optional[uuid.UUID]] = mapped_column(nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
 
 
@@ -105,7 +105,7 @@ class MetricsService:
         timing: TimingBreakdown,
         documents_retrieved: int = 0,
         citations_count: int = 0,
-        thread_id: uuid.Optional[UUID] = None,
+        thread_id: Optional[uuid.UUID] = None,
     ) -> MetricEvent:
         """Record impact metrics for a completed query."""
         baseline_sec = BASELINE_MANUAL_SECONDS.get(task_type, BASELINE_MANUAL_SECONDS["general"])

@@ -1,3 +1,4 @@
+from __future__ import annotations
 """Database-backed system settings store.
 
 Replaces the in-memory ``_overrides`` dict in ``routes/settings.py`` with
@@ -8,7 +9,6 @@ field name (e.g. ``chat_provider``).  CRUD helpers expose the simple
 get/put/list/delete operations that the settings API route needs.
 """
 
-from __future__ import annotations
 
 import json
 import uuid
@@ -36,7 +36,7 @@ class SystemSetting(TimestampMixin, Base):
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
     key: Mapped[str] = mapped_column(String(128), unique=True, nullable=False, index=True)
     value_json: Mapped[str] = mapped_column(Text, nullable=False)
-    updated_by_user_id: Mapped[uuid.Optional[UUID]] = mapped_column(nullable=True)
+    updated_by_user_id: Mapped[Optional[uuid.UUID]] = mapped_column(nullable=True)
     description: Optional[Mapped[str]] = mapped_column(String(512), nullable=True)
 
 
@@ -64,7 +64,7 @@ async def upsert_setting(
     key: str,
     value: Any,
     *,
-    user_id: uuid.Optional[UUID] = None,
+    user_id: Optional[uuid.UUID] = None,
     description: Optional[str] = None,
 ) -> SystemSetting:
     """Insert or update a setting, returning the row."""
@@ -92,7 +92,7 @@ async def upsert_many(
     session: AsyncSession,
     overrides: dict[str, Any],
     *,
-    user_id: uuid.Optional[UUID] = None,
+    user_id: Optional[uuid.UUID] = None,
 ) -> None:
     """Bulk upsert — used by the PUT settings route."""
     for key, value in overrides.items():

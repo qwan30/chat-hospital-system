@@ -1,3 +1,4 @@
+from __future__ import annotations
 """Run a small synthetic RAG safety eval and write portfolio evidence.
 
 This is not a clinical benchmark. It exercises deterministic local paths with
@@ -5,7 +6,6 @@ synthetic/de-identified data so portfolio claims can cite an artifact instead
 of only target metrics from the planning docs.
 """
 
-from __future__ import annotations
 
 import argparse
 import asyncio

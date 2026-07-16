@@ -1,3 +1,4 @@
+from __future__ import annotations
 from typing import Optional
 """Drug interaction and allergy checking service.
 
@@ -6,7 +7,6 @@ drug–drug, drug–condition, and drug–allergy interactions from
 indexed clinical documents.
 """
 
-from __future__ import annotations
 
 import uuid
 from dataclasses import dataclass
@@ -81,7 +81,7 @@ class DrugCheckService:
     async def check_interactions(
         self,
         query_text: str,
-        patient_id: uuid.Optional[UUID],
+        patient_id: Optional[uuid.UUID],
         *,
         min_severity: str = "low",
     ) -> list[DrugWarning]:
@@ -191,7 +191,7 @@ class DrugCheckService:
 async def check_drug_interactions_for_query(
     session: AsyncSession,
     query_text: str,
-    patient_id: uuid.Optional[UUID],
+    patient_id: Optional[uuid.UUID],
 ) -> list[DrugWarning]:
     """Convenience function wrapping DrugCheckService."""
     return await DrugCheckService(session).check_interactions(

@@ -1,3 +1,4 @@
+from __future__ import annotations
 from typing import Optional
 """Re-ranking service for improving retrieval quality.
 
@@ -11,7 +12,6 @@ Supports multiple backends via a strategy pattern:
 - cohere:        Cohere Rerank API
 """
 
-from __future__ import annotations
 
 import logging
 import re

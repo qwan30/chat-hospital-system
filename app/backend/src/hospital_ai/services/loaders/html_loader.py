@@ -1,6 +1,6 @@
+from __future__ import annotations
 """HTML document loader using BeautifulSoup."""
 
-from __future__ import annotations
 
 from pathlib import Path
 

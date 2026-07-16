@@ -1,6 +1,6 @@
+from __future__ import annotations
 """Ollama embedding provider — local embedding models."""
 
-from __future__ import annotations
 
 import httpx
 

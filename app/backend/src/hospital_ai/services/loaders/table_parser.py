@@ -1,3 +1,4 @@
+from __future__ import annotations
 from typing import Optional
 """Table parsing utilities for medical documents.
 
@@ -6,7 +7,6 @@ format that LLMs can comprehend. Handles common medical table patterns
 like lab results, vital signs, and medication lists.
 """
 
-from __future__ import annotations
 
 import re
 

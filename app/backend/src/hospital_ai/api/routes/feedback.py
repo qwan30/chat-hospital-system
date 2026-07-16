@@ -1,3 +1,4 @@
+from __future__ import annotations
 from typing import Optional
 """Feedback and metrics summary API routes.
 
@@ -5,7 +6,6 @@ POST /api/v1/feedback/queries/{query_id}/feedback   — submit rating
 GET  /api/v1/feedback/metrics/summary               — aggregated metrics
 """
 
-from __future__ import annotations
 
 from uuid import UUID
 

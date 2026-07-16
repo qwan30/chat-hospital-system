@@ -1,6 +1,6 @@
+from __future__ import annotations
 """OpenAI embedding provider."""
 
-from __future__ import annotations
 
 import httpx
 

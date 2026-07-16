@@ -1,3 +1,4 @@
+from __future__ import annotations
 """Regression tests for codebase-audit-2026-05 fixes.
 
 Covers:
@@ -6,7 +7,6 @@ Covers:
 - F-SEC-004: SSE error events do not leak raw exception strings to the client.
 """
 
-from __future__ import annotations
 
 import json
 import uuid

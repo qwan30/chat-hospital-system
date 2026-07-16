@@ -1,3 +1,4 @@
+from __future__ import annotations
 from typing import Optional
 """OpenAI-compatible LLM provider.
 
@@ -5,7 +6,6 @@ Works with OpenAI API, Azure OpenAI, and any OpenAI-compatible endpoint
 (Groq, Together, Mistral, etc.)
 """
 
-from __future__ import annotations
 
 from collections.abc import AsyncIterator
 

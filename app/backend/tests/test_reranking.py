@@ -1,6 +1,6 @@
+from __future__ import annotations
 """Tests for the reranking service — strategy pattern and all backends."""
 
-from __future__ import annotations
 
 import uuid
 from unittest.mock import MagicMock, patch

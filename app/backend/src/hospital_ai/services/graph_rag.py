@@ -1,3 +1,4 @@
+from __future__ import annotations
 from typing import Optional
 """Graph RAG — SQL-backed entity-relationship extraction and traversal.
 
@@ -17,7 +18,6 @@ existing PostgreSQL / SQLite database.  A future migration can promote
 these tables into a true graph engine.
 """
 
-from __future__ import annotations
 
 import json
 import logging
@@ -209,7 +209,7 @@ async def find_related_entities(
     entity_names: list[str],
     *,
     max_hops: int = 2,
-    patient_id: uuid.Optional[UUID] = None,
+    patient_id: Optional[uuid.UUID] = None,
 ) -> GraphContext:
     """Find entities related to the given names via graph traversal.
 

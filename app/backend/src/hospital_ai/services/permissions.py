@@ -109,7 +109,7 @@ class PermissionService:
         accepted_scopes: Iterable[str],
         action: str,
         object_type: str = "patient",
-        object_id: uuid.Optional[UUID] = None,
+        object_id: Optional[uuid.UUID] = None,
         trace_id: str,
         ip_address: Optional[str] = None,
         metadata: Optional[dict] = None,
@@ -170,7 +170,7 @@ class PermissionService:
         action: str,
         trace_id: str,
         object_type: str = "patient",
-        object_id: uuid.Optional[UUID] = None,
+        object_id: Optional[uuid.UUID] = None,
         ip_address: Optional[str] = None,
     ) -> None:
         await self.require_patient_scope(
@@ -192,7 +192,7 @@ class PermissionService:
         action: str,
         trace_id: str,
         object_type: str = "document",
-        object_id: uuid.Optional[UUID] = None,
+        object_id: Optional[uuid.UUID] = None,
         ip_address: Optional[str] = None,
     ) -> None:
         if user.role not in {"records_staff", "admin"}:

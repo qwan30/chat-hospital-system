@@ -1,3 +1,4 @@
+from __future__ import annotations
 from typing import Optional
 """BM25 / full-text search service for hybrid retrieval.
 
@@ -5,7 +6,6 @@ Provides keyword-based search using PostgreSQL tsvector/GIN indexes
 or a portable Python-side BM25 scoring fallback for SQLite tests.
 """
 
-from __future__ import annotations
 
 import logging
 import math

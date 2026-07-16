@@ -1,10 +1,10 @@
+from __future__ import annotations
 """Base document loader interface.
 
 All loaders must implement the `load` method which returns a list of
 LoadedPage objects, each representing a page/section of the document.
 """
 
-from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field

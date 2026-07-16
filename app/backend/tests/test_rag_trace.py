@@ -1,3 +1,4 @@
+from __future__ import annotations
 """Tests for RAG Trace Observability (Phase 3D).
 
 Validates:
@@ -6,7 +7,6 @@ Validates:
 - RAG trace data flows end-to-end through the chat pipeline
 """
 
-from __future__ import annotations
 
 import uuid
 

@@ -14,7 +14,7 @@ router = APIRouter()
 
 
 async def _list_logs(
-    patient_id: uuid.Optional[UUID],
+    patient_id: Optional[uuid.UUID],
     action: Optional[str],
     outcome: Optional[str],
     limit: int,
@@ -37,7 +37,7 @@ async def _list_logs(
 
 @router.get("/logs", response_model=AuditLogList)
 async def list_logs(
-    patient_id: uuid.Optional[UUID] = None,
+    patient_id: Optional[uuid.UUID] = None,
     action: Optional[str] = None,
     outcome: Optional[str] = None,
     limit: int = Query(default=50, ge=1, le=200),
@@ -49,7 +49,7 @@ async def list_logs(
 
 @router.get("/events", response_model=AuditLogList)
 async def list_events_alias(
-    patient_id: uuid.Optional[UUID] = None,
+    patient_id: Optional[uuid.UUID] = None,
     action: Optional[str] = None,
     outcome: Optional[str] = None,
     limit: int = Query(default=50, ge=1, le=200),

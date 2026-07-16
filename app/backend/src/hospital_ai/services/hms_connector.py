@@ -33,6 +33,12 @@ class HmsApiClient:
 
     async def _get(self, path: str, *, jwt_token: Optional[str] = None, params: Optional[dict[str, Any]] = None) -> Any:
         url = f"{self.base_url}{path}"
+        from urllib.parse import urlparse
+
+        parsed_base = urlparse(self.base_url)
+        parsed_url = urlparse(url)
+        if parsed_url.netloc != parsed_base.netloc or parsed_url.scheme != parsed_base.scheme:
+            raise ExternalServiceError("Invalid destination URL (SSRF detected)")
         try:
             async with httpx.AsyncClient(timeout=self.timeout) as client:
                 response = await client.get(url, headers=self._headers(jwt_token), params=params)
@@ -58,6 +64,12 @@ class HmsApiClient:
         json: Optional[dict[str, Any]] = None,
     ) -> Any:
         url = f"{self.base_url}{path}"
+        from urllib.parse import urlparse
+
+        parsed_base = urlparse(self.base_url)
+        parsed_url = urlparse(url)
+        if parsed_url.netloc != parsed_base.netloc or parsed_url.scheme != parsed_base.scheme:
+            raise ExternalServiceError("Invalid destination URL (SSRF detected)")
         try:
             async with httpx.AsyncClient(timeout=self.timeout) as client:
                 response = await client.post(

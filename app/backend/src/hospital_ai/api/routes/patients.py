@@ -678,7 +678,7 @@ def _parse_lab_content(content: str) -> list[PatientLabItem]:
     # Pattern: analyte name followed by value and optional reference range
     # Match lines like: "Hemoglobin (HGB)                  12.5     12.0-16.0 g/dL"
     lab_pattern = re.compile(
-        r"^([A-Za-zÀ-Ỹà-ỹ][A-Za-zÀ-Ỹà-ỹ\s\-().,]+?)\s{2,}"  # analyte name
+        r"^([^\W\d_][^\W\d_\s\-().,]+?)\s{2,}"  # analyte name
         r"([\d.]+(?:\s*[x×]\s*\d+[⁰¹²³⁴⁵⁶⁷⁸⁹]*(?:/[A-Za-z]+)?)?)\s+"  # value
         r"([\d.<>]+\s*[-–]\s*[\d.<>]+(?:\s*[A-Za-z/%]+)?)",  # reference range
         re.MULTILINE,
@@ -699,7 +699,7 @@ def _parse_lab_content(content: str) -> list[PatientLabItem]:
 
     # Also try simpler pattern: "Analyte: Value (Ref: range)"
     simple_pattern = re.compile(
-        r"^([A-Za-zÀ-Ỹà-ỹ][A-Za-zÀ-Ỹà-ỹ\s\-().]+?):\s*([\d.]+)\s*(?:\(.*?([\d.]+\s*[-–]\s*[\d.]+).*?\))?",
+        r"^([^\W\d_][^\W\d_\s\-().]+?):\s*([\d.]+)\s*(?:\(.*?([\d.]+\s*[-–]\s*[\d.]+).*?\))?",
         re.MULTILINE,
     )
     for match in simple_pattern.finditer(content):

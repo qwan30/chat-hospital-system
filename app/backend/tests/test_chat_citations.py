@@ -142,7 +142,7 @@ async def test_chat_chitchat_bypass_rag(session_and_settings):
 async def test_chat_permission_denied_natural_refusal(session_and_settings):
     session, settings = session_and_settings
     doctor = await session.get(User, DOCTOR_ID)
-    
+
     # Temporarily change doctor's role to pharmacist and can_access_full_notes to False
     doctor.role = "pharmacist"
     await session.commit()
@@ -172,4 +172,3 @@ async def test_chat_permission_denied_natural_refusal(session_and_settings):
 
     assert "Bạn không có quyền xem thông tin này" in response.answer
     assert response.citations == []
-

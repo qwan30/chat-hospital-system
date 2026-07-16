@@ -1,7 +1,10 @@
 """HMS data synchronization service.
+Dịch vụ đồng bộ hóa dữ liệu y tế từ hệ thống HMS.
 
 Orchestrates fetching data from the HMS REST API and importing it as
 searchable evidence into the chatbot's PostgreSQL/pgvector store.
+Điều phối quá trình lấy dữ liệu lâm sàng qua REST API của HMS và nạp/biến đổi chúng
+thành các bằng chứng có thể tìm kiếm (evidence chunks) trong kho PostgreSQL/pgvector.
 """
 
 import hashlib
@@ -26,9 +29,12 @@ HMS_SOURCE_SYSTEM = "hospital-management-system"
 
 
 class HmsSyncService:
-    """Syncs clinical data from HMS into the chatbot evidence store."""
+    """Syncs clinical data from HMS into the chatbot evidence store.
+    Dịch vụ đồng bộ hóa dữ liệu lâm sàng từ hệ thống HMS vào kho bằng chứng tìm kiếm của chatbot.
+    """
 
     def __init__(self, session: AsyncSession, settings: Settings) -> None:
+        """Khởi tạo HmsSyncService kèm AsyncSession, HmsApiClient và EmbeddingService."""
         self.session = session
         self.settings = settings
         self.hms = HmsApiClient(settings)
@@ -43,7 +49,9 @@ class HmsSyncService:
         trace_id: str,
         ip_address: str | None = None,
     ) -> list[Document]:
-        """Fetch appointments from HMS and ingest as evidence documents."""
+        """Fetch appointments from HMS and ingest as evidence documents.
+        Đồng bộ hóa lịch hẹn khám bệnh từ HMS và chuyển đổi thành tài liệu bằng chứng để tìm kiếm.
+        """
         patient = await self.session.get(Patient, patient_id)
         if patient is None or patient.deleted_at is not None:
             raise NotFoundError("Patient not found for HMS appointment sync.")
@@ -79,7 +87,9 @@ class HmsSyncService:
         trace_id: str,
         ip_address: str | None = None,
     ) -> list[Document]:
-        """Fetch lab results from HMS and ingest as evidence documents."""
+        """Fetch lab results from HMS and ingest as evidence documents.
+        Đồng bộ hóa các kết quả xét nghiệm lâm sàng từ HMS và biến đổi thành tài liệu bằng chứng.
+        """
         patient = await self.session.get(Patient, patient_id)
         if patient is None or patient.deleted_at is not None:
             raise NotFoundError("Patient not found for HMS lab result sync.")
@@ -115,7 +125,9 @@ class HmsSyncService:
         trace_id: str,
         ip_address: str | None = None,
     ) -> list[Document]:
-        """Fetch medical records from HMS and ingest as evidence documents."""
+        """Fetch medical records from HMS and ingest as evidence documents.
+        Đồng bộ hóa hồ sơ bệnh án từ HMS và nạp vào kho dữ liệu Vector để tìm kiếm RAG.
+        """
         patient = await self.session.get(Patient, patient_id)
         if patient is None or patient.deleted_at is not None:
             raise NotFoundError("Patient not found for HMS medical record sync.")
@@ -151,7 +163,9 @@ class HmsSyncService:
         trace_id: str,
         ip_address: str | None = None,
     ) -> dict[str, int]:
-        """Run all sync operations for a patient."""
+        """Run all sync operations for a patient.
+        Chạy đồng bộ hóa toàn diện (cuộc hẹn, xét nghiệm, bệnh án) cho một bệnh nhân.
+        """
         kwargs = dict(
             patient_id=patient_id,
             actor_user_id=actor_user_id,
@@ -186,7 +200,9 @@ class HmsSyncService:
         trace_id: str,
         ip_address: str | None = None,
     ) -> Document:
-        """Upsert a single HMS record as a Document with embedded chunks."""
+        """Upsert a single HMS record as a Document with embedded chunks.
+        Thêm mới hoặc cập nhật (upsert) một bản ghi HMS thành Document cùng các đoạn nhỏ (chunks) đã nhúng vector.
+        """
         storage_uri = f"hms://{source_family}/{source_record_id}"
         content_hash = hashlib.sha256(content.encode("utf-8")).hexdigest()
 
@@ -284,6 +300,7 @@ class HmsSyncService:
 
 
 def _render_appointment(appt: dict[str, Any]) -> str:
+    """Biến đổi từ điển dữ liệu cuộc hẹn HMS thành văn bản thuần có cấu trúc rõ ràng."""
     lines = [
         "HMS Appointment Summary",
         f"Date: {appt.get('date', appt.get('appointmentDate', 'N/A'))}",
@@ -300,6 +317,7 @@ def _render_appointment(appt: dict[str, Any]) -> str:
 
 
 def _render_lab_result(lab: dict[str, Any]) -> str:
+    """Biến đổi từ điển kết quả xét nghiệm HMS thành văn bản thuần để tính embedding."""
     lines = [
         "HMS Lab Result",
         f"Test: {lab.get('testName', lab.get('test_name', 'N/A'))}",
@@ -315,6 +333,7 @@ def _render_lab_result(lab: dict[str, Any]) -> str:
 
 
 def _render_medical_record(rec: dict[str, Any]) -> str:
+    """Biến đổi từ điển hồ sơ bệnh án HMS thành văn bản để lưu trữ chunk."""
     lines = [
         "HMS Medical Record",
         f"Date: {rec.get('date', rec.get('encounter_date', rec.get('encounterDate', 'N/A')))}",
@@ -330,6 +349,7 @@ def _render_medical_record(rec: dict[str, Any]) -> str:
 
 
 def _add_optional(lines: list[str], label: str, value: Any) -> None:
+    """Thêm một dòng `Nhãn: Giá trị` vào danh sách nếu giá trị tồn tại và không rỗng."""
     if value is not None:
         text = str(value).strip()
         if text:
@@ -337,7 +357,9 @@ def _add_optional(lines: list[str], label: str, value: Any) -> None:
 
 
 def _clean_metadata(raw: dict[str, Any]) -> dict[str, Any]:
-    """Pick safe metadata fields — exclude large blobs and nested objects."""
+    """Pick safe metadata fields — exclude large blobs and nested objects.
+    Lọc giữ lại các trường metadata an toàn (chuỗi, số, bool), loại bỏ các object lồng nhau hoặc thông tin nhạy cảm.
+    """
     safe: dict[str, Any] = {}
     for key, value in raw.items():
         if isinstance(value, (str, int, float, bool)) and key not in {"password", "token", "secret"}:

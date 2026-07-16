@@ -1,3 +1,10 @@
+"""Dịch vụ Truy xuất Ngữ cảnh (RAG Retrieval Service).
+
+Cung cấp cơ chế tìm kiếm Vector (pgvector cosine distance), tìm kiếm từ khóa BM25 (tsvector/GIN index)
+và tìm kiếm lai (Hybrid Search kết hợp bằng Reciprocal Rank Fusion - RRF).
+Tích hợp sẵn bộ lọc phân quyền dựa trên vai trò (Role-based access filtering) và quyền truy cập hồ sơ bệnh nhân.
+"""
+
 import math
 import time
 import uuid
@@ -46,6 +53,7 @@ select * from ranked_chunks
 
 @dataclass
 class RetrievedChunk:
+    """Cấu trúc dữ liệu biểu diễn một đoạn văn bản (chunk) trích xuất được từ hệ thống RAG."""
     evidence_id: str
     document_id: uuid.UUID
     document_title: str
@@ -57,11 +65,13 @@ class RetrievedChunk:
 
 
 class RetrievalService:
+    """Dịch vụ thực hiện tìm kiếm ngữ nghĩa, tìm kiếm từ khóa và tìm kiếm kết hợp trên tài liệu y tế."""
     def __init__(self, session: AsyncSession) -> None:
         self.session = session
         self.blocked_chunk_count = 0
 
     async def _apply_role_filters(self, chunks: list[RetrievedChunk], user_id: uuid.UUID) -> list[RetrievedChunk]:
+        """Lọc danh sách chunk dựa trên quyền hạn của người dùng (RBAC) và các tag truy cập của tài liệu."""
         if not chunks:
             return chunks
 
@@ -105,6 +115,17 @@ class RetrievalService:
         query_embedding: Sequence[float],
         top_k: int,
     ) -> list[RetrievedChunk]:
+        """Thực hiện tìm kiếm vector (Vector Search) sử dụng embedding cosine distance.
+
+        Args:
+            user_id: ID người dùng đang truy vấn (để kiểm tra phân quyền).
+            patient_id: ID bệnh nhân (phạm vi tài liệu được tìm kiếm).
+            query_embedding: Vector nhúng của câu hỏi.
+            top_k: Số lượng chunk tối đa trả về.
+
+        Returns:
+            Danh sách chunk đã được sắp xếp và lọc quyền.
+        """
         start_time = time.perf_counter()
         bind = self.session.get_bind()
         if bind.dialect.name == "postgresql":
@@ -140,6 +161,8 @@ class RetrievalService:
         retrieval_mode: str = "hybrid",
     ) -> list[RetrievedChunk]:
         """Execute hybrid search combining vector and BM25 retrieval.
+        Thực hiện tìm kiếm lai (Hybrid Search) kết hợp giữa tìm kiếm Vector (ngữ nghĩa) và BM25 (từ khóa chính xác).
+        Sử dụng thuật toán Reciprocal Rank Fusion (RRF) để tổng hợp và xếp hạng lại kết quả.
 
         Args:
             user_id: Authenticated user's ID.
@@ -219,9 +242,11 @@ class RetrievalService:
         patient_id: uuid.UUID,
     ) -> list[RetrievedChunk]:
         """Fetch specific chunks by ID, applying permission checks.
+        Lấy thông tin chi tiết các chunk theo danh sách ID, áp dụng kiểm tra quyền truy cập.
 
         Used by graph RAG to retrieve evidence discovered through
         entity relationship traversal.
+        Được sử dụng bởi Graph RAG để lấy nội dung bằng chứng sau khi duyệt qua các mối quan hệ thực thể.
         """
         if not chunk_ids:
             return []
@@ -504,6 +529,7 @@ class RetrievalService:
 
 
 def cosine_similarity(a: Sequence[float], b: Sequence[float]) -> float:
+    """Tính toán độ tương tự cosin (Cosine Similarity) giữa 2 vector nhúng (dùng cho bộ nhớ tạm/SQLite portable)."""
     if not a or not b:
         return 0.0
     size = min(len(a), len(b))
@@ -516,4 +542,5 @@ def cosine_similarity(a: Sequence[float], b: Sequence[float]) -> float:
 
 
 def format_pgvector(values: Iterable[float]) -> str:
+    """Định dạng danh sách số thực thành chuỗi vector `[v1,v2,...]` chuẩn của pgvector trong PostgreSQL."""
     return "[" + ",".join(f"{float(value):.8f}" for value in values) + "]"

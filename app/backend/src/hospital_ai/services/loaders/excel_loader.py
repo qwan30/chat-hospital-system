@@ -1,4 +1,6 @@
-"""Excel document loader using openpyxl."""
+"""Excel document loader using openpyxl.
+Bộ nạp bảng tính Microsoft Excel (.xlsx, .xls) sử dụng thư viện openpyxl.
+"""
 
 from __future__ import annotations
 
@@ -10,15 +12,20 @@ from hospital_ai.services.loaders.base import BaseDocumentLoader, LoadedPage
 
 class ExcelLoader(BaseDocumentLoader):
     """Extract text from Excel files.
+    Bộ nạp chuyên dụng trích xuất nội dung từ bảng tính Excel.
 
     Each sheet becomes a separate LoadedPage. Data is converted to pipe-delimited
     text format suitable for embedding and retrieval.
+    Mỗi sheet (trang tính) được chuyển thành một trang LoadedPage riêng biệt.
+    Dữ liệu được chuyển đổi sang định dạng phân cách bởi dấu gạch đứng (|) phù hợp cho việc nhúng và tìm kiếm.
     """
 
     def supported_extensions(self) -> set[str]:
+        """Trả về tập hợp đuôi mở rộng hỗ trợ (.xlsx, .xls)."""
         return {".xlsx", ".xls"}
 
     def load(self, file_path: Path, mime_type: str = "") -> list[LoadedPage]:
+        """Đọc từng sheet trong file Excel và chuyển thành danh sách LoadedPage (kèm metadata tên sheet)."""
         if not file_path.exists():
             raise ExternalServiceError(f"Excel file not found: {file_path}")
 

@@ -191,7 +191,9 @@ def to_evidence_schema(item: RetrievedChunk) -> EvidenceRead:
 
 def is_chitchat_query(question: str) -> bool:
     """Detect if query is conversational chit-chat (greeting, closure, etc.)."""
+    import unicodedata
     q = question.strip().lower().rstrip("?.!")
+    q = unicodedata.normalize("NFC", q)
 
     # Common greeting words / phrases in English and Vietnamese
     patterns = [
@@ -206,7 +208,8 @@ def is_chitchat_query(question: str) -> bool:
     ]
 
     import re
-
+    if "thank" in q or "cảm ơn" in q or "hello" in q:
+        return True
     combined = "^(" + "|".join(patterns) + ")$"
     if re.match(combined, q):
         return True

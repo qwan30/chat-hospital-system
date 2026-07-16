@@ -1,3 +1,8 @@
+"""Clinical documents upload, indexing & search API routes.
+Các endpoint API quản lý tài liệu lâm sàng (tải lên, liệt kê, truy xuất chi tiết
+trang/ảnh, thử lại index và tìm kiếm vector ngữ nghĩa).
+"""
+
 import uuid
 
 from fastapi import APIRouter, Depends, File, Form, Query, Request, UploadFile
@@ -48,6 +53,9 @@ async def upload_document(
     current_user: User = Depends(get_current_user),
     settings: Settings = Depends(get_settings),
 ) -> Document:
+    """Upload a new clinical document for a patient and enqueue/run OCR and vector indexing.
+    Tải lên tài liệu y tế lâm sàng của bệnh nhân, tiến hành lưu trữ và đưa vào hàng đợi/xử lý OCR và index vector.
+    """
     trace_id = new_trace_id()
     await PermissionService(session).require_upload_or_admin_role(
         user=current_user,
@@ -126,6 +134,9 @@ async def list_documents(
     session: AsyncSession = Depends(get_session),
     current_user: User = Depends(get_current_user),
 ) -> DocumentListResponse:
+    """List accessible clinical documents, optionally filtered by patient ID or indexing status.
+    Liệt kê danh sách tài liệu lâm sàng được phép truy cập, hỗ trợ lọc theo bệnh nhân hoặc trạng thái xử lý.
+    """
     stmt = select(Document).where(Document.deleted_at.is_(None)).order_by(Document.created_at.desc())
     if patient_id is not None:
         stmt = stmt.where(Document.patient_id == patient_id)
@@ -162,6 +173,9 @@ async def get_document(
     session: AsyncSession = Depends(get_session),
     current_user: User = Depends(get_current_user),
 ) -> Document:
+    """Retrieve detailed metadata of a specific clinical document.
+    Lấy thông tin metadata chi tiết của một tài liệu y khoa.
+    """
     document = await _get_document_or_404(session, document_id)
     trace_id = new_trace_id()
     await PermissionService(session).require_read(
@@ -195,6 +209,9 @@ async def get_document_page(
     session: AsyncSession = Depends(get_session),
     current_user: User = Depends(get_current_user),
 ) -> DocumentPage:
+    """Retrieve text content and metadata for a specific page of a document.
+    Lấy nội dung văn bản OCR và metadata của một trang cụ thể trong tài liệu.
+    """
     document = await _get_document_or_404(session, document_id)
     trace_id = new_trace_id()
     await PermissionService(session).require_read(
@@ -227,6 +244,9 @@ async def get_document_page_image(
     current_user: User = Depends(get_current_user),
     settings: Settings = Depends(get_settings),
 ):
+    """Retrieve the PNG image rendering of a specific document page.
+    Tải về hình ảnh PNG của một trang trong tài liệu y tế.
+    """
     from fastapi.responses import FileResponse
 
     document = await _get_document_or_404(session, document_id)
@@ -256,6 +276,9 @@ async def retry_index(
     current_user: User = Depends(get_current_user),
     settings: Settings = Depends(get_settings),
 ) -> Document:
+    """Retry OCR and vector indexing for a document that previously failed processing.
+    Thử lại quá trình OCR và index vector cho tài liệu bị lỗi trước đó.
+    """
     document = await _get_document_or_404(session, document_id)
     trace_id = new_trace_id()
     await PermissionService(session).require_upload_or_admin_role(
@@ -287,6 +310,9 @@ async def search_documents(
     current_user: User = Depends(get_current_user),
     settings: Settings = Depends(get_settings),
 ) -> DocumentSearchResponse:
+    """Perform semantic vector search across chunks within a patient's documents.
+    Tìm kiếm ngữ nghĩa (vector search) trên các đoạn văn bản (chunks) thuộc tài liệu của bệnh nhân.
+    """
     trace_id = new_trace_id()
     await PermissionService(session).require_read(
         user=current_user,

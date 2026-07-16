@@ -40,10 +40,10 @@ test.describe("Chat functionality - greetings and valid question mapping", () =>
     await expect(composer).toBeVisible({ timeout: 30000 });
     const send = page.getByRole("button", { name: /^Send$/ });
 
-    await composer.fill("thank you");
+    await composer.fill("cảm ơn");
     await send.click();
 
     const assistantBubble = page.locator('[data-msg-role="assistant"]').last();
-    await expect(assistantBubble).toContainText(/Không có gì|Copilot/i, { timeout: 20000 });
+    await expect(assistantBubble).toContainText(/Không có gì/i, { timeout: 20000 });
   });
 });

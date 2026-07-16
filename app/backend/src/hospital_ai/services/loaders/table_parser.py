@@ -1,8 +1,11 @@
 """Table parsing utilities for medical documents.
+Các tiện ích phân tích và xử lý bảng biểu trong tài liệu y tế (Table Parsing Utilities).
 
 Converts raw table data from PDF extraction into structured markdown
 format that LLMs can comprehend. Handles common medical table patterns
 like lab results, vital signs, and medication lists.
+Chuyển đổi dữ liệu bảng thô từ các quá trình trích xuất PDF sang định dạng markdown cấu trúc
+để LLM dễ dàng đọc hiểu. Nhận diện các mẫu bảng y tế phổ biến như chỉ số xét nghiệm, dấu hiệu sinh tồn, đơn thuốc.
 """
 
 from __future__ import annotations
@@ -12,13 +15,14 @@ import re
 
 def tables_to_markdown(tables: list[list[list[str]]] | None) -> str:
     """Convert a list of raw tables to markdown format.
+    Chuyển đổi danh sách các bảng dữ liệu thô (dạng mảng 2D) sang dạng chuỗi markdown có tiêu đề rõ ràng.
 
     Args:
-        tables: List of tables, each a 2D list of cell values.
+        tables: List of tables, each a 2D list of cell values (Danh sách bảng, mỗi bảng là mảng 2D các ô).
                 Cell values may be None for empty cells.
 
     Returns:
-        Markdown string with all tables formatted with headers.
+        Markdown string with all tables formatted with headers (Chuỗi văn bản markdown hoàn chỉnh).
     """
     if not tables:
         return ""
@@ -74,12 +78,13 @@ def normalize_medical_table(
     table: list[list[str]] | None,
 ) -> list[list[str]]:
     """Normalize a raw table for medical document parsing.
+    Chuẩn hóa dữ liệu bảng thô để phục vụ phân tích tài liệu y tế chính xác hơn.
 
     Handles:
-    - None/empty cell values
-    - Merged cells (carries forward non-empty values)
-    - Whitespace cleanup
-    - Removal of completely empty rows and columns
+    - None/empty cell values (Xử lý ô trống / None)
+    - Merged cells (carries forward non-empty values - Xử lý ô gộp)
+    - Whitespace cleanup (Làm sạch khoảng trắng thừa)
+    - Removal of completely empty rows and columns (Dọn dẹp hàng và cột rỗng hoàn toàn)
 
     Args:
         table: Raw 2D list with possible None values.
@@ -123,6 +128,7 @@ def normalize_medical_table(
 
 def extract_lab_values(table_md: str) -> dict[str, str]:
     """Extract key-value pairs from lab result tables.
+    Trích xuất các cặp chỉ số - giá trị (Key-Value pairs) từ văn bản bảng xét nghiệm (Lab Results).
 
     Looks for patterns like:
     - "| Test Name | Value | Unit | Reference |"
@@ -133,7 +139,7 @@ def extract_lab_values(table_md: str) -> dict[str, str]:
         table_md: Markdown text containing table data.
 
     Returns:
-        Dictionary mapping test names to their values.
+        Dictionary mapping test names to their values (Từ điển ánh xạ tên xét nghiệm tới giá trị tương ứng).
     """
     lab_values: dict[str, str] = {}
 
@@ -177,6 +183,7 @@ def extract_lab_values(table_md: str) -> dict[str, str]:
 
 def detect_table_boundaries(text: str) -> list[tuple[int, int]]:
     """Detect markdown table boundaries in text.
+    Phát hiện và xác định chính xác tọa độ (vị trí đầu, vị trí cuối) của các bảng biểu markdown trong văn bản.
 
     Returns a list of (start_pos, end_pos) tuples marking table regions.
     """

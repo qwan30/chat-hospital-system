@@ -1,4 +1,6 @@
-"""DOCX document loader using python-docx."""
+"""DOCX document loader using python-docx.
+Bộ nạp tài liệu Microsoft Word (.docx, .doc) sử dụng thư viện python-docx.
+"""
 
 from __future__ import annotations
 
@@ -10,14 +12,18 @@ from hospital_ai.services.loaders.base import BaseDocumentLoader, LoadedPage
 
 class DocxLoader(BaseDocumentLoader):
     """Extract text from DOCX files.
+    Bộ nạp chuyên dụng trích xuất văn bản từ tệp Word DOCX/DOC.
 
     Treats each paragraph as content. Header/table content is also extracted.
+    Coi mỗi đoạn văn bản là nội dung trích xuất; đồng thời thu thập cả nội dung bảng biểu trong tài liệu.
     """
 
     def supported_extensions(self) -> set[str]:
+        """Trả về tập hợp đuôi mở rộng hỗ trợ (.docx, .doc)."""
         return {".docx", ".doc"}
 
     def load(self, file_path: Path, mime_type: str = "") -> list[LoadedPage]:
+        """Đọc toàn bộ các đoạn văn và bảng biểu từ tệp Word, gộp lại thành một trang LoadedPage duy nhất."""
         if not file_path.exists():
             raise ExternalServiceError(f"DOCX file not found: {file_path}")
 

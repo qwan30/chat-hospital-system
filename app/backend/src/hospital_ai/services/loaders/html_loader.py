@@ -1,4 +1,6 @@
-"""HTML document loader using BeautifulSoup."""
+"""HTML document loader using BeautifulSoup.
+Bộ nạp tài liệu HTML/MHTML sử dụng thư viện BeautifulSoup.
+"""
 
 from __future__ import annotations
 
@@ -10,14 +12,18 @@ from hospital_ai.services.loaders.base import BaseDocumentLoader, LoadedPage
 
 class HtmlLoader(BaseDocumentLoader):
     """Extract readable text from HTML files.
+    Bộ nạp chuyên dụng trích xuất nội dung văn bản sạch từ tệp HTML/MHTML.
 
     Strips tags and extracts meaningful text content.
+    Tự động loại bỏ thẻ script, style, nav, footer và chỉ giữ lại nội dung văn bản có ý nghĩa.
     """
 
     def supported_extensions(self) -> set[str]:
+        """Trả về tập hợp đuôi mở rộng hỗ trợ (.html, .htm, .mhtml)."""
         return {".html", ".htm", ".mhtml"}
 
     def load(self, file_path: Path, mime_type: str = "") -> list[LoadedPage]:
+        """Phân tích tệp HTML, loại bỏ thẻ rác, trích xuất văn bản và tiêu đề (metadata title)."""
         if not file_path.exists():
             raise ExternalServiceError(f"HTML file not found: {file_path}")
 

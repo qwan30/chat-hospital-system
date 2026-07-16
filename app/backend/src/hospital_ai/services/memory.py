@@ -1,3 +1,7 @@
+"""Chat session memory and clinical summarization service.
+Dịch vụ quản lý bộ nhớ phiên trò chuyện và tổng hợp tóm tắt ngữ cảnh lâm sàng dài hạn.
+"""
+
 import logging
 from datetime import UTC, datetime
 from uuid import UUID
@@ -14,7 +18,12 @@ logger = logging.getLogger(__name__)
 
 
 class MemoryService:
+    """Manages conversational memory across multi-turn clinical chats.
+    Quản lý bộ nhớ hội thoại qua nhiều lượt hỏi đáp lâm sàng (sử dụng tóm tắt LLM để duy trì ngữ cảnh).
+    """
+
     def __init__(self, session: AsyncSession, settings: Settings) -> None:
+        """Khởi tạo MemoryService với AsyncSession và cấu hình hệ thống Settings."""
         self.session = session
         self.settings = settings
 
@@ -26,7 +35,9 @@ class MemoryService:
         new_answer: str,
         source_ids: list[str],
     ) -> None:
-        """Update or create the ChatSessionMemory for a given thread asynchronously."""
+        """Update or create the ChatSessionMemory for a given thread asynchronously.
+        Cập nhật hoặc tạo mới đối tượng ChatSessionMemory cho luồng hội thoại cụ thể một cách bất đồng bộ.
+        """
         try:
             # 1. Fetch existing memory
             result = await self.session.execute(

@@ -1,9 +1,12 @@
 """Reasoning pipelines inspired by kotaemon's ktem/reasoning module.
+Hệ thống các luồng xử lý suy luận (Reasoning Pipelines) lấy cảm hứng từ module reasoning của kotaemon.
 
 Provides multiple strategies for answering questions:
-- SimpleQAPipeline: retrieve → generate (default)
-- DecomposeQAPipeline: break complex question into sub-questions
-- PatientSummaryPipeline: generate structured patient summaries
+Cung cấp nhiều chiến lược lập luận và sinh câu trả lời cho câu hỏi y tế:
+- SimpleQAPipeline: retrieve → generate (default / mặc định: tìm kiếm → trả lời trực tiếp).
+- DecomposeQAPipeline: break complex question into sub-questions (chia nhỏ câu hỏi phức tạp thành
+  nhiều câu đơn giản để truy xuất sâu).
+- PatientSummaryPipeline: generate structured patient summaries (tổng hợp hồ sơ bệnh án theo cấu trúc chuẩn).
 """
 
 import re
@@ -45,6 +48,7 @@ DISCLAIMER = "AI-assisted retrieval; clinical staff must verify before making de
 
 @dataclass(frozen=True)
 class ReasoningResult:
+    """Cấu trúc dữ liệu kết quả trả về từ các luồng suy luận (Reasoning Pipeline)."""
     answer: str
     citations: list[EvidenceRead]
     confidence: str
@@ -54,7 +58,9 @@ class ReasoningResult:
 
 
 class SimpleQAPipeline:
-    """Standard retrieve → rerank → generate pipeline."""
+    """Standard retrieve → rerank → generate pipeline.
+    Luồng QA tiêu chuẩn: Truy xuất dữ liệu → Xếp hạng lại (Rerank) → Sinh câu trả lời (Generate).
+    """
 
     def __init__(self, settings: Settings) -> None:
         self.settings = settings
@@ -67,6 +73,7 @@ class SimpleQAPipeline:
         evidence: list[RetrievedChunk],
         conversation_history: list[dict[str, str]] | None = None,
     ) -> ReasoningResult:
+        """Thực hiện luồng trả lời trực tiếp: xếp hạng lại bằng chứng và gọi LLM sinh câu trả lời đính kèm dẫn chứng."""
         reranked = self.reranker.rerank(question, evidence, top_k=self.settings.retrieval_top_k)
 
         if not reranked:
@@ -101,7 +108,9 @@ class SimpleQAPipeline:
 
 
 class DecomposeQAPipeline:
-    """Break a complex question into sub-questions, retrieve for each, then synthesize."""
+    """Break a complex question into sub-questions, retrieve for each, then synthesize.
+    Luồng QA phân rã câu hỏi: Tách câu hỏi phức tạp thành các câu hỏi con, tìm kiếm cho từng câu rồi tổng hợp lại.
+    """
 
     def __init__(self, settings: Settings) -> None:
         self.settings = settings
@@ -114,6 +123,7 @@ class DecomposeQAPipeline:
         evidence: list[RetrievedChunk],
         conversation_history: list[dict[str, str]] | None = None,
     ) -> ReasoningResult:
+        """Thực hiện rã câu hỏi phức tạp, tìm kiếm/xếp hạng lại cho từng câu đơn rồi tổng hợp trả lời cuối cùng."""
         sub_questions = _decompose_question(question)
 
         if len(sub_questions) <= 1:
@@ -176,7 +186,9 @@ class DecomposeQAPipeline:
 
 
 class PatientSummaryPipeline:
-    """Generate a structured patient summary from all available evidence."""
+    """Generate a structured patient summary from all available evidence.
+    Luồng Tổng hợp Bệnh án: Tự động tổng hợp hồ sơ và tình trạng bệnh nhân từ các bằng chứng tìm được.
+    """
 
     def __init__(self, settings: Settings) -> None:
         self.settings = settings
@@ -188,6 +200,7 @@ class PatientSummaryPipeline:
         patient_name: str,
         evidence: list[RetrievedChunk],
     ) -> ReasoningResult:
+        """Thực hiện chọn lọc bằng chứng liên quan đến bệnh nhân và sinh bản tóm tắt lâm sàng chuẩn hóa."""
         reranked = self.reranker.rerank(f"patient summary for {patient_name}", evidence, top_k=10)
 
         if not reranked:
@@ -228,9 +241,11 @@ class PatientSummaryPipeline:
 
 def _decompose_question(question: str) -> list[str]:
     """Heuristic question decomposition without calling an LLM.
+    Phân rã câu hỏi dựa trên luật suy diễn (Heuristic) bằng dấu phẩy và từ nối mà không cần gọi LLM.
 
     Splits on conjunctions and commas to find sub-questions.
     Falls back to the original question if decomposition doesn't help.
+    Tách theo các từ nối "and", "also", dấu phẩy. Nếu không tách được sẽ giữ nguyên câu gốc.
     """
     parts = re.split(r"\band\b|\balso\b|,\s*(?:and\s*)?", question, flags=re.IGNORECASE)
     sub_questions = [part.strip().rstrip("?").strip() + "?" for part in parts if len(part.strip()) > 10]
@@ -238,6 +253,7 @@ def _decompose_question(question: str) -> list[str]:
 
 
 def _to_evidence_schema(chunk: RetrievedChunk) -> EvidenceRead:
+    """Chuyển đổi đối tượng nội bộ RetrievedChunk sang schema API chuẩn EvidenceRead."""
     return EvidenceRead(
         evidence_id=chunk.evidence_id,
         document_id=chunk.document_id,

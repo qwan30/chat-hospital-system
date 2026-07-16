@@ -8,6 +8,7 @@ import type { StreamCitation } from "@/lib/stream-client";
 export interface ChatCitationRef {
   n: number;
   sourceId: string;
+  documentId?: string;
 }
 
 export interface ChatMessageData {
@@ -24,25 +25,30 @@ export function ChatMessage({
   msg,
   isError,
   errorControls,
+  evidenceMap,
 }: {
   msg: ChatMessageData;
   isError?: boolean;
   errorControls?: ReactNode;
+  evidenceMap?: Map<string, number>;
 }) {
   const isAssistant = msg.role === "assistant";
 
-  // Render assistant content with inline [n] markers replaced by chips
+  // Render assistant content with inline [n] or [E1] markers replaced by chips
   const renderContent = () => {
     if (!msg.citations?.length) return <p className="whitespace-pre-wrap">{msg.content}</p>;
-    const parts = msg.content.split(/(\[\d+\])/g);
+    const parts = msg.content.split(/(\[E?\d+\])/g);
     return (
       <p className="whitespace-pre-wrap leading-relaxed">
         {parts.map((p, i) => {
-          const m = p.match(/^\[(\d+)\]$/);
+          const m = p.match(/^\[E?(\d+)\]$/);
           if (m) {
             const n = Number(m[1]);
             const c = msg.citations!.find((c) => c.n === n);
-            if (c) return <CitationChip key={i} n={n} sourceId={c.sourceId} className="mx-0.5" />;
+            if (c) {
+              const displayN = evidenceMap?.get(c.sourceId) ?? n;
+              return <CitationChip key={i} n={displayN} sourceId={c.documentId || c.sourceId} className="mx-0.5" />;
+            }
           }
           return <span key={i}>{p}</span>;
         })}

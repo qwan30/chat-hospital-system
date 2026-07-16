@@ -64,8 +64,8 @@ async def main() -> None:
 
         from sqlalchemy import select
 
-        from hospital_ai.db.migrations import DOCTOR_ID
-        from hospital_ai.db.models import ChatThread
+        from hospital_ai.db.migrations import DOCTOR_ID, HOSPITAL_PUBLIC_ID
+        from hospital_ai.db.models import ChatThread, Document, DocumentChunk, DocumentPage
 
         # Seed a DAPT conversation for E2E testing
         thread = await session.execute(select(ChatThread).where(ChatThread.title == "DAPT Guideline Query"))
@@ -82,6 +82,50 @@ async def main() -> None:
                 )
             )
             await session.commit()
+
+        # Seed synthetic medical guidelines
+        guidelines = [
+            ("Sepsis Guidelines", "Sepsis treatment protocol: Administer broad-spectrum antibiotics within 1 hour. Start IV fluids 30mL/kg for hypotension or lactate >= 4 mmol/L."),
+            ("DAPT Protocol", "Dual Antiplatelet Therapy (DAPT) Protocol: Aspirin 81mg daily plus Clopidogrel 75mg daily for 12 months post-DES placement."),
+            ("Diabetes Management", "Inpatient Diabetes Management: Target blood glucose 140-180 mg/dL. Use basal-bolus insulin regimen. Avoid sliding scale insulin alone.")
+        ]
+
+        for i, (title, content) in enumerate(guidelines):
+            doc_exists = await session.execute(select(Document).where(Document.title == title))
+            if doc_exists.scalar_one_or_none() is None:
+                doc = Document(
+                    patient_id=HOSPITAL_PUBLIC_ID,
+                    uploaded_by=ADMIN_ID,
+                    title=title,
+                    document_type="guideline",
+                    storage_uri=f"local://guideline_{i}",
+                    mime_type="text/plain",
+                    status="indexed",
+                    page_count=1,
+                    index_generation=1,
+                )
+                session.add(doc)
+                await session.flush()
+
+                page = DocumentPage(
+                    document_id=doc.id,
+                    page_number=1,
+                    ocr_text=content,
+                    ocr_confidence=1.0,
+                )
+                session.add(page)
+                await session.flush()
+
+                chunk = DocumentChunk(
+                    document_id=doc.id,
+                    page_id=page.id,
+                    patient_id=HOSPITAL_PUBLIC_ID,
+                    chunk_index=0,
+                    content=content,
+                    token_count=len(content.split()),
+                )
+                session.add(chunk)
+        await session.commit()
 
     print("Seeded synthetic users, patients, permissions, HMS appointment evidence, and ChatThreads.")
 

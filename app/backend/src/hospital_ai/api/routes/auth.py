@@ -1,3 +1,7 @@
+"""Authentication API routes.
+Các endpoint API xử lý đăng nhập, cấp phát token và lấy thông tin tài khoản hiện tại.
+"""
+
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy import select
@@ -17,6 +21,9 @@ async def login_for_access_token(
     session: AsyncSession = Depends(get_session),
     settings: Settings = Depends(get_settings),
 ) -> TokenResponse:
+    """Authenticate user with username and password, returning a bearer access token.
+    Xác thực người dùng bằng tài khoản/mật khẩu và trả về bearer access token.
+    """
     if form_data.password != "demo":
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
 
@@ -38,4 +45,7 @@ async def login_for_access_token(
 
 @router.get("/me", response_model=UserRead)
 async def me(current_user: User = Depends(get_current_user)) -> User:
+    """Return the profile details of the currently authenticated user.
+    Trả về thông tin chi tiết của tài khoản người dùng đang đăng nhập hiện tại.
+    """
     return current_user

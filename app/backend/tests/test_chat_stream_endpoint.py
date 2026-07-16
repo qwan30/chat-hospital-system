@@ -282,3 +282,33 @@ async def test_chat_stream_error_no_leak(session_and_settings):
     assert "INTERNAL_CRASH_WITH_SECRET_DATA_12345" not in body.decode("utf-8")
     assert error.get("code") == "INTERNAL_ERROR"
     assert "internal error" in error.get("message", "").lower()
+
+
+@pytest.mark.asyncio
+async def test_chat_stream_chitchat_greeting(session_and_settings):
+    """Ensure chitchat queries like 'hello' return the friendly greeting rather than no evidence."""
+    session, settings = session_and_settings
+    doctor = await session.get(User, DOCTOR_ID)
+
+    payload = ChatRequest(
+        patient_id=None,
+        question="hello",
+    )
+
+    response = await chat_stream(
+        payload=payload,
+        request=_request(),
+        session=session,
+        current_user=doctor,
+        settings=settings,
+    )
+
+    body = b""
+    async for chunk in response.body_iterator:
+        body += chunk.encode("utf-8")
+
+    events = _parse_sse_events(body)
+    tokens = [e.get("content", "") for e in events if e.get("type") == "token"]
+    full_text = "".join(tokens).strip()
+    assert "Xin chào!" in full_text or "Copilot" in full_text
+

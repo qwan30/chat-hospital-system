@@ -1,3 +1,7 @@
+"""Security audit log API routes.
+Các endpoint API tra cứu và liệt kê nhật ký kiểm kê bảo mật (chỉ dành cho vai trò security hoặc admin).
+"""
+
 import uuid
 
 from fastapi import APIRouter, Depends, Query
@@ -20,6 +24,9 @@ async def _list_logs(
     session: AsyncSession,
     current_user: User,
 ) -> AuditLogList:
+    """Helper function to query and filter audit log records based on patient, action, and outcome.
+    Hàm hỗ trợ truy vấn và lọc các bản ghi nhật ký kiểm kê theo bệnh nhân, hành động và kết quả.
+    """
     if current_user.role not in {"security", "admin"}:
         raise PermissionDeniedError("Only security or admin users can view audit logs.")
 
@@ -43,6 +50,9 @@ async def list_logs(
     session: AsyncSession = Depends(get_session),
     current_user: User = Depends(get_current_user),
 ) -> AuditLogList:
+    """Retrieve security audit logs filtered by patient, action type, or outcome status.
+    Tra cứu danh sách nhật ký bảo mật theo bộ lọc bệnh nhân, loại hành động hoặc kết quả xử lý.
+    """
     return await _list_logs(patient_id, action, outcome, limit, session, current_user)
 
 
@@ -55,4 +65,7 @@ async def list_events_alias(
     session: AsyncSession = Depends(get_session),
     current_user: User = Depends(get_current_user),
 ) -> AuditLogList:
+    """Alias route for retrieving security audit events (`/events`).
+    Endpoint bí danh (alias) để lấy danh sách sự kiện kiểm kê bảo mật (`/events`).
+    """
     return await _list_logs(patient_id, action, outcome, limit, session, current_user)

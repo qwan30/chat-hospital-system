@@ -1,8 +1,11 @@
 """Admin settings API — runtime-configurable RAG & LLM parameters.
+Các endpoint API quản trị viên cho phép cấu hình tham số RAG, LLM và embedding khi hệ thống đang chạy.
 
 Allows admin users to view and modify LLM/embedding/RAG settings
 without restarting the server.  Persists overrides to the ``system_settings``
 database table so they survive restarts.
+Cho phép admin xem và thay đổi cấu hình mà không cần khởi động lại server.
+Các thay đổi được lưu vào bảng ``system_settings`` trong database để duy trì khi restart.
 """
 
 from __future__ import annotations
@@ -86,7 +89,9 @@ async def get_admin_settings(
     settings: Settings = Depends(get_settings),
     session: AsyncSession = Depends(get_session),
 ) -> SettingsResponse:
-    """Return the current LLM, embedding, and RAG settings."""
+    """Return the current LLM, embedding, and RAG settings.
+    Lấy thông tin cấu hình hiện tại của LLM, embedding và RAG (ưu tiên các giá trị ghi đè trong CSDL).
+    """
     await _require_settings_role(
         request=request,
         session=session,
@@ -135,9 +140,11 @@ async def update_admin_settings(
     session: AsyncSession = Depends(get_session),
 ) -> SettingsResponse:
     """Update configurable settings (admin only).
+    Cập nhật các cấu hình hệ thống (chỉ dành cho admin).
 
     Only non-null fields in the payload are applied as overrides.
     Changes are persisted to the ``system_settings`` database table.
+    Chỉ các trường có giá trị trong payload mới được cập nhật và lưu vào CSDL.
     """
     await _require_settings_role(
         request=request,
@@ -166,6 +173,9 @@ async def _require_settings_role(
     action: str,
     allowed_roles: set[str],
 ) -> None:
+    """Verify user has required role to manage system settings and record audit log.
+    Kiểm tra quyền truy cập cấu hình hệ thống và ghi nhật ký kiểm kê (audit log).
+    """
     trace_id = new_trace_id()
     if current_user.role in allowed_roles:
         await AuditService(session).record(

@@ -1113,17 +1113,13 @@ dependencies = [
     { name = "alembic" },
     { name = "fastapi" },
     { name = "httpx" },
-    { name = "llm-guard" },
     { name = "numpy" },
-    { name = "openlit" },
     { name = "opentelemetry-api" },
     { name = "opentelemetry-exporter-otlp-proto-grpc" },
     { name = "opentelemetry-instrumentation-fastapi" },
     { name = "opentelemetry-instrumentation-httpx" },
     { name = "opentelemetry-instrumentation-sqlalchemy" },
     { name = "opentelemetry-sdk" },
-    { name = "presidio-analyzer" },
-    { name = "presidio-anonymizer" },
     { name = "prometheus-client" },
     { name = "pydantic" },
     { name = "pyjwt" },
@@ -1148,6 +1144,12 @@ dev = [
     { name = "pytest" },
     { name = "pytest-asyncio" },
     { name = "ruff" },
+]
+guardrails = [
+    { name = "llm-guard" },
+    { name = "openlit" },
+    { name = "presidio-analyzer" },
+    { name = "presidio-anonymizer" },
 ]
 jwt-rs256 = [
     { name = "cryptography" },
@@ -1175,9 +1177,9 @@ requires-dist = [
     { name = "cryptography", marker = "extra == 'jwt-rs256'", specifier = ">=41.0.0" },
     { name = "fastapi", specifier = ">=0.95.0,<0.100.0" },
     { name = "httpx", specifier = ">=0.27.0" },
-    { name = "llm-guard", specifier = ">=0.3.0" },
+    { name = "llm-guard", marker = "extra == 'guardrails'", specifier = ">=0.3.0" },
     { name = "numpy", specifier = "<2.0.0" },
-    { name = "openlit", specifier = ">=1.20.0" },
+    { name = "openlit", marker = "extra == 'guardrails'", specifier = ">=1.20.0" },
     { name = "opentelemetry-api", specifier = ">=1.20.0" },
     { name = "opentelemetry-exporter-otlp-proto-grpc", specifier = ">=1.20.0" },
     { name = "opentelemetry-instrumentation-fastapi", specifier = ">=0.41b0" },
@@ -1187,8 +1189,8 @@ requires-dist = [
     { name = "paddleocr", marker = "extra == 'ocr'", specifier = "<3.0.0" },
     { name = "pdfplumber", marker = "extra == 'tables'", specifier = ">=0.10.0" },
     { name = "pgvector", marker = "extra == 'postgres'", specifier = ">=0.3.0" },
-    { name = "presidio-analyzer", specifier = ">=2.2.0" },
-    { name = "presidio-anonymizer", specifier = ">=2.2.0" },
+    { name = "presidio-analyzer", marker = "extra == 'guardrails'", specifier = ">=2.2.0" },
+    { name = "presidio-anonymizer", marker = "extra == 'guardrails'", specifier = ">=2.2.0" },
     { name = "prometheus-client", specifier = ">=0.17.0" },
     { name = "pydantic", specifier = ">=1.10.0,<2.0.0" },
     { name = "pyjwt", specifier = ">=2.8.0" },
@@ -1207,7 +1209,7 @@ requires-dist = [
     { name = "tenacity", specifier = ">=8.0.0" },
     { name = "uvicorn", specifier = ">=0.30.0" },
 ]
-provides-extras = ["dev", "postgres", "ocr", "tables", "reranker", "jwt-rs256", "cohere"]
+provides-extras = ["guardrails", "dev", "postgres", "ocr", "tables", "reranker", "jwt-rs256", "cohere"]
 
 [[package]]
 name = "httpcore"
@@ -1740,8 +1742,8 @@ name = "mkl"
 version = "2021.4.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "intel-openmp" },
-    { name = "tbb" },
+    { name = "intel-openmp", marker = "(platform_machine != 'aarch64' and sys_platform == 'linux') or (sys_platform != 'darwin' and sys_platform != 'linux')" },
+    { name = "tbb", marker = "(platform_machine != 'aarch64' and sys_platform == 'linux') or (sys_platform != 'darwin' and sys_platform != 'linux')" },
 ]
 wheels = [
     { url = "https://files.pythonhosted.org/packages/ce/c6/892fe3bc91e811b78e4f85653864f2d92541d5e5c306b0cb3c2311e9ca64/mkl-2021.4.0-py2.py3-none-win32.whl", hash = "sha256:439c640b269a5668134e3dcbcea4350459c4a8bc46469669b2d67e07e3d330e8", size = 129048357, upload-time = "2021-09-28T17:08:58.256Z" },
@@ -2000,7 +2002,7 @@ name = "nvidia-cudnn-cu12"
 version = "8.9.2.26"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "nvidia-cublas-cu12" },
+    { name = "nvidia-cublas-cu12", marker = "(platform_machine != 'aarch64' and sys_platform == 'linux') or (sys_platform != 'darwin' and sys_platform != 'linux')" },
 ]
 wheels = [
     { url = "https://files.pythonhosted.org/packages/ff/74/a2e2be7fb83aaedec84f391f082cf765dfb635e7caa9b49065f73e4835d8/nvidia_cudnn_cu12-8.9.2.26-py3-none-manylinux1_x86_64.whl", hash = "sha256:5ccb288774fdfb07a7e7025ffec286971c06d8d7b4fb162525334616d7629ff9", size = 731725872, upload-time = "2023-06-01T19:24:57.328Z" },
@@ -2027,9 +2029,9 @@ name = "nvidia-cusolver-cu12"
 version = "11.4.5.107"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "nvidia-cublas-cu12" },
-    { name = "nvidia-cusparse-cu12" },
-    { name = "nvidia-nvjitlink-cu12" },
+    { name = "nvidia-cublas-cu12", marker = "(platform_machine != 'aarch64' and sys_platform == 'linux') or (sys_platform != 'darwin' and sys_platform != 'linux')" },
+    { name = "nvidia-cusparse-cu12", marker = "(platform_machine != 'aarch64' and sys_platform == 'linux') or (sys_platform != 'darwin' and sys_platform != 'linux')" },
+    { name = "nvidia-nvjitlink-cu12", marker = "(platform_machine != 'aarch64' and sys_platform == 'linux') or (sys_platform != 'darwin' and sys_platform != 'linux')" },
 ]
 wheels = [
     { url = "https://files.pythonhosted.org/packages/bc/1d/8de1e5c67099015c834315e333911273a8c6aaba78923dd1d1e25fc5f217/nvidia_cusolver_cu12-11.4.5.107-py3-none-manylinux1_x86_64.whl", hash = "sha256:8a7ec542f0412294b15072fa7dab71d31334014a69f953004ea7a118206fe0dd", size = 124161928, upload-time = "2023-04-19T15:51:25.781Z" },
@@ -2040,7 +2042,7 @@ name = "nvidia-cusparse-cu12"
 version = "12.1.0.106"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "nvidia-nvjitlink-cu12" },
+    { name = "nvidia-nvjitlink-cu12", marker = "(platform_machine != 'aarch64' and sys_platform == 'linux') or (sys_platform != 'darwin' and sys_platform != 'linux')" },
 ]
 wheels = [
     { url = "https://files.pythonhosted.org/packages/65/5b/cfaeebf25cd9fdec14338ccb16f6b2c4c7fa9163aefcf057d86b9cc248bb/nvidia_cusparse_cu12-12.1.0.106-py3-none-manylinux1_x86_64.whl", hash = "sha256:f3b50f42cf363f86ab21f720998517a659a48131e8d538dc02f8768237bd884c", size = 195958278, upload-time = "2023-04-19T15:51:49.939Z" },
@@ -4148,7 +4150,7 @@ name = "triton"
 version = "2.3.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "filelock", marker = "python_full_version < '3.12'" },
+    { name = "filelock", marker = "(python_full_version < '3.12' and platform_machine != 'aarch64' and sys_platform == 'linux') or (python_full_version < '3.12' and sys_platform != 'darwin' and sys_platform != 'linux')" },
 ]
 wheels = [
     { url = "https://files.pythonhosted.org/packages/64/16/956b7b9d2ed3a437a1a06792b2ae2e3c49147296ba2f4d59fcee376ded8f/triton-2.3.1-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:c9d64ae33bcb3a7a18081e3a746e8cf87ca8623ca13d2c362413ce7a486f893e", size = 168079264, upload-time = "2024-05-27T21:44:29.074Z" },

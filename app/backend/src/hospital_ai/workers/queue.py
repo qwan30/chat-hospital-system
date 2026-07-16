@@ -1,4 +1,6 @@
 """Worker queue helpers — Redis-backed document processing queue.
+Các hàm hỗ trợ quản lý hàng đợi worker (sử dụng Redis + RQ) để xử lý tác vụ ngầm
+như index tài liệu và phân tích CDSS, hỗ trợ tự động thử lại (retry) và DLQ.
 
 Wraps rq with retry and dead-letter support so that transient OCR/embedding
 failures are retried automatically and permanently-failed jobs are moved to
@@ -28,6 +30,7 @@ def enqueue_document_indexing(
     retry_intervals: list[int] | None = None,
 ) -> str:
     """Enqueue a document for indexing with automatic retry support.
+    Đưa tài liệu vào hàng đợi (Redis Queue) để index, hỗ trợ tự động thử lại khi gặp lỗi tạm thời.
 
     Returns:
         "queued" — job was enqueued to Redis.
@@ -81,7 +84,9 @@ def enqueue_to_dead_letter(
     settings: Settings,
     error_message: str,
 ) -> str:
-    """Move a permanently-failed document to the dead-letter queue."""
+    """Move a permanently-failed document to the dead-letter queue.
+    Chuyển tác vụ index tài liệu bị lỗi vĩnh viễn vào hàng đợi dead-letter để can thiệp thủ công.
+    """
     try:
         from redis import Redis
         from rq import Queue
@@ -116,7 +121,9 @@ def enqueue_to_dead_letter(
 
 
 def get_queue_stats(settings: Settings) -> dict:
-    """Return basic queue metrics for monitoring."""
+    """Return basic queue metrics for monitoring.
+    Lấy thống kê cơ bản của hàng đợi worker (số tác vụ chờ, lỗi, dead-letter, worker hoạt động) để phục vụ giám sát.
+    """
     try:
         from redis import Redis
         from rq import Queue
@@ -145,7 +152,9 @@ def enqueue_cdss_analysis(
     document_id: uuid.UUID,
     settings: Settings,
 ) -> str:
-    """Enqueue a document for CDSS analysis."""
+    """Enqueue a document for CDSS analysis.
+    Đưa tài liệu mới vào hàng đợi để phân tích hệ thống hỗ trợ quyết định lâm sàng (CDSS).
+    """
     try:
         from redis import Redis
         from rq import Queue

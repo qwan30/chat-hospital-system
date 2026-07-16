@@ -1,7 +1,10 @@
 """OpenAI-compatible LLM provider.
+Nhà cung cấp LLM tương thích chuẩn OpenAI (`/chat/completions`).
 
 Works with OpenAI API, Azure OpenAI, and any OpenAI-compatible endpoint
 (Groq, Together, Mistral, etc.)
+Hoạt động mượt mà với OpenAI API, Azure OpenAI hoặc bất kỳ endpoint nào tương thích OpenAI
+(ví dụ: Groq, Together AI, Mistral, v.v.).
 """
 
 from __future__ import annotations
@@ -15,7 +18,9 @@ from hospital_ai.services.llm.base import BaseLLM, LLMMessage, LLMResponse
 
 
 class OpenAILLM(BaseLLM):
-    """OpenAI-compatible chat completion provider."""
+    """OpenAI-compatible chat completion provider.
+    Triển khai BaseLLM kết nối qua HTTP REST API tới các dịch vụ theo chuẩn OpenAI `/chat/completions`.
+    """
 
     def __init__(
         self,
@@ -51,6 +56,7 @@ class OpenAILLM(BaseLLM):
         temperature: float = 0.0,
         max_tokens: int | None = None,
     ) -> LLMResponse:
+        """Gửi yêu cầu tạo sinh văn bản (`/chat/completions`) và trả về đối tượng LLMResponse kèm usage."""
         url = f"{self._base_url}/chat/completions"
         payload = self._build_payload(messages, temperature, max_tokens, stream=False)
 
@@ -79,6 +85,7 @@ class OpenAILLM(BaseLLM):
         temperature: float = 0.0,
         max_tokens: int | None = None,
     ) -> AsyncIterator[str]:
+        """Tạo luồng trả lời từng token qua Server-Sent Events (SSE) với cờ `stream=True`."""
         url = f"{self._base_url}/chat/completions"
         payload = self._build_payload(messages, temperature, max_tokens, stream=True)
 
@@ -112,6 +119,7 @@ class OpenAILLM(BaseLLM):
         max_tokens: int | None,
         stream: bool,
     ) -> dict:
+        """Tạo từ điển payload JSON chuẩn OpenAI (cấu hình model, messages, temperature, stream và max_tokens)."""
         payload: dict = {
             "model": self._model,
             "messages": [{"role": m.role, "content": m.content} for m in messages],

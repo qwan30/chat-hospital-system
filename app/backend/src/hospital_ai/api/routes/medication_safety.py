@@ -1,3 +1,7 @@
+"""Medication safety clinical review API routes.
+Các endpoint API kiểm tra an toàn sử dụng thuốc (danh sách cảnh báo tương tác thuốc, kiểm tra xung đột đơn thuốc).
+"""
+
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -113,6 +117,9 @@ MOCK_CONFLICTS = [
 async def get_review_queue(
     _: dict = Depends(require_role(["admin", "pharmacist"])),
 ) -> list[dict]:
+    """Retrieve all open medication conflicts across patients requiring clinical review.
+    Lấy danh sách tất cả các xung đột thuốc/tương tác thuốc cần dược sĩ lâm sàng hoặc bác sĩ rà soát.
+    """
     return MOCK_CONFLICTS
 
 
@@ -121,6 +128,9 @@ async def get_conflict(
     conflict_id: str,
     _: dict = Depends(require_role(["admin", "pharmacist", "doctor"])),
 ) -> dict:
+    """Get details of a specific medication conflict or interaction alert.
+    Lấy thông tin chi tiết về một cảnh báo xung đột hoặc tương tác thuốc cụ thể.
+    """
     for c in MOCK_CONFLICTS:
         if c["id"] == conflict_id:
             return c
@@ -134,6 +144,9 @@ async def get_patient_medication_review(
     db: AsyncSession = Depends(get_session),
     _: dict = Depends(require_role(["admin", "doctor", "pharmacist", "nurse"])),
 ) -> list[DrugWarning]:
+    """Check for active drug warnings and interactions for a specific patient.
+    Kiểm tra và trả về danh sách cảnh báo tương tác thuốc hiện tại đối với hồ sơ của một bệnh nhân.
+    """
     return await check_drug_interactions_for_query(
         session=db,
         query_text=query_text,

@@ -1,3 +1,8 @@
+"""Document processing and analysis background jobs.
+Các job xử lý nền cho tài liệu lâm sàng (trích xuất OCR, phân đoạn văn bản,
+tính toán embedding vector, index Graph RAG và chạy CDSS).
+"""
+
 import asyncio
 import hashlib
 import uuid
@@ -19,6 +24,9 @@ async def process_document(
     document_id: uuid.UUID,
     settings: Settings,
 ) -> None:
+    """Process a document through OCR, chunking, vector embedding, and Graph RAG indexing.
+    Xử lý tài liệu qua các bước: OCR văn bản, cắt đoạn (chunking), tạo embedding vector và index thực thể Graph RAG.
+    """
     document = await session.get(Document, document_id)
     if document is None:
         return
@@ -275,7 +283,9 @@ async def _mark_failed_if_current(
 
 
 def process_document_job(document_id: str) -> None:
-    """Entry point called by rq workers.
+    """Entry point called by rq workers to index a document.
+    Hàm entry point được gọi bởi worker RQ để index tài liệu. Nếu thất bại
+    sau tất cả lần thử lại, chuyển vào dead-letter queue.
 
     On final failure (after all retries exhausted), the document is moved
     to the dead-letter queue for manual inspection.
@@ -314,7 +324,8 @@ def process_document_job(document_id: str) -> None:
 
 
 def dead_letter_handler(document_id: str, error_message: str) -> None:
-    """Handler for dead-letter queue items.
+    """Handler for dead-letter queue items when processing permanently fails.
+    Hàm xử lý các tác vụ rơi vào hàng đợi dead-letter khi quá trình xử lý thất bại vĩnh viễn (để ghi log và cảnh báo).
 
     Logs the failure for monitoring.  A future admin dashboard or
     alerting hook can subscribe to this queue for notifications.
@@ -330,7 +341,9 @@ def dead_letter_handler(document_id: str, error_message: str) -> None:
 
 
 def cdss_job_handler(document_id: str) -> None:
-    """Entry point called by rq workers for CDSS analysis."""
+    """Entry point called by rq workers for CDSS analysis.
+    Hàm entry point được gọi bởi worker RQ để chạy phân tích CDSS cho tài liệu mới.
+    """
     import logging
 
     logger = logging.getLogger(__name__)

@@ -10,6 +10,8 @@
  *   data: {"type":"error","message":"..."}
  */
 
+import { mapIdsToUuids } from "./api-client";
+
 export interface StreamCitation {
   evidence_id: string;
   document_id: string;
@@ -91,20 +93,22 @@ export async function streamChat(
 
   try {
     resetWatchdog();
+    const rawBody = JSON.stringify({
+      message: body.message || body.question,
+      context: body.context || undefined,
+      patient_id: body.patient_id || undefined,
+      thread_id: body.thread_id || undefined,
+      top_k: body.top_k ?? 5,
+      pipeline: body.pipeline || "default",
+      mode: body.mode || undefined,
+      simulate: body.simulate || undefined,
+    });
+    
     const response = await fetch(url, {
       method: "POST",
       headers,
       signal: internalController.signal,
-      body: JSON.stringify({
-        message: body.message || body.question,
-        context: body.context || undefined,
-        patient_id: body.patient_id || undefined,
-        thread_id: body.thread_id || undefined,
-        top_k: body.top_k ?? 5,
-        pipeline: body.pipeline || "default",
-        mode: body.mode || undefined,
-        simulate: body.simulate || undefined,
-      }),
+      body: mapIdsToUuids(rawBody),
     });
 
     if (!response.ok) {

@@ -42,7 +42,7 @@ services:
       HOSPITAL_AI_DATABASE_URL: postgresql+asyncpg://hospital_ai:hospital_ai@postgres:5432/hospital_ai
       HOSPITAL_AI_REDIS_URL: redis://redis:6379/0
       HOSPITAL_AI_STORAGE_ROOT: /data/storage
-      HOSPITAL_AI_CORS_ORIGINS: http://localhost:3000,http://127.0.0.1:3000,http://localhost:8082,http://127.0.0.1:8082
+      HOSPITAL_AI_CORS_ORIGINS: http://localhost:3000,http://127.0.0.1:3000,http://localhost:8082,http://127.0.0.1:8082,http://localhost:8081,http://127.0.0.1:8081
       HOSPITAL_AI_ENVIRONMENT: local
       HOSPITAL_AI_EMBEDDING_PROVIDER: deterministic
       HOSPITAL_AI_CHAT_PROVIDER: stub

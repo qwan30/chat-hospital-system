@@ -17,6 +17,7 @@ test.describe("/chat/patients/:patientId — duplicate submits + rapid presses",
 
     await page.goto("/chat/patients/p-001");
     const composer = page.locator("textarea").first();
+    await expect(composer).toBeVisible({ timeout: 30000 });
     await composer.fill("Quick question about anticoagulation?");
 
     const before = await page.locator('[data-msg-role="user"]').count();
@@ -40,6 +41,7 @@ test.describe("/chat/patients/:patientId — duplicate submits + rapid presses",
     });
     await page.goto("/chat/patients/p-001");
     const composer = page.locator("textarea").first();
+    await expect(composer).toBeVisible({ timeout: 30000 });
     const send = page.getByRole("button", { name: /^Send$/ });
 
     await composer.fill("First question");
@@ -63,6 +65,7 @@ test.describe("/chat/patients/:patientId — duplicate submits + rapid presses",
   }) => {
     await page.goto("/chat/patients/p-001?simulate=stream-fail");
     const composer = page.locator("textarea").first();
+    await expect(composer).toBeVisible({ timeout: 30000 });
     await composer.fill("Trigger forced failure");
     await page.getByRole("button", { name: /^Send$/ }).click();
 

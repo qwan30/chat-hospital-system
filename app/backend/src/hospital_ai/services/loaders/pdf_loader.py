@@ -1,4 +1,6 @@
-"""PDF document loader using PyMuPDF (fitz) with table-aware extraction."""
+"""PDF document loader using PyMuPDF (fitz) with table-aware extraction.
+Bộ nạp tài liệu PDF sử dụng PyMuPDF (fitz) kết hợp nhận diện và trích xuất bảng biểu tự động.
+"""
 
 from __future__ import annotations
 
@@ -13,19 +15,27 @@ logger = logging.getLogger(__name__)
 
 class PdfLoader(BaseDocumentLoader):
     """Extract text and tables from PDF files page by page.
+    Trích xuất văn bản và bảng biểu từ tệp PDF theo từng trang.
 
     Uses PyMuPDF (fitz) as the primary extraction engine.
     Falls back to pdfplumber if fitz is unavailable.
+    Sử dụng PyMuPDF (fitz) làm công cụ trích xuất chính nhờ tốc độ cao,
+    đồng thời có cơ chế dự phòng tự động chuyển sang pdfplumber nếu không tìm thấy fitz.
 
     Table extraction is attempted using pdfplumber (even when fitz
     is used for text) because pdfplumber has superior table detection.
     Tables are converted to markdown format and appended to page text.
+    Việc trích xuất bảng biểu luôn ưu tiên thử bằng pdfplumber (kể cả khi dùng fitz đọc chữ)
+    vì pdfplumber nhận diện cấu trúc ô bảng tốt hơn. Bảng sau khi đọc được chuyển sang định dạng markdown
+    và nối tiếp vào phần văn bản của trang tương ứng.
     """
 
     def supported_extensions(self) -> set[str]:
+        """Trả về tập hợp đuôi mở rộng hỗ trợ (.pdf)."""
         return {".pdf"}
 
     def load(self, file_path: Path, mime_type: str = "") -> list[LoadedPage]:
+        """Đọc tệp PDF theo từng trang, tự động gộp văn bản thường và chuỗi markdown bảng biểu."""
         if not file_path.exists():
             raise ExternalServiceError(f"PDF file not found: {file_path}")
 
@@ -43,6 +53,7 @@ class PdfLoader(BaseDocumentLoader):
             ) from None
 
     def _load_with_fitz(self, file_path: Path) -> list[LoadedPage]:
+        """Trích xuất PDF bằng PyMuPDF (fitz), kết hợp đọc bảng bằng pdfplumber nếu có."""
         import fitz  # type: ignore[import-untyped]
 
         pages: list[LoadedPage] = []
@@ -82,6 +93,7 @@ class PdfLoader(BaseDocumentLoader):
         return pages
 
     def _load_with_pdfplumber(self, file_path: Path) -> list[LoadedPage]:
+        """Trích xuất PDF hoàn toàn bằng pdfplumber (khi fitz chưa cài đặt hoặc bị lỗi)."""
         import pdfplumber  # type: ignore[import-untyped]
 
         from hospital_ai.services.loaders.table_parser import tables_to_markdown
@@ -123,9 +135,12 @@ class PdfLoader(BaseDocumentLoader):
 
     def _extract_tables_pdfplumber(self, file_path: Path) -> dict[int, str]:
         """Extract tables from all pages using pdfplumber.
+        Trích xuất bảng từ tất cả các trang PDF bằng pdfplumber.
 
         Returns a dict mapping page_number (1-indexed) to markdown table text.
         Returns empty dict if pdfplumber is not available.
+        Trả về từ điển ánh xạ số trang (đánh số từ 1) sang chuỗi văn bản bảng định dạng markdown.
+        Trả về từ điển rỗng nếu thư viện pdfplumber chưa được cài đặt.
         """
         try:
             import pdfplumber  # type: ignore[import-untyped]

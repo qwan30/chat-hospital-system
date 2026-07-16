@@ -1,4 +1,5 @@
 """Feedback and metrics summary API routes.
+Các endpoint API xử lý gửi phản hồi/đánh giá (thumbs up/down) và thống kê chỉ số hiệu quả sử dụng.
 
 POST /api/v1/feedback/queries/{query_id}/feedback   — submit rating
 GET  /api/v1/feedback/metrics/summary               — aggregated metrics
@@ -60,7 +61,9 @@ async def submit_feedback(
     user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
 ) -> FeedbackResponse:
-    """Submit user feedback (thumbs up/down) on a query response."""
+    """Submit user feedback (thumbs up/down) on a query response.
+    Gửi đánh giá và phản hồi của người dùng (thích/không thích, bình luận) đối với một câu trả lời từ AI.
+    """
     # Verify the query exists and belongs to the user
     result = await session.execute(select(AiQuery).where(AiQuery.id == query_id))
     query = result.scalar_one_or_none()
@@ -102,7 +105,10 @@ async def get_metrics_summary(
     user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
 ) -> MetricsSummaryResponse:
-    """Get aggregated impact metrics. Available to all authenticated users."""
+    """Get aggregated impact metrics. Available to all authenticated users.
+    Lấy thống kê tổng hợp các chỉ số tác động (tiết kiệm thời gian, chi phí, tỷ lệ hữu ích).
+    Cho phép mọi tài khoản đăng nhập truy cập.
+    """
     summary = await MetricsService(session).get_summary()
     denied_result = await session.execute(select(func.count(AuditLog.id)).where(AuditLog.outcome == "denied"))
     return MetricsSummaryResponse(

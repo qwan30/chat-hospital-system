@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>100 Câu Hỏi Phỏng Vấn: Hospital Knowledge Assistant</title>
+<style>
+    :root {
+        --primary: #0f766e;
+        --secondary: #0369a1;
+        --danger: #b91c1c;
+        --bg: #f8fafc;
+        --text: #334155;
+    }
+    body {
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        line-height: 1.6;
+        color: var(--text);
+        background-color: var(--bg);
+        margin: 0;
+        padding: 40px 20px;
+    }
+    .container {
+        max-width: 1100px;
+        margin: 0 auto;
+        background: white;
+        padding: 40px;
+        border-radius: 12px;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    }
+    h1 {
+        text-align: center;
+        color: var(--secondary);
+        font-size: 2.5em;
+        border-bottom: 3px solid #e2e8f0;
+        padding-bottom: 20px;
+        margin-bottom: 40px;
+    }
+    h2 {
+        color: var(--primary);
+        font-size: 1.8em;
+        border-left: 5px solid var(--primary);
+        padding-left: 15px;
+        margin-top: 50px;
+        background: #f1f5f9;
+        padding: 10px 15px;
+        border-radius: 0 8px 8px 0;
+    }
+    .qa-box {
+        border-left: 3px solid #cbd5e1;
+        padding: 15px 20px;
+        margin-bottom: 25px;
+        background: #fafafa;
+        border-radius: 0 8px 8px 0;
+        transition: all 0.2s;
+    }
+    .qa-box:hover {
+        border-left-color: var(--primary);
+        box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+        background: white;
+    }
+    .question {
+        font-weight: 700;
+        color: var(--danger);
+        font-size: 1.15em;
+        margin-bottom: 10px;
+    }
+    .answer {
+        color: #475569;
+        font-size: 1.05em;
+    }
+    .tag {
+        display: inline-block;
+        background: #e0f2fe;
+        color: #0284c7;
+        font-size: 0.8em;
+        font-weight: 600;
+        padding: 3px 8px;
+        border-radius: 12px;
+        margin-right: 8px;
+        margin-bottom: 5px;
+    }
+    .tag.star { background: #dcfce7; color: #166534; }
+    .tag.tradeoff { background: #fef08a; color: #854d0e; }
+    b { color: #1e293b; }
+</style>
+</head>
+<body>
+
+<div class="container">
+    <h1>🚀 100 Câu Hỏi Phỏng Vấn Chuyên Sâu<br><small style="font-size: 0.5em; color: #64748b;">Dự án: AI-Powered Hospital Knowledge Assistant</small></h1>
+
+    <!-- SECTION 1 -->
+    <h2>Phần 1: Kiến trúc Hệ thống & Cơ sở hạ tầng (1-10)</h2>
+    
+    <div class="qa-box"><div class="question">1. Tại sao chọn FastAPI thay vì Django/Flask?</div><div class="answer"><span class="tag tradeoff">Trade-off</span> <b>A:</b> Django phù hợp web truyền thống, nhưng RAG/LLM yêu cầu xử lý I/O tốn thời gian. FastAPI hỗ trợ Asyncio Native, giúp giải phóng luồng khi gọi API LLM, xử lý hàng ngàn request SSE streaming mượt mà mà không kẹt server.</div></div>
+    <div class="qa-box"><div class="question">2. Tại sao chia dự án thành Backend và Frontend riêng biệt thay vì Monolith (như Jinja2)?</div><div class="answer"><span class="tag">System Design</span> <b>A:</b> Tách biệt giúp scale độc lập. Backend cần scale GPU/CPU cho OCR, Frontend cần scale RAM cho UI. Giao tiếp qua REST API/SSE đảm bảo lỏng lẻo (loose coupling).</div></div>
+    <div class="qa-box"><div class="question">3. Tại sao không dùng Langchain hay LlamaIndex?</div><div class="answer"><span class="tag tradeoff">Trade-off</span> <b>A:</b> Langchain tạo "hộp đen" làm ẩn đi Data Flow. Trong Y tế, việc chặn dữ liệu trái phép ở tầng SQL cần sự kiểm soát 100%. Viết Native Python Code giúp dễ debug và tránh nợ kỹ thuật từ Breaking Changes của framework.</div></div>
+    <div class="qa-box"><div class="question">4. Kiến trúc stream SSE (Server-Sent Events) giải quyết vấn đề gì?</div><div class="answer"><span class="tag star">STAR</span> <b>S:</b> Chờ LLM sinh toàn bộ văn bản mất 15s gây trải nghiệm chán nản. <b>A:</b> Dùng SSE đẩy từng token text về trình duyệt ngay lập tức. <b>R:</b> Time-To-First-Token (TTFT) giảm xuống dưới 1s.</div></div>
+    <div class="qa-box"><div class="question">5. Database Connection Pool được cấu hình như thế nào để tránh quá tải?</div><div class="answer"><span class="tag">Performance</span> <b>A:</b> Dùng `asyncpg` với SQLAlchemy Async. Giới hạn pool_size=20, max_overflow=10. Tránh tình trạng 1000 user vào cùng lúc làm sập bộ nhớ Postgres.</div></div>
+    <div class="qa-box"><div class="question">6. Sự khác biệt khi chạy mô hình trên Docker CPU so với GPU Passthrough?</div><div class="answer"><span class="tag tradeoff">Trade-off</span> <b>A:</b> Chạy CPU dễ setup cho mọi máy, nhưng OCR tốn vài phút. Docker cấu hình `deploy.resources.reservations.devices` để GPU passthrough giúp Ollama/vLLM tăng Throughput token/s lên 10-20 lần.</div></div>
+    <div class="qa-box"><div class="question">7. Dữ liệu tĩnh (như ảnh OCR) được lưu trữ thế nào?</div><div class="answer"><span class="tag">Storage</span> <b>A:</b> Lưu ổ cứng (Volume) thay vì nhét thẳng vào Database (tránh phình to DB). DB chỉ lưu đường dẫn file.</div></div>
+    <div class="qa-box"><div class="question">8. API Gateway ở đây đóng vai trò gì?</div><div class="answer"><span class="tag">System Design</span> <b>A:</b> Nằm ở cổng vào, xử lý Rate Limiting, xác thực JWT token và định tuyến (Routing) request tới các service bên dưới, bảo vệ Backend khỏi bị dội bom (DDoS).</div></div>
+    <div class="qa-box"><div class="question">9. Nếu Bệnh viện có 10 cơ sở, kiến trúc này Scale up thế nào?</div><div class="answer"><span class="tag">Scalability</span> <b>A:</b> API chạy theo mô hình Stateless. Ta có thể bật N container Backend phía sau 1 Load Balancer (Nginx). Cache và Queue đẩy ra Redis dùng chung.</div></div>
+    <div class="qa-box"><div class="question">10. Bạn xử lý lỗi mất kết nối DB như thế nào?</div><div class="answer"><span class="tag star">STAR</span> <b>A:</b> Cài đặt cơ chế Exponential Backoff & Retry trong cấu hình kết nối DB. Nếu sập mạng tạm thời, server sẽ thử lại 3-5 lần trước khi báo lỗi 500.</div></div>
+
+    <!-- SECTION 2 -->
+    <h2>Phần 2: Database & Vector Search (11-20)</h2>
+
+    <div class="qa-box"><div class="question">11. Tại sao dùng PostgreSQL thay vì MongoDB?</div><div class="answer"><span class="tag tradeoff">Trade-off</span> <b>A:</b> Hồ sơ y tế cần tính toàn vẹn dữ liệu cực cao (ACID). Postgres đảm bảo an toàn giao dịch, hỗ trợ JOIN bảng quyền truy cập với bệnh án rất tốt so với NoSQL.</div></div>
+    <div class="qa-box"><div class="question">12. Lợi ích của `pgvector` so với cơ sở dữ liệu Vector Cloud (Pinecone)?</div><div class="answer"><span class="tag tradeoff">Trade-off</span> <b>A:</b> Pinecone bị khóa nhà cung cấp (Vendor Lock-in) và vi phạm chuẩn HIPAA nếu đẩy dữ liệu bệnh nhân lên Cloud. `pgvector` lưu trực tiếp vector ngay cạnh text trong DB nội bộ.</div></div>
+    <div class="qa-box"><div class="question">13. Cấu trúc bảng Vector (Chunks) gồm những trường nào?</div><div class="answer"><span class="tag">DB Schema</span> <b>A:</b> ID, Document_ID, Text_Content, Vector_Embeddings, Page_Number, và Metadata (chứa thông tin thời gian để lọc tài liệu cũ/mới).</div></div>
+    <div class="qa-box"><div class="question">14. Khái niệm Indexing HNSW trong pgvector giúp ích gì?</div><div class="answer"><span class="tag">Performance</span> <b>A:</b> Thay vì rà quét (Exact K-NN) 1 triệu vector rất chậm, thuật toán Hierarchical Navigable Small World (HNSW) tạo đồ thị xấp xỉ giúp lấy kết quả mili-giây với độ chính xác >95%.</div></div>
+    <div class="qa-box"><div class="question">15. Nếu cấu trúc bảng thay đổi (thêm cột), bạn quản lý ra sao?</div><div class="answer"><span class="tag">DevOps</span> <b>A:</b> Dùng thư viện Alembic Migration. Tạo các script versioning cho Database, đảm bảo 3 môi trường Dev, Staging, Prod luôn đồng bộ cấu trúc mà không mất dữ liệu.</div></div>
+    <div class="qa-box"><div class="question">16. Cách khắc phục khi truy vấn Database quá chậm?</div><div class="answer"><span class="tag star">STAR</span> <b>A:</b> Bật logging SQL, dùng lệnh EXPLAIN ANALYZE để tìm nút thắt. Đánh Index (B-Tree) cho các cột hay truy vấn như `patient_id` và `created_at`.</div></div>
+    <div class="qa-box"><div class="question">17. Tại sao lại dùng Soft Delete thay vì xóa thẳng dòng (DELETE FROM)?</div><div class="answer"><span class="tag">Compliance</span> <b>A:</b> Y tế không cho phép xóa sạch dấu vết. Thao tác xóa chỉ set `deleted_at = NOW()`. Các query phải có `deleted_at IS NULL` để lọc ra dữ liệu còn dùng.</div></div>
+    <div class="qa-box"><div class="question">18. Làm sao để update Vector khi tài liệu y tế gốc bị chỉnh sửa?</div><div class="answer"><span class="tag star">STAR</span> <b>A:</b> Khi Doc thay đổi, xóa cứng các chunks vector cũ của Document ID đó, rồi băm (chunking) và embed lại tài liệu mới, insert vào DB để thay thế.</div></div>
+    <div class="qa-box"><div class="question">19. Model Embedding BGE-M3 có ưu điểm gì so với OpenAI text-embedding-ada?</div><div class="answer"><span class="tag tradeoff">Trade-off</span> <b>A:</b> BGE-M3 là model nội bộ (Open-source), không tốn tiền API, bảo mật tuyệt đối, và đặc biệt hỗ trợ xử lý đa ngôn ngữ tốt, sinh vector nhiều độ dài.</div></div>
+    <div class="qa-box"><div class="question">20. Transaction quản lý thế nào trong FastAPI?</div><div class="answer"><span class="tag">System Design</span> <b>A:</b> Dùng Dependency Injection. Session DB được tạo ở đầu Request, mọi Exception xảy ra sẽ gọi `session.rollback()`, nếu OK thì tự `commit()` ở cuối luồng.</div></div>
+
+    <!-- SECTION 3 -->
+    <h2>Phần 3: RAG Pipeline & Thuật Toán Tìm Kiếm (21-30)</h2>
+
+    <div class="qa-box"><div class="question">21. Điểm mù của Vector Search trong y tế là gì?</div><div class="answer"><span class="tag">Concept</span> <b>A:</b> Kém trong việc tìm mã số chính xác (VD: ICD-10 `J01.9` hoặc mã bệnh nhân `PT123`). Vector tìm theo ngữ nghĩa chứ không khớp ký tự.</div></div>
+    <div class="qa-box"><div class="question">22. Hybrid Search giải quyết điểm mù Vector Search thế nào?</div><div class="answer"><span class="tag star">STAR</span> <b>A:</b> Kết hợp Vector (ngữ nghĩa) và BM25 (keyword khớp mã bệnh chính xác). Trọng số tính điểm là công thức cân bằng (Alpha = 0.5), lấy top kết quả của cả 2 thuật toán gộp lại.</div></div>
+    <div class="qa-box"><div class="question">23. Chunking chiến lược (Text Splitting) của bạn là gì?</div><div class="answer"><span class="tag">Algorithms</span> <b>A:</b> Dùng Recursive Character Splitter với size 1000, overlap 200 token. Tránh tình trạng câu chẩn đoán "Bệnh nhân KHÔNG bị / ung thư" bị cắt đôi thành 2 mảnh khác nghĩa.</div></div>
+    <div class="qa-box"><div class="question">24. Context Window Limit (Giới hạn ngữ cảnh) ảnh hưởng sao đến RAG?</div><div class="answer"><span class="tag tradeoff">Trade-off</span> <b>A:</b> Nếu nhét quá nhiều tài liệu (VD: 50 trang), LLM sẽ quên khúc giữa (Lost in the middle). Tôi chỉ giới hạn RAG bốc Top 5 chunks chất lượng nhất đưa vào prompt.</div></div>
+    <div class="qa-box"><div class="question">25. BGE-Reranker hoạt động thế nào sau Hybrid Search?</div><div class="answer"><span class="tag">Algorithms</span> <b>A:</b> Hybrid Search vớt lên 20 tài liệu thô. Reranker là mô hình Cross-Encoder, đọc lại và chấm điểm mức độ liên quan sát sao giữa [Câu hỏi] và [Từng tài liệu], lọc lấy Top 5 tinh túy nhất.</div></div>
+    <div class="qa-box"><div class="question">26. Graph RAG xử lý bài toán nào mà Vector RAG "bó tay"?</div><div class="answer"><span class="tag">Concept</span> <b>A:</b> Vector RAG không hiểu tính bắc cầu. Graph RAG rút trích quan hệ: `(Thuốc A) -> [Gây Dị Ứng] -> (Chất B)`. Trả lời chính xác câu hỏi "Tại sao không được tiêm thuốc này?".</div></div>
+    <div class="qa-box"><div class="question">27. Trong lúc OCR gặp bảng biểu phức tạp (Table), bạn xử lý sao?</div><div class="answer"><span class="tag star">STAR</span> <b>A:</b> PDF text thuần không giữ được cột bảng. Dùng thư viện nhận diện layout chuyển bảng thành dạng Markdown/HTML trước khi nhúng vector để LLM vẫn hiểu cấu trúc dòng/cột.</div></div>
+    <div class="qa-box"><div class="question">28. Nếu bác sĩ hỏi "Gần đây bệnh nhân thế nào?", hệ thống tìm kiếm ra sao?</div><div class="answer"><span class="tag">RAG</span> <b>A:</b> Cần áp dụng Time-weighted decay trong thuật toán Search. Cộng điểm ưu tiên cho các tài liệu có `created_at` gần với hiện tại nhất.</div></div>
+    <div class="qa-box"><div class="question">29. Kỹ thuật Sparse Retrieval khác Dense Retrieval thế nào?</div><div class="answer"><span class="tag">Concept</span> <b>A:</b> Sparse là BM25 (vector chứa toàn số 0, chỉ đếm tần suất từ khóa). Dense là Embedding model (chứa số thập phân dày đặc biểu diễn ý nghĩa, ngữ cảnh).</div></div>
+    <div class="qa-box"><div class="question">30. Nhược điểm lớn nhất của RAG truyền thống là gì?</div><div class="answer"><span class="tag tradeoff">Trade-off</span> <b>A:</b> Dễ bị lạc ngữ cảnh nếu câu hỏi thiếu chủ ngữ. Đó là lý do hệ thống cần đưa cả Conversation History (Lịch sử chat) vào bộ máy Search để định dạng lại câu hỏi.</div></div>
+
+    <!-- SECTION 4 -->
+    <h2>Phần 4: Phân loại, Suy luận & Routing (31-40)</h2>
+
+    <div class="qa-box"><div class="question">31. HyDE (Hypothetical Document Embeddings) tăng chất lượng RAG ra sao?</div><div class="answer"><span class="tag star">STAR</span> <b>A:</b> Câu hỏi ngắn "Điều trị gãy xương" sinh ra vector tệ. Tôi gọi LLM sinh ra một câu trả lời ảo chi tiết. Dùng câu trả lời ảo đó đi tìm kiếm tài liệu thật, độ khớp (Recall) cao hơn rất nhiều.</div></div>
+    <div class="qa-box"><div class="question">32. Làm sao phân loại được câu hỏi y tế và câu chit-chat (chào hỏi)?</div><div class="answer"><span class="tag">Routing</span> <b>A:</b> Sử dụng Intent Router mỏng (Zero-shot Classifier hoặc RegEx). Nếu chỉ là câu "Xin chào", lập tức trả lời mẫu tĩnh, bỏ qua chuỗi RAG Database tốn kém.</div></div>
+    <div class="qa-box"><div class="question">33. Decompose Question (Phân rã câu hỏi) dùng khi nào?</div><div class="answer"><span class="tag">Reasoning</span> <b>A:</b> Khi câu hỏi chứa nhiều ý: "Tiểu sử bệnh này là gì và giá tiền chữa trị?". Phân rã thành 2 luồng Search song song để lấy thông tin toàn diện rồi gộp lại sinh câu trả lời.</div></div>
+    <div class="qa-box"><div class="question">34. Hệ thống kiểm tra cảnh báo Thuốc (CDSS) can thiệp vào luồng chat lúc nào?</div><div class="answer"><span class="tag">System Design</span> <b>A:</b> Nếu Routing phát hiện tên thuốc, nó bắn 1 luồng phụ query vào DB Y khoa CDSS để lấy cảnh báo tương tác. Cảnh báo này sẽ được nhét lên đầu của Final Prompt để LLM chú ý.</div></div>
+    <div class="qa-box"><div class="question">35. Pipeline `reasoning.py` tổ chức code như thế nào?</div><div class="answer"><span class="tag">Architecture</span> <b>A:</b> Áp dụng Strategy Pattern. Tùy thuộc vào Routing quyết định (Simple, Decompose, DrugCheck), ChatService sẽ gọi đúng luồng Strategy đó thực thi.</div></div>
+    <div class="qa-box"><div class="question">36. Nếu User yêu cầu "Tóm tắt hồ sơ bệnh án", hệ thống làm gì?</div><div class="answer"><span class="tag star">STAR</span> <b>A:</b> Hệ thống nhận diện intent, kích hoạt `PATIENT_SUMMARY_SYSTEM_PROMPT`. Lấy toàn bộ chunk mới nhất của bệnh án, chạy map-reduce để sinh ra bản tóm tắt ngắn thay vì RAG thông thường.</div></div>
+    <div class="qa-box"><div class="question">37. Conversation History (Lịch sử hội thoại) nhúng vào prompt như thế nào?</div><div class="answer"><span class="tag">Prompt</span> <b>A:</b> Giới hạn 5 cặp hỏi-đáp gần nhất. Đưa lịch sử vào trước User Query hiện tại, giúp LLM duy trì mạch truyện mà không vượt giới hạn token.</div></div>
+    <div class="qa-box"><div class="question">38. Làm sao để đánh giá mô hình phân loại Intent Router có sai sót?</div><div class="answer"><span class="tag">Evals</span> <b>A:</b> Xây dựng bộ test set (100 câu hỏi y khoa, 100 câu chit-chat) chạy automation test liên tục (CI) đo tỷ lệ F1-score của router.</div></div>
+    <div class="qa-box"><div class="question">39. Đánh đổi (Trade-off) của thuật toán HyDE là gì?</div><div class="answer"><span class="tag tradeoff">Trade-off</span> <b>A:</b> Tăng mạnh độ chính xác, nhưng làm tăng độ trễ (Latency) thêm 1-2s vì phải tốn thêm 1 lần gọi API LLM sinh câu trả lời giả định. Chỉ nên kích hoạt với câu hỏi quá mơ hồ.</div></div>
+    <div class="qa-box"><div class="question">40. LLM thường "Lười" đọc tài liệu ở giữa (Lost in the middle). Khắc phục sao?</div><div class="answer"><span class="tag">Prompt</span> <b>A:</b> Bằng cách sắp xếp kết quả Reranker: Đặt chunk tốt nhất ở Đầu, chunk tốt nhì ở Cuối prompt. Các chunk kém dồn vào giữa. LLM chú ý phần đầu/cuối tốt hơn.</div></div>
+
+    <!-- SECTION 5 -->
+    <h2>Phần 5: Phân quyền (RBAC) & Bảo mật Y Tế (41-50)</h2>
+
+    <div class="qa-box"><div class="question">41. Tại sao đặt `PermissionService` ở trước luồng RAG?</div><div class="answer"><span class="tag star">STAR</span> <b>A:</b> Ngăn ngừa tận gốc việc "lộ dữ liệu qua AI". Chặn tài liệu trái phép bằng SQL ở DB. LLM không bao giờ nhận được dữ liệu, nên không thể bịa hay làm lộ được.</div></div>
+    <div class="qa-box"><div class="question">42. `active_patient_permission_exists` kiểm tra những gì?</div><div class="answer"><span class="tag">Security</span> <b>A:</b> Nó là câu SQL xác minh Bác sĩ X có quyền với Bệnh nhân Y, Quyền đó chưa hết hạn (`expires_at`), và Bác sĩ chưa bị khóa tài khoản (`deleted_at is null`).</div></div>
+    <div class="qa-box"><div class="question">43. Audit Trail (Log Truy vết) lưu những trường thông tin nào?</div><div class="answer"><span class="tag">Compliance</span> <b>A:</b> Lưu `trace_id`, `actor_user_id`, `patient_id`, hành động (View/Denied), địa chỉ IP, và Timestamp để sẵn sàng phục vụ điều tra nếu có khiếu nại làm lộ PHI.</div></div>
+    <div class="qa-box"><div class="question">44. JWT Token trong dự án lưu trữ bao nhiêu thông tin?</div><div class="answer"><span class="tag tradeoff">Trade-off</span> <b>A:</b> Chỉ lưu định danh (User_ID, Role, Expiration). Không lưu mảng Patient Scopes vì nó sẽ làm Payload JWT phình to quá cỡ, quyền cụ thể sẽ được query real-time tại DB.</div></div>
+    <div class="qa-box"><div class="question">45. Làm sao chống kỹ thuật tấn công SQL Injection ở tầng tìm kiếm Vector?</div><div class="answer"><span class="tag">Security</span> <b>A:</b> Sử dụng ORM SQLAlchemy để tự động Parameterize (tham số hóa) mọi input của user, vô hiệu hóa các ký tự độc hại nhúng vào câu query DB.</div></div>
+    <div class="qa-box"><div class="question">46. Chặn tấn công DDoS tốn chi phí API LLM bằng cách nào?</div><div class="answer"><span class="tag">System Design</span> <b>A:</b> Tích hợp Middleware Rate Limiter theo `user_id`. Cài đặt tối đa 5 câu hỏi/phút. Vượt qua sẽ trả HTTP 429 Too Many Requests.</div></div>
+    <div class="qa-box"><div class="question">47. Chế độ Ẩn danh (Data Masking) khi gọi LLM Cloud hoạt động thế nào?</div><div class="answer"><span class="tag star">STAR</span> <b>A:</b> Dùng Regex/NER nhận diện Tên thật, CMND, sdt trong văn bản, thay bằng `[PERSON_1]`. OpenAI trả kết quả về, hệ thống decode ngược `[PERSON_1]` ra tên thật trả về cho UI.</div></div>
+    <div class="qa-box"><div class="question">48. Đảm bảo an toàn API Keys (Secrets) như thế nào?</div><div class="answer"><span class="tag">DevOps</span> <b>A:</b> Không bao giờ hard-code trong file. Đọc từ file `.env` qua Pydantic Settings. Trên Production sẽ nạp từ Docker Secrets hoặc AWS Secrets Manager.</div></div>
+    <div class="qa-box"><div class="question">49. CORS Policy được setup ở Frontend/Backend thế nào?</div><div class="answer"><span class="tag">Security</span> <b>A:</b> Cấu hình FastAPI CORS Middleware chỉ chấp nhận các origins cụ thể (VD: localhost:8081). Chặn mọi request POST lạ gửi từ tên miền khác ngoài nội bộ bệnh viện.</div></div>
+    <div class="qa-box"><div class="question">50. Thách thức lớn nhất khi áp dụng chuẩn HIPAA (Mỹ) vào hệ thống này?</div><div class="answer"><span class="tag tradeoff">Trade-off</span> <b>A:</b> Cân bằng giữa "Năng lực AI" và "Bảo mật". Cloud AI (GPT-4) thì thông minh nhưng dễ vi phạm BAA (hợp đồng chia sẻ dữ liệu). Chạy Local AI thì bảo mật 100% nhưng phải đầu tư card GPU khủng.</div></div>
+
+    <!-- SECTION 6 -->
+    <h2>Phần 6: Guardrails & An Toàn AI (Chống Hallucination) (51-60)</h2>
+
+    <div class="qa-box"><div class="question">51. Bốn lớp phòng thủ Hallucination trong kiến trúc là gì?</div><div class="answer"><span class="tag">Architecture</span> <b>A:</b> (1) Safe Refusal Prompt, (2) Code Service Validation (extract citation), (3) LLM Citation Validator, (4) Output Guardrail scanner.</div></div>
+    <div class="qa-box"><div class="question">52. Lớp Input Guardrail (chống Prompt Injection) hoạt động ra sao?</div><div class="answer"><span class="tag star">STAR</span> <b>A:</b> Chạy thuật toán nhận diện câu lệnh thao túng (VD: "Ignore instructions"). Trả về cờ `blocked=True`. Hệ thống ngay lập tức nhả thông báo `SAFE_INJECTION_DETECTED_ANSWER`.</div></div>
+    <div class="qa-box"><div class="question">53. Lớp Output Guardrail kiểm duyệt chủ đề (BanTopics) thế nào?</div><div class="answer"><span class="tag">Security</span> <b>A:</b> Thư viện llm-guard quét câu text trả về. Nếu AI vô tình "khuyên bệnh nhân tự uống thuốc X" (Medical Advice), hệ thống thay thế text bằng lời từ chối an toàn để tránh kiện tụng.</div></div>
+    <div class="qa-box"><div class="question">54. Làm sao kiểm tra được trích dẫn của LLM là giả mạo (Fake Citation)?</div><div class="answer"><span class="tag star">STAR</span> <b>A:</b> Dùng thuật toán tập hợp (Subset) ở mức Backend. Cắt Regex mọi tag `[E_ID]`. Nếu tập ID sinh ra không nằm trong tập ID tài liệu đã retrieve, chặn đứng hoàn toàn câu trả lời.</div></div>
+    <div class="qa-box"><div class="question">55. Citation Validator Prompt đóng vai trò gì?</div><div class="answer"><span class="tag">Prompt</span> <b>A:</b> Một luồng LLM thứ 2 chạy ngầm, đối chiếu câu text sinh ra với text gốc của tài liệu RAG. Nếu phát hiện bịa số liệu (méo mó thông tin), lập tức gán cờ INVALID.</div></div>
+    <div class="qa-box"><div class="question">56. Safe Refusal (Từ chối an toàn) cải thiện Trải nghiệm UX ra sao?</div><div class="answer"><span class="tag tradeoff">Trade-off</span> <b>A:</b> Thà nói "Tôi không tìm thấy dữ liệu" còn hơn đoán bừa. Lời từ chối chuẩn hóa gỡ bỏ rủi ro chẩn đoán sai, giúp bác sĩ tin tưởng phần mềm là "nguồn tham khảo trung thực".</div></div>
+    <div class="qa-box"><div class="question">57. Nếu Output Guardrail chạy quá chậm làm đứt Streaming SSE?</div><div class="answer"><span class="tag">Performance</span> <b>A:</b> Output Guardrail được giới hạn `timeout=3s`. Nếu chạy quá lâu do nghẽn, áp dụng Fallback: Mặc định từ chối kết quả (Fail-safe) để thà an toàn còn hơn thả cửa.</div></div>
+    <div class="qa-box"><div class="question">58. Phương pháp đánh giá (Eval) tỷ lệ Hallucination?</div><div class="answer"><span class="tag">Evals</span> <b>A:</b> Đo đạc bằng mô hình giám khảo (LLM-as-a-judge) như Ragas. Chấm điểm Context Precision, Faithfulness (trung thành với ngữ cảnh). Nếu Faithfulness < 0.9 thì Reject model.</div></div>
+    <div class="qa-box"><div class="question">59. Nhiệm vụ của Disclaimer Text cuối câu trả lời?</div><div class="answer"><span class="tag">Compliance</span> <b>A:</b> Câu "Thông tin chỉ mang tính tham khảo..." được gắn cứng trong code Backend để miễn trừ trách nhiệm pháp lý. AI không bao giờ thay thế quyết định của Bác sĩ.</div></div>
+    <div class="qa-box"><div class="question">60. Prompt Jailbreak khác với Prompt Injection chỗ nào?</div><div class="answer"><span class="tag">Concept</span> <b>A:</b> Injection là gài mã độc để thay đổi mục tiêu (VD: Bắt hệ thống gửi spam). Jailbreak là phá rào cản đạo đức (DAN) để ép AI nói bậy bạ. Input Guardrail chặn cả hai.</div></div>
+
+    <!-- SECTION 7 -->
+    <h2>Phần 7: LLM & Prompt Engineering (61-70)</h2>
+
+    <div class="qa-box"><div class="question">61. Tại sao không viết 10 Prompt riêng cho 10 Role (Bác sĩ, Y tá, Lễ tân...)?</div><div class="answer"><span class="tag tradeoff">Trade-off</span> <b>A:</b> Khó bảo trì và không đồng nhất quy tắc y khoa. Dùng 1 Unified System Prompt trung tâm, tiêm động biến `{role}` vào để LLM tự xưng hô cho linh hoạt và tiết kiệm nỗ lực code.</div></div>
+    <div class="qa-box"><div class="question">62. Centralized Prompt Registry là gì?</div><div class="answer"><span class="tag">Architecture</span> <b>A:</b> Gom toàn bộ chuỗi Prompt phân tán vào một folder `core/prompts/`. Dễ dàng versioning trên Git, quản lý đồng bộ và tiện lợi cho việc chạy Automation Evals hàng đêm.</div></div>
+    <div class="qa-box"><div class="question">63. Dynamic System Prompt (Ghi đè Runtime) hoạt động sao?</div><div class="answer"><span class="tag star">STAR</span> <b>A:</b> Prompt mặc định nằm trong source code. Admin có thể sửa prompt qua API. Bản ghi đè được lưu vào DB, ghi đè lên Pydantic Settings khi server load, không cần restart server.</div></div>
+    <div class="qa-box"><div class="question">64. Lớp trừu tượng `LLMManager` mang lại sức mạnh gì?</div><div class="answer"><span class="tag">Architecture</span> <b>A:</b> Cung cấp Factory Pattern. Thay vì code chết thư viện OpenAI, Service chỉ tương tác với Interface. Dễ dàng đổi qua lại giữa Gemini/Ollama bằng 1 biến môi trường `.env`.</div></div>
+    <div class="qa-box"><div class="question">65. LLM Stub (Mock) giúp ích gì cho quy trình Test?</div><div class="answer"><span class="tag">Testing</span> <b>A:</b> LLM sinh kết quả ngẫu nhiên (non-deterministic). Chạy Unit Test dùng Stub ép LLM nhả kết quả cố định A->B. Vừa đảm bảo Test ổn định vừa không tốn tiền API OpenAI.</div></div>
+    <div class="qa-box"><div class="question">66. Tham số Temperature của LLM được set bao nhiêu? Vì sao?</div><div class="answer"><span class="tag">Prompt</span> <b>A:</b> Đặt ở mức 0 hoặc 0.1. Y tế cần tính Deterministic (Chính xác, khách quan), không cần LLM phải sáng tạo hay bay bổng làm sai lệch bệnh án.</div></div>
+    <div class="qa-box"><div class="question">67. Kỹ thuật In-Context Learning (Few-shot) có dùng không?</div><div class="answer"><span class="tag">Prompt</span> <b>A:</b> Có. Nhét 1-2 mẫu ví dụ trích dẫn chuẩn `[E1]` vào trong System Prompt để hướng dẫn model trả về đúng định dạng Format yêu cầu thay vì format tự do.</div></div>
+    <div class="qa-box"><div class="question">68. Bạn kiểm soát giới hạn Token (Max Tokens) đầu ra thế nào?</div><div class="answer"><span class="tag">System Design</span> <b>A:</b> Thiết lập `max_completion_tokens=500`. Tránh tình trạng LLM nói lan man không điểm dừng, gây tốn tài nguyên và tăng độ trễ (latency).</div></div>
+    <div class="qa-box"><div class="question">69. Cách đối phó khi LLM Cloud (Gemini) bị lỗi 503 Service Unavailable?</div><div class="answer"><span class="tag">DevOps</span> <b>A:</b> LLMManager có cấu hình Tenacity (Retry cơ chế). Thử lại 3 lần với khoảng cách thời gian tăng dần (Exponential backoff) trước khi nhả lỗi về cho Frontend.</div></div>
+    <div class="qa-box"><div class="question">70. Tại sao RAG không nên lưu toàn bộ hội thoại cũ (Lịch sử) vào Vector?</div><div class="answer"><span class="tag tradeoff">Trade-off</span> <b>A:</b> Hội thoại chứa nhiều câu rác ("Chào", "Hi"). Lưu chung với bệnh án sẽ gây nhiễu từ khóa. Hội thoại được quản lý riêng bằng Session ID, chỉ nhét dạng chuỗi vào prompt.</div></div>
+
+    <!-- SECTION 8 -->
+    <h2>Phần 8: Bất đồng bộ & Hàng Đợi (Redis / RQ Worker) (71-80)</h2>
+
+    <div class="qa-box"><div class="question">71. Tại sao hệ thống OCR phải xử lý bằng Bất đồng bộ (Async)?</div><div class="answer"><span class="tag tradeoff">Trade-off</span> <b>A:</b> Chạy OCR một file PDF y tế có thể tốn 3 phút. Nếu làm đồng bộ, HTTP Request bị treo (Hang), User mất kiên nhẫn. Bất đồng bộ giúp API nhả kết quả "202 Accepted" ngay tức thì.</div></div>
+    <div class="qa-box"><div class="question">72. Tại sao chọn Redis + RQ thay vì Kafka/RabbitMQ?</div><div class="answer"><span class="tag tradeoff">Trade-off</span> <b>A:</b> Kafka là Over-engineering cho dự án này, yêu cầu RAM và cấu hình phức tạp. Redis siêu nhẹ, thư viện RQ (Redis Queue) tích hợp Python rất nhanh, vừa đủ để quản lý Job y tế.</div></div>
+    <div class="qa-box"><div class="question">73. Luồng đi của File Document qua Worker diễn ra sao?</div><div class="answer"><span class="tag star">STAR</span> <b>A:</b> (1) Upload đổi DB `UPLOADED` -> (2) Push Job Redis -> (3) Worker chạy OCR đổi DB `PROCESSING` -> (4) Chạy Embedding -> (5) Cập nhật DB `INDEXED`. UI polling DB để lấy status.</div></div>
+    <div class="qa-box"><div class="question">74. Vai trò của Cron Job (Sweeper) trong kiến trúc Worker là gì?</div><div class="answer"><span class="tag">Architecture</span> <b>A:</b> Nếu Worker bị Crash/OOM sập ngang, DB bị kẹt ở `PROCESSING` vĩnh viễn. Cron Job quét DB 5 phút/lần, dọn rác các file kẹt quá 30p đổi thành `FAILED` để UI thông báo cho Y tá tải lại file.</div></div>
+    <div class="qa-box"><div class="question">75. Sự kiện (Event) lỗi PDF xử lý thế nào trong hàng đợi?</div><div class="answer"><span class="tag">DevOps</span> <b>A:</b> RQ tự đẩy Job hỏng vào Dead Letter Queue (Failed Registry). Quản trị viên có thể vào xem Traceback lỗi (VD: Mật khẩu PDF) và bấm Retry thủ công mà không cần user upload lại.</div></div>
+    <div class="qa-box"><div class="question">76. Nếu muốn hệ thống OCR nhanh gấp 10 lần, bạn Scale ra sao?</div><div class="answer"><span class="tag">Scalability</span> <b>A:</b> Bật thêm 10 container Worker. Các Worker này cùng kết nối chung vào 1 máy chủ Redis. Chúng tự động bốc Job phân tán để làm (Horizontal Scaling). Cực kỳ mượt mà.</div></div>
+    <div class="qa-box"><div class="question">77. Job Timeout được thiết lập trong Worker có ý nghĩa gì?</div><div class="answer"><span class="tag">System Design</span> <b>A:</b> Ngăn chặn 1 file PDF chứa vòng lặp vô hạn làm kẹt nguyên 1 Worker. Set `timeout=600s` (10 phút). Quá thời gian, tiến trình sẽ bị ép kill.</div></div>
+    <div class="qa-box"><div class="question">78. Polling (Frontend) có gây tải nặng cho Database không?</div><div class="answer"><span class="tag tradeoff">Trade-off</span> <b>A:</b> Có nếu 1000 user F5 liên tục. Tối ưu bằng cách Polling cách nhau 5 giây, hoặc tiến cấp lên WebSockets/SSE báo sự kiện để Server chủ động đẩy thông báo xuống UI.</div></div>
+    <div class="qa-box"><div class="question">79. Lưu trữ ảnh tạm của file PDF trên Worker diễn ra sao?</div><div class="answer"><span class="tag">Storage</span> <b>A:</b> Lưu vào thư mục `temp/` của hệ điều hành. Sau khi OCR và Embed xong, phải dùng khối lệnh `finally` để chắc chắn dọn dẹp file tạm, tránh Server bị đầy ổ cứng (Disk full).</div></div>
+    <div class="qa-box"><div class="question">80. State Machine của Document có những trạng thái nào?</div><div class="answer"><span class="tag">DB Schema</span> <b>A:</b> Gồm 4 state tuyến tính: `UPLOADED` -> `PROCESSING` -> `INDEXED` (thành công) hoặc `FAILED` (thất bại). Thiết kế State Pattern giúp quản lý luồng khép kín an toàn.</div></div>
+
+    <!-- SECTION 9 -->
+    <h2>Phần 9: Giao Diện (Frontend) & Trải Nghiệm (81-90)</h2>
+
+    <div class="qa-box"><div class="question">81. Tại sao Frontend dùng TanStack Start (Next.js-like) thay vì React thuần (CRA)?</div><div class="answer"><span class="tag tradeoff">Trade-off</span> <b>A:</b> TanStack tích hợp SSR giúp load nhanh hơn. Điểm mạnh nhất là Type-Safe Routing: Bắt lỗi truyền sai Parameter API ngay lúc code, giảm 90% lỗi Undefined khi đẩy lên Prod.</div></div>
+    <div class="qa-box"><div class="question">82. Giao diện Citation Chips (Thẻ trích dẫn) được lập trình thế nào?</div><div class="answer"><span class="tag star">STAR</span> <b>A:</b> Khi Backend trả string "[E1]", Regex ở Frontend cắt chuỗi đó ra, biến thành `<button>`. Khi bác sĩ click, nó mở Right Sidebar (Evidence Panel) cuộn đúng tới dòng văn bản được nhúng.</div></div>
+    <div class="qa-box"><div class="question">83. Lợi ích của Zod Validation tại Frontend?</div><div class="answer"><span class="tag">Security</span> <b>A:</b> Chặn rác ngay tại máy khách. Form điền bệnh án bị sai định dạng (VD nhập tuổi bằng chữ) sẽ bị cản lại ở UI, giảm thiểu lượng HTTP Request sai chuẩn dội bom lên Backend.</div></div>
+    <div class="qa-box"><div class="question">84. Thách thức lớn nhất khi parse cú pháp Markdown Stream từ AI?</div><div class="answer"><span class="tag">UX</span> <b>A:</b> Do chunk trả về đứt đoạn (Streaming), thẻ in đậm `**` có thể bị gãy giữa chừng. Dùng thư viện `react-markdown` kết hợp plugin thông minh để xử lý render không bị nháy giật (Flickering).</div></div>
+    <div class="qa-box"><div class="question">85. Quản lý State (Trạng thái) Frontend phức tạp ra sao?</div><div class="answer"><span class="tag">Architecture</span> <b>A:</b> Dùng React Context / Zustand. Quản lý Thread ID hiện tại, Danh sách bệnh nhân đang chọn (Scope), và Lịch sử chat đồng bộ với URL params để User copy link gửi cho nhau vẫn mở đúng bệnh án.</div></div>
+    <div class="qa-box"><div class="question">86. Cơ chế Error Boundary trong React áp dụng ở đâu?</div><div class="answer"><span class="tag">System Design</span> <b>A:</b> Bọc quanh component hiển thị Chat. Nếu một message chứa code HTML độc hại làm sập component, Error Boundary chặn lại, hiển thị "Lỗi UI" mà không làm sập trắng toàn bộ ứng dụng.</div></div>
+    <div class="qa-box"><div class="question">87. Đảm bảo UI Responsive cho bác sĩ trực trên iPad thế nào?</div><div class="answer"><span class="tag">UX</span> <b>A:</b> Dùng TailwindCSS với hệ thống Grid/Flex. Khi màn hình nhỏ, Evidence Panel sẽ tự động ẩn thành Drawer trượt từ dưới lên thay vì chia đôi màn hình ngang.</div></div>
+    <div class="qa-box"><div class="question">88. Xử lý Token hết hạn (Expired JWT) phía Frontend?</div><div class="answer"><span class="tag star">STAR</span> <b>A:</b> Dùng Axios Interceptor. Nếu API trả 401 Unauthorized, chặn luồng, gọi ngầm API Refresh Token, lấy JWT mới rồi gửi lại request cũ hoàn toàn vô hình với User.</div></div>
+    <div class="qa-box"><div class="question">89. Tại sao thiết kế giao diện theo phong cách "Chat-first" thay vì "Dashboard-first"?</div><div class="answer"><span class="tag tradeoff">Trade-off</span> <b>A:</b> Bác sĩ quá bận rộn để điền form (Click mỏi tay). Chat-interface mô phỏng cách họ hỏi y tá trợ lý ngoài đời thực: Cứ gõ yêu cầu tự nhiên, hệ thống tự động bóc tách và truy xuất.</div></div>
+    <div class="qa-box"><div class="question">90. "Patient Context Gate" trước khi chat đóng vai trò gì về UX?</div><div class="answer"><span class="tag">UX/Security</span> <b>A:</b> Bắt buộc bác sĩ phải nhìn thấy RÕ RÀNG đang thao tác trên bệnh án của ai (Hiển thị to Banner Tên bệnh nhân) trước khi khung chat mở. Chống rủi ro chẩn đoán lộn thuốc cho người khác.</div></div>
+
+    <!-- SECTION 10 -->
+    <h2>Phần 10: Vận Hành, Kiểm Thử & CI/CD (91-100)</h2>
+
+    <div class="qa-box"><div class="question">91. Tại sao dùng Playwright thay vì Selenium cho E2E Testing?</div><div class="answer"><span class="tag tradeoff">Trade-off</span> <b>A:</b> Playwright hỗ trợ test Async/Streaming tốt hơn rất nhiều. Chức năng `expect().toContainText()` tự động chờ Auto-wait cho đến khi AI stream xong toàn bộ chữ, không cần dùng `sleep(15)` thủ công tốn thời gian.</div></div>
+    <div class="qa-box"><div class="question">92. Unit Test cho RAG bị ngẫu nhiên (Flaky test). Xử lý thế nào?</div><div class="answer"><span class="tag star">STAR</span> <b>A:</b> Không gọi API thật trong Unit Test. Tiêm `StubLLM` vào Service thông qua Dependency Injection. Dù gọi 100 lần nó vẫn nhả về cùng một câu A, giúp test CI/CD xanh tuyệt đối.</div></div>
+    <div class="qa-box"><div class="question">93. Docker Compose cấu trúc mạng (Network) nội bộ ra sao?</div><div class="answer"><span class="tag">DevOps</span> <b>A:</b> Đóng kín Postgres và Redis trong `internal_net`. Chỉ mở port Backend (8000) và Frontend (8081) ra ngoài `public_net`. Ngăn chặn Hacker rà quét port Database trực tiếp.</div></div>
+    <div class="qa-box"><div class="question">94. Bạn giám sát (Monitor) lỗi trên Production bằng công cụ gì?</div><div class="answer"><span class="tag">MLOps</span> <b>A:</b> Chèn Middleware bắt exception đẩy log lên Sentry. Theo dõi Latency, % Citation rate trên Grafana/Prometheus từ hệ thống `MetricsService` của dự án.</div></div>
+    <div class="qa-box"><div class="question">95. Nếu lên Production bị sập API, Rollback như thế nào?</div><div class="answer"><span class="tag">DevOps</span> <b>A:</b> Sử dụng Docker Image tagging. Khi bản `v1.2` lỗi, đổi tag trong Compose/Kubernetes về lại `v1.1` và restart container. Giảm downtime xuống vài giây.</div></div>
+    <div class="qa-box"><div class="question">96. Vai trò của `pytest-asyncio` trong dự án Backend?</div><div class="answer"><span class="tag">Testing</span> <b>A:</b> Mọi API FastAPI đều là `async def`. Cần pytest-asyncio để tạo vòng lặp sự kiện (Event Loop) test các hàm gọi LLM hoặc Database async mà không bị block dead-lock.</div></div>
+    <div class="qa-box"><div class="question">97. Làm sao để test phân quyền (Permission) tự động?</div><div class="answer"><span class="tag star">STAR</span> <b>A:</b> Viết Fixtures tự động nạp (Seeding) Bác sĩ A, Bệnh nhân B, C. Dùng `httpx` giả lập User A truy cập User C. Đo lường code trả đúng mã HTTP 403 Forbidden thay vì rò rỉ 200 OK.</div></div>
+    <div class="qa-box"><div class="question">98. Lợi ích của thư mục `scripts/seed_dev.py`?</div><div class="answer"><span class="tag">DevOps</span> <b>A:</b> Khi một Dev mới join dự án, chỉ cần `docker compose up` và chạy script. Nó tự bơm 10 bệnh nhân giả mạo (Fake Data) vào để code UI ngay lập tức mà không cần dựng tay dữ liệu.</div></div>
+    <div class="qa-box"><div class="question">99. Tại sao CI Pipeline phải quét Linter (Ruff) trước khi chạy Test?</div><div class="answer"><span class="tag">CI/CD</span> <b>A:</b> Tiết kiệm tiền CI (GitHub Actions). Quét lỗi cú pháp (Syntax/Formatting) chạy tốn 2 giây. Chạy Test RAG tốn 5 phút. Hỏng Linter thì cấm Build ngay từ vòng gửi xe.</div></div>
+    <div class="qa-box"><div class="question">100. Đánh giá độ thành công của Phase 1 dự án (MVP) dựa trên điều gì?</div><div class="answer"><span class="tag">Product</span> <b>A:</b> Dựa vào tỷ lệ Hallucination về 0 (Nhờ 4 lớp Guardrails), hệ thống không rò rỉ dữ liệu trái quyền, và Bác sĩ lấy được thông tin có trích dẫn tin cậy trong 30s.</div></div>
+
+</div>
+</body>
+</html>

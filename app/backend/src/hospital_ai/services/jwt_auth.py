@@ -1,4 +1,5 @@
 """JWT token validation service.
+Dịch vụ xác thực token JWT.
 
 Implements the security architecture documented at
 docs/04-architecture/security-architecture.md:
@@ -8,6 +9,8 @@ docs/04-architecture/security-architecture.md:
 
 When no JWT settings are configured (empty defaults), this service
 returns None and the caller falls back to the static token map.
+Khi không cấu hình JWT settings, service trả về None và cho phép hệ thống rơi về (fallback)
+sử dụng bản đồ token tĩnh (static token map).
 """
 
 import logging
@@ -21,9 +24,12 @@ logger = logging.getLogger(__name__)
 
 
 class JwtTokenData:
-    """Extracted claims from a validated JWT."""
+    """Extracted claims from a validated JWT.
+    Đối tượng chứa các thông tin (claims) được trích xuất từ token JWT hợp lệ.
+    """
 
     def __init__(self, sub: str, email: str, name: str, role: str) -> None:
+        """Khởi tạo JwtTokenData với sub (định danh người dùng), email, tên và vai trò (role)."""
         self.sub = sub
         self.email = email
         self.name = name
@@ -32,6 +38,7 @@ class JwtTokenData:
 
 class JwtAuthService:
     """Validates JWTs against JWKS (RS256) or HMAC secret (HS256).
+    Dịch vụ xác thực JWT dựa trên JWKS (thuật toán RS256) hoặc bí mật HMAC (thuật toán HS256).
 
     Returns None when:
     - JWT settings are not configured (empty issuer)
@@ -41,17 +48,23 @@ class JwtAuthService:
 
     Never raises to the caller — all failures return None so the
     fallback chain in deps.py can try the next authentication method.
+    Không bao giờ ném ngoại lệ lên caller — mọi trường hợp lỗi đều trả về None để
+    chuỗi xử lý fallback trong deps.py có thể thử phương pháp xác thực tiếp theo.
     """
 
     def __init__(self, settings: Settings) -> None:
+        """Khởi tạo JwtAuthService với cấu hình hệ thống Settings."""
         self.settings = settings
         self._jwks_client: PyJWKClient | None = None
 
     def _is_configured(self) -> bool:
-        """Check whether any JWT validation settings are provided."""
+        """Check whether any JWT validation settings are provided.
+        Kiểm tra xem các thiết lập xác thực JWT có được cấu hình trong hệ thống hay không.
+        """
         return bool(self.settings.jwt_issuer and (self.settings.jwks_url or self.settings.jwt_hmac_secret))
 
     def _get_jwks_client(self) -> PyJWKClient | None:
+        """Khởi tạo và trả về instance PyJWKClient để tải khóa công khai từ URL JWKS nếu cần."""
         if self._jwks_client is None and self.settings.jwks_url:
             try:
                 self._jwks_client = PyJWKClient(self.settings.jwks_url)
@@ -66,6 +79,7 @@ class JwtAuthService:
 
     async def validate_token(self, token: str) -> JwtTokenData | None:
         """Validate a JWT and return claims, or None if invalid.
+        Xác thực token JWT và trả về các thông tin (claims) của người dùng, hoặc trả về None nếu không hợp lệ.
 
         When RS256 is requested but cryptography is not installed,
         logs a warning and returns None so the caller can fall back.

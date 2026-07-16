@@ -1,3 +1,7 @@
+"""HMS appointments evidence import service.
+Dịch vụ nhập khẩu thông tin tóm tắt lịch hẹn khám bệnh từ hệ thống HMS vào kho dữ liệu tìm kiếm (evidence store).
+"""
+
 import hashlib
 import uuid
 from datetime import UTC, datetime
@@ -20,7 +24,12 @@ HMS_APPOINTMENT_IMPORT_CONTRACT = "phase3-hms-appointments-v1"
 
 
 class HmsAppointmentEvidenceImporter:
+    """Importer for HMS appointment summaries into the chatbot document store.
+    Bộ xử lý nhập dữ liệu tóm tắt cuộc hẹn HMS thành tài liệu (Document/Chunk) để tra cứu trong chatbot.
+    """
+
     def __init__(self, session: AsyncSession, settings: Settings) -> None:
+        """Khởi tạo importer với phiên làm việc cơ sở dữ liệu AsyncSession và cấu hình hệ thống Settings."""
         self.session = session
         self.settings = settings
 
@@ -32,6 +41,10 @@ class HmsAppointmentEvidenceImporter:
         trace_id: str,
         ip_address: str | None = None,
     ) -> Document:
+        """Import an appointment summary as a Document chunk, enforcing patient permissions and audit logs.
+        Nhập tóm tắt cuộc hẹn khám bệnh thành tài liệu, kiểm tra quyền truy cập của
+        người dùng và ghi nhận nhật ký kiểm tra (audit log).
+        """
         if payload.patient_id != payload.source_patient_id:
             raise ValidationAppError("HMS appointment patient ownership mismatch.")
 
@@ -134,10 +147,12 @@ class HmsAppointmentEvidenceImporter:
 
 
 def hms_appointment_storage_uri(source_appointment_id: uuid.UUID) -> str:
+    """Tạo chuỗi URI định danh vị trí lưu trữ ảo cho cuộc hẹn (ví dụ: `hms://appointments/{id}`)."""
     return f"hms://appointments/{source_appointment_id}"
 
 
 def render_appointment_summary(payload: HmsAppointmentSummaryImport) -> str:
+    """Tạo văn bản tóm tắt nội dung cuộc hẹn (ngày, giờ, bác sĩ, triệu chứng, ghi chú) để nhúng vector (embedding)."""
     lines = [
         "HMS appointment summary",
         f"Appointment ID: {payload.source_appointment_id}",
@@ -163,6 +178,7 @@ def render_appointment_summary(payload: HmsAppointmentSummaryImport) -> str:
 
 
 def build_appointment_metadata(payload: HmsAppointmentSummaryImport) -> dict:
+    """Tạo từ điển siêu dữ liệu (metadata) đầy đủ cho đoạn tài liệu cuộc hẹn, tuân thủ hợp đồng Phase 3."""
     metadata = {
         "source_system": HMS_SOURCE_SYSTEM,
         "source_family": HMS_APPOINTMENT_SOURCE_FAMILY,

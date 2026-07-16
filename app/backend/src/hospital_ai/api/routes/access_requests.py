@@ -1,3 +1,8 @@
+"""Patient access requests API routes.
+Các endpoint API xử lý yêu cầu quyền truy cập đặc biệt vào hồ sơ bệnh nhân
+(tạo yêu cầu, danh sách, chi tiết và xét duyệt).
+"""
+
 import logging
 from datetime import UTC, datetime, timedelta
 from uuid import UUID
@@ -67,6 +72,9 @@ async def create_access_request(
     current_user: User = Depends(get_current_user),
     settings: Settings = Depends(get_settings),
 ) -> AccessRequestResponse:
+    """Submit a request to access a patient's clinical records with justification.
+    Gửi yêu cầu xin cấp quyền truy cập hồ sơ bệnh nhân kèm lý do chuyên môn (justification).
+    """
     trace_id = new_trace_id()
 
     # P1-2: When HMS sync is enabled, route the access request through
@@ -126,6 +134,9 @@ async def list_access_requests(
     session: AsyncSession = Depends(get_session),
     current_user: User = Depends(get_current_user),
 ) -> list[AccessRequestListItem]:
+    """List all patient access requests (admin/security only).
+    Liệt kê danh sách tất cả các yêu cầu truy cập hồ sơ bệnh nhân (chỉ dành cho admin/security).
+    """
     if current_user.role not in ("admin", "security"):
         raise HTTPException(status_code=403, detail="Not authorized to list requests")
 
@@ -160,6 +171,9 @@ async def get_access_request(
     session: AsyncSession = Depends(get_session),
     current_user: User = Depends(get_current_user),
 ) -> AccessRequestDetail:
+    """Retrieve detailed information and review notes of a specific access request.
+    Lấy thông tin chi tiết và ghi chú xét duyệt của một yêu cầu truy cập cụ thể.
+    """
     if current_user.role not in ("admin", "security"):
         raise HTTPException(status_code=403, detail="Not authorized to view requests")
 
@@ -201,6 +215,9 @@ async def review_access_request(
     session: AsyncSession = Depends(get_session),
     current_user: User = Depends(get_current_user),
 ) -> AccessRequestResponse:
+    """Review an access request by approving, denying, or requesting more info.
+    Xét duyệt yêu cầu truy cập (chấp thuận, từ chối hoặc yêu cầu bổ sung thông tin).
+    """
     if current_user.role not in ("admin", "security"):
         raise HTTPException(status_code=403, detail="Not authorized to review requests")
 

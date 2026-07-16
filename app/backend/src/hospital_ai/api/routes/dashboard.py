@@ -1,3 +1,8 @@
+"""Dashboard metrics and summary API routes.
+Các endpoint API cung cấp dữ liệu tổng quan cho trang quản trị (dashboard):
+bệnh nhân mới xem, thống kê tài liệu và tình trạng hệ thống.
+"""
+
 import logging
 
 import httpx
@@ -27,6 +32,11 @@ async def get_dashboard_summary(
     current_user: User = Depends(get_current_user),
     settings: Settings = Depends(get_settings),
 ) -> DashboardSummaryResponse:
+    """Retrieve operational dashboard summary including recent patients, document stats,
+    time/cost savings, and health checks.
+    Lấy dữ liệu tổng quan cho bảng điều khiển (bệnh nhân truy cập gần đây, thống kê tài liệu,
+    hiệu quả tiết kiệm chi phí/thời gian và sức khỏe hệ thống).
+    """
     trace_id = new_trace_id()
 
     # 1. Recent patients accessed by the user (with permission check)

@@ -12,4 +12,4 @@ Import this limiter instance in route modules and apply via decorator:
 from slowapi import Limiter
 from slowapi.util import get_remote_address
 
-limiter = Limiter(key_func=get_remote_address, default_limits=["60/minute"])
+limiter = Limiter(key_func=get_remote_address, default_limits=["600/minute"])

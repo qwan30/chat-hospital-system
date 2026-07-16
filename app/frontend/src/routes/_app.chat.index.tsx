@@ -163,15 +163,17 @@ function GlobalChat() {
     </div>
   );
 
-  const evidence: EvidenceItem[] = useMemo(() => {
+  const { evidence, evidenceMap } = useMemo(() => {
     const items: EvidenceItem[] = [];
     const ids = new Set<string>();
+    const map = new Map<string, number>();
 
     let globalIndex = 1;
     messages.forEach((m) => {
       m.rawCitations?.forEach((c) => {
         if (!ids.has(c.evidence_id)) {
           ids.add(c.evidence_id);
+          map.set(c.evidence_id, globalIndex);
           items.push({
             id: c.evidence_id,
             n: globalIndex++, // assign a global numbering for the Evidence Rail
@@ -185,7 +187,16 @@ function GlobalChat() {
         }
       });
     });
-    return items;
+    // Populate map for duplicate items
+    messages.forEach((m) => {
+      m.rawCitations?.forEach((c) => {
+        const item = items.find(it => it.id === c.evidence_id);
+        if (item) {
+          map.set(c.evidence_id, item.n);
+        }
+      });
+    });
+    return { evidence: items, evidenceMap: map };
   }, [messages]);
 
   const noEvidence = evidence.length === 0 && messages.length === 0;
@@ -274,6 +285,7 @@ function GlobalChat() {
         citations: streamResult.citations?.map((c, idx) => ({
           n: idx + 1, // matches backend's inline [1], [2] format
           sourceId: c.evidence_id,
+          documentId: c.document_id, // Added mapping for citation chip links
         })),
       };
       setMessages((m) => [...m, reply]);
@@ -419,6 +431,7 @@ function GlobalChat() {
                 key={m.id}
                 msg={m}
                 isError={hasError}
+                evidenceMap={evidenceMap}
                 errorControls={
                   hasError ? (
                     <StreamingControls
@@ -465,6 +478,31 @@ function GlobalChat() {
         </div>
 
         <div className="pt-2 shrink-0">
+          <div className="flex flex-wrap gap-2 pb-2">
+            {(currentPatient
+              ? [
+                  "Summarize medical history",
+                  "List active medications",
+                  "Check recent lab results",
+                ]
+              : [
+                  "What are the sepsis guidelines?",
+                  "Check DAPT protocol",
+                  "General drug interactions",
+                ]
+            ).map((s) => (
+              <Button
+                key={s}
+                variant="outline"
+                size="sm"
+                className="h-7 text-xs bg-background rounded-full cursor-pointer hover:bg-accent"
+                onClick={() => send(s)}
+                disabled={isPending || streamingId !== null || streamingText !== ""}
+              >
+                {s}
+              </Button>
+            ))}
+          </div>
           <ChatComposer
             value={composerText}
             onValueChange={setComposerText}

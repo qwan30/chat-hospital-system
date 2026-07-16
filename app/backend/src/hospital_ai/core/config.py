@@ -1,3 +1,10 @@
+"""Quản lý và thiết lập cấu hình trung tâm cho backend Trợ lý Tri thức Bệnh viện AI.
+
+Sử dụng `pydantic.BaseSettings` để tự động đọc biến môi trường từ file `.env` hoặc hệ thống
+với tiền tố `HOSPITAL_AI_`. Bao gồm cấu hình cho CSDL (PostgreSQL/SQLite), Redis, RAG providers,
+OpenAI/Gemini/Ollama, tích hợp HIS/EMR bệnh viện (HMS) và xác thực JWT/OIDC.
+"""
+
 from functools import lru_cache
 from pathlib import Path
 
@@ -5,6 +12,10 @@ from pydantic import BaseSettings, Field, validator
 
 
 class Settings(BaseSettings):
+    """Lớp lưu trữ toàn bộ các tham số cấu hình của hệ thống Trợ lý Tri thức Bệnh viện AI.
+
+    Các biến cấu hình có thể được ghi đè bằng biến môi trường (ví dụ: `HOSPITAL_AI_DATABASE_URL`).
+    """
     environment: str = "local"
     api_v1_prefix: str = "/api/v1"
     database_url: str = "postgresql+asyncpg://hospital_ai:hospital_ai@localhost:5432/hospital_ai"
@@ -17,6 +28,10 @@ class Settings(BaseSettings):
     demo_mode: bool = True
     disable_guardrails: bool = False
 
+    # Các token mặc định là phím tắt tiện lợi CHỈ dành cho môi trường `local`.
+    # `token_user_map` sẽ từ chối cung cấp các token này ở các môi trường khác (stg/prod)
+    # trừ khi operator chủ động ghi đè qua biến môi trường HOSPITAL_AI_DEV_BEARER_TOKENS,
+    # tránh nguy cơ quên cấu hình env-var trên production dẫn đến lỗ hổng leo thang đặc quyền.
     # Default tokens are convenience shortcuts for `environment == "local"` only.
     # `token_user_map` refuses to surface them in any other environment unless
     # the operator explicitly overrides via HOSPITAL_AI_DEV_BEARER_TOKENS, so a
@@ -39,17 +54,17 @@ class Settings(BaseSettings):
     evidence_threshold: float = 0.2
     max_upload_bytes: int = Field(default=10 * 1024 * 1024, ge=1)
 
-    # OpenAI / OpenAI-compatible provider
+    # Cấu hình nhà cung cấp OpenAI / OpenAI-compatible provider
     openai_api_key: str = ""
     openai_base_url: str = "https://api.openai.com/v1"
     openai_chat_model: str = "gpt-4o-mini"
     openai_embedding_model: str = "text-embedding-3-small"
 
-    # Google Gemini provider
+    # Cấu hình nhà cung cấp Google Gemini provider
     gemini_api_key: str = ""
-    gemini_chat_model: str = "gemini-2.0-flash"
+    gemini_chat_model: str = "gemini-2.5-flash"
 
-    # RAG tuning
+    # Cấu hình tinh chỉnh RAG (RAG tuning)
     chunk_size: int = Field(default=512, ge=64, le=4096)
     chunk_overlap: int = Field(default=64, ge=0, le=512)
     system_prompt: str = (
@@ -58,26 +73,30 @@ class Settings(BaseSettings):
     )
     streaming_enabled: bool = True
 
-    # Reranker settings
+    # Cấu hình mô hình xếp hạng lại (Reranker settings)
     reranker_provider: str = "keyword"  # keyword | cross_encoder | tei | cohere
     reranker_model: str = "BAAI/bge-reranker-v2-m3"
     reranker_top_k: int = 5
     reranker_tei_url: str = ""
     cohere_api_key: str = ""
 
-    # Hybrid search settings
+    # Cấu hình tìm kiếm lai (Hybrid search settings)
     retrieval_mode: str = "vector"  # vector | bm25 | hybrid
     bm25_weight: float = 0.4
     vector_weight: float = 0.6
     enable_hyde: bool = False
     ab_test_retrieval: bool = False
 
-    # HMS integration
+    # Tích hợp hệ thống quản lý bệnh viện (HMS integration)
     hms_base_url: str = "http://localhost:8080/api/v1"
     hms_api_key: str = ""
     hms_sync_enabled: bool = False
     hms_sync_timeout_seconds: int = 30
 
+    # Cấu hình xác thực JWT / OIDC (xem docs/04-architecture/security-architecture.md)
+    # Nếu jwt_issuer để trống, bước kiểm tra JWT sẽ bỏ qua và hệ thống dùng static tokens.
+    # Với HS256: thiết lập jwt_hmac_secret và jwt_algorithm="HS256"
+    # Với RS256: thiết lập jwks_url và cài thêm package `cryptography`
     # JWT / OIDC authentication (see docs/04-architecture/security-architecture.md)
     # When jwt_issuer is empty, JWT validation is skipped and static tokens are used.
     # For HS256: set jwt_hmac_secret and jwt_algorithm="HS256"
@@ -90,12 +109,20 @@ class Settings(BaseSettings):
 
     @validator("api_v1_prefix")
     def normalize_api_prefix(cls, value: str) -> str:
+        """Chuẩn hóa tiền tố đường dẫn API bảo đảm luôn bắt đầu bằng '/' và không kết thúc bằng '/'."""
         if not value.startswith("/"):
             value = "/" + value
         return value.rstrip("/") or "/api/v1"
 
     @property
     def token_user_map(self) -> dict[str, str]:
+        """Tạo ánh xạ từ Bearer token sang địa chỉ email người dùng cho môi trường phát triển.
+
+        Bảo đảm an toàn theo F-SEC-001: từ chối ánh xạ token mặc định nếu không ở môi trường 'local'
+        trừ khi operator chủ động ghi đè biến môi trường HOSPITAL_AI_DEV_BEARER_TOKENS.
+        """
+        # F-SEC-001: từ chối token mặc định ở mọi môi trường phi local trừ khi
+        # operator chủ động thiết lập ghi đè qua env-var.
         # F-SEC-001: refuse the committed default in any non-local
         # environment unless the operator explicitly overrode the value.
         # If the operator sets dev_bearer_tokens to anything (including the
@@ -119,9 +146,11 @@ class Settings(BaseSettings):
 
     @property
     def cors_origin_list(self) -> list[str]:
+        """Phân tách chuỗi cấu hình cors_origins thành danh sách các origin hợp lệ."""
         return [origin.strip().rstrip("/") for origin in self.cors_origins.split(",") if origin.strip()]
 
     class Config:
+        """Cấu hình cho Pydantic BaseSettings về tiền tố biến môi trường và file .env."""
         env_prefix = "HOSPITAL_AI_"
         env_file = ".env"
         env_file_encoding = "utf-8"
@@ -130,4 +159,6 @@ class Settings(BaseSettings):
 
 @lru_cache(maxsize=1)
 def get_settings() -> Settings:
+    """Trả về instance duy nhất (singleton qua lru_cache) của đối tượng cấu hình Settings."""
     return Settings()
+

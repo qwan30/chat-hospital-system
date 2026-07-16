@@ -1,4 +1,6 @@
-"""Ollama LLM provider — local models via Ollama API."""
+"""Ollama LLM provider — local models via Ollama API.
+Nhà cung cấp mô hình nội bộ Ollama thông qua REST API (`/api/chat`).
+"""
 
 from __future__ import annotations
 
@@ -12,7 +14,9 @@ from hospital_ai.services.llm.base import BaseLLM, LLMMessage, LLMResponse
 
 
 class OllamaLLM(BaseLLM):
-    """Local LLM via Ollama REST API."""
+    """Local LLM via Ollama REST API.
+    Triển khai kết nối mô hình cục bộ Ollama (ví dụ: Qwen 2.5, Llama 3) qua giao thức HTTP REST API.
+    """
 
     def __init__(
         self,
@@ -38,6 +42,7 @@ class OllamaLLM(BaseLLM):
         temperature: float = 0.0,
         max_tokens: int | None = None,
     ) -> LLMResponse:
+        """Gửi yêu cầu tạo sinh văn bản (non-streaming `/api/chat`) tới máy chủ Ollama và trả về kết quả."""
         url = f"{self._base_url}/api/chat"
         payload = self._build_payload(messages, temperature, max_tokens, stream=False)
 
@@ -67,6 +72,7 @@ class OllamaLLM(BaseLLM):
         temperature: float = 0.0,
         max_tokens: int | None = None,
     ) -> AsyncIterator[str]:
+        """Gửi yêu cầu tạo sinh dạng luồng (`stream: true` tới `/api/chat`) và trả về từng phần nội dung văn bản."""
         url = f"{self._base_url}/api/chat"
         payload = self._build_payload(messages, temperature, max_tokens, stream=True)
 
@@ -97,6 +103,7 @@ class OllamaLLM(BaseLLM):
         max_tokens: int | None,
         stream: bool,
     ) -> dict:
+        """Tạo từ điển payload tham số gửi đến API Ollama (cấu hình temperature và num_predict cho max_tokens)."""
         payload: dict = {
             "model": self._model,
             "messages": [{"role": m.role, "content": m.content} for m in messages],

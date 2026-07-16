@@ -1,3 +1,7 @@
+"""API dependency injections for authentication, database sessions, and RBAC.
+Các dependency injection cho API: xác thực người dùng, phiên kết nối cơ sở dữ liệu và phân quyền theo vai trò (RBAC).
+"""
+
 import logging
 from collections.abc import AsyncIterator
 
@@ -17,6 +21,9 @@ bearer_scheme = HTTPBearer(auto_error=False)
 
 
 def get_request_ip(request: Request) -> str:
+    """Extract client IP address from request, relying on trusted Uvicorn proxy headers.
+    Trích xuất địa chỉ IP của client từ request (đảm bảo bảo mật nhờ cơ chế proxy header của Uvicorn).
+    """
     # Uvicorn handles proxy headers securely if --proxy-headers is enabled.
     # Manually parsing X-Forwarded-For here allows IP spoofing.
     if request.client:
@@ -29,6 +36,10 @@ async def get_current_user(
     session: AsyncSession = Depends(get_session),
     settings: Settings = Depends(get_settings),
 ) -> User:
+    """Validate bearer credentials (JWT or static token) and return the authenticated active User.
+    Xác thực token Bearer (ưu tiên JWT trước, sau đó fallback về token tĩnh)
+    và trả về người dùng hiện tại đang hoạt động.
+    """
     if credentials is None or credentials.scheme.lower() != "bearer":
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Missing bearer token.")
 
@@ -58,11 +69,17 @@ async def get_current_user(
 
 
 async def session_dependency() -> AsyncIterator[AsyncSession]:
+    """Provide an asynchronous SQLAlchemy database session generator dependency.
+    Dependency cung cấp phiên làm việc (AsyncSession) bất đồng bộ với cơ sở dữ liệu cho các route.
+    """
     async for session in get_session():
         yield session
 
 
 def require_role(roles: list[str]):
+    """Create a dependency checking that the current user possesses one of the required roles.
+    Tạo dependency kiểm tra xem người dùng hiện tại có thuộc một trong các vai trò (role) được phép truy cập hay không.
+    """
     def role_checker(current_user: User = Depends(get_current_user)):
         if current_user.role not in roles:
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Insufficient permissions")

@@ -1,3 +1,8 @@
+"""Patient clinical management & overview API routes.
+Các endpoint API quản lý thông tin bệnh nhân (tìm kiếm hồ sơ, chi tiết thông tin,
+tóm tắt tổng quan AI và dòng thời gian y khoa).
+"""
+
 import logging
 import uuid
 from datetime import UTC, date, datetime
@@ -33,6 +38,9 @@ async def search_patients(
     session: AsyncSession = Depends(get_session),
     current_user: User = Depends(get_current_user),
 ) -> PatientSearchResponse:
+    """Search accessible patients by name or medical record number (MRN).
+    Tìm kiếm danh sách bệnh nhân được phép truy cập theo tên hoặc mã số bệnh án (MRN).
+    """
     permission_exists = active_patient_permission_exists(
         user_id=current_user.id,
         patient_id=Patient.id,
@@ -65,6 +73,9 @@ async def get_patient(
     session: AsyncSession = Depends(get_session),
     current_user: User = Depends(get_current_user),
 ) -> Patient:
+    """Retrieve demographic information and primary profile of a specific patient.
+    Lấy thông tin nhân khẩu học và hồ sơ cơ bản của một bệnh nhân theo ID.
+    """
     trace_id = new_trace_id()
     await PermissionService(session).require_read(
         user=current_user,
@@ -100,6 +111,9 @@ async def get_patient_overview(
     current_user: User = Depends(get_current_user),
     settings: Settings = Depends(get_settings),
 ) -> PatientOverviewResponse:
+    """Retrieve comprehensive clinical overview, stats, and AI-generated summary for a patient.
+    Lấy thông tin tổng quan lâm sàng toàn diện, các thống kê và bản tóm tắt tình trạng bệnh nhân do AI tạo.
+    """
     trace_id = new_trace_id()
     await PermissionService(session).require_read(
         user=current_user,
@@ -277,6 +291,9 @@ async def get_patient_timeline(
     current_user: User = Depends(get_current_user),
     settings: Settings = Depends(get_settings),
 ) -> PatientTimelineResponse:
+    """Retrieve chronological medical events and history timeline for a patient.
+    Lấy chuỗi dòng thời gian các sự kiện y khoa và lịch sử thăm khám của bệnh nhân theo trình tự thời gian.
+    """
     trace_id = new_trace_id()
     await PermissionService(session).require_read(
         user=current_user,

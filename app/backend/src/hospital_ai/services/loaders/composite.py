@@ -1,6 +1,8 @@
 """Composite document loader — auto-detect + fallback chain.
+Bộ nạp tài liệu tổng hợp (Composite Loader) — nhận diện tự động và xử lý theo chuỗi dự phòng.
 
 Inspired by kotaemon's composite_loader.py pattern.
+Lấy cảm hứng từ mẫu thiết kế composite_loader.py của kotaemon, cho phép phối hợp nhiều bộ nạp riêng biệt.
 """
 
 from __future__ import annotations
@@ -16,9 +18,12 @@ logger = logging.getLogger(__name__)
 
 class CompositeLoader:
     """Routes files to the correct loader based on extension.
+    Bộ định tuyến tệp tin đến đúng bộ nạp (Loader) tương ứng dựa trên phần đuôi mở rộng.
 
     Maintains a registry of loaders, tries them in order,
     and falls back to OCR for unrecognized binary formats.
+    Duy trì danh sách đăng ký các bộ nạp, thử xử lý lần lượt theo thứ tự ưu tiên
+    và tự động chuyển tiếp cho dịch vụ OCR nếu gặp định dạng nhị phân/hình ảnh không nhận diện được.
     """
 
     def __init__(self, loaders: list[BaseDocumentLoader] | None = None) -> None:
@@ -45,7 +50,9 @@ class CompositeLoader:
 
     @property
     def supported_extensions(self) -> set:
-        """Return the union of all loader extensions."""
+        """Return the union of all loader extensions.
+        Trả về tập hợp tất cả các đuôi mở rộng được hỗ trợ bởi các bộ nạp thành viên.
+        """
         result: set = set()
         for loader in self._loaders:
             result.update(loader.supported_extensions())
@@ -53,16 +60,17 @@ class CompositeLoader:
 
     def load(self, file_path: Path, mime_type: str = "") -> list[LoadedPage]:
         """Load a document by finding the first matching loader.
+        Đọc và trích xuất tài liệu bằng cách tìm bộ nạp phù hợp đầu tiên trong danh sách.
 
         Args:
-            file_path: Path to the file on disk.
-            mime_type: Optional MIME type hint.
+            file_path: Path to the file on disk (Đường dẫn tệp trên hệ thống lưu trữ).
+            mime_type: Optional MIME type hint (Gợi ý định dạng MIME nếu có).
 
         Returns:
-            List of LoadedPage extracted from the document.
+            List of LoadedPage extracted from the document (Danh sách trang tài liệu đã trích xuất).
 
         Raises:
-            ExternalServiceError: If no loader can handle the file.
+            ExternalServiceError: If no loader can handle the file (Khi lỗi đọc tệp hoặc không có bộ nạp phù hợp).
         """
         path = Path(file_path)
         errors: list[str] = []
@@ -96,7 +104,9 @@ class CompositeLoader:
         )
 
     def _fallback_ocr(self, file_path: Path, mime_type: str) -> list[LoadedPage]:
-        """Fall back to the existing OCR service for images and scanned documents."""
+        """Fall back to the existing OCR service for images and scanned documents.
+        Cơ chế dự phòng tự động chuyển sang dịch vụ OCR để nhận diện chữ từ hình ảnh hoặc tài liệu quét (scan).
+        """
         from hospital_ai.services.ocr import OcrService
 
         ocr = OcrService()
@@ -111,5 +121,7 @@ class CompositeLoader:
         ]
 
     def register(self, loader: BaseDocumentLoader) -> None:
-        """Register an additional loader."""
+        """Register an additional loader.
+        Đăng ký bổ sung một bộ nạp tài liệu mới vào danh sách xử lý.
+        """
         self._loaders.append(loader)

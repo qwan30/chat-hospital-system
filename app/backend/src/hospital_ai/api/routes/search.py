@@ -1,3 +1,7 @@
+"""Global search API routes.
+Các endpoint API xử lý tìm kiếm toàn cục (Global Search) trên các hồ sơ bệnh nhân, tài liệu y khoa và luồng trò chuyện.
+"""
+
 from fastapi import APIRouter, Depends, Query, Request
 from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -21,6 +25,10 @@ async def global_search(
     session: AsyncSession = Depends(get_session),
     current_user: User = Depends(get_current_user),
 ) -> GlobalSearchResponse:
+    """Perform a global keyword search across accessible patients, clinical documents, and chat threads.
+    Thực hiện tìm kiếm toàn cục từ khóa trên danh sách bệnh nhân, tài liệu lâm sàng
+    và luồng trò chuyện mà người dùng được phép truy cập.
+    """
     trace_id = new_trace_id()
 
     if not q or not q.strip():

@@ -1,8 +1,11 @@
 """
 Abstract Interface Protocols for Hospital AI.
+Định nghĩa các giao thức giao diện trừu tượng cho Trợ lý Tri thức Bệnh viện AI.
 
 Defines framework-agnostic contracts that core business logic depends on.
 Concrete implementations live in services/ and infrastructure layers.
+Định nghĩa các hợp đồng (contracts) độc lập với framework mà logic nghiệp vụ cốt lõi phụ thuộc vào.
+Các lớp triển khai cụ thể (concrete implementations) nằm trong các tầng services/ và infrastructure.
 
 This enforces the Clean Architecture Dependency Rule:
     core/ depends ONLY on these abstract interfaces (inward-facing).
@@ -23,9 +26,11 @@ from typing import Any, Protocol, runtime_checkable
 
 class ILLMProvider(ABC):
     """Abstract interface for language model providers.
+    Giao diện trừu tượng cho các nhà cung cấp mô hình ngôn ngữ lớn (LLM).
 
     Decouples RAG pipeline from specific LLM backends (Ollama, OpenAI, etc.).
     Core services depend on this interface — never on concrete implementations.
+    Giúp tách biệt (decouple) RAG pipeline khỏi các backend LLM cụ thể như Ollama hay OpenAI.
     """
 
     @abstractmethod

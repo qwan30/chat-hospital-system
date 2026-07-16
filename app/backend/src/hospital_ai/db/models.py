@@ -1,3 +1,9 @@
+"""Định nghĩa các mô hình cơ sở dữ liệu (ORM Models) với SQLAlchemy cho Hệ thống Trợ lý AI Bệnh viện.
+
+Bao gồm các thực thể cốt lõi: Người dùng (User), Bệnh nhân (Patient), Phân quyền (PatientPermission),
+Tài liệu (Document/Page/Chunk) cho RAG, Lịch sử trò chuyện (ChatThread/ChatMessage), và Nhật ký kiểm toán (AuditLog).
+"""
+
 from __future__ import annotations
 
 import uuid
@@ -24,11 +30,15 @@ from sqlalchemy.types import TypeDecorator
 
 
 class Base(DeclarativeBase):
+    """Lớp cơ sở declarative cho toàn bộ các model SQLAlchemy trong hệ thống."""
     pass
 
 
 class EmbeddingVector(TypeDecorator):
-    """Store vectors as pgvector in PostgreSQL and JSON in test databases."""
+    """Store vectors as pgvector in PostgreSQL and JSON in test databases.
+    Kiểu dữ liệu tùy chỉnh cho vector nhúng (embedding): dùng pgvector trên PostgreSQL
+    và JSON khi chạy trên CSDL kiểm thử (SQLite/JSON).
+    """
 
     impl = JSON
     cache_ok = True
@@ -49,6 +59,7 @@ class EmbeddingVector(TypeDecorator):
 
 
 class InetAddress(TypeDecorator):
+    """Kiểu dữ liệu địa chỉ IP: sử dụng kiểu INET trên PostgreSQL và String(64) cho các CSDL khác."""
     impl = String(64)
     cache_ok = True
 
@@ -59,6 +70,7 @@ class InetAddress(TypeDecorator):
 
 
 class TimestampMixin:
+    """Mixin tự động thêm thời gian tạo (created_at) và cập nhật (updated_at) cho các bản ghi."""
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,
@@ -73,10 +85,12 @@ class TimestampMixin:
 
 
 class SoftDeleteMixin:
+    """Mixin hỗ trợ xóa mềm (soft delete) bằng trường deleted_at thay vì xóa vĩnh viễn khỏi CSDL."""
     deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
 
 class User(TimestampMixin, SoftDeleteMixin, Base):
+    """Mô hình Người dùng (bác sĩ, điều dưỡng, dược sĩ, quản trị viên...) trong hệ thống."""
     __tablename__ = "users"
     __table_args__ = (
         CheckConstraint(
@@ -96,6 +110,7 @@ class User(TimestampMixin, SoftDeleteMixin, Base):
 
 
 class Patient(TimestampMixin, SoftDeleteMixin, Base):
+    """Mô hình Bệnh nhân kèm thông tin hành chính cơ bản và mã hồ sơ y tế (MRN)."""
     __tablename__ = "patients"
 
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
@@ -111,6 +126,7 @@ class Patient(TimestampMixin, SoftDeleteMixin, Base):
 
 
 class PatientPermission(TimestampMixin, SoftDeleteMixin, Base):
+    """Mô hình quyền truy cập cụ thể của người dùng đối với một hồ sơ bệnh nhân theo phạm vi (scope)."""
     __tablename__ = "patient_permissions"
     __table_args__ = (
         UniqueConstraint("user_id", "patient_id", "scope", name="uq_patient_permission_scope"),
@@ -131,6 +147,9 @@ class PatientPermission(TimestampMixin, SoftDeleteMixin, Base):
 
 
 class AccessRequest(TimestampMixin, Base):
+    """Mô hình Yêu cầu truy cập (khi người dùng xin quyền truy cập hồ sơ bệnh nhân
+    kèm lý do giải trình justification).
+    """
     __tablename__ = "access_requests"
     __table_args__ = (
         CheckConstraint("status in ('pending','approved','denied','pending_info')", name="ck_access_requests_status"),
@@ -151,6 +170,7 @@ class AccessRequest(TimestampMixin, Base):
 
 
 class Document(TimestampMixin, SoftDeleteMixin, Base):
+    """Mô hình Tài liệu y tế gốc (PDF, DOCX, hình ảnh...) gắn với một bệnh nhân cụ thể."""
     __tablename__ = "documents"
     __table_args__ = (
         CheckConstraint(
@@ -184,6 +204,7 @@ class Document(TimestampMixin, SoftDeleteMixin, Base):
 
 
 class DocumentPage(TimestampMixin, SoftDeleteMixin, Base):
+    """Mô hình Trang tài liệu chứa văn bản bóc tách từ OCR kèm độ tin cậy confidence."""
     __tablename__ = "document_pages"
     __table_args__ = (UniqueConstraint("document_id", "page_number", name="uq_document_page_number"),)
 
@@ -198,6 +219,7 @@ class DocumentPage(TimestampMixin, SoftDeleteMixin, Base):
 
 
 class DocumentChunk(TimestampMixin, SoftDeleteMixin, Base):
+    """Mô hình Đoạn văn bản (Chunk) của trang tài liệu, lưu trữ vector nhúng embedding cho tìm kiếm RAG."""
     __tablename__ = "document_chunks"
     __table_args__ = (UniqueConstraint("document_id", "chunk_index", name="uq_document_chunk_index"),)
 
@@ -216,6 +238,9 @@ class DocumentChunk(TimestampMixin, SoftDeleteMixin, Base):
 
 
 class AuditLog(Base):
+    """Mô hình Nhật ký kiểm toán (Audit Log) ghi nhận mọi hành động truy cập,
+    thao tác và kết quả cho mục đích tuân thủ.
+    """
     __tablename__ = "audit_logs"
     __table_args__ = (CheckConstraint("outcome in ('allowed','denied','failed')", name="ck_audit_logs_outcome"),)
 
@@ -233,6 +258,7 @@ class AuditLog(Base):
 
 
 class AiQuery(Base):
+    """Mô hình Lịch sử truy vấn AI (câu hỏi, câu trả lời, độ trễ và mô hình LLM sử dụng)."""
     __tablename__ = "ai_queries"
 
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
@@ -250,6 +276,7 @@ class AiQuery(Base):
 
 
 class RetrievedEvidence(Base):
+    """Mô hình Bằng chứng trích xuất (Evidence Chunk) liên kết giữa câu hỏi AI và đoạn văn bản đã tìm kiếm từ RAG."""
     __tablename__ = "retrieved_evidence"
 
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
@@ -268,6 +295,9 @@ class RetrievedEvidence(Base):
 
 
 class ChatThread(TimestampMixin, SoftDeleteMixin, Base):
+    """Mô hình Cuộc trò chuyện (Thread), phân chia theo phạm vi chung (general)
+    hoặc gắn với một bệnh nhân (patient-linked).
+    """
     __tablename__ = "chat_threads"
     __table_args__ = (
         CheckConstraint("scope in ('general','patient-linked')", name="ck_chat_threads_scope"),
@@ -307,6 +337,7 @@ class ChatThread(TimestampMixin, SoftDeleteMixin, Base):
 
 
 class ChatSessionMemory(TimestampMixin, Base):
+    """Mô hình Bộ nhớ tóm tắt hội thoại (Memory Summary) lưu trữ tóm tắt và thực thể đang hoạt động của thread."""
     __tablename__ = "chat_session_memory"
 
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
@@ -321,6 +352,7 @@ class ChatSessionMemory(TimestampMixin, Base):
 
 
 class ChatThreadParticipant(TimestampMixin, SoftDeleteMixin, Base):
+    """Mô hình Thành viên tham gia cuộc trò chuyện (hỗ trợ tính năng hội chẩn chia sẻ thread giữa các bác sĩ)."""
     __tablename__ = "chat_thread_participants"
     __table_args__ = (
         UniqueConstraint("thread_id", "user_id", name="uq_chat_thread_participant"),
@@ -345,6 +377,7 @@ class ChatThreadParticipant(TimestampMixin, SoftDeleteMixin, Base):
 
 
 class ChatMessage(Base):
+    """Mô hình Tin nhắn hội thoại (Message) kèm trích dẫn (citations) và trạng thái phân quyền truy cập PHI."""
     __tablename__ = "chat_messages"
     __table_args__ = (
         CheckConstraint("role in ('user','assistant','system')", name="ck_chat_messages_role"),
@@ -380,7 +413,9 @@ class ChatMessage(Base):
 
 
 class HmsSyncLog(TimestampMixin, Base):
-    """Track HMS synchronization operations."""
+    """Track HMS synchronization operations.
+    Mô hình Nhật ký đồng bộ hóa với hệ thống quản lý bệnh viện (HMS), theo dõi lịch hẹn, kết quả xét nghiệm, bệnh án.
+    """
 
     __tablename__ = "hms_sync_logs"
     __table_args__ = (
@@ -410,7 +445,9 @@ class HmsSyncLog(TimestampMixin, Base):
 
 
 class ClinicalAlert(TimestampMixin, Base):
-    """Clinical alerts generated by the CDSS system."""
+    """Clinical alerts generated by the CDSS system.
+    Mô hình Cảnh báo lâm sàng (chống chỉ định, tương tác thuốc, nguy cơ nhiễm trùng...) sinh ra bởi hệ thống CDSS.
+    """
 
     __tablename__ = "clinical_alerts"
     __table_args__ = (

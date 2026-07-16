@@ -1,3 +1,7 @@
+"""Main entry point and application factory for the Hospital AI Knowledge Assistant API.
+Điểm vào chính (entry point) và nhà máy tạo ứng dụng FastAPI cho Hệ thống Trợ lý Tri thức Y tế AI.
+"""
+
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
@@ -60,9 +64,11 @@ DOMAIN_EXCEPTION_STATUS_MAP: dict[type[AppError], int] = {
 
 def _resolve_status_code(exc: AppError) -> int:
     """Map a domain exception to its HTTP status code.
+    Chuyển đổi (map) ngoại lệ nghiệp vụ (domain exception) sang mã trạng thái HTTP tương ứng.
 
     Walks the MRO to find the most specific registered mapping.
     Falls back to 500 for unregistered exception types.
+    Duyệt thứ tự kế thừa (MRO) để tìm mã HTTP phù hợp nhất. Trả về 500 cho ngoại lệ không xác định.
     """
     for cls in type(exc).__mro__:
         if cls in DOMAIN_EXCEPTION_STATUS_MAP:
@@ -72,12 +78,15 @@ def _resolve_status_code(exc: AppError) -> int:
 
 def create_app(settings: Settings | None = None) -> FastAPI:
     """Factory function to create and configure the FastAPI application.
+    Hàm nhà máy (factory function) khởi tạo và cấu hình toàn bộ ứng dụng FastAPI.
 
     Args:
         settings: Optional Settings override (defaults to get_settings()).
+                  Tùy chọn ghi đè cấu hình Settings (mặc định lấy từ `get_settings()`).
 
     Returns:
         Configured FastAPI application instance.
+        Đối tượng ứng dụng FastAPI đã được thiết lập đầy đủ router, middleware và handler.
     """
     active_settings = settings or get_settings()
     configure_logging()
@@ -106,10 +115,13 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     @app.exception_handler(AppError)
     async def app_error_handler(_: Request, exc: AppError) -> JSONResponse:
         """Catch all domain exceptions and map them to HTTP JSON responses.
+        Bắt toàn bộ các ngoại lệ nghiệp vụ (domain exception) và chuyển thành phản hồi HTTP JSON chuẩn.
 
         Uses DOMAIN_EXCEPTION_STATUS_MAP to resolve the appropriate status
         code based on the exception's MRO. All domain exceptions produce
         a consistent JSON envelope with code, message, and metadata.
+        Sử dụng DOMAIN_EXCEPTION_STATUS_MAP để xác định mã status code phù hợp.
+        Tất cả phản hồi đều tuân theo cấu trúc JSON chuẩn gồm code, message và metadata.
         """
         status_code = _resolve_status_code(exc)
         return JSONResponse(

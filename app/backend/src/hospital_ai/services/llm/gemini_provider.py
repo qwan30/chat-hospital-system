@@ -1,7 +1,10 @@
 """Google Gemini LLM provider.
+Nhà cung cấp mô hình Google Gemini.
 
 Uses the Gemini REST API (generativelanguage.googleapis.com).
 API key is passed as a query parameter.
+Sử dụng trực tiếp Gemini REST API thông qua `httpx`.
+Khóa API (API key) được truyền qua tham số truy vấn (`?key=...`).
 """
 
 from __future__ import annotations
@@ -16,7 +19,9 @@ from hospital_ai.services.llm.base import BaseLLM, LLMMessage, LLMResponse
 
 
 class GeminiLLM(BaseLLM):
-    """Google Gemini chat completion provider via REST API."""
+    """Google Gemini chat completion provider via REST API.
+    Triển khai giao diện BaseLLM cho Google Gemini thông qua REST API (hỗ trợ generate và stream SSE).
+    """
 
     def __init__(
         self,
@@ -45,6 +50,7 @@ class GeminiLLM(BaseLLM):
         temperature: float = 0.0,
         max_tokens: int | None = None,
     ) -> LLMResponse:
+        """Gửi yêu cầu tạo sinh văn bản (generateContent) tới Gemini REST API và trả về kết quả."""
         url = f"{self._base_url()}/models/{self._model}:generateContent?key={self._api_key}"
         payload = self._build_payload(messages, temperature, max_tokens)
 
@@ -65,6 +71,7 @@ class GeminiLLM(BaseLLM):
         temperature: float = 0.0,
         max_tokens: int | None = None,
     ) -> AsyncIterator[str]:
+        """Tạo luồng trả lời từng token (streamGenerateContent) qua giao thức SSE (Server-Sent Events)."""
         url = f"{self._base_url()}/models/{self._model}:streamGenerateContent?alt=sse&key={self._api_key}"
         payload = self._build_payload(messages, temperature, max_tokens)
 
@@ -98,7 +105,10 @@ class GeminiLLM(BaseLLM):
         temperature: float,
         max_tokens: int | None,
     ) -> dict:
-        """Build Gemini API request payload from internal message format."""
+        """Build Gemini API request payload from internal message format.
+        Chuyển đổi danh sách tin nhắn nội bộ sang định dạng payload chuẩn của Gemini
+        (tách biệt `systemInstruction` và ánh xạ `assistant` -> `model`).
+        """
         contents = []
         system_instruction = None
 
@@ -124,7 +134,9 @@ class GeminiLLM(BaseLLM):
         return payload
 
     def _parse_response(self, data: dict) -> LLMResponse:
-        """Parse Gemini API response into LLMResponse."""
+        """Parse Gemini API response into LLMResponse.
+        Phân tích JSON kết quả trả về từ Gemini để trích xuất văn bản, finish_reason và số lượng token tiêu thụ.
+        """
         candidates = data.get("candidates", [])
         text = ""
         finish_reason = ""

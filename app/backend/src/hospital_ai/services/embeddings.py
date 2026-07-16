@@ -1,3 +1,10 @@
+"""Dịch vụ Nhúng Vector (Text Embedding Service).
+
+Cung cấp khả năng biến đổi văn bản thành vector số với hỗ trợ xử lý theo lô (Batching),
+chuẩn hóa văn bản trước khi nhúng (Text Normalization) và bộ nhớ đệm (In-memory Cache) giảm tải gọi API.
+Hỗ trợ Ollama và bộ tạo embedding giả lập quyết định (Deterministic stub) cho kiểm thử.
+"""
+
 import hashlib
 import math
 import re
@@ -10,7 +17,9 @@ from hospital_ai.core.errors import ExternalServiceError
 
 
 class EmbeddingService:
-    """Embedding service with batch support, text normalization, and in-memory cache."""
+    """Embedding service with batch support, text normalization, and in-memory cache.
+    Dịch vụ tạo vector embedding hỗ trợ xử lý hàng loạt, chuẩn hóa văn bản và lưu cache bộ nhớ.
+    """
 
     _cache: dict[str, list[float]] = {}
     _cache_max_size: int = 2048
@@ -19,6 +28,7 @@ class EmbeddingService:
         self.settings = settings
 
     async def embed(self, text: str) -> list[float]:
+        """Tạo vector nhúng cho một đoạn văn bản (đã qua chuẩn hóa và kiểm tra cache)."""
         normalized = _normalize_text(text)
         cache_key = _cache_key(normalized, self.settings.embedding_provider)
         if cache_key in self._cache:
@@ -34,9 +44,11 @@ class EmbeddingService:
 
     async def embed_many(self, texts: Iterable[str]) -> list[list[float]]:
         """Batch embed with cache awareness and text normalization.
+        Tạo vector nhúng hàng loạt có tận dụng cache và chuẩn hóa văn bản.
 
         For deterministic/stub providers, processes sequentially.
         For Ollama, batches texts that aren't cached.
+        Với Ollama sẽ tự động nhóm các văn bản chưa có trong cache vào một lô request duy nhất.
         """
         text_list = [_normalize_text(t) for t in texts]
         if not text_list:
@@ -72,7 +84,9 @@ class EmbeddingService:
         return [embedding for _, embedding in results]
 
     def _put_cache(self, key: str, value: list[float]) -> None:
-        """Add to cache, evicting oldest entries if over size."""
+        """Add to cache, evicting oldest entries if over size.
+        Thêm vào bộ nhớ cache, tự động xóa 25% mục cũ nhất nếu vượt quá giới hạn dung lượng.
+        """
         if len(self._cache) >= self._cache_max_size:
             # Evict oldest 25% of entries
             evict_count = self._cache_max_size // 4
@@ -82,6 +96,7 @@ class EmbeddingService:
         self._cache[key] = value
 
     async def _embed_ollama(self, text: str) -> list[float]:
+        """Gọi API Ollama cục bộ để lấy vector nhúng cho đơn lẻ một văn bản."""
         url = f"{self.settings.ollama_base_url.rstrip('/')}/api/embed"
         payload = {"model": self.settings.embedding_model, "input": text}
         try:
@@ -99,7 +114,9 @@ class EmbeddingService:
         return [float(value) for value in vector]
 
     async def _embed_ollama_batch(self, texts: list[str]) -> list[list[float]]:
-        """Batch embed using Ollama's multi-input support."""
+        """Batch embed using Ollama's multi-input support.
+        Gọi API Ollama theo lô (batch request) cho nhiều văn bản cùng lúc.
+        """
         url = f"{self.settings.ollama_base_url.rstrip('/')}/api/embed"
         payload = {"model": self.settings.embedding_model, "input": texts}
         try:
@@ -119,7 +136,9 @@ class EmbeddingService:
 
 
 def _cache_key(text: str, provider: str) -> str:
-    """Create a stable cache key from text and provider."""
+    """Create a stable cache key from text and provider.
+    Tạo khóa cache SHA-256 duy nhất dựa trên nội dung văn bản và tên nhà cung cấp.
+    """
     return hashlib.sha256(f"{provider}:{text}".encode()).hexdigest()
 
 
@@ -128,9 +147,11 @@ _WHITESPACE_RE = re.compile(r"\s+")
 
 def _normalize_text(text: str) -> str:
     """Normalize text before embedding for improved retrieval consistency.
+    Chuẩn hóa văn bản trước khi nhúng vector để đảm bảo tính nhất quán khi truy xuất.
 
     Strips leading/trailing whitespace, collapses interior whitespace runs,
     and removes zero-width characters.
+    Cắt bỏ khoảng trắng thừa, gộp khoảng trắng liên tiếp và loại bỏ ký tự zero-width.
     """
     text = text.strip()
     text = text.replace("\u200b", "").replace("\ufeff", "")
@@ -139,6 +160,9 @@ def _normalize_text(text: str) -> str:
 
 
 def deterministic_embedding(text: str, dimensions: int = 1024) -> list[float]:
+    """Tạo vector nhúng quyết định (Deterministic embedding) dựa trên băm SHA-256 từ ngữ
+    (dùng cho kiểm thử/môi trường không có GPU).
+    """
     vector = [0.0] * dimensions
     words = text.lower().split()
     if not words:

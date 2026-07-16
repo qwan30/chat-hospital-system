@@ -1,3 +1,8 @@
+"""Clinical Decision Support System (CDSS) background analysis worker.
+Worker chạy nền phân tích hỗ trợ quyết định lâm sàng (phát hiện xung đột thuốc,
+chống chỉ định, rủi ro y tế) trên tài liệu mới index.
+"""
+
 import json
 import logging
 import uuid
@@ -15,7 +20,9 @@ logger = logging.getLogger(__name__)
 
 
 async def run_cdss_analysis(session: AsyncSession, document_id: uuid.UUID) -> None:
-    """Run CDSS analysis on a newly indexed document."""
+    """Run CDSS analysis on a newly indexed document.
+    Thực hiện phân tích CDSS trên tài liệu mới được index dựa theo ngữ cảnh bệnh nhân trong Graph RAG.
+    """
     # 1. Get the document
     document = await session.get(Document, document_id)
     if not document:

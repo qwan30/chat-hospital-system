@@ -1,3 +1,7 @@
+"""Patient permission authorization service.
+Dịch vụ kiểm tra và quản lý quyền truy cập dữ liệu bệnh nhân (patient scopes & RBAC).
+"""
+
 import logging
 import uuid
 from collections.abc import Iterable
@@ -32,6 +36,7 @@ def active_patient_permission_filters(
     accepted_scopes: Iterable[str],
     now: datetime | None = None,
 ):
+    """Tạo bộ điều kiện lọc SQLAlchemy kiểm tra quyền truy cập đang có hiệu lực đối với bệnh nhân cụ thể."""
     active_at = now or datetime.now(UTC)
     return (
         PatientPermission.user_id == user_id,
@@ -49,6 +54,7 @@ def active_patient_permission_exists(
     accepted_scopes: Iterable[str],
     now: datetime | None = None,
 ):
+    """Tạo mệnh đề `EXISTS` trong SQL để xác định xem người dùng có quyền hợp lệ hay không."""
     return exists().where(
         *active_patient_permission_filters(
             user_id=user_id,
@@ -60,7 +66,12 @@ def active_patient_permission_exists(
 
 
 class PermissionService:
+    """Service to verify and require patient-level access permissions.
+    Dịch vụ kiểm định quyền hạn truy cập theo phạm vi bệnh nhân và ghi lại nhật ký kiểm tra (audit log).
+    """
+
     def __init__(self, session: AsyncSession) -> None:
+        """Khởi tạo PermissionService với phiên kết nối cơ sở dữ liệu AsyncSession."""
         self.session = session
 
     async def has_patient_scope(
@@ -70,6 +81,9 @@ class PermissionService:
         patient_id: uuid.UUID,
         accepted_scopes: Iterable[str],
     ) -> bool:
+        """Check if user has any of the accepted scopes for a patient (via local DB or HMS check).
+        Kiểm tra người dùng có một trong các phạm vi (scopes) cho phép hay không (qua DB cục bộ hoặc REST API của HMS).
+        """
         # Check permissions with HMS first if sync integration is active
         from hospital_ai.core.config import get_settings
 
@@ -114,6 +128,10 @@ class PermissionService:
         ip_address: str | None = None,
         metadata: dict | None = None,
     ) -> None:
+        """Enforce that user has required patient scope; otherwise audit failure and raise PermissionDeniedError.
+        Bắt buộc người dùng phải có quyền truy cập; nếu không có hoặc đã hết hạn, ghi nhật ký
+        từ chối và ném lỗi PermissionDeniedError.
+        """
         accepted: set[str] = set(accepted_scopes)
         if await self.has_patient_scope(
             user_id=user.id,
@@ -173,6 +191,9 @@ class PermissionService:
         object_id: uuid.UUID | None = None,
         ip_address: str | None = None,
     ) -> None:
+        """Enforce `PATIENT_READ_SCOPES` for reading patient records.
+        Bắt buộc quyền đọc (`PATIENT_READ_SCOPES`) đối với hồ sơ bệnh nhân.
+        """
         await self.require_patient_scope(
             user=user,
             patient_id=patient_id,
@@ -195,6 +216,9 @@ class PermissionService:
         object_id: uuid.UUID | None = None,
         ip_address: str | None = None,
     ) -> None:
+        """Enforce role (`records_staff` or `admin`) and `PATIENT_UPLOAD_SCOPES`.
+        Bắt buộc vai trò nhân viên hồ sơ (`records_staff` hoặc `admin`) và quyền tải lên (`PATIENT_UPLOAD_SCOPES`).
+        """
         if user.role not in {"records_staff", "admin"}:
             await AuditService(self.session).record(
                 actor_user_id=user.id,

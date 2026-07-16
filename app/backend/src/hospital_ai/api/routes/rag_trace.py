@@ -1,8 +1,12 @@
 """RAG Trace Observability API.
+Các endpoint API giúp giám sát, kiểm định và truy xuất chi tiết luồng bằng chứng RAG của từng câu hỏi AI.
 
 Allows clinicians and admins to inspect the full retrieval pipeline trace
 for a given AI query — which chunks were retrieved, their scores before
 and after reranking, the retrieval method, and the reranker backend used.
+Cho phép bác sĩ và quản trị viên kiểm tra quá trình truy xuất (retrieval pipeline):
+các đoạn văn bản được trích xuất, điểm số trước và sau khi rerank, phương pháp truy xuất
+và mô hình xếp hạng lại (reranker) được sử dụng.
 """
 
 from uuid import UUID
@@ -41,8 +45,10 @@ async def get_rag_trace(
     db: AsyncSession = Depends(get_session),
 ) -> RagTraceResponse:
     """Return the full RAG trace for a given AI query.
+    Trả về toàn bộ chi tiết luồng truy xuất RAG (RAG trace) của một câu hỏi AI cụ thể.
 
     Only the user who created the query (or an admin) can view the trace.
+    Chỉ người dùng tạo ra câu hỏi đó (hoặc quản trị viên hệ thống) mới có quyền truy cập thông tin trace này.
     """
     # Fetch the AI query
     result = await db.execute(select(AiQuery).where(AiQuery.id == query_id))

@@ -1,7 +1,10 @@
 """Chunking service with table-aware splitting.
+Dịch vụ Phân mảnh văn bản thông minh nhận diện bảng biểu (Table-aware Chunking Service).
 
 Splits document pages into chunks while respecting table boundaries,
 ensuring that markdown tables are never split across chunks.
+Chia nhỏ các trang tài liệu thành các chunk nhưng bảo toàn tính toàn vẹn của bảng biểu markdown,
+đảm bảo một bảng không bao giờ bị cắt vụn qua hai chunk khác nhau.
 """
 
 from collections.abc import Iterable
@@ -12,6 +15,7 @@ from hospital_ai.services.ocr import OcrPage
 
 @dataclass
 class TextChunk:
+    """Cấu trúc dữ liệu biểu diễn một phân đoạn văn bản (chunk) sau khi cắt từ trang tài liệu OCR."""
     chunk_index: int
     page_number: int
     content: str
@@ -22,11 +26,13 @@ class TextChunk:
 
 
 class ChunkingService:
+    """Dịch vụ thực hiện chia nhỏ văn bản (Chunking) theo ngữ nghĩa và giữ nguyên cấu trúc bảng biểu."""
     def __init__(self, max_chars: int = 1200, overlap_chars: int = 150) -> None:
         self.max_chars = max_chars
         self.overlap_chars = overlap_chars
 
     def chunk_pages(self, pages: Iterable[OcrPage]) -> list[TextChunk]:
+        """Thực hiện chia nhỏ danh sách các trang OCR thành các đoạn TextChunk hoàn chỉnh."""
         chunks: list[TextChunk] = []
         next_index = 0
         for page in pages:
@@ -132,9 +138,11 @@ class ChunkingService:
 
 def _split_preserving_tables(text: str) -> list[dict]:
     """Split text into segments, keeping markdown tables as atomic units.
+    Phân tách văn bản thành các phân đoạn, giữ nguyên các bảng biểu markdown như một khối nguyên tử không thể chia nhỏ.
 
     Returns a list of dicts with keys: content, type ("text" or "table"),
     start (offset in original text), end (offset in original text).
+    Trả về danh sách từ điển gồm các khóa: content, type ("text" hoặc "table"), start, end.
     """
     from hospital_ai.services.loaders.table_parser import detect_table_boundaries
 

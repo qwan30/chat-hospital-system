@@ -1,7 +1,10 @@
 """Impact metrics capture and analysis service.
+Dịch vụ ghi nhận và phân tích các chỉ số tác động hiệu suất (thời gian, chi phí tiết kiệm được nhờ AI).
 
 Records timing breakdowns, calculates time/cost savings, and
 provides summary aggregations for the metrics dashboard.
+Ghi lại phân tích thời gian thực thi, tính toán thời gian/chi phí tiết kiệm được,
+và cung cấp thống kê tổng hợp cho trang quản trị dashboard.
 """
 
 from __future__ import annotations
@@ -20,7 +23,9 @@ from hospital_ai.db.models import Base
 
 
 class MetricEvent(Base):
-    """Captures per-query impact metrics for dashboard analysis."""
+    """Captures per-query impact metrics for dashboard analysis.
+    Bảng lưu trữ chỉ số tác động của từng câu hỏi AI để phục vụ phân tích trên dashboard.
+    """
 
     __tablename__ = "metric_events"
 
@@ -42,7 +47,9 @@ class MetricEvent(Base):
 
 
 class UserFeedback(Base):
-    """User rating and comment on an AI query response."""
+    """User rating and comment on an AI query response.
+    Bảng lưu trữ phản hồi và đánh giá của người dùng đối với câu trả lời AI.
+    """
 
     __tablename__ = "user_feedback"
 
@@ -69,7 +76,9 @@ DEFAULT_HOURLY_COST = 20.0  # $/hour from doc 10 §9
 
 @dataclass
 class TimingBreakdown:
-    """Timing data captured during a query pipeline run."""
+    """Timing data captured during a query pipeline run.
+    Dữ liệu thời gian (tính bằng mili giây) của các giai đoạn xử lý trong pipeline truy vấn.
+    """
 
     total_ms: int = 0
     retrieval_ms: int = 0
@@ -79,7 +88,9 @@ class TimingBreakdown:
 
 @dataclass
 class MetricsSummary:
-    """Aggregated metrics for dashboard display."""
+    """Aggregated metrics for dashboard display.
+    Cấu trúc dữ liệu tổng hợp các chỉ số hiệu suất để hiển thị trên dashboard.
+    """
 
     total_queries: int = 0
     avg_latency_ms: float = 0.0
@@ -90,9 +101,12 @@ class MetricsSummary:
 
 
 class MetricsService:
-    """Records and aggregates impact metrics."""
+    """Records and aggregates impact metrics.
+    Dịch vụ ghi nhận và tổng hợp các chỉ số hiệu quả vận hành và chi phí.
+    """
 
     def __init__(self, session: AsyncSession) -> None:
+        """Khởi tạo MetricsService với phiên kết nối AsyncSession."""
         self.session = session
 
     async def record_query_metrics(
@@ -106,7 +120,10 @@ class MetricsService:
         citations_count: int = 0,
         thread_id: uuid.UUID | None = None,
     ) -> MetricEvent:
-        """Record impact metrics for a completed query."""
+        """Record impact metrics for a completed query.
+        Ghi nhận các chỉ số hiệu suất cho một truy vấn hoàn tất (tính toán chi phí/thời gian
+        tiết kiệm so với làm thủ công).
+        """
         baseline_sec = BASELINE_MANUAL_SECONDS.get(task_type, BASELINE_MANUAL_SECONDS["general"])
         actual_sec = max(1, timing.total_ms // 1000)
         time_saved_sec = max(0, baseline_sec - actual_sec)
@@ -131,7 +148,9 @@ class MetricsService:
         return event
 
     async def get_summary(self) -> MetricsSummary:
-        """Aggregate metrics across all recorded events."""
+        """Aggregate metrics across all recorded events.
+        Tính toán tổng hợp các chỉ số tác động từ toàn bộ các sự kiện được ghi nhận trong cơ sở dữ liệu.
+        """
         # Total queries and avg latency
         result = await self.session.execute(
             select(

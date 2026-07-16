@@ -52,6 +52,13 @@ function mapIds(obj: any, mapFn: (val: string) => string): any {
   return obj;
 }
 
+export function mapIdsToUuids(input: string): string {
+  return input.replace(/\b(p-0(0[1-9]|1[0-2]))\b/g, (match) => {
+    const num = parseInt(match.substring(2), 10);
+    return "20000000-0000-0000-0000-" + num.toString().padStart(12, "0");
+  });
+}
+
 export async function apiFetch<T>(
   path: string,
   init: RequestInit = {},
@@ -61,10 +68,7 @@ export async function apiFetch<T>(
   const normalizedBase = baseUrl.replace(/\/+$/, "");
 
   // Map p-001..p-012 to backend UUIDs in the request path
-  const mappedPath = path.replace(/\b(p-0(0[1-9]|1[0-2]))\b/g, (match) => {
-    const num = parseInt(match.substring(2), 10);
-    return "20000000-0000-0000-0000-" + num.toString().padStart(12, "0");
-  });
+  const mappedPath = mapIdsToUuids(path);
 
   const url = `${normalizedBase}${mappedPath}`;
   const token = getToken();
@@ -84,10 +88,7 @@ export async function apiFetch<T>(
   // Map p-001..p-012 to backend UUIDs in request body
   let body = init.body;
   if (typeof body === "string") {
-    body = body.replace(/\b(p-0(0[1-9]|1[0-2]))\b/g, (match) => {
-      const num = parseInt(match.substring(2), 10);
-      return "20000000-0000-0000-0000-" + num.toString().padStart(12, "0");
-    });
+    body = mapIdsToUuids(body);
   }
 
   const response = await fetch(url, { ...init, body, headers });

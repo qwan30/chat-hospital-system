@@ -1,7 +1,10 @@
 """Server-Sent Events (SSE) streaming endpoint for chat.
+Endpoint API cung cấp luồng phản hồi hội thoại AI theo thời gian thực qua giao thức Server-Sent Events (SSE).
 
 Provides token-by-token streaming responses using the LLM provider
 abstraction layer, inspired by kotaemon's generator-based streaming.
+Cung cấp câu trả lời theo từng token dựa trên lớp trừu tượng LLM,
+lấy cảm hứng từ cơ chế streaming của kotaemon.
 """
 
 import json
@@ -29,9 +32,16 @@ from hospital_ai.services.audit import AuditService
 from hospital_ai.services.chat import (
     PERMISSION_DENIED_CHAT_ANSWER,
     SAFE_NO_EVIDENCE_ANSWER,
+    SAFE_INJECTION_DETECTED_ANSWER,
+    SAFE_PHI_LEAK_BLOCKED_ANSWER,
     _select_pipeline,
     elapsed_ms,
 )
+from hospital_ai.services.guardrails import get_input_guardrail, get_output_guardrail
+from hospital_ai.services.drug_check import DrugCheckService
+from hospital_ai.services.graph_rag import extract_entities_and_relations_nlp, find_related_entities
+from hospital_ai.services.metrics import MetricsService, TimingBreakdown
+from hospital_ai.schemas.chat import DrugWarningSchema
 from hospital_ai.services.chat_utils import (
     build_grounded_prompt,
     confidence_from_score,
@@ -54,11 +64,14 @@ router = APIRouter()
 @dataclass
 class StreamCompletion:
     """Final state of an SSE stream, handed to the on_complete callback.
+    Trạng thái cuối cùng của luồng phản hồi SSE, được truyền cho hàm callback on_complete khi kết thúc.
 
     F-RAG-004 / demo-readiness fix: the route uses this payload to mirror
     the non-streaming `ChatService.answer` contract — persist the answer,
     evidence trace, audit row, and (when thread-bound) ChatMessage rows so
     that streamed answers survive a page reload.
+    Route sử dụng dữ liệu này để lưu trữ câu trả lời, bằng chứng RAG, nhật ký kiểm kê
+    và lịch sử tin nhắn (nếu thuộc thread), giúp dữ liệu không bị mất khi reload trang.
     """
 
     validation_status: str  # "passed" | "failed"
@@ -66,6 +79,7 @@ class StreamCompletion:
     cited_evidence: list[Any] = field(default_factory=list)
     citations_payload: list[dict] = field(default_factory=list)
     confidence: str = "low"
+    t_gen_ms: int = 0
 
 
 OnCompleteCallback = Callable[[StreamCompletion], Awaitable[None]]
@@ -79,9 +93,12 @@ async def _generate_sse_events(
     conversation_history: list,
     query_id: UUID,
     pipeline_name: str,
+    provider_override: str | None = None,
+    drug_warnings: list | None = None,
     on_complete: OnCompleteCallback | None = None,
 ) -> AsyncIterator[str]:
     """Generate SSE events with token-by-token streaming.
+    Tạo các sự kiện SSE để truyền tải từng token phản hồi về client.
 
     Event format:
         data: {"type": "token", "content": "word"}
@@ -92,7 +109,7 @@ async def _generate_sse_events(
     try:
         # Get LLM with streaming
         llm_manager = LLMManager(settings)
-        llm = llm_manager.get()
+        llm = llm_manager.get(provider_override)
 
         if pipeline_name == "chitchat":
             messages = [
@@ -107,6 +124,7 @@ async def _generate_sse_events(
                 LLMMessage(role="user", content=question),
             ]
             full_text = ""
+            t_gen_start = time.perf_counter()
             try:
                 async for token in llm.stream(messages):
                     full_text += token
@@ -128,6 +146,8 @@ async def _generate_sse_events(
                 else:
                     raise
 
+            t_gen_ms = int((time.perf_counter() - t_gen_start) * 1000)
+            
             # Emit metadata, done, and run on_complete
             meta_event = json.dumps(
                 {
@@ -156,6 +176,7 @@ async def _generate_sse_events(
                             cited_evidence=[],
                             citations_payload=[],
                             confidence="high",
+                            t_gen_ms=t_gen_ms,
                         )
                     )
                 except Exception:
@@ -183,8 +204,50 @@ async def _generate_sse_events(
         # against the authorized evidence set BEFORE any token leaves the
         # server.  This trades token-level streaming UX for safety —
         # invalid citations must never reach the wire.
+        t_gen_start = time.perf_counter()
         full_text = ""
         async for token in llm.stream(messages):
+            full_text += token
+        t_gen_ms = int((time.perf_counter() - t_gen_start) * 1000)
+
+        # --- Output Guardrail Check ---
+        output_guard = get_output_guardrail()
+        output_result = await output_guard.scan(question, full_text)
+
+        if output_result.blocked:
+            refusal_event = json.dumps({"type": "token", "content": SAFE_PHI_LEAK_BLOCKED_ANSWER})
+            yield f"data: {refusal_event}\n\n"
+            done_event = json.dumps(
+                {
+                    "type": "done",
+                    "query_id": str(query_id),
+                    "validation": "failed",
+                    "reason": "output_guardrail_blocked",
+                    "confidence": "low",
+                }
+            )
+            yield f"data: {done_event}\n\n"
+            if on_complete is not None:
+                try:
+                    await on_complete(
+                        StreamCompletion(
+                            validation_status="failed",
+                            answer=SAFE_PHI_LEAK_BLOCKED_ANSWER,
+                            cited_evidence=[],
+                            citations_payload=[],
+                            confidence="low",
+                            t_gen_ms=t_gen_ms,
+                        )
+                    )
+                except Exception:
+                    logger.exception("Failed to persist failed-validation stream query_id=%s", query_id)
+            return
+
+        # Restore original stream generator for valid text
+        async def mock_stream():
+            yield full_text
+            
+        async for token in mock_stream():
             full_text += token
 
         citation_ids = extract_citation_ids(full_text)
@@ -290,6 +353,7 @@ async def _generate_sse_events(
                         cited_evidence=cited_evidence,
                         citations_payload=citations,
                         confidence=confidence,
+                        t_gen_ms=t_gen_ms,
                     )
                 )
             except Exception:
@@ -335,6 +399,10 @@ async def _apply_stream_completion(
     trace_id: str,
     ip_address: str | None,
     started: float,
+    t_embed_ms: int,
+    t_retrieval_ms: int,
+    pipeline_name: str,
+    drug_warnings_count: int,
     completion: StreamCompletion,
 ) -> None:
     """Apply stream-completion persistence to an open session.
@@ -427,6 +495,8 @@ async def _apply_stream_completion(
             "evidence_count": len(evidence),
             "validation": completion.validation_status,
             "thread_id": str(thread_id) if thread_id else None,
+            "pipeline": pipeline_name,
+            "drug_warnings": drug_warnings_count,
         },
     )
 
@@ -459,7 +529,7 @@ async def _persist_stream_completion(
 
 
 @router.post("/stream")
-@limiter.limit("5/minute")
+@limiter.limit("100/minute")
 async def chat_stream(
     payload: ChatRequest,
     request: Request,
@@ -468,13 +538,60 @@ async def chat_stream(
     settings: Settings = Depends(get_settings),
 ) -> StreamingResponse:
     """SSE streaming chat endpoint.
+    Endpoint hỏi đáp AI phản hồi dạng luồng Server-Sent Events (SSE).
 
     Returns a text/event-stream response with token-by-token generation.
+    Trả về response `text/event-stream` với các token được sinh và truyền liên tục theo thời gian thực.
     """
     started = time.perf_counter()
     trace_id = new_trace_id()
 
     effective_patient_id = payload.patient_id or (payload.context.patient_id if payload.context else None)
+
+    from hospital_ai.db.migrations import HOSPITAL_PUBLIC_ID
+    provider_override = None
+    if not effective_patient_id:
+        effective_patient_id = HOSPITAL_PUBLIC_ID
+        provider_override = "gemini"
+
+    # --- Input Guardrail Check ---
+    input_guard = get_input_guardrail()
+    input_result = await input_guard.scan(payload.question)
+
+    if input_result.blocked:
+        blocked_reason = input_result.reason
+        
+        # Create AI query record for denial
+        ai_query = AiQuery(
+            id=new_trace_id(),
+            patient_id=effective_patient_id,
+            user_id=current_user.id,
+            question=payload.question,
+            pipeline_type="unknown",
+            status="denied",
+            latency_ms=elapsed_ms(started),
+            answer=SAFE_INJECTION_DETECTED_ANSWER,
+        )
+        session.add(ai_query)
+        
+        await AuditService(session).record(
+            actor_user_id=current_user.id,
+            action="chat.stream",
+            object_type="ai_query",
+            object_id=ai_query.id,
+            patient_id=effective_patient_id,
+            outcome="denied",
+            trace_id=trace_id,
+            ip_address=get_request_ip(request),
+            metadata={"reason": "input_guardrail_blocked", "details": blocked_reason},
+        )
+        await session.commit()
+
+        async def blocked_stream() -> AsyncIterator[str]:
+            yield f"data: {{'type': 'token', 'content': '{SAFE_INJECTION_DETECTED_ANSWER}'}}\n\n"
+            yield f"data: {{'type': 'done', 'query_id': '{str(ai_query.id)}', 'validation': 'failed', 'confidence': 'low'}}\n\n"
+
+        return StreamingResponse(blocked_stream(), media_type="text/event-stream")
 
     # Create AI query record
     ai_query = AiQuery(
@@ -528,7 +645,13 @@ async def chat_stream(
             payload.thread_id, current_user.id, effective_patient_id
         )
 
+    drug_warnings = []
+    t_embed_ms = 0
+    t_retrieval_ms = 0
+    retrieval_svc = None
+
     is_chitchat = is_chitchat_query(payload.question)
+    logger.error(f"QUESTION IS: {payload.question!r}, IS_CHITCHAT: {is_chitchat}")
 
     if is_chitchat:
         evidence = []
@@ -536,7 +659,11 @@ async def chat_stream(
         retrieval_mode = settings.retrieval_mode
     else:
         # Retrieve evidence (mirror chat.py mode dispatch).
+        t_embed_start = time.perf_counter()
         query_embedding = await EmbeddingService(settings).embed(payload.question)
+        t_embed_ms = int((time.perf_counter() - t_embed_start) * 1000)
+
+        t_retrieval_start = time.perf_counter()
         retrieval_svc = RetrievalService(session)
         retrieval_mode = settings.retrieval_mode
         if retrieval_mode in ("bm25", "hybrid"):
@@ -564,79 +691,113 @@ async def chat_stream(
                 else []
             )
 
-        if not evidence or not meets_evidence_threshold(evidence[0], retrieval_mode, settings.evidence_threshold):
-            is_blocked = retrieval_svc.blocked_chunk_count > 0
-            answer_text = PERMISSION_DENIED_CHAT_ANSWER if is_blocked else SAFE_NO_EVIDENCE_ANSWER
-            result_status = "denied" if is_blocked else "no_evidence"
-            outcome = "denied" if is_blocked else "allowed"
-
-            ai_query.status = result_status
-            ai_query.answer = answer_text
-            ai_query.latency_ms = elapsed_ms(started)
-
-            # Persist a thread message pair for the no-evidence outcome too,
-            # otherwise the user sees an answer in the UI that vanishes on
-            # reload.  Mirrors the parity contract above.
-            if payload.thread_id is not None:
-                scope = "patient-linked" if effective_patient_id is not None else "general"
-                permission_state = "allowed" if effective_patient_id is not None else "not-required"
-                now = datetime.now(UTC)
-                session.add(
-                    ChatMessage(
-                        thread_id=payload.thread_id,
-                        sender_user_id=current_user.id,
-                        patient_id=effective_patient_id,
-                        role="user",
-                        scope=scope,
-                        content=payload.question,
-                        patient_permission_state=permission_state,
-                        citations=[],
-                        meta={"streaming": True},
-                        trace_id=trace_id,
-                        created_at=now,
+        # Graph RAG & Drug Check
+        try:
+            if effective_patient_id:
+                query_entities, _ = await extract_entities_and_relations_nlp(payload.question)
+                if query_entities:
+                    entity_names = [e.name for e in query_entities]
+                    graph_ctx = await find_related_entities(
+                        session, entity_names, max_hops=2, patient_id=effective_patient_id
                     )
-                )
-                session.add(
-                    ChatMessage(
-                        thread_id=payload.thread_id,
-                        ai_query_id=ai_query.id,
-                        patient_id=effective_patient_id,
-                        role="assistant",
-                        scope=scope,
-                        content=answer_text,
-                        patient_permission_state=permission_state if not is_blocked else "denied",
-                        citations=[],
-                        meta={"streaming": True, "result": result_status, "confidence": "low"},
-                        trace_id=trace_id,
-                        created_at=datetime.now(UTC),
-                    )
-                )
-                thread = await session.get(ChatThread, payload.thread_id)
-                if thread is not None:
-                    thread.last_message_at = datetime.now(UTC)
+                    if graph_ctx.related_chunk_ids:
+                        existing_ids = {e.chunk_id for e in evidence}
+                        graph_only_ids = graph_ctx.related_chunk_ids - existing_ids
+                        if graph_only_ids:
+                            graph_evidence = await retrieval_svc.get_chunks_by_ids(
+                                list(graph_only_ids)[:payload.top_k],
+                                user_id=current_user.id,
+                                patient_id=effective_patient_id,
+                            )
+                            for ge in graph_evidence:
+                                ge.metadata["retrieval_method"] = "graph"
+                            evidence.extend(graph_evidence)
+        except Exception:
+            logger.warning("Graph RAG enrichment skipped", exc_info=True)
 
-            await AuditService(session).record(
-                actor_user_id=current_user.id,
-                action="chat.stream",
-                object_type="ai_query",
-                object_id=ai_query.id,
-                patient_id=effective_patient_id,
-                outcome=outcome,
-                trace_id=trace_id,
-                ip_address=get_request_ip(request),
-                metadata={"result": result_status, "evidence_count": 0},
+        t_retrieval_ms = int((time.perf_counter() - t_retrieval_start) * 1000)
+
+        try:
+            drug_warnings = await DrugCheckService(session).check_interactions(
+                query_text=payload.question, patient_id=effective_patient_id
             )
-            await session.commit()
+        except Exception:
+            logger.warning("Drug interaction check skipped", exc_info=True)
 
-            async def no_evidence_stream() -> AsyncIterator[str]:
-                event = json.dumps({"type": "token", "content": answer_text})
-                yield f"data: {event}\n\n"
-                done = json.dumps({"type": "done", "query_id": str(ai_query.id), "confidence": "low"})
-                yield f"data: {done}\n\n"
+    if not is_chitchat and (not evidence or not meets_evidence_threshold(evidence[0], retrieval_mode, settings.evidence_threshold)):
+        is_blocked = retrieval_svc.blocked_chunk_count > 0
+        answer_text = PERMISSION_DENIED_CHAT_ANSWER if is_blocked else SAFE_NO_EVIDENCE_ANSWER
+        result_status = "denied" if is_blocked else "no_evidence"
+        outcome = "denied" if is_blocked else "allowed"
 
-            return StreamingResponse(no_evidence_stream(), media_type="text/event-stream")
+        ai_query.status = result_status
+        ai_query.answer = answer_text
+        ai_query.latency_ms = elapsed_ms(started)
 
-        selected_pipeline = _select_pipeline(payload.pipeline, payload.question)
+        # Persist a thread message pair for the no-evidence outcome too,
+        # otherwise the user sees an answer in the UI that vanishes on
+        # reload.  Mirrors the parity contract above.
+        if payload.thread_id is not None:
+            scope = "patient-linked" if effective_patient_id is not None else "general"
+            permission_state = "allowed" if effective_patient_id is not None else "not-required"
+            now = datetime.now(UTC)
+            session.add(
+                ChatMessage(
+                    thread_id=payload.thread_id,
+                    sender_user_id=current_user.id,
+                    patient_id=effective_patient_id,
+                    role="user",
+                    scope=scope,
+                    content=payload.question,
+                    patient_permission_state=permission_state,
+                    citations=[],
+                    meta={"streaming": True},
+                    trace_id=trace_id,
+                    created_at=now,
+                )
+            )
+            session.add(
+                ChatMessage(
+                    thread_id=payload.thread_id,
+                    ai_query_id=ai_query.id,
+                    patient_id=effective_patient_id,
+                    role="assistant",
+                    scope=scope,
+                    content=answer_text,
+                    patient_permission_state=permission_state if not is_blocked else "denied",
+                    citations=[],
+                    meta={"streaming": True, "result": result_status, "confidence": "low"},
+                    trace_id=trace_id,
+                    created_at=datetime.now(UTC),
+                )
+            )
+            thread = await session.get(ChatThread, payload.thread_id)
+            if thread is not None:
+                thread.last_message_at = datetime.now(UTC)
+
+        await AuditService(session).record(
+            actor_user_id=current_user.id,
+            action="chat.stream",
+            object_type="ai_query",
+            object_id=ai_query.id,
+            patient_id=effective_patient_id,
+            outcome=outcome,
+            trace_id=trace_id,
+            ip_address=get_request_ip(request),
+            metadata={"result": result_status, "evidence_count": 0},
+        )
+        await session.commit()
+
+        async def no_evidence_stream() -> AsyncIterator[str]:
+            event = json.dumps({"type": "token", "content": answer_text})
+            yield f"data: {event}\n\n"
+            done = json.dumps({"type": "done", "query_id": str(ai_query.id), "confidence": "low"})
+            yield f"data: {done}\n\n"
+
+        return StreamingResponse(no_evidence_stream(), media_type="text/event-stream")
+
+        if not is_chitchat:
+            selected_pipeline = _select_pipeline(payload.pipeline, payload.question)
 
     # Stream response
     ai_query.status = "streaming"
@@ -666,6 +827,10 @@ async def chat_stream(
             trace_id=trace_id,
             ip_address=captured_ip,
             started=started,
+            t_embed_ms=t_embed_ms,
+            t_retrieval_ms=t_retrieval_ms,
+            pipeline_name=selected_pipeline,
+            drug_warnings_count=len(drug_warnings),
             completion=completion,
         )
 
@@ -677,6 +842,8 @@ async def chat_stream(
             conversation_history=conversation_history,
             query_id=ai_query.id,
             pipeline_name=selected_pipeline,
+            provider_override=provider_override,
+            drug_warnings=drug_warnings,
             on_complete=_on_complete,
         ),
         media_type="text/event-stream",

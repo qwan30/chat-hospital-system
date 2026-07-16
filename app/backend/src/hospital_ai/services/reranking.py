@@ -1,13 +1,16 @@
 """Re-ranking service for improving retrieval quality.
+Dịch vụ Xếp hạng lại kết quả RAG (Re-ranking Service) nhằm nâng cao độ chính xác truy xuất.
 
 Inspired by kotaemon's rerankings module — applies a second-pass scoring
 to the candidate chunks returned by the initial vector/full-text retrieval.
+Áp dụng bước tính điểm thứ hai (Second-pass scoring) cho các chunk ứng viên trả về từ bước tìm kiếm ban đầu.
 
 Supports multiple backends via a strategy pattern:
-- keyword:       Lightweight token-overlap reranker (zero dependencies, MVP default)
-- cross_encoder: Local sentence-transformers cross-encoder model
-- tei:           HuggingFace Text Embeddings Inference API
-- cohere:        Cohere Rerank API
+Hỗ trợ nhiều chiến lược xếp hạng (Strategy Pattern):
+- keyword:       Lightweight token-overlap reranker (tính độ trùng lặp từ khóa nhẹ nhàng, không phụ thuộc).
+- cross_encoder: Local sentence-transformers cross-encoder model (mô hình neural chạy cục bộ).
+- tei:           HuggingFace Text Embeddings Inference API (gọi API máy chủ suy luận chuyên dụng).
+- cohere:        Cohere Rerank API (dịch vụ cloud chuyên nghiệp).
 """
 
 from __future__ import annotations
@@ -26,19 +29,22 @@ logger = logging.getLogger(__name__)
 
 
 class BaseReranker(ABC):
-    """Base class for all reranker backends."""
+    """Base class for all reranker backends.
+    Lớp trừu tượng cơ sở cho toàn bộ các chiến lược xếp hạng lại (Reranker backends).
+    """
 
     @abstractmethod
     def rerank(self, query: str, chunks: list[RetrievedChunk], *, top_k: int = 5) -> list[RetrievedChunk]:
         """Re-score and re-order chunks by relevance to the query.
+        Tính lại điểm và sắp xếp lại danh sách chunk theo mức độ liên quan tới câu hỏi.
 
         Args:
-            query: The user question.
-            chunks: Candidate chunks from initial retrieval.
-            top_k: Maximum number of chunks to return.
+            query: The user question (Câu hỏi của người dùng).
+            chunks: Candidate chunks from initial retrieval (Danh sách chunk ban đầu).
+            top_k: Maximum number of chunks to return (Số chunk trả về tối đa).
 
         Returns:
-            Re-ordered list of chunks with updated scores.
+            Re-ordered list of chunks with updated scores (Danh sách chunk đã sắp xếp kèm điểm số mới).
         """
 
 
@@ -47,12 +53,16 @@ class BaseReranker(ABC):
 
 class KeywordReranker(BaseReranker):
     """Lightweight keyword-overlap re-ranker.
+    Chiến lược xếp hạng lại dựa trên tỷ lệ trùng lặp từ khóa (Keyword-overlap).
 
     Blends the original vector score with a keyword overlap score.
     Zero external dependencies — suitable as a fallback.
+    Kết hợp điểm vector ban đầu (60%) với điểm trùng lặp từ khóa (40%). Không cần
+    thư viện ngoài, dùng làm mặc định/dự phòng.
     """
 
     def rerank(self, query: str, chunks: list[RetrievedChunk], *, top_k: int = 5) -> list[RetrievedChunk]:
+        """Thực hiện tính điểm trùng lặp từ khóa và sắp xếp lại kết quả."""
         if not chunks:
             return []
 
@@ -97,11 +107,14 @@ class KeywordReranker(BaseReranker):
 
 class CrossEncoderReranker(BaseReranker):
     """Neural cross-encoder reranker using sentence-transformers.
+    Chiến lược xếp hạng lại bằng mô hình Cross-Encoder chạy cục bộ (như BAAI/bge-reranker-v2-m3).
 
     Uses models like BAAI/bge-reranker-v2-m3 or cross-encoder/ms-marco-MiniLM-L-6-v2
     to produce a relevance score for each (query, chunk) pair.
+    Đánh giá trực tiếp mức độ liên quan sâu cho từng cặp (câu hỏi, đoạn văn bản).
 
     Falls back to KeywordReranker if sentence-transformers is not installed.
+    Tự động chuyển về KeywordReranker nếu chưa cài thư viện sentence-transformers.
     """
 
     def __init__(self, model_name: str = "BAAI/bge-reranker-v2-m3") -> None:
@@ -173,6 +186,7 @@ class CrossEncoderReranker(BaseReranker):
 
 class TeiReranker(BaseReranker):
     """Reranker using HuggingFace Text Embeddings Inference (TEI) API.
+    Chiến lược xếp hạng lại thông qua dịch vụ HuggingFace TEI chuyên dụng cho hiệu năng cao.
 
     Requires a running TEI server with a reranking model.
     See: https://huggingface.co/docs/text-embeddings-inference
@@ -243,6 +257,7 @@ class TeiReranker(BaseReranker):
 
 class CohereReranker(BaseReranker):
     """Reranker using the Cohere Rerank API.
+    Chiến lược xếp hạng lại sử dụng API thương mại Cohere Rerank (mô hình rerank-v4.0-fast).
 
     Requires a Cohere API key. Uses the rerank-v4.0-fast model by default.
     """
@@ -314,6 +329,7 @@ _reranker_cache: dict[str, BaseReranker] = {}
 
 class RerankerService:
     """Factory that selects and caches the appropriate reranker backend.
+    Lớp dịch vụ Factory chịu trách nhiệm khởi tạo, lưu cache và gọi backend Reranker cấu hình trong hệ thống.
 
     Usage:
         service = RerankerService(settings)

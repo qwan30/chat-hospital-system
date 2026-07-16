@@ -1,7 +1,10 @@
 """BM25 / full-text search service for hybrid retrieval.
+Dịch vụ tìm kiếm từ khóa toàn văn (Full-text Search BM25) phục vụ tìm kiếm lai (Hybrid Retrieval).
 
 Provides keyword-based search using PostgreSQL tsvector/GIN indexes
 or a portable Python-side BM25 scoring fallback for SQLite tests.
+Cung cấp cơ chế tìm kiếm từ khóa sử dụng chỉ mục PostgreSQL tsvector/GIN
+và cơ chế tự tính toán điểm BM25 bằng Python cho môi trường kiểm thử SQLite.
 """
 
 from __future__ import annotations
@@ -20,9 +23,11 @@ logger = logging.getLogger(__name__)
 
 class BM25Scorer:
     """Okapi BM25 scorer that works purely in Python.
+    Bộ tính điểm Okapi BM25 hoạt động hoàn toàn bằng Python.
 
     Used when PostgreSQL tsvector is unavailable (e.g., SQLite test DBs).
     Not intended for production — prefer the SQL tsvector path.
+    Được dùng khi không có PostgreSQL tsvector (ví dụ trong SQLite test). Ưu tiên dùng SQL cho production.
     """
 
     def __init__(self, k1: float = 1.5, b: float = 0.75) -> None:
@@ -37,8 +42,10 @@ class BM25Scorer:
         top_k: int = 10,
     ) -> list[RetrievedChunk]:
         """Score chunks against a query using BM25.
+        Tính điểm các chunk dựa trên từ khóa câu hỏi bằng công thức Okapi BM25.
 
         Returns chunks sorted by BM25 score (descending), limited to top_k.
+        Trả về danh sách chunk được sắp xếp theo điểm BM25 giảm dần, giới hạn số lượng top_k.
         """
         if not chunks or not query.strip():
             return chunks[:top_k]
@@ -131,21 +138,24 @@ def reciprocal_rank_fusion(
     top_k: int = 10,
 ) -> list[RetrievedChunk]:
     """Merge multiple ranked lists using Reciprocal Rank Fusion.
+    Tổng hợp nhiều danh sách kết quả xếp hạng bằng thuật toán Reciprocal Rank Fusion (RRF).
 
     RRF is a simple and effective method for combining results from
     multiple retrieval systems. For each document d:
+    RRF là phương pháp kết hợp hiệu quả kết quả từ nhiều hệ thống tìm kiếm (như Vector và BM25).
 
         RRF_score(d) = Σ 1 / (k + rank_in_list_i)
 
     where k is a constant (default 60, per the original paper).
+    trong đó k là hằng số làm mượt (mặc định 60 theo bài báo gốc).
 
     Args:
-        *ranked_lists: One or more ranked lists of chunks.
+        *ranked_lists: One or more ranked lists of chunks (Các danh sách chunk từ nhiều nguồn tìm kiếm).
         k: RRF constant (higher = more weight to lower-ranked items).
-        top_k: Maximum number of results to return.
+        top_k: Maximum number of results to return (Số lượng kết quả tối đa).
 
     Returns:
-        Merged and de-duplicated list of chunks sorted by RRF score.
+        Merged and de-duplicated list of chunks sorted by RRF score (Danh sách chunk hợp nhất và không trùng lặp).
     """
     # Track RRF scores by chunk_id
     rrf_scores: dict[str, float] = {}
@@ -199,6 +209,7 @@ def reciprocal_rank_fusion(
 
 def text_to_tsvector_sql(text: str) -> str:
     """Generate a tsvector string for PostgreSQL insertion.
+    Tạo chuỗi văn bản sạch để chuẩn bị chèn/chuyển đổi thành tsvector trong PostgreSQL.
 
     This returns raw text that PostgreSQL's to_tsvector() will process.
     The actual tsvector conversion happens in SQL.
@@ -216,8 +227,10 @@ async def bm25_search_postgres(
     scope_filter: str | None = None,
 ) -> list[RetrievedChunk]:
     """Execute a BM25 full-text search against PostgreSQL tsvector index.
+    Thực hiện tìm kiếm từ khóa toàn văn BM25 trực tiếp trên chỉ mục tsvector của PostgreSQL.
 
     Uses ts_rank_cd() for relevance scoring with the GIN index.
+    Sử dụng hàm ts_rank_cd() để xếp hạng độ liên quan kết hợp với chỉ mục GIN.
     Falls back gracefully if the search_vector column doesn't exist.
 
     Args:
@@ -284,5 +297,7 @@ async def bm25_search_postgres(
 
 
 def _tokenize(text: str) -> list[str]:
-    """Tokenize text into lowercase alphanumeric tokens."""
+    """Tokenize text into lowercase alphanumeric tokens.
+    Tách từ văn bản thành các token chữ số dạng chữ thường.
+    """
     return re.findall(r"[a-z0-9]+", text.lower())

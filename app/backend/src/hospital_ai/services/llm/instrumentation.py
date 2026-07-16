@@ -1,3 +1,7 @@
+"""OpenTelemetry instrumentation wrapper for LLM providers.
+Lớp bao bọc (Wrapper) tích hợp đo lường OpenTelemetry (thời gian gọi, số lượng token) cho các LLM Provider.
+"""
+
 import time
 from collections.abc import AsyncIterator
 
@@ -6,9 +10,13 @@ from hospital_ai.services.llm.base import BaseLLM, LLMMessage, LLMResponse
 
 
 class InstrumentedLLM(BaseLLM):
-    """Wraps a BaseLLM to provide OpenTelemetry metrics."""
+    """Wraps a BaseLLM to provide OpenTelemetry metrics.
+    Lớp bao bọc quanh một đối tượng BaseLLM nhằm tự động ghi nhận các chỉ số Prometheus / OpenTelemetry
+    như thời gian xử lý yêu cầu (duration) và số lượng token đầu vào/đầu ra (prompt/completion tokens).
+    """
 
     def __init__(self, inner: BaseLLM):
+        """Khởi tạo lớp bao bọc đo lường quanh instance LLM thực tế (`inner`)."""
         self._inner = inner
 
     async def generate(
@@ -18,6 +26,9 @@ class InstrumentedLLM(BaseLLM):
         temperature: float = 0.0,
         max_tokens: int | None = None,
     ) -> LLMResponse:
+        """Thực hiện gọi `generate` của LLM bên trong, đồng thời đo lường thời gian
+        (duration) và ghi nhận số token đã dùng.
+        """
         start_time = time.perf_counter()
 
         try:
@@ -52,6 +63,7 @@ class InstrumentedLLM(BaseLLM):
         temperature: float = 0.0,
         max_tokens: int | None = None,
     ) -> AsyncIterator[str]:
+        """Thực hiện gọi `stream` của LLM bên trong và ghi nhận tổng thời gian từ lúc bắt đầu cho đến token kết thúc."""
         # For streaming, we might not have usage data easily, but we can measure duration.
         start_time = time.perf_counter()
 

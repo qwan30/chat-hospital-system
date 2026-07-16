@@ -1,3 +1,7 @@
+"""Hospital Management System (HMS) integration API routes.
+Các endpoint API đồng bộ và nhập dữ liệu (cuộc hẹn, kết quả xét nghiệm, bệnh án) từ hệ thống quản lý bệnh viện HMS.
+"""
+
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Request
@@ -36,6 +40,9 @@ async def import_hms_appointment_summary(
     current_user: User = Depends(get_current_user),
     settings: Settings = Depends(get_settings),
 ) -> HmsAppointmentImportResponse:
+    """Manually import an HMS appointment summary evidence document.
+    Nhập thủ công tóm tắt thông tin lịch hẹn HMS vào hệ thống làm tài liệu bằng chứng lâm sàng.
+    """
     document = await HmsAppointmentEvidenceImporter(session, settings).import_summary(
         user=current_user,
         payload=payload,
@@ -74,6 +81,9 @@ async def sync_appointments(
     current_user: User = Depends(get_current_user),
     settings: Settings = Depends(get_settings),
 ) -> HmsSyncResponse:
+    """Synchronize patient appointment records from the external HMS REST API.
+    Đồng bộ dữ liệu lịch hẹn của bệnh nhân từ API REST của hệ thống HMS bên ngoài.
+    """
     trace_id = new_trace_id()
     await _require_hms_sync_write(
         request=request,
@@ -105,6 +115,9 @@ async def sync_lab_results(
     current_user: User = Depends(get_current_user),
     settings: Settings = Depends(get_settings),
 ) -> HmsSyncResponse:
+    """Synchronize patient laboratory results from the external HMS.
+    Đồng bộ dữ liệu kết quả xét nghiệm của bệnh nhân từ hệ thống HMS.
+    """
     trace_id = new_trace_id()
     await _require_hms_sync_write(
         request=request,
@@ -136,6 +149,9 @@ async def sync_medical_records(
     current_user: User = Depends(get_current_user),
     settings: Settings = Depends(get_settings),
 ) -> HmsSyncResponse:
+    """Synchronize patient general medical records from the external HMS.
+    Đồng bộ hồ sơ bệnh án tổng quát của bệnh nhân từ hệ thống HMS.
+    """
     trace_id = new_trace_id()
     await _require_hms_sync_write(
         request=request,
@@ -167,6 +183,9 @@ async def sync_full(
     current_user: User = Depends(get_current_user),
     settings: Settings = Depends(get_settings),
 ) -> HmsSyncResponse:
+    """Perform a full synchronization of appointments, labs, and medical records for a patient.
+    Thực hiện đồng bộ toàn diện (lịch hẹn, xét nghiệm, bệnh án) cho bệnh nhân từ HMS.
+    """
     trace_id = new_trace_id()
     await _require_hms_sync_write(
         request=request,
@@ -199,6 +218,9 @@ class HmsHealthResponse(BaseModel):
 async def hms_health(
     settings: Settings = Depends(get_settings),
 ) -> HmsHealthResponse:
+    """Check the connectivity and health status of the external HMS REST API.
+    Kiểm tra tình trạng kết nối và sức khỏe của hệ thống API HMS bên ngoài.
+    """
     from hospital_ai.services.hms_connector import HmsApiClient
 
     client = HmsApiClient(settings)
@@ -217,6 +239,9 @@ async def sync_patient(
     current_user: User = Depends(get_current_user),
     settings: Settings = Depends(get_settings),
 ) -> HmsSyncResponse:
+    """Perform full sync for a specific patient by path parameter, with background retry on failure.
+    Đồng bộ toàn bộ dữ liệu HMS của bệnh nhân qua ID trên URL, tự động đưa vào hàng đợi thử lại nếu lỗi.
+    """
     trace_id = new_trace_id()
     await _require_hms_sync_write(
         request=request,

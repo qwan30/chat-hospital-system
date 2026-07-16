@@ -667,6 +667,8 @@ graph LR
 - **Interactive controls** — zoom, fullscreen, filter by node type, highlight reasoning paths
 - **Export** — PNG screenshot and JSON data export; PDF report export planned
 
+![Patient Graph](screen-demo/36-graph-patient.png)
+
 ---
 
 ## ⚠️ Known Limitations

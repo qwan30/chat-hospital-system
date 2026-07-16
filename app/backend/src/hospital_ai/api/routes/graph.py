@@ -1,3 +1,7 @@
+"""Knowledge Graph visualization API routes.
+Các endpoint API cung cấp dữ liệu mạng lưới tri thức y khoa (graph nodes, edges & reasoning path) của bệnh nhân.
+"""
+
 import uuid
 from datetime import UTC, datetime
 
@@ -20,6 +24,9 @@ async def get_patient_graph(
     db: AsyncSession = Depends(get_session),
     current_user: User = Depends(get_current_user),
 ):
+    """Retrieve clinical knowledge graph structure (nodes and edges) and reasoning paths for a patient.
+    Lấy dữ liệu mạng lưới tri thức lâm sàng (thực thể, mối quan hệ và đường dẫn suy luận) của một bệnh nhân cụ thể.
+    """
     await PermissionService(db).require_read(
         user=current_user,
         patient_id=patient_id,

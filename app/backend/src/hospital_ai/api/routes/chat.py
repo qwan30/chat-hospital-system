@@ -1,3 +1,7 @@
+"""Chat API routes (non-streaming).
+Các endpoint API xử lý hỏi đáp AI lâmsàng (phản hồi một lần non-streaming).
+"""
+
 from fastapi import APIRouter, Depends, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -21,6 +25,9 @@ async def chat(
     current_user: User = Depends(get_current_user),
     settings: Settings = Depends(get_settings),
 ) -> ChatResponse:
+    """Process a single clinical QA request and return the complete AI response with citations.
+    Xử lý yêu cầu hỏi đáp y khoa lâm sàng và trả về câu trả lời hoàn chỉnh kèm trích dẫn nguồn.
+    """
     return await ChatService(session, settings).answer(
         user=current_user,
         patient_id=payload.patient_id or (payload.context.patient_id if payload.context else None),

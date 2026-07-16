@@ -1,3 +1,7 @@
+"""Master API router configuration.
+Thiết lập bộ định tuyến API chính (kết nối toàn bộ endpoints thuộc v1 prefix).
+"""
+
 from fastapi import APIRouter
 
 from hospital_ai.api.routes import (
@@ -25,6 +29,9 @@ api_router = APIRouter()
 
 @api_router.get("/health")
 async def health() -> dict:
+    """Health check endpoint to verify backend service readiness.
+    Endpoint kiểm tra trạng thái sức khỏe dịch vụ backend để xác nhận khả năng sẵn sàng (readiness probe).
+    """
     return {"status": "ok"}
 
 

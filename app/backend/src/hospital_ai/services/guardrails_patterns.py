@@ -1,6 +1,12 @@
+"""Safety guardrail regex patterns.
+Tập hợp các biểu thức chính quy (regex patterns) nhằm phát hiện tấn công
+tiêm nhiễm prompt, vượt rào (jailbreak), rò rỉ PHI và chẩn đoán y tế trái phép.
+"""
+
 import re
 
 # Comprehensive list of patterns for detecting prompt injection attempts
+# Danh sách toàn diện các mẫu regex dùng để phát hiện các nỗ lực tiêm nhiễm prompt (prompt injection)
 INJECTION_PATTERNS = [
     re.compile(pattern, re.IGNORECASE)
     for pattern in [
@@ -38,6 +44,7 @@ INJECTION_PATTERNS = [
 ]
 
 # Patterns for detecting role-play or jailbreak attempts
+# Các mẫu phát hiện hành vi cố tình yêu cầu nhập vai (role-play) hoặc vượt rào an toàn (jailbreak)
 JAILBREAK_PATTERNS = [
     re.compile(pattern, re.IGNORECASE)
     for pattern in [
@@ -60,6 +67,7 @@ JAILBREAK_PATTERNS = [
 ]
 
 # Patterns for detecting Protected Health Information (PHI)
+# Các mẫu regex phát hiện Thông tin Y tế Được bảo vệ (PHI) như SSN, Email, SĐT, mã bệnh án (MRN), Ngày sinh
 PHI_PATTERNS = {
     "SSN": re.compile(r"\b\d{3}-\d{2}-\d{4}\b"),
     # Simple email regex for detection
@@ -73,6 +81,7 @@ PHI_PATTERNS = {
 }
 
 # Indicators of providing uncited medical advice
+# Các dấu hiệu phát hiện việc đưa ra lời khuyên/chẩn đoán y tế thiếu căn cứ hoặc trích dẫn
 MEDICAL_ADVICE_INDICATORS = [
     re.compile(pattern, re.IGNORECASE)
     for pattern in [

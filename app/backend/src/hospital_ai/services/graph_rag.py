@@ -1,12 +1,15 @@
 """Graph RAG — SQL-backed entity-relationship extraction and traversal.
+Dịch vụ Graph RAG — Trích xuất và duyệt quan hệ thực thể y tế trên nền tảng cơ sở dữ liệu quan hệ SQL.
 
 This is a lightweight "graph RAG" implementation that uses SQL tables to
 store entities (medical terms, drug names, conditions, etc.) and their
 relationships extracted from document chunks.  It provides an alternative
 retrieval path that complements vector similarity search with structured
 relationship traversal.
+Giải pháp Graph RAG hạng nhẹ sử dụng bảng SQL để lưu trữ thực thể (thuốc, triệu chứng, chỉ định...)
+và quan hệ ngữ nghĩa giữa chúng, tạo luồng truy xuất cấu trúc bổ trợ cho tìm kiếm vector/từ khóa.
 
-## Architecture
+## Architecture / Kiến trúc
 
     Document chunks → LLM extraction → GraphEntity + GraphRelation rows
     Query → extract query terms → SQL traversal → related chunks
@@ -14,6 +17,7 @@ relationship traversal.
 This avoids a dedicated graph database (Neo4j/ArangoDB) by leveraging the
 existing PostgreSQL / SQLite database.  A future migration can promote
 these tables into a true graph engine.
+Tận dụng ngay DB hiện tại (PostgreSQL/SQLite) thay vì cài đặt thêm graph engine nặng nề.
 """
 
 from __future__ import annotations
@@ -36,7 +40,9 @@ from hospital_ai.services.llm.manager import get_llm_manager
 
 
 class GraphEntity(TimestampMixin, Base):
-    """A named entity extracted from document text (e.g. drug, condition, lab)."""
+    """A named entity extracted from document text (e.g. drug, condition, lab).
+    Mô hình ORM biểu diễn Thực thể đồ thị (Graph Entity) được bóc tách từ văn bản (thuốc, xét nghiệm, triệu chứng...).
+    """
 
     __tablename__ = "graph_entities"
 
@@ -49,7 +55,9 @@ class GraphEntity(TimestampMixin, Base):
 
 
 class GraphRelation(TimestampMixin, Base):
-    """A relationship between two entities (e.g. 'treats', 'causes', 'contraindicates')."""
+    """A relationship between two entities (e.g. 'treats', 'causes', 'contraindicates').
+    Mô hình ORM biểu diễn Quan hệ ngữ nghĩa giữa hai thực thể đồ thị (điều trị, gây ra, chống chỉ định...).
+    """
 
     __tablename__ = "graph_relations"
 
@@ -66,6 +74,7 @@ class GraphRelation(TimestampMixin, Base):
 
 @dataclass(frozen=True)
 class ExtractedEntity:
+    """Thực thể y tế được trích xuất bằng LLM (trước khi lưu DB)."""
     name: str
     entity_type: str
     confidence: float = 1.0
@@ -73,6 +82,7 @@ class ExtractedEntity:
 
 @dataclass(frozen=True)
 class ExtractedRelation:
+    """Mối quan hệ giữa hai thực thể được trích xuất bằng LLM (trước khi lưu DB)."""
     source_name: str
     target_name: str
     relation_type: str
@@ -81,7 +91,9 @@ class ExtractedRelation:
 
 @dataclass(frozen=True)
 class GraphContext:
-    """Context retrieved via graph traversal."""
+    """Context retrieved via graph traversal.
+    Cấu trúc dữ liệu chứa thông tin ngữ cảnh được tổng hợp sau quá trình duyệt đồ thị tri thức.
+    """
 
     entities: list[ExtractedEntity]
     relations: list[ExtractedRelation]
@@ -93,7 +105,9 @@ class GraphContext:
 
 
 async def extract_entities_and_relations_nlp(content: str) -> tuple[list[ExtractedEntity], list[ExtractedRelation]]:
-    """Extract entities and relations from text using the LLM via Proposition Transfer."""
+    """Extract entities and relations from text using the LLM via Proposition Transfer.
+    Sử dụng LLM (cơ chế Proposition Transfer) để tự động trích xuất các thực thể y tế và quan hệ từ nội dung chunk.
+    """
     llm = get_llm_manager().get()
 
     prompt = (
@@ -168,7 +182,9 @@ async def index_chunk_entities(
     document_id: uuid.UUID,
     content: str,
 ) -> tuple[list[GraphEntity], list[GraphRelation]]:
-    """Extract and persist entities and relations from a chunk."""
+    """Extract and persist entities and relations from a chunk.
+    Trích xuất từ nội dung chunk và lưu các bản ghi GraphEntity, GraphRelation vào cơ sở dữ liệu.
+    """
     entities, relations = await extract_entities_and_relations_nlp(content)
 
     entity_rows: dict[str, GraphEntity] = {}
@@ -211,11 +227,14 @@ async def find_related_entities(
     patient_id: uuid.UUID | None = None,
 ) -> GraphContext:
     """Find entities related to the given names via graph traversal.
+    Tìm kiếm và mở rộng các thực thể liên quan thông qua duyệt theo chiều rộng (BFS traversal) trên bảng SQL.
 
     F-RAG-003: when ``patient_id`` is provided every seed lookup, relation
     traversal, and entity expansion is restricted to chunks owned by that
     patient, so the returned ``GraphContext`` (including its summary and
     entity list) cannot leak data sourced from another patient's records.
+    Tuân thủ tuyệt đối F-RAG-003: khi có patient_id, mọi bước tìm kiếm hạt giống hay duyệt qua các hop
+    đều được lọc theo patient_id, ngăn chặn rò rỉ tri thức từ bệnh án của bệnh nhân khác.
 
     ``patient_id=None`` returns a cross-patient view and is intended only
     for offline analytics. Caller paths that surface ``GraphContext``

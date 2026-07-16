@@ -1,3 +1,8 @@
+"""Schemas cho Đồng bộ hệ thống thông tin bệnh viện (HMS Synchronization & Import APIs).
+
+Định nghĩa cấu trúc dữ liệu nhập tóm tắt lịch hẹn khám và phản hồi tạo tài liệu từ HMS.
+"""
+
 from datetime import date, datetime
 from uuid import UUID
 
@@ -7,6 +12,7 @@ from hospital_ai.schemas.common import ApiSchema
 
 
 class HmsAppointmentSummaryImport(ApiSchema):
+    """Schema yêu cầu đồng bộ nhập thông tin tóm tắt lịch hẹn khám bệnh từ hệ thống HMS."""
     source_appointment_id: UUID
     patient_id: UUID
     source_patient_id: UUID
@@ -26,12 +32,14 @@ class HmsAppointmentSummaryImport(ApiSchema):
 
     @root_validator
     def validate_patient_ownership(cls, values: dict[str, object]) -> dict[str, object]:
+        """Kiểm tra tính nhất quán giữa ID bệnh nhân nội bộ và ID bệnh nhân từ HMS."""
         if values.get("patient_id") != values.get("source_patient_id"):
             raise ValueError("source_patient_id must match patient_id for HMS appointment import")
         return values
 
 
 class HmsAppointmentImportResponse(ApiSchema):
+    """Schema phản hồi kết quả đồng bộ lịch hẹn HMS thành tài liệu trong hệ thống AI."""
     document_id: UUID
     patient_id: UUID
     source_appointment_id: UUID
@@ -39,3 +47,4 @@ class HmsAppointmentImportResponse(ApiSchema):
     source_family: str
     source_system: str
     status: str
+

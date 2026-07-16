@@ -1,8 +1,11 @@
 """Drug interaction and allergy checking service.
+Dịch vụ kiểm tra tương tác thuốc và dị ứng lâm sàng.
 
 Uses the graph RAG entity/relation tables to detect potential
 drug–drug, drug–condition, and drug–allergy interactions from
 indexed clinical documents.
+Sử dụng các bảng thực thể/mối quan hệ (entity/relation) từ Graph RAG để phát hiện
+các tiềm ẩn tương tác thuốc-thuốc, thuốc-bệnh lý, và dị ứng thuốc từ hồ sơ lâm sàng đã được lập chỉ mục.
 """
 
 from __future__ import annotations
@@ -23,7 +26,9 @@ from hospital_ai.services.graph_rag import (
 
 @dataclass(frozen=True)
 class DrugWarning:
-    """A structured drug interaction warning with evidence."""
+    """A structured drug interaction warning with evidence.
+    Cấu trúc dữ liệu cảnh báo tương tác thuốc kèm theo bằng chứng trích xuất từ hồ sơ.
+    """
 
     drug_name: str
     interacting_entity: str
@@ -55,10 +60,12 @@ ALLERGY_KEYWORDS = frozenset(
 
 
 def _severity_for(relation_type: str) -> str:
+    """Chuyển đổi loại quan hệ đồ thị thành mức độ nghiêm trọng tương ứng (critical, high, medium, low)."""
     return SEVERITY_MAP.get(relation_type, "medium")
 
 
 def _build_message(drug: str, entity: str, relation_type: str) -> str:
+    """Xây dựng thông điệp cảnh báo lâm sàng bằng văn bản trực quan dựa trên loại tương tác."""
     templates = {
         "contraindicates": f"⚠️ CRITICAL: {drug.title()} is contraindicated with {entity.title()}.",
         "interacts_with": f"⚠️ WARNING: {drug.title()} has a known interaction with {entity.title()}.",
@@ -72,9 +79,12 @@ def _build_message(drug: str, entity: str, relation_type: str) -> str:
 
 
 class DrugCheckService:
-    """Checks for drug interactions using the SQL-backed entity graph."""
+    """Checks for drug interactions using the SQL-backed entity graph.
+    Dịch vụ kiểm tra tương tác thuốc sử dụng đồ thị thực thể (Entity Graph) lưu trên SQL cơ sở dữ liệu.
+    """
 
     def __init__(self, session: AsyncSession) -> None:
+        """Khởi tạo dịch vụ kiểm tra tương tác thuốc với phiên làm việc AsyncSession."""
         self.session = session
 
     async def check_interactions(
@@ -85,10 +95,14 @@ class DrugCheckService:
         min_severity: str = "low",
     ) -> list[DrugWarning]:
         """Check for drug interactions relevant to the query and patient.
+        Kiểm tra các tương tác thuốc có liên quan tới câu hỏi và hồ sơ bệnh nhân.
 
         1. Extracts drug entities from the query text.
+           (Trích xuất các thực thể thuốc từ câu hỏi văn bản)
         2. Finds graph relations for those drugs within the patient's documents.
+           (Tìm các mối quan hệ đồ thị cho thuốc trong hồ sơ bệnh nhân)
         3. Returns structured warnings sorted by severity.
+           (Trả về danh sách cảnh báo có cấu trúc được sắp xếp theo độ nghiêm trọng)
         """
         if not patient_id:
             return []
@@ -192,7 +206,9 @@ async def check_drug_interactions_for_query(
     query_text: str,
     patient_id: uuid.UUID | None,
 ) -> list[DrugWarning]:
-    """Convenience function wrapping DrugCheckService."""
+    """Convenience function wrapping DrugCheckService.
+    Hàm tiện ích bao bọc `DrugCheckService` để kiểm tra nhanh tương tác thuốc từ câu hỏi.
+    """
     return await DrugCheckService(session).check_interactions(
         query_text=query_text,
         patient_id=patient_id,

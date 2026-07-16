@@ -48,7 +48,12 @@ async def import_patients(file_path: str, dry_run: bool = False):
     if dry_run:
         print("[DRY RUN] Patient seed validation preview:")
         for r in rows[:5]:
-            print(f"  {r.get('mrn')} | {r.get('full_name')} | {r.get('dob')} | {r.get('department')} | {r.get('status')}")
+            mrn = r.get("mrn") or ""
+            name = r.get("full_name") or ""
+            dob = r.get("dob") or ""
+            masked_name = name[:2] + "*" * (len(name) - 2) if len(name) > 2 else "**"
+            masked_dob = dob[:4] + "-**-**" if len(dob) > 4 else "****"
+            print(f"  {mrn[:4]}... | {masked_name} | {masked_dob} | {r.get('department')} | {r.get('status')}")
         return
 
     from hospital_ai.db.session import get_session
@@ -90,7 +95,7 @@ async def import_patients(file_path: str, dry_run: bool = False):
                 skipped += 1
                 # Ensure the ID matches
                 if patient.id != patient_id:
-                    print(f"  WARNING: Patient with MRN {mrn} has different ID in DB ({patient.id}) than CSV ({patient_id})")
+                    print(f"  WARNING: Patient with MRN {mrn[:4]}... has different ID in DB than CSV")
 
             # Seed permissions for doctor, nurse, pharmacist, records, admin
             permissions = [

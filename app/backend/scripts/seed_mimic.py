@@ -1,12 +1,10 @@
 import asyncio
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime
 
-from hospital_ai.core.config import get_settings
-from hospital_ai.core.security import new_trace_id
-from hospital_ai.db.models import Document, DocumentPage, DocumentChunk, Patient, User
-from hospital_ai.db.session import get_session_factory
 from hospital_ai.db.migrations import DOCTOR_ID
+from hospital_ai.db.models import Document, DocumentChunk, DocumentPage, Patient, User
+from hospital_ai.db.session import get_session_factory
 from hospital_ai.services.graph_rag import GraphEntity, GraphRelation
 
 MOCK_CLINICAL_NOTES = [

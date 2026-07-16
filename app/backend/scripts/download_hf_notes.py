@@ -2,6 +2,7 @@ import os
 import subprocess
 import sys
 
+
 def install(package):
     subprocess.check_call([sys.executable, "-m", "pip", "install", package])
 
@@ -12,7 +13,6 @@ except ImportError:
     print("Installing required packages...")
     install("datasets")
     install("pandas")
-    import pandas as pd
     from datasets import load_dataset
 
 print("Downloading clinical notes from HuggingFace (tstadel/maccrobat)...")

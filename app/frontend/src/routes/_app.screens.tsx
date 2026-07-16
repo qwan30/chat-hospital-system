@@ -62,28 +62,28 @@ const groups: Group[] = [
       {
         id: "PAT-003",
         title: "Overview & AI summary",
-        href: "/patients/p-001/overview",
+        href: "/patients/11111111-1111-1111-1111-111111111111/overview",
         priority: "MVP",
       },
-      { id: "PAT-004", title: "Timeline", href: "/patients/p-001/timeline", priority: "Should" },
-      { id: "PAT-005", title: "Documents", href: "/patients/p-001/documents", priority: "MVP" },
-      { id: "PAT-006", title: "Labs & vitals", href: "/patients/p-001/labs", priority: "Should" },
+      { id: "PAT-004", title: "Timeline", href: "/patients/11111111-1111-1111-1111-111111111111/timeline", priority: "Should" },
+      { id: "PAT-005", title: "Documents", href: "/patients/11111111-1111-1111-1111-111111111111/documents", priority: "MVP" },
+      { id: "PAT-006", title: "Labs & vitals", href: "/patients/11111111-1111-1111-1111-111111111111/labs", priority: "Should" },
       {
         id: "PAT-007",
         title: "Medications & allergies",
-        href: "/patients/p-001/medications",
+        href: "/patients/11111111-1111-1111-1111-111111111111/medications",
         priority: "MVP",
       },
       {
         id: "PAT-008",
         title: "Access history",
-        href: "/patients/p-001/access-history",
+        href: "/patients/11111111-1111-1111-1111-111111111111/access-history",
         priority: "Should",
       },
       {
         id: "PAT-010",
         title: "Snapshot refresh",
-        href: "/patients/p-001/refresh",
+        href: "/patients/11111111-1111-1111-1111-111111111111/refresh",
         priority: "Should",
       },
       { id: "PAT-009", title: "Not found", href: "/patients/missing/not-found", priority: "MVP" },
@@ -95,7 +95,7 @@ const groups: Group[] = [
       {
         id: "ACC-001",
         title: "Access denied",
-        href: "/patients/p-003/access-denied",
+        href: "/patients/33333333-3333-3333-3333-333333333333/access-denied",
         priority: "MVP",
       },
       {
@@ -122,32 +122,32 @@ const groups: Group[] = [
       {
         id: "CHAT-003",
         title: "Streaming",
-        href: "/chat/patients/p-001?state=streaming",
+        href: "/chat/patients/11111111-1111-1111-1111-111111111111?state=streaming",
         priority: "MVP",
       },
-      { id: "CHAT-004", title: "Cited answer", href: "/chat/patients/p-001", priority: "MVP" },
+      { id: "CHAT-004", title: "Cited answer", href: "/chat/patients/11111111-1111-1111-1111-111111111111", priority: "MVP" },
       {
         id: "CHAT-005",
         title: "Safe refusal",
-        href: "/chat/patients/p-001?state=refusal",
+        href: "/chat/patients/11111111-1111-1111-1111-111111111111?state=refusal",
         priority: "MVP",
       },
       {
         id: "CHAT-006",
         title: "Permission blocked",
-        href: "/chat/patients/p-001?state=forbidden",
+        href: "/chat/patients/11111111-1111-1111-1111-111111111111?state=forbidden",
         priority: "MVP",
       },
       {
         id: "CHAT-007",
         title: "LLM offline",
-        href: "/chat/patients/p-001?state=llm-offline",
+        href: "/chat/patients/11111111-1111-1111-1111-111111111111?state=llm-offline",
         priority: "MVP",
       },
       {
         id: "CHAT-008",
         title: "Rate limited",
-        href: "/chat/patients/p-001?state=rate-limited",
+        href: "/chat/patients/11111111-1111-1111-1111-111111111111?state=rate-limited",
         priority: "Should",
       },
       { id: "CHAT-009", title: "Thread history", href: "/chat/history", priority: "Should" },
@@ -234,7 +234,7 @@ const groups: Group[] = [
       {
         id: "GRAPH-001",
         title: "Patient graph",
-        href: "/graph/patients/p-001",
+        href: "/graph/patients/11111111-1111-1111-1111-111111111111",
         priority: "Phase 2",
       },
       {
@@ -251,7 +251,7 @@ const groups: Group[] = [
       {
         id: "MED-001",
         title: "Med-allergy pre-check",
-        href: "/patients/p-001/medication-review",
+        href: "/patients/11111111-1111-1111-1111-111111111111/medication-review",
         priority: "Phase 2",
       },
       {
@@ -275,7 +275,7 @@ const groups: Group[] = [
       {
         id: "INT-002",
         title: "Manual patient sync",
-        href: "/integrations/hms/patients/p-001/sync",
+        href: "/integrations/hms/patients/11111111-1111-1111-1111-111111111111/sync",
         priority: "MVP",
       },
       {

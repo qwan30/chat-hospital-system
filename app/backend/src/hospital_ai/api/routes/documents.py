@@ -36,6 +36,14 @@ ALLOWED_MIME_TYPES = {
     "image/jpeg",
 }
 
+ALLOWED_DOCUMENT_TYPES = {
+    "clinical_note",
+    "lab_result",
+    "prescription",
+    "discharge_summary",
+    "imaging_report"
+}
+
 
 @router.post("", response_model=DocumentRead)
 async def upload_document(
@@ -63,6 +71,9 @@ async def upload_document(
     document_type = document_type.strip()
     if not title or not document_type:
         raise ValidationAppError("Title and document_type must not be blank.")
+    
+    if document_type not in ALLOWED_DOCUMENT_TYPES:
+        raise ValidationAppError(f"Invalid document type. Allowed types: {', '.join(sorted(ALLOWED_DOCUMENT_TYPES))}")
 
     mime_type = file.content_type or "application/octet-stream"
     if mime_type not in ALLOWED_MIME_TYPES:
@@ -93,7 +104,7 @@ async def upload_document(
         outcome="allowed",
         trace_id=trace_id,
         ip_address=get_request_ip(request),
-        metadata={"title": title, "document_type": document_type},
+        metadata={"has_title": bool(title), "document_type": document_type},
     )
     await session.commit()
 

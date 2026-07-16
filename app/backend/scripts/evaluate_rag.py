@@ -1,20 +1,20 @@
 import asyncio
 import json
 import uuid
-from typing import Dict
 
 from hospital_ai.core.config import get_settings
-from hospital_ai.db.session import get_session_factory
 from hospital_ai.db.models import User
+from hospital_ai.db.session import get_session_factory
 from hospital_ai.services.chat import ChatService
 from hospital_ai.services.llm import LLMManager
 from hospital_ai.services.llm.base import LLMMessage
 
+
 async def load_dataset(filepath: str):
-    with open(filepath, "r", encoding="utf-8") as f:
+    with open(filepath, encoding="utf-8") as f:
         return json.load(f)
 
-async def evaluate_with_judge(llm, question: str, response: str, context: str) -> Dict[str, float]:
+async def evaluate_with_judge(llm, question: str, response: str, context: str) -> dict[str, float]:
     prompt = f"""You are a clinical AI judge evaluating a RAG chatbot's response.
 You must output a JSON object with exactly three keys ("faithfulness", "relevance", "citation_accuracy"), and each value must be a float between 0.0 and 1.0.
 

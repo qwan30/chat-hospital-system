@@ -66,6 +66,7 @@ class StreamCompletion:
     cited_evidence: list[Any] = field(default_factory=list)
     citations_payload: list[dict] = field(default_factory=list)
     confidence: str = "low"
+    failure_reason: str | None = None
 
 
 OnCompleteCallback = Callable[[StreamCompletion], Awaitable[None]]
@@ -220,6 +221,7 @@ async def _generate_sse_events(
                             cited_evidence=[],
                             citations_payload=[],
                             confidence="low",
+                            failure_reason="invalid_citation",
                         )
                     )
                 except Exception:
@@ -458,6 +460,31 @@ async def _persist_stream_completion(
         await session.commit()
 
 
+def _log_telemetry(
+    settings: Settings,
+    patient_id: UUID | None,
+    evidence: list | None = None,
+    blocked_count: int = 0,
+    failure_reason: str | None = None,
+) -> None:
+    import hashlib
+    pseudo_patient_id = hashlib.sha256(str(patient_id).encode()).hexdigest() if patient_id else None
+    
+    ev_list = evidence or []
+    telemetry = {
+        "pseudonymized_patient_id": pseudo_patient_id,
+        "embedding_provider": settings.embedding_provider,
+        "embedding_model": settings.embedding_model,
+        "candidates_before_role_filter": len(ev_list) + blocked_count,
+        "blocked_by_role_filter": blocked_count,
+        "candidates_after_role_filter": len(ev_list),
+        "top_scores": [e.score for e in ev_list],
+        "threshold": settings.evidence_threshold,
+        "citation_failure_reason": failure_reason,
+    }
+    logger.info("Telemetry: %s", json.dumps(telemetry))
+
+
 @router.post("/stream")
 @limiter.limit("5/minute")
 async def chat_stream(
@@ -512,6 +539,12 @@ async def chat_stream(
         )
         await session.commit()
 
+        _log_telemetry(
+            settings=settings,
+            patient_id=effective_patient_id,
+            failure_reason="permission_denied"
+        )
+
         async def denied_stream() -> AsyncIterator[str]:
             event = json.dumps({"type": "error", "message": "User is not authorized for this patient."})
             yield f"data: {event}\n\n"
@@ -528,6 +561,7 @@ async def chat_stream(
 
     is_chitchat = is_chitchat_query(payload.question)
 
+    blocked_chunk_count = 0
     if is_chitchat:
         evidence = []
         selected_pipeline = "chitchat"
@@ -550,20 +584,51 @@ async def chat_stream(
                 if effective_patient_id
                 else []
             )
-        else:
-            evidence = (
-                await retrieval_svc.search(
-                    user_id=current_user.id,
-                    patient_id=effective_patient_id,
-                    query_embedding=query_embedding,
-                    top_k=payload.top_k,
+            else:
+                evidence = (
+                    await retrieval_svc.search(
+                        user_id=current_user.id,
+                        patient_id=effective_patient_id,
+                        query_embedding=query_embedding,
+                        top_k=payload.top_k,
+                    )
+                    if effective_patient_id
+                    else []
                 )
-                if effective_patient_id
-                else []
-            )
+
+        # ── Graph RAG Enrichment ─────────────────────────────────────────────
+        try:
+            if effective_patient_id and evidence:
+                from hospital_ai.services.graph_rag import find_related_entities
+                from hospital_ai.db.models import GraphEntity
+                from sqlalchemy import select
+                chunk_ids = [c.chunk_id for c in evidence]
+                res = await session.execute(select(GraphEntity.name).where(GraphEntity.source_chunk_id.in_(chunk_ids)))
+                entity_names = list(set(res.scalars().all()))
+                
+                if entity_names:
+                    graph_ctx = await find_related_entities(
+                        session, entity_names, max_hops=2, patient_id=effective_patient_id
+                    )
+                    if graph_ctx.related_chunk_ids:
+                        existing_ids = {e.chunk_id for e in evidence}
+                        graph_only_ids = graph_ctx.related_chunk_ids - existing_ids
+                        if graph_only_ids:
+                            graph_evidence = await retrieval_svc.get_chunks_by_ids(
+                                list(graph_only_ids)[:payload.top_k],
+                                user_id=current_user.id,
+                                patient_id=effective_patient_id,
+                            )
+                            for ge in graph_evidence:
+                                ge.metadata["retrieval_method"] = "graph"
+                            evidence.extend(graph_evidence)
+        except Exception:
+            logger.warning("Graph RAG enrichment skipped", exc_info=True)
+
+        blocked_chunk_count = retrieval_svc.blocked_chunk_count
 
         if not evidence or not meets_evidence_threshold(evidence[0], retrieval_mode, settings.evidence_threshold):
-            is_blocked = retrieval_svc.blocked_chunk_count > 0
+            is_blocked = blocked_chunk_count > 0
             answer_text = PERMISSION_DENIED_CHAT_ANSWER if is_blocked else SAFE_NO_EVIDENCE_ANSWER
             result_status = "denied" if is_blocked else "no_evidence"
             outcome = "denied" if is_blocked else "allowed"
@@ -626,6 +691,14 @@ async def chat_stream(
             )
             await session.commit()
 
+            _log_telemetry(
+                settings=settings,
+                patient_id=effective_patient_id,
+                evidence=evidence,
+                blocked_count=blocked_chunk_count,
+                failure_reason="denied" if is_blocked else "no_evidence",
+            )
+
             async def no_evidence_stream() -> AsyncIterator[str]:
                 event = json.dumps({"type": "token", "content": answer_text})
                 yield f"data: {event}\n\n"
@@ -665,6 +738,14 @@ async def chat_stream(
             ip_address=captured_ip,
             started=started,
             completion=completion,
+        )
+
+        _log_telemetry(
+            settings=settings,
+            patient_id=captured_patient_id,
+            evidence=evidence,
+            blocked_count=blocked_chunk_count,
+            failure_reason=completion.failure_reason,
         )
 
     return StreamingResponse(

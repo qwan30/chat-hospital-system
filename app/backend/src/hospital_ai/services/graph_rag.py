@@ -23,7 +23,7 @@ import logging
 import re
 import uuid
 from dataclasses import dataclass
-from typing import Union, Optional
+from typing import Optional
 
 from sqlalchemy import Float, ForeignKey, String, delete, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession

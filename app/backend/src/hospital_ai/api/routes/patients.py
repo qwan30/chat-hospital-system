@@ -658,7 +658,11 @@ def _extract_dose(text: str) -> Optional[str]:
     """Extract dose pattern like '5mg', '500mg', '10mg' from text."""
     import re
 
-    m = re.search(r"(\d+\.?\d*\s*(?:mg|mcg|g|ml|IU|uL|mmol)(?:\s*(?:BID|TID|QID|daily|/ngày))?)", text, re.IGNORECASE)
+    pattern = (
+        r"(\d+\.?\d*\s*(?:mg|mcg|g|ml|IU|uL|mmol)"
+        r"(?:\s*(?:BID|TID|QID|daily|/ngày))?)"
+    )
+    m = re.search(pattern, text, re.IGNORECASE)
     return m.group(1) if m else None
 
 

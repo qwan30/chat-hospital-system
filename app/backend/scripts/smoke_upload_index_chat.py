@@ -1,5 +1,4 @@
 import asyncio
-from pathlib import Path
 
 from hospital_ai.core.config import get_settings
 from hospital_ai.db.migrations import DOCTOR_ID, PATIENT_ALICE_ID, RECORDS_ID, seed_synthetic_data

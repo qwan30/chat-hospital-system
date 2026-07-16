@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Any, Optional
+from typing import Any
 from uuid import UUID
 
 from pydantic import Field
@@ -9,14 +9,14 @@ from hospital_ai.schemas.common import ApiSchema
 
 class AuditLogRead(ApiSchema):
     id: UUID
-    actor_user_id: Optional[UUID] = None
+    actor_user_id: UUID | None = None
     action: str
     object_type: str
-    object_id: Optional[UUID] = None
-    patient_id: Optional[UUID] = None
+    object_id: UUID | None = None
+    patient_id: UUID | None = None
     outcome: str
     trace_id: str
-    ip_address: Optional[str] = None
+    ip_address: str | None = None
     metadata: dict[str, Any] = Field(default_factory=dict, alias="meta")
     created_at: datetime
 

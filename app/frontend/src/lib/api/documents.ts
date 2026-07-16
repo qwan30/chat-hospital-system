@@ -58,7 +58,7 @@ export const listDocuments = async (params?: {
   if (params?.limit) queryParams.append("limit", params.limit.toString());
 
   const queryString = queryParams.toString();
-  const path = queryString ? `/api/v1/documents?${queryString}` : "/api/v1/documents";
+  const path = queryString ? `/documents?${queryString}` : "/documents";
 
   return apiFetch<DocumentListResponse>(path);
 };

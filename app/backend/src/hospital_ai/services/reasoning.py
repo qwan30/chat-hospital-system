@@ -9,7 +9,6 @@ Provides multiple strategies for answering questions:
 import re
 import uuid
 from dataclasses import dataclass
-from typing import Optional
 
 from hospital_ai.core.config import Settings
 from hospital_ai.schemas.documents import EvidenceRead
@@ -51,7 +50,7 @@ class ReasoningResult:
     confidence: str
     disclaimer: str
     pipeline: str
-    sub_questions: Optional[list[str]] = None
+    sub_questions: list[str] | None = None
 
 
 class SimpleQAPipeline:
@@ -66,7 +65,7 @@ class SimpleQAPipeline:
         *,
         question: str,
         evidence: list[RetrievedChunk],
-        conversation_history: Optional[list[dict[str, str]]] = None,
+        conversation_history: list[dict[str, str]] | None = None,
     ) -> ReasoningResult:
         reranked = self.reranker.rerank(question, evidence, top_k=self.settings.retrieval_top_k)
 
@@ -113,7 +112,7 @@ class DecomposeQAPipeline:
         *,
         question: str,
         evidence: list[RetrievedChunk],
-        conversation_history: Optional[list[dict[str, str]]] = None,
+        conversation_history: list[dict[str, str]] | None = None,
     ) -> ReasoningResult:
         sub_questions = _decompose_question(question)
 

@@ -10,13 +10,13 @@ import argparse
 import json
 import sys
 import uuid
+from collections.abc import Iterable
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any, Dict, Iterable, List, Optional
+from typing import Any
 
 import httpx
-
 
 ALICE_PATIENT_ID = "20000000-0000-0000-0000-000000000001"
 TOKENS = {
@@ -45,7 +45,7 @@ class ScenarioResult:
     passed: bool = True
     expected: str = ""
     actual: str = ""
-    evidence_labels: List[str] = field(default_factory=list)
+    evidence_labels: list[str] = field(default_factory=list)
 
     def fail(self, actual: str) -> None:
         self.passed = False
@@ -57,9 +57,9 @@ class UatApiRunner:
         self.base_url = base_url.rstrip("/")
         self.output_dir = output_dir
         self.client = httpx.Client(timeout=30.0)
-        self.evidence: List[ApiEvidence] = []
-        self.identities: Dict[str, Dict[str, Any]] = {}
-        self.created_threads: Dict[str, Dict[str, Any]] = {}
+        self.evidence: list[ApiEvidence] = []
+        self.identities: dict[str, dict[str, Any]] = {}
+        self.created_threads: dict[str, dict[str, Any]] = {}
 
     def close(self) -> None:
         self.client.close()
@@ -70,8 +70,8 @@ class UatApiRunner:
         method: str,
         path: str,
         *,
-        token: Optional[str] = None,
-        json_body: Optional[Dict[str, Any]] = None,
+        token: str | None = None,
+        json_body: dict[str, Any] | None = None,
     ) -> httpx.Response:
         headers = {"accept": "application/json"}
         role = token or "anonymous"
@@ -99,7 +99,7 @@ class UatApiRunner:
         )
         return response
 
-    def run(self) -> List[ScenarioResult]:
+    def run(self) -> list[ScenarioResult]:
         return [
             self.auth_boundaries(),
             self.general_knowledge_chat(),
@@ -416,17 +416,17 @@ class UatApiRunner:
         *,
         label: str,
         token: str,
-        payload: Dict[str, Any],
-    ) -> Optional[Dict[str, Any]]:
+        payload: dict[str, Any],
+    ) -> dict[str, Any] | None:
         response = self.request(label, "POST", "/chat-threads", token=token, json_body=payload)
         if response.status_code != 200:
             return None
         return response.json()
 
-    def write_artifacts(self, results: List[ScenarioResult]) -> Path:
+    def write_artifacts(self, results: list[ScenarioResult]) -> Path:
         self.output_dir.mkdir(parents=True, exist_ok=True)
         evidence_payload = {
-            "generated_at": datetime.now(timezone.utc).isoformat(),
+            "generated_at": datetime.now(UTC).isoformat(),
             "base_url": self.base_url,
             "results": [result.__dict__ for result in results],
             "requests": [evidence.__dict__ for evidence in self.evidence],
@@ -439,7 +439,7 @@ class UatApiRunner:
         return report_path
 
 
-def appointment_payload(source_appointment_id: uuid.UUID) -> Dict[str, Any]:
+def appointment_payload(source_appointment_id: uuid.UUID) -> dict[str, Any]:
     return {
         "source_appointment_id": str(source_appointment_id),
         "patient_id": ALICE_PATIENT_ID,
@@ -466,7 +466,7 @@ def response_contains_phi(responses: Iterable[httpx.Response]) -> bool:
     return False
 
 
-def first_matching(items: Iterable[Dict[str, Any]], predicate) -> Optional[Dict[str, Any]]:
+def first_matching(items: Iterable[dict[str, Any]], predicate) -> dict[str, Any] | None:
     for item in items:
         if predicate(item):
             return item
@@ -479,15 +479,15 @@ def short_run_id() -> str:
 
 def default_output_dir() -> Path:
     repo_root = Path(__file__).resolve().parents[3]
-    timestamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+    timestamp = datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")
     return repo_root / "history" / "kotaemon-chat-assistant-ui" / "uat-evidence" / timestamp
 
 
-def render_markdown_report(results: List[ScenarioResult], evidence_path: Path) -> str:
+def render_markdown_report(results: list[ScenarioResult], evidence_path: Path) -> str:
     lines = [
         "# API UAT Summary",
         "",
-        f"Generated: {datetime.now(timezone.utc).isoformat()}",
+        f"Generated: {datetime.now(UTC).isoformat()}",
         f"Evidence JSON: `{evidence_path.name}`",
         "",
         "| Scenario | Severity if failed | Result | Evidence |",

@@ -15,6 +15,7 @@ class Settings(BaseSettings):
     dev_auto_grant_access: bool = False
     enable_break_glass: bool = False
     demo_mode: bool = True
+    disable_guardrails: bool = False
 
     # Default tokens are convenience shortcuts for `environment == "local"` only.
     # `token_user_map` refuses to surface them in any other environment unless
@@ -30,7 +31,7 @@ class Settings(BaseSettings):
         "dev-admin:admin@example.test"
     )
 
-    embedding_provider: str = "deterministic"
+    embedding_provider: str = "ollama"
     chat_provider: str = "stub"
     ollama_base_url: str = "http://localhost:11434"
     embedding_model: str = "bge-m3"
@@ -70,6 +71,8 @@ class Settings(BaseSettings):
     retrieval_mode: str = "vector"  # vector | bm25 | hybrid
     bm25_weight: float = 0.4
     vector_weight: float = 0.6
+    enable_hyde: bool = False
+    ab_test_retrieval: bool = False
 
     # HMS integration
     hms_base_url: str = "http://localhost:8080/api/v1"

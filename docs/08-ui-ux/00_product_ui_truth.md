@@ -2,9 +2,9 @@
 
 > Project: AI-Powered Hospital Management System Copilot  
 > Project Code: HOSP-AI-001  
-> Version: 2.0  
+> Version: 3.0  
 > Status: Approved Source of Truth  
-> Last Updated: 2026-06-07  
+> Last Updated: 2026-07-12  
 
 This document serves as the master **Product UI Truth** for the integrated Hospital Management System (HMS) AI Copilot. It defines the positioning, screen-level inventories, data ownership boundaries, and backend API routes mapped to the 25 target screens.
 
@@ -50,6 +50,7 @@ The following table catalogs all target screens, mapping their priorities, data/
 | **SCR-023** | Audit Events Log (`/audit/logs`) | P1 (Must) | Audit | Chatbot Audit Events | Chatbot API: `GET /api/v1/audit/events` |
 | **SCR-024** | Impact Quality Summary (`/metrics`) | P1 (Must) | Metrics | Chatbot Metric Events | Chatbot API: `GET /api/v1/metrics/summary` |
 | **SCR-025** | Profile & System Prefs (`/settings/profile`) | P2 (Should) | Settings | HMS User Profile + Local settings| BFF API: `GET /api/v1/users/me/preferences` |
+| **SCR-026** | Notifications Feed (`/notifications`) | P1 (Must) | Notifications | Chatbot Alert Events (CDSS + system) | Chatbot API: `GET /api/v1/notifications` |
 
 ---
 
@@ -64,6 +65,33 @@ The UI exposes the active environment workspace mode (`SCR-027` selection panel)
 ---
 
 ## 4. Architectural Rules of UI Truth
-*   **UI leads experience**: Component views (e.g. recent lists, timeline records, search filters) are defined by the 25 approved designs.
+*   **UI leads experience**: Component views (e.g. recent lists, timeline records, search filters) are defined by the 26 approved designs.
 *   **No direct HMS DB manipulation by UI**: Frontend components must consume aggregated Backend-For-Frontend (BFF) endpoints routed through the AI Assistant, avoiding direct database operations.
 *   **Source Citation Mandate**: Every answer panel displays source citation links (`SCR-019`) to build clinician trust and prevent hallucinations.
+
+---
+
+## 5. CDSS Autonomous Agent — Notification Type
+
+### 5.1 High Risk Clinical Alert (`kind: 'ai'`)
+
+The Autonomous CDSS (Clinical Decision Support System) Agent generates `ClinicalAlert` records that surface as a new notification type in the `/notifications` feed (`SCR-026`).
+
+| Property | Value / Behaviour |
+|----------|-------------------|
+| **Notification ID** | e.g. `n-007` (auto-generated, unique per alert) |
+| **`kind`** | `'ai'` — displayed with the AI/robot badge icon |
+| **Title** | `'High Risk Clinical Alert'` |
+| **Body** | Human-readable CDSS finding, e.g. _"CDSS detected severe Bleeding Risk due to new Aspirin prescription. Cross-referenced with patient history."_ |
+| **`read`** | `false` on creation — alert always starts **unread**; dismissed by user action |
+| **Severity** | Encoded in body/metadata: `LOW` / `MEDIUM` / `HIGH` / `CRITICAL`; alerts with severity ≥ `HIGH` are created |
+| **`href`** | `/patients/{patient_id}` — clicking **Open** navigates to the full patient profile |
+| **Trigger** | Automatic: fired by `run_cdss_analysis()` after document OCR + entity extraction + graph indexing complete |
+| **Audience** | Treating physician (Doctor role) — scoped to the patient's care team |
+
+### 5.2 Notifications Page Behaviour
+
+*   **Unread badge**: The bell icon in the header shell shows an unread count that includes CDSS alerts.
+*   **Unread filter**: Toggling the unread filter keeps CDSS `kind='ai'` alerts visible — they are treated identically to other unread notifications.
+*   **Open action**: The **Open** link on each alert resolves `href` and performs a client-side navigation to the patient profile, where the doctor can review the full clinical context.
+*   **Dismissal**: Marking an alert read (`PATCH /api/v1/notifications/{id}/read`) decrements the unread counter; the alert remains in the list for audit purposes.

@@ -72,7 +72,7 @@ async def test_failed_ocr_creates_no_chunks(session_and_settings, tmp_path: Path
         patient_id=PATIENT_ALICE_ID,
         uploaded_by=RECORDS_ID,
         title="Bad scan",
-        document_type="scan",
+        document_type="imaging_report",
         storage_uri=str(storage_file),
         mime_type="application/pdf",
         status="uploaded",
@@ -334,3 +334,101 @@ async def test_stale_reindex_attempt_does_not_overwrite_newer_generation(
     chunks = list(chunk_result.scalars().all())
     assert len(chunks) == 1
     assert chunks[0].content == "Original generation content remains authoritative."
+
+
+@pytest.mark.asyncio
+async def test_clinical_staff_can_upload(session_and_settings, tmp_path: Path):
+    from io import BytesIO
+
+    from fastapi import Request, UploadFile
+    from starlette.datastructures import Headers
+
+    from hospital_ai.api.routes.documents import upload_document
+    from hospital_ai.db.migrations import DOCTOR_ID
+
+    session, settings = session_and_settings
+
+    # Create an upload file
+    file_content = b"Patient reports dizziness. Follow up with cardiology."
+    file = UploadFile(  # noqa: E501
+        filename="note.txt",
+        file=BytesIO(file_content),
+        size=len(file_content),
+        headers=Headers({"content-type": "text/plain"}),
+    )
+
+    # Mock request
+    request = Request({"type": "http", "client": ("127.0.0.1", 8000)})
+
+    # Mock current_user as a doctor
+    from hospital_ai.db.models import User
+
+    current_user = await session.get(User, DOCTOR_ID)
+
+    # Execute
+    document = await upload_document(
+        request=request,
+        patient_id=PATIENT_ALICE_ID,
+        title="Doctor note",
+        document_type="clinical_note",
+        file=file,
+        session=session,
+        current_user=current_user,
+        settings=settings,
+    )
+
+    assert document.id is not None
+    assert document.document_type == "clinical_note"
+    assert document.uploaded_by == DOCTOR_ID
+
+
+@pytest.mark.asyncio
+async def test_audit_log_does_not_leak_phi(session_and_settings, tmp_path: Path):
+    from io import BytesIO
+
+    from fastapi import Request, UploadFile
+    from starlette.datastructures import Headers
+
+    from hospital_ai.api.routes.documents import upload_document
+    from hospital_ai.db.migrations import DOCTOR_ID  # noqa: E501
+    from hospital_ai.db.models import AuditLog
+
+    session, settings = session_and_settings
+
+    file_content = b"Patient reports dizziness. Follow up with cardiology."
+    file = UploadFile(
+        filename="note.txt",
+        file=BytesIO(file_content),
+        size=len(file_content),
+        headers=Headers({"content-type": "text/plain"}),
+    )
+    request = Request({"type": "http", "client": ("127.0.0.1", 8000)})
+
+    from hospital_ai.db.models import User
+
+    current_user = await session.get(User, DOCTOR_ID)
+
+    # Execute upload with a title containing PHI
+    sensitive_title = "Alice Smith's HIV Test Results"
+    document = await upload_document(
+        request=request,
+        patient_id=PATIENT_ALICE_ID,
+        title=sensitive_title,
+        document_type="lab_result",
+        file=file,
+        session=session,
+        current_user=current_user,
+        settings=settings,
+    )
+
+    # Check audit log
+    stmt = select(AuditLog).where(AuditLog.action == "document.upload", AuditLog.object_id == document.id)
+    result = await session.execute(stmt)
+    audit_log = result.scalar_one_or_none()
+
+    assert audit_log is not None
+    # Ensure title is not leaked in the metadata
+    assert "title" not in audit_log.meta
+    # Ensure has_title is present
+    assert audit_log.meta.get("has_title") is True
+    assert audit_log.meta.get("document_type") == "lab_result"

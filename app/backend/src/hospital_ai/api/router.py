@@ -13,6 +13,7 @@ from hospital_ai.api.routes import (
     graph,
     hms,
     medication_safety,
+    metrics_endpoint,
     patients,
     rag_trace,
     search,
@@ -43,3 +44,4 @@ api_router.include_router(search.router, prefix="/search", tags=["search"])
 api_router.include_router(access_requests.router, prefix="/access-requests", tags=["access-requests"])
 api_router.include_router(graph.router, prefix="/graph", tags=["graph"])
 api_router.include_router(medication_safety.router, prefix="/medication-safety", tags=["medication-safety"])
+api_router.include_router(metrics_endpoint.router, tags=["metrics"])

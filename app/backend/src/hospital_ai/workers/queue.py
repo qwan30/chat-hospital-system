@@ -140,3 +140,33 @@ def get_queue_stats(settings: Settings) -> dict:
         "dead_letter": len(dlq),
         "workers": main_queue.count,
     }
+
+
+def enqueue_cdss_analysis(
+    document_id: uuid.UUID,
+    settings: Settings,
+) -> str:
+    """Enqueue a document for CDSS analysis."""
+    try:
+        from redis import Redis
+        from rq import Queue
+    except ImportError:
+        return "queue_unavailable"
+
+    try:
+        connection = Redis.from_url(settings.redis_url)
+        connection.ping()
+    except Exception:
+        return "queue_unavailable"
+
+    queue = Queue("cdss-analysis", connection=connection)
+
+    queue.enqueue(
+        "hospital_ai.workers.jobs.cdss_job_handler",
+        str(document_id),
+        job_timeout="30m",
+        result_ttl=86400,
+        meta={"document_id": str(document_id)},
+    )
+    logger.info("Document %s enqueued for CDSS analysis.", document_id)
+    return "queued"

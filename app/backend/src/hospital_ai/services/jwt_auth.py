@@ -11,7 +11,6 @@ returns None and the caller falls back to the static token map.
 """
 
 import logging
-from typing import Optional
 
 import jwt
 from jwt import PyJWKClient
@@ -46,13 +45,13 @@ class JwtAuthService:
 
     def __init__(self, settings: Settings) -> None:
         self.settings = settings
-        self._jwks_client: Optional[PyJWKClient] = None
+        self._jwks_client: PyJWKClient | None = None
 
     def _is_configured(self) -> bool:
         """Check whether any JWT validation settings are provided."""
         return bool(self.settings.jwt_issuer and (self.settings.jwks_url or self.settings.jwt_hmac_secret))
 
-    def _get_jwks_client(self) -> Optional[PyJWKClient]:
+    def _get_jwks_client(self) -> PyJWKClient | None:
         if self._jwks_client is None and self.settings.jwks_url:
             try:
                 self._jwks_client = PyJWKClient(self.settings.jwks_url)
@@ -65,7 +64,7 @@ class JwtAuthService:
                 return None
         return self._jwks_client
 
-    async def validate_token(self, token: str) -> Optional[JwtTokenData]:
+    async def validate_token(self, token: str) -> JwtTokenData | None:
         """Validate a JWT and return claims, or None if invalid.
 
         When RS256 is requested but cryptography is not installed,

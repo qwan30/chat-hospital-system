@@ -18,7 +18,7 @@ import asyncio
 import hashlib
 import math
 import uuid
-from datetime import date, datetime, timedelta, timezone
+from datetime import UTC, date, datetime, timedelta
 
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
@@ -226,7 +226,7 @@ async def setup_demo(settings: Settings | None = None) -> None:
         await conn.run_sync(Base.metadata.create_all)
 
     async with async_session() as session:
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
 
         # ── Users ──
         users: list[User] = []

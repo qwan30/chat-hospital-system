@@ -1,7 +1,6 @@
 import hashlib
 import uuid
-from datetime import datetime, timezone
-from typing import Optional
+from datetime import UTC, datetime
 
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -31,7 +30,7 @@ class HmsAppointmentEvidenceImporter:
         user: User,
         payload: HmsAppointmentSummaryImport,
         trace_id: str,
-        ip_address: Optional[str] = None,
+        ip_address: str | None = None,
     ) -> Document:
         if payload.patient_id != payload.source_patient_id:
             raise ValidationAppError("HMS appointment patient ownership mismatch.")
@@ -181,5 +180,5 @@ def build_appointment_metadata(payload: HmsAppointmentSummaryImport) -> dict:
     if payload.source_updated_at:
         metadata["source_updated_at"] = payload.source_updated_at.isoformat()
     metadata.update(payload.metadata)
-    metadata["imported_at"] = datetime.now(timezone.utc).isoformat()
+    metadata["imported_at"] = datetime.now(UTC).isoformat()
     return metadata

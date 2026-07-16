@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Any, Optional
+from typing import Any
 from uuid import UUID
 
 from pydantic import BaseModel, Field
@@ -16,8 +16,8 @@ class DocumentRead(ApiSchema):
     storage_uri: str
     mime_type: str
     status: str
-    page_count: Optional[int] = None
-    ocr_error: Optional[str] = None
+    page_count: int | None = None
+    ocr_error: str | None = None
     created_at: datetime
 
 
@@ -26,7 +26,7 @@ class DocumentPageRead(ApiSchema):
     document_id: UUID
     page_number: int
     ocr_text: str
-    ocr_confidence: Optional[float] = None
+    ocr_confidence: float | None = None
 
 
 class DocumentSearchRequest(BaseModel):
@@ -42,7 +42,7 @@ class EvidenceRead(BaseModel):
     page: int
     chunk_id: UUID
     score: float
-    content: Optional[str] = None
+    content: str | None = None
     metadata: dict[str, Any] = Field(default_factory=dict)
 
 

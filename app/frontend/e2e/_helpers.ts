@@ -8,12 +8,13 @@ export async function seedSession(
   page: Page,
   role: string = "cardiologist",
   workspaceId: string = "ws-cardio-4n",
+  token: string = "dev-doctor",
 ) {
   await page.addInitScript(
-    ({ role, workspaceId }) => {
-      localStorage.setItem("hms.session", JSON.stringify({ role, workspaceId }));
+    ({ role, workspaceId, token }) => {
+      localStorage.setItem("hms.session", JSON.stringify({ role, workspaceId, token }));
     },
-    { role, workspaceId },
+    { role, workspaceId, token },
   );
 }
 

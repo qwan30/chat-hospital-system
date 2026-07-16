@@ -2,7 +2,7 @@
 
 > Project: HOSP-AI-001 · Version: 1.0 · Owner: System Architect · Last Updated: 2026-06-14  
 
-## 1. API Layer (14 route modules)
+## 1. API Layer (16 route modules)
 
 | Module | File | Key Endpoints | Dependencies |
 |--------|------|---------------|-------------|
@@ -20,8 +20,10 @@
 | Search | `routes/search.py` | GET global (20/min) | PermissionService |
 | Access Requests | `routes/access_requests.py` | POST create, GET status | HMS, Audit |
 | Feedback | `routes/feedback.py` | POST submit, GET metrics | MetricsService |
+| Graph | `routes/graph.py` | Graph queries | Neo4j |
+| Medication Safety | `routes/medication_safety.py` | Safety checks | DrugCheckService |
 
-## 2. Service Layer (18 modules)
+## 2. Service Layer (25 modules)
 
 | Module | File | Responsibility | Key Classes |
 |--------|------|---------------|-------------|
@@ -43,22 +45,21 @@
 | HMS Appointments | `services/hms_appointments.py` | Appointments | HmsAppointmentsService |
 | Metrics | `services/metrics.py` | Impact tracking | MetricsService |
 | General Knowledge | `services/general_knowledge.py` | Non-patient queries | GeneralKnowledgeService |
+| Chunking | `services/chunking.py` | Text chunking | ChunkingService |
+| JWT Auth | `services/jwt_auth.py` | JWT generation/verification | verify_token |
+| Memory | `services/memory.py` | Chat session memory | MemoryService |
+| OCR | `services/ocr.py` | Document OCR | OcrService |
+| Reranking | `services/reranking.py` | Cross-encoder reranking | RerankerService |
+| Storage | `services/storage.py` | File storage | StorageService |
+| Loaders | `services/loaders/` | Document loaders | PdfLoader, etc. |
 
-## 3. Frontend (14+ pages, 60+ components)
+## 3. Frontend (3 chính components folder)
 
 | Domain | Components |
 |--------|-----------|
-| `ui/` | 30 shadcn primitives |
-| `app-shell/` | Sidebar, Topbar, CommandPalette, Footer, RightRail |
-| `auth/` | LoginCard, MFACard, AuthMarketingPane, AuthTrustStrip |
-| `chat/` | ChatLayout, Composer, StreamingAnswer, AssistantCard, UserBubble, PromptGrid, SafeRefusalCard |
-| `patient/` | DetailHeader, AISummaryCard, MedicationList, EncounterTimeline, MiniLabStrip, AllergyAlertsCard |
-| `document/` | DocumentsTable, UploadDropzone, BatchUploadModal, OCRPipelineStepper, OCRReviewPage |
-| `evidence/` | CitationCard, EvidenceRail, InlineCitation, DocumentViewerModal, RetrievalStepper |
-| `access/` | RequestModal, DeniedPanel, JustificationTextarea, NextActionsRail |
-| `audit/` | EventsTable, FilterBar, EventDrawer, ComplianceCard |
-| `viz/` | TrendLineChart, BarVolumeChart, StorageDonutChart, QualitySafetyChart |
-| `empty/` | DashboardHero, EmptyStateCard, Skeleton components |
+| `ui/` | shadcn primitives |
+| `shell/` | AppShell, Topbar, Sidebar, CommandPalette, Footer |
+| `hms/` | Mọi feature component: PatientSummary, ChatLayout, etc. |
 
 ## Change Log
 | Version | Date | Author | Change |

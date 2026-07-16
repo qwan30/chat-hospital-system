@@ -1,6 +1,5 @@
 import logging
-from datetime import datetime, timedelta, timezone
-from typing import Optional
+from datetime import UTC, datetime, timedelta
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Request
@@ -49,9 +48,9 @@ class AccessRequestListItem(BaseModel):
 
 
 class AccessRequestDetail(AccessRequestListItem):
-    reviewed_by_name: Optional[str] = None
-    reviewed_at: Optional[datetime] = None
-    review_notes: Optional[str] = None
+    reviewed_by_name: str | None = None
+    reviewed_at: datetime | None = None
+    review_notes: str | None = None
 
 
 class AccessRequestReview(BaseModel):
@@ -220,13 +219,13 @@ async def review_access_request(
 
     req.status = payload.status
     req.reviewed_by_user_id = current_user.id
-    req.reviewed_at = datetime.now(timezone.utc)
+    req.reviewed_at = datetime.now(UTC)
     req.review_notes = payload.notes
 
     trace_id = new_trace_id()
 
     if payload.status == "approved":
-        expires_at = datetime.now(timezone.utc) + timedelta(hours=12)
+        expires_at = datetime.now(UTC) + timedelta(hours=12)
         permission = PatientPermission(
             user_id=req.user_id,
             patient_id=req.patient_id,

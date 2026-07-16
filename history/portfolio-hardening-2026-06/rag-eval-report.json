@@ -1,8 +1,8 @@
 {
   "summary": {
     "total_cases": 6,
-    "passed_cases": 6,
-    "pass_rate": 1.0,
+    "passed_cases": 5,
+    "pass_rate": 0.833,
     "citation_validity_rate": 1.0,
     "safe_refusal_rate": 1.0,
     "unauthorized_chunks_to_llm": 0
@@ -61,15 +61,11 @@
     },
     {
       "name": "graph_relation_scope",
-      "passed": true,
+      "passed": false,
       "expected": "Graph relation lookup returns only patient-scoped chunk context.",
-      "observed": "1 related chunk(s)",
+      "observed": "0 related chunk(s)",
       "metadata": {
-        "entities": [
-          "metformin",
-          "diabetes",
-          "insulin"
-        ]
+        "entities": []
       }
     }
   ]

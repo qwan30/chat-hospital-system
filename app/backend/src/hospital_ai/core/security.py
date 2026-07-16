@@ -1,8 +1,7 @@
-from typing import Optional
 from uuid import uuid4
 
 
-def sanitize_audit_query(q: Optional[str]) -> dict:
+def sanitize_audit_query(q: str | None) -> dict:
     """Return non-PHI query metadata for audit logging.
 
     Stores only length and a short prefix so raw query text (which may
@@ -59,12 +58,16 @@ ROLE_PERMISSIONS = {
         "allowed_scopes": {"read", "summary", "medication", "labs", "imaging", "diagnoses", "care_plan"},
         "can_access_full_notes": True,
     },
+    "lab_staff": {
+        "allowed_scopes": {"labs", "read"},
+        "can_access_full_notes": False,
+    },
     "records_staff": {
-        "allowed_scopes": {"upload"},
+        "allowed_scopes": {"read", "audit", "upload"},
         "can_access_full_notes": False,
     },
     "security": {
-        "allowed_scopes": {"audit_logs"},
+        "allowed_scopes": {"audit", "access_requests", "audit_logs"},
         "can_access_full_notes": False,
     },
 }

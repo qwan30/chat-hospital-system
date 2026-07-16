@@ -18,6 +18,8 @@ from hospital_ai.services.graph_rag import (
     GraphContext,
     GraphEntity,
     GraphRelation,
+    _extract_explicit_relations_fallback,
+    extract_entities_and_relations_nlp,
     find_related_entities,
     index_chunk_entities,
 )
@@ -40,6 +42,45 @@ def mock_extract(monkeypatch):
         ]
 
     monkeypatch.setattr("hospital_ai.services.graph_rag.extract_entities_and_relations_nlp", mock_extract_nlp)
+
+
+def test_explicit_relation_fallback_is_deterministic():
+    entities, relations = _extract_explicit_relations_fallback(
+        "Metformin treats diabetes. Insulin also treats diabetes."
+    )
+
+    assert {(entity.name, entity.entity_type) for entity in entities} == {
+        ("metformin", "concept"),
+        ("diabetes", "concept"),
+        ("insulin", "concept"),
+    }
+    assert {(relation.source_name, relation.target_name, relation.relation_type) for relation in relations} == {
+        ("metformin", "diabetes", "treats"),
+        ("insulin", "diabetes", "treats"),
+    }
+
+
+@pytest.mark.asyncio
+async def test_llm_failure_uses_explicit_relation_fallback(monkeypatch):
+    class FailingLlm:
+        async def generate(self, *_args, **_kwargs):
+            raise RuntimeError("provider unavailable")
+
+    class FailingManager:
+        def get(self):
+            return FailingLlm()
+
+    monkeypatch.setattr("hospital_ai.services.graph_rag.get_llm_manager", lambda: FailingManager())
+
+    entities, relations = await extract_entities_and_relations_nlp("Metformin treats diabetes.")
+
+    assert {(entity.name, entity.entity_type) for entity in entities} == {
+        ("metformin", "concept"),
+        ("diabetes", "concept"),
+    }
+    assert [(relation.source_name, relation.target_name, relation.relation_type) for relation in relations] == [
+        ("metformin", "diabetes", "treats")
+    ]
 
 
 # ── Integration: index_chunk_entities ────────────────────────────────

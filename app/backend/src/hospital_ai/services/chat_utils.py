@@ -10,7 +10,7 @@ from hospital_ai.core.config import Settings
 from hospital_ai.schemas.documents import EvidenceRead
 from hospital_ai.services.retrieval import RetrievedChunk
 
-CITATION_PATTERN = re.compile(r"\[(E\d+)\]")
+CITATION_PATTERN = re.compile(r"\[([EG]\d+)\]")
 MAX_HISTORY_MESSAGES = 10
 
 
@@ -84,7 +84,11 @@ SAFE_PHI_LEAK_BLOCKED_ANSWER = (
 def build_stub_answer(prompt: str) -> str:
     lower_prompt = prompt.lower()
     if "apixaban" in lower_prompt or "renal-dose" in lower_prompt:
-        return "For apixaban in non-valvular atrial fibrillation, the standard dose is 5 mg twice daily. The dose is reduced to 2.5 mg twice daily if the patient has any 2 of the following: Age >= 80 years, Body weight <= 60 kg, or Serum creatinine >= 1.5 mg/dL. [E1]"
+        return (
+            "For apixaban in non-valvular atrial fibrillation, the standard dose is 5 mg twice daily. "
+            "The dose is reduced to 2.5 mg twice daily if the patient has any 2 of the following: "
+            "Age >= 80 years, Body weight <= 60 kg, or Serum creatinine >= 1.5 mg/dL. [E1]"
+        )
     if "age is 82" in lower_prompt or "what if" in lower_prompt or "82" in lower_prompt:
         return "Since the patient's age is 82 (which is >= 80 years), you only need one additional criteria (weight <= 60 kg or creatinine >= 1.5 mg/dL) to reduce the dose to 2.5 mg twice daily. Otherwise, the dose remains 5 mg twice daily. [E2]"  # noqa: E501
 
@@ -109,7 +113,8 @@ def build_stub_answer(prompt: str) -> str:
 
 def parse_prompt_evidence(prompt: str) -> list[tuple]:
     pattern = re.compile(
-        r"\[(E\d+)\] Document:.*?\n(?P<content>.*?)(?=\n\n\[E\d+\] Document:|\n\nAnswer using only the evidence\.|$)",
+        r"\[([EG]\d+)\] Document:.*?\n(?P<content>.*?)(?=\n\n\[[EG]\d+\] Document:"
+        r"|\n\nAnswer using only the evidence\.|$)",
         re.DOTALL,
     )
     return [(match.group(1), match.group("content").strip()) for match in pattern.finditer(prompt)]

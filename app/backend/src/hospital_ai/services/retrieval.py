@@ -56,6 +56,11 @@ class RetrievedChunk:
     metadata: dict[str, Any]
 
 
+def _scope_matches(scope: str, value: str) -> bool:
+    """Compare authorization values without granting substring access."""
+    return scope.strip().casefold() == value.strip().casefold()
+
+
 class RetrievalService:
     def __init__(self, session: AsyncSession) -> None:
         self.session = session
@@ -86,11 +91,13 @@ class RetrievalService:
             chunk_tags = set(c.metadata.get("access_tags", []))
 
             if chunk_tags:
-                if chunk_tags.intersection(allowed_scopes):
+                if any(_scope_matches(scope, tag) for scope in allowed_scopes for tag in chunk_tags):
                     allowed_chunks.append(c)
                 else:
                     self.blocked_chunk_count += 1
-            elif doc_type in allowed_scopes or "read" in allowed_scopes:
+            elif (
+                doc_type and any(_scope_matches(scope, doc_type) for scope in allowed_scopes)
+            ) or "read" in allowed_scopes:
                 allowed_chunks.append(c)
             else:
                 self.blocked_chunk_count += 1
@@ -254,6 +261,7 @@ class RetrievalService:
                 Document.status == "indexed",
                 DocumentChunk.deleted_at.is_(None),
                 Document.deleted_at.is_(None),
+                DocumentPage.deleted_at.is_(None),
             )
         )
 

@@ -324,6 +324,7 @@ class ChatService:
                             for ge in graph_evidence:
                                 ge.metadata["retrieval_method"] = "graph"
                             evidence.extend(graph_evidence)
+                            evidence = evidence[:top_k]
         except Exception:
             logger.warning("Graph RAG enrichment skipped", exc_info=True)
 
@@ -417,7 +418,7 @@ class ChatService:
         # the contract.
         allowed_evidence_ids = {item.evidence_id for item in evidence}
         answer_citation_ids = extract_citation_ids(reasoning_result.answer)
-        if answer_citation_ids and not answer_citation_ids.issubset(allowed_evidence_ids):
+        if not answer_citation_ids or not answer_citation_ids.issubset(allowed_evidence_ids):
             logger.warning(
                 "Answer rejected at service boundary: invalid_citation query_id=%s allowed=%s answer_cited=%s",
                 ai_query.id,

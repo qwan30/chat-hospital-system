@@ -80,7 +80,6 @@ async def test_graph_relation_scope_returns_exact_patient_chunk_set(session_and_
 
 
 @pytest.mark.asyncio
-@pytest.mark.xfail(strict=True, reason="P1: graph traversal admits graph rows from soft-deleted pages")
 async def test_graph_traversal_excludes_soft_deleted_page_sources(session_and_settings):
     session, _ = session_and_settings
     doc = await create_indexed_document(
@@ -100,7 +99,6 @@ async def test_graph_traversal_excludes_soft_deleted_page_sources(session_and_se
 
 
 @pytest.mark.asyncio
-@pytest.mark.xfail(strict=True, reason="P1: re-indexing appends duplicate graph entities and relations")
 async def test_graph_reindex_replaces_prior_rows_for_the_chunk(session_and_settings):
     session, _ = session_and_settings
     doc = await create_indexed_document(
@@ -125,7 +123,6 @@ async def test_graph_reindex_replaces_prior_rows_for_the_chunk(session_and_setti
 
 
 @pytest.mark.asyncio
-@pytest.mark.xfail(strict=True, reason="P1: graph evidence retrieval does not filter soft-deleted pages")
 async def test_graph_evidence_fetch_excludes_soft_deleted_page(session_and_settings):
     session, _ = session_and_settings
     doc = await create_indexed_document(
@@ -147,7 +144,6 @@ async def test_graph_evidence_fetch_excludes_soft_deleted_page(session_and_setti
 
 
 @pytest.mark.asyncio
-@pytest.mark.xfail(strict=True, reason="P1: ChatService accepts an answer with no evidence citation")
 async def test_chat_service_rejects_answer_without_citation(session_and_settings, monkeypatch):
     session, settings = session_and_settings
     doctor = await session.get(User, DOCTOR_ID)
@@ -181,7 +177,6 @@ async def test_chat_service_rejects_answer_without_citation(session_and_settings
 
 
 @pytest.mark.asyncio
-@pytest.mark.xfail(strict=True, reason="P1: graph enrichment can exceed caller top_k")
 async def test_graph_enrichment_respects_top_k(session_and_settings, monkeypatch):
     session, settings = session_and_settings
     doctor = await session.get(User, DOCTOR_ID)
@@ -237,7 +232,6 @@ async def test_graph_enrichment_respects_top_k(session_and_settings, monkeypatch
 
 
 @pytest.mark.asyncio
-@pytest.mark.xfail(strict=True, reason="P0: /chat/stream bypasses Graph RAG enrichment used by /chat")
 async def test_stream_and_nonstream_share_graph_only_evidence_contract(session_and_settings, monkeypatch):
     session, settings = session_and_settings
     doctor = await session.get(User, DOCTOR_ID)
@@ -285,6 +279,18 @@ async def test_stream_and_nonstream_share_graph_only_evidence_contract(session_a
         .all()
     )
     assert [row.retrieval_method for row in trace] == ["graph"]
+
+    class GraphOnlyLlm:
+        async def stream(self, _messages):
+            yield "Metformin treats diabetes [G1]."
+
+        def model_name(self):
+            return "graph-test"
+
+    monkeypatch.setattr(
+        "hospital_ai.api.routes.chat_stream.LLMManager",
+        lambda _settings: type("Manager", (), {"get": lambda self: GraphOnlyLlm()})(),
+    )
     stream = await chat_stream(
         payload=ChatRequest(patient_id=PATIENT_ALICE_ID, question="What does metformin treat?", top_k=1),
         request=_request(),
@@ -292,5 +298,11 @@ async def test_stream_and_nonstream_share_graph_only_evidence_contract(session_a
         current_user=doctor,
         settings=settings,
     )
-    token_text = "".join(event.get("content", "") for event in await _events(stream) if event.get("type") == "token")
+    events = await _events(stream)
+    token_text = "".join(event.get("content", "") for event in events if event.get("type") == "token")
     assert SAFE_NO_EVIDENCE_ANSWER not in token_text
+    citation_events = [event for event in events if event.get("type") == "citations"]
+    assert [citation["evidence_id"] for citation in citation_events[0]["data"]] == ["G1"]
+    done_events = [event for event in events if event.get("type") == "done"]
+    assert done_events[-1]["validation"] == "passed"
+    assert not [event for event in events if event.get("type") == "error"]

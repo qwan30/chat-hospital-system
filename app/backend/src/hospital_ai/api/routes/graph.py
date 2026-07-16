@@ -188,7 +188,7 @@ async def get_patient_graph(
                     )
                 )
         except Exception:
-            logger.warning("Graph reasoning path generation failed for patient %s", patient_id, exc_info=True)
+            logger.warning("Graph reasoning path generation failed (trace_id=%s)", trace_id, exc_info=True)
 
     # ── Deduplicate edges ─────────────────────────────────────────────
     seen_edge_keys: set[tuple[str, str, str]] = set()

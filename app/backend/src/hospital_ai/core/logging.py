@@ -1,47 +1,46 @@
+import datetime
 import json
 import logging
 import sys
-from typing import Any
 
 try:
-    from opentelemetry import trace
+    from datetime import UTC
 except ImportError:
-    trace = None
+    from datetime import timezone
+
+    UTC = timezone.utc  # noqa: UP017
 
 
 class OTelJsonFormatter(logging.Formatter):
     def format(self, record: logging.LogRecord) -> str:
-        log_data: dict[str, Any] = {
-            "timestamp": self.formatTime(record, self.datefmt),
+        message = record.getMessage()
+        log_data = {
             "level": record.levelname,
             "logger": record.name,
-            "message": record.getMessage(),
+            "message": message,
+            "timestamp": datetime.datetime.fromtimestamp(record.created, tz=UTC).isoformat(),
         }
-
-        if trace:
-            span_context = trace.get_current_span().get_span_context()
-            if span_context and span_context.is_valid:
-                log_data["trace_id"] = f"{span_context.trace_id:032x}"
-                log_data["span_id"] = f"{span_context.span_id:16x}"
 
         if record.exc_info:
             log_data["exception"] = self.formatException(record.exc_info)
 
+        try:
+            from opentelemetry import trace
+
+            current_span = trace.get_current_span()
+            if current_span and current_span.get_span_context().is_valid:
+                span_context = current_span.get_span_context()
+                log_data["trace_id"] = trace.format_trace_id(span_context.trace_id)
+                log_data["span_id"] = trace.format_span_id(span_context.span_id)
+        except ImportError:
+            pass
+
         return json.dumps(log_data)
 
 
-def configure_logging(level: str = "INFO", log_format: str = "text") -> None:
-    root_logger = logging.getLogger()
-    for handler in list(root_logger.handlers):
-        root_logger.removeHandler(handler)
-
-    handler = logging.StreamHandler(sys.stdout)
-    if log_format.lower() == "json":
-        formatter = OTelJsonFormatter()
-    else:
-        formatter = logging.Formatter("%(asctime)s %(levelname)s [%(name)s] %(message)s")
-
-    handler.setFormatter(formatter)
-    root_logger.addHandler(handler)
-    root_logger.setLevel(getattr(logging, level.upper(), logging.INFO))
-
+def configure_logging(level: str = "INFO") -> None:
+    logging.basicConfig(
+        level=getattr(logging, level.upper(), logging.INFO),
+        format="%(asctime)s %(levelname)s [%(name)s] %(message)s",
+        handlers=[logging.StreamHandler(sys.stdout)],
+    )

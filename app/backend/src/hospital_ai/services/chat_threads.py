@@ -1,7 +1,7 @@
 import json
 import uuid
 from collections.abc import Iterable
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Optional
 
 from sqlalchemy import or_, select
@@ -425,7 +425,7 @@ class ChatThreadService:
         if participant.access_level == "owner" or participant.user_id == thread.owner_user_id:
             raise ValidationAppError("Owner participant cannot be removed.")
 
-        participant.deleted_at = datetime.now(timezone.utc)
+        participant.deleted_at = datetime.now(UTC)
         await AuditService(self.session).record(
             actor_user_id=user.id,
             action="chat_thread.participant.remove",
@@ -496,7 +496,7 @@ class ChatThreadService:
             ip_address=ip_address,
         )
 
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         user_message = ChatMessage(
             thread_id=thread.id,
             sender_user_id=user.id,
@@ -521,7 +521,7 @@ class ChatThreadService:
             citations=[json.loads(citation.json()) for citation in response.citations],
             meta={"confidence": response.confidence, "disclaimer": response.disclaimer},
             trace_id=trace_id,
-            created_at=datetime.now(timezone.utc),
+            created_at=datetime.now(UTC),
         )
         thread.last_message_at = assistant_message.created_at
         self.session.add(user_message)
@@ -556,7 +556,7 @@ class ChatThreadService:
             question=payload.question,
             top_k=payload.top_k,
         )
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         user_message = ChatMessage(
             thread_id=thread.id,
             sender_user_id=user.id,
@@ -585,7 +585,7 @@ class ChatThreadService:
                 "source_scope": "general-hospital-knowledge",
             },
             trace_id=trace_id,
-            created_at=datetime.now(timezone.utc),
+            created_at=datetime.now(UTC),
         )
         thread.last_message_at = assistant_message.created_at
         self.session.add(user_message)

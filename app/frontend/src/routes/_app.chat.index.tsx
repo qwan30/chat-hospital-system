@@ -66,10 +66,10 @@ export const Route = createFileRoute("/_app/chat/")({
 });
 
 const suggestions = [
-  "What is the SBAR communication protocol for patient handoff?",
-  "Medication Administration Safety",
-  "Wound Care Protocol: assessment and dressing change",
-  "How should we assess fall risk in the daily care plan?",
+  "DAPT guideline duration for post-PCI patients",
+  "Sepsis 1-hour bundle requirements and lactate triggers",
+  "DOAC dosing adjustments for renal impairment",
+  "Initial assessment protocol for acute dyspnea",
 ];
 
 function GlobalChat() {
@@ -706,7 +706,7 @@ function GlobalChat() {
             <div className="mx-auto flex max-w-3xl flex-col items-center pt-10 text-center">
               <Logo size={56} />
               <h1 className="mt-5 text-3xl font-semibold tracking-tight">
-                How can I help you today?
+                General clinical chat
               </h1>
               <p className="mt-2 text-sm text-muted-foreground">
                 Cited answers from your hospital's indexed knowledge base. PHI-safe and

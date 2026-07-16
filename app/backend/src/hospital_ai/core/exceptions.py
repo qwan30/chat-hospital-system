@@ -182,9 +182,7 @@ class EntityNotFoundException(AppError):
         super().__init__(
             "ENTITY_NOT_FOUND",
             f"{entity_type} not found: {entity_id}",
-            entity_type=entity_type,
-            entity_id=entity_id,
-            **metadata,
+            {"entity_type": entity_type, "entity_id": entity_id, **metadata},
         )
 
 

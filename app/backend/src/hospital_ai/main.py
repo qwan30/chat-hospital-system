@@ -8,8 +8,15 @@ from slowapi.errors import RateLimitExceeded
 
 from hospital_ai.api.limiter import limiter
 from hospital_ai.api.router import api_router
+from hospital_ai.api.routes import metrics_endpoint
 from hospital_ai.core.config import Settings, get_settings
-from hospital_ai.core.errors import AppError
+from hospital_ai.core.errors import (
+    AppError,
+    ExternalServiceError,
+    NotFoundError,
+    PermissionDeniedError,
+    ValidationAppError,
+)
 from hospital_ai.core.exceptions import (
     AuthenticationException,
     CitationHallucinationException,
@@ -24,6 +31,7 @@ from hospital_ai.core.exceptions import (
     ValidationException,
 )
 from hospital_ai.core.logging import configure_logging
+from hospital_ai.core.telemetry import setup_metrics, setup_telemetry
 
 # ── Domain Exception → HTTP Status Code Mapping ─────────────────────
 # Keeps the domain layer framework-free — only the presentation layer
@@ -32,6 +40,7 @@ DOMAIN_EXCEPTION_STATUS_MAP: dict[type[AppError], int] = {
     # Security / Access Control
     MedicalDataAccessException: 403,
     PermissionDeniedException: 403,
+    PermissionDeniedError: 403,
     AuthenticationException: 401,
     # AI / RAG Quality
     CitationHallucinationException: 422,
@@ -42,9 +51,12 @@ DOMAIN_EXCEPTION_STATUS_MAP: dict[type[AppError], int] = {
     HMSIntegrationException: 502,
     LLMProviderException: 502,
     EmbeddingProviderException: 502,
+    ExternalServiceError: 502,
     # Data Integrity
     EntityNotFoundException: 404,
+    NotFoundError: 404,
     ValidationException: 400,
+    ValidationAppError: 422,
 }
 
 
@@ -71,33 +83,8 @@ def create_app(settings: Optional[Settings] = None) -> FastAPI:
     """
     active_settings = settings or get_settings()
     configure_logging(log_format=active_settings.log_format)
-
-    # Initialize OpenTelemetry if enabled
-    if active_settings.otel_enabled:
-        try:
-            from opentelemetry import trace
-            from opentelemetry.sdk.trace import TracerProvider
-            from opentelemetry.sdk.trace.export import BatchSpanProcessor
-            from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
-            from opentelemetry.sdk.resources import Resource
-
-            resource = Resource.create(attributes={"service.name": "hospital-ai-backend"})
-            provider = TracerProvider(resource=resource)
-            
-            endpoint = active_settings.otel_exporter_otlp_endpoint
-            if endpoint:
-                if not endpoint.endswith("/v1/traces"):
-                    endpoint = endpoint.rstrip("/") + "/v1/traces"
-                exporter = OTLPSpanExporter(endpoint=endpoint)
-            else:
-                exporter = OTLPSpanExporter()
-
-            processor = BatchSpanProcessor(exporter)
-            provider.add_span_processor(processor)
-            trace.set_tracer_provider(provider)
-        except Exception as e:
-            import logging
-            logging.getLogger(__name__).warning("Failed to initialize OpenTelemetry tracing: %s", e)
+    setup_metrics(active_settings)
+    setup_telemetry()
 
     app = FastAPI(
         title="Hospital AI Knowledge Assistant API",
@@ -134,6 +121,8 @@ def create_app(settings: Optional[Settings] = None) -> FastAPI:
             allow_headers=["*"],
         )
     app.include_router(api_router, prefix=active_settings.api_v1_prefix)
+    if active_settings.prometheus_enabled:
+        app.include_router(metrics_endpoint.router)
 
     @app.exception_handler(AppError)
     async def app_error_handler(_: Request, exc: AppError) -> JSONResponse:

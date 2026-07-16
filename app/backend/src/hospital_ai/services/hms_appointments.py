@@ -1,6 +1,6 @@
 import hashlib
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Optional
 
 from sqlalchemy import delete, select
@@ -181,5 +181,5 @@ def build_appointment_metadata(payload: HmsAppointmentSummaryImport) -> dict:
     if payload.source_updated_at:
         metadata["source_updated_at"] = payload.source_updated_at.isoformat()
     metadata.update(payload.metadata)
-    metadata["imported_at"] = datetime.now(timezone.utc).isoformat()
+    metadata["imported_at"] = datetime.now(UTC).isoformat()
     return metadata

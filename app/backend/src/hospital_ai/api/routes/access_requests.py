@@ -1,5 +1,5 @@
 import logging
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import Optional
 from uuid import UUID
 
@@ -224,13 +224,13 @@ async def review_access_request(
 
     req.status = payload.status
     req.reviewed_by_user_id = current_user.id
-    req.reviewed_at = datetime.now(timezone.utc)
+    req.reviewed_at = datetime.now(UTC)
     req.review_notes = payload.notes
 
     trace_id = new_trace_id()
 
     if payload.status == "approved":
-        expires_at = datetime.now(timezone.utc) + timedelta(hours=12)
+        expires_at = datetime.now(UTC) + timedelta(hours=12)
         permission = PatientPermission(
             user_id=req.user_id,
             patient_id=req.patient_id,

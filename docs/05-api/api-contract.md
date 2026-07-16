@@ -2,10 +2,10 @@
 
 > Project: AI Copilot for Hospital Management System (HMS)  
 > Project Code: HOSP-AI-001  
-> Version: 4.0  
+> Version: 4.1  
 > Status: In Sync  
 > Owner: API Lead / Data Lead  
-> Last Updated: 2026-06-14  
+> Last Updated: 2026-07-12  
 
 ---
 
@@ -17,7 +17,7 @@ The backend is a **FastAPI BFF (Backend-for-Frontend)** serving the TanStack Sta
 
 ---
 
-## 2. Route Map (14 route modules)
+## 2. Route Map (16 route modules + CDSS worker pipeline)
 
 All routes are mounted in `app/backend/src/hospital_ai/api/router.py`:
 
@@ -38,6 +38,8 @@ All routes are mounted in `app/backend/src/hospital_ai/api/router.py`:
 | `/search` | `routes/search.py` | Global entity search (rate limited 20/min) |
 | `/access-requests` | `routes/access_requests.py` | Patient access requests |
 | `/feedback` | `routes/feedback.py` | User feedback submission and metrics |
+| `/graph` | `routes/graph.py` | Knowledge graph queries |
+| `/medication-safety` | `routes/medication_safety.py` | Medication safety checks |
 
 ---
 
@@ -104,25 +106,37 @@ Create a new chat thread.
 }
 ```
 
-### `GET /api/v1/patients`
-List patients accessible to the current user, filtered by active `patient_permissions` scopes (read/summary/medication/upload/admin).
+### `GET /api/v1/chat-threads/{thread_id}/messages`
+Get messages for a chat thread.
+
+### `POST /api/v1/chat-threads/{thread_id}/messages`
+Add a message to a chat thread.
+
+### `GET /api/v1/chat-threads/{thread_id}/participants`
+Get thread participants.
+
+### `GET /api/v1/patients/search`
+Search patients accessible to the current user.
 
 ### `GET /api/v1/patients/{id}/overview`
 Merged EMR snapshot + AI summary with citations from HMS connector.
 
-### `GET /api/v1/patients/{id}/summary`
-AI-generated patient summary.
+### `GET /api/v1/patients/{id}/timeline`
+Get patient clinical timeline.
 
-### `GET /api/v1/patients/{id}/meds`
-Medication review with drug interaction checking via `DrugCheckService`.
-
-### `POST /api/v1/documents/upload`
+### `POST /api/v1/documents/`
 Upload a document for OCR processing. Returns document metadata with status.
 
 ### `GET /api/v1/documents`
 List documents accessible to the current user. Supports filtering by `patient_id` and `status`.
 
-### `POST /api/v1/documents/{id}/retry-ocr`
+### `GET /api/v1/documents/{document_id}/pages/{page_number}/image`
+Get document page image.
+
+### `POST /api/v1/documents/search`
+Search inside documents.
+
+### `POST /api/v1/documents/{document_id}/retry-index`
 Re-enqueue a failed document for OCR reprocessing via RQ worker queue.
 
 ### `GET /api/v1/dashboard/summary`
@@ -144,14 +158,35 @@ Command-palette global search across patients, documents, and chat threads. Resu
 ### `POST /api/v1/access-requests`
 Submit clinical justification to request patient access (break-glass scenario).
 
+### `GET /api/v1/access-requests/`
+List access requests.
+
+### `GET /api/v1/access-requests/{request_id}`
+Get access request details.
+
+### `PUT /api/v1/access-requests/{request_id}/review`
+Review an access request.
+
 ### `GET /api/v1/audit/logs`
 List audit events (security/admin role only). Supports filters: `patient_id`, `action`, `outcome`, `limit`.
 
 ### `POST /api/v1/hms/sync/patients/{id}`
 Trigger HMS data synchronization for a specific patient.
 
-### `GET /api/v1/hms/jobs/{job_id}`
-Check HMS sync job status and progress (records synced/skipped/failed).
+### `POST /api/v1/hms/sync/appointments`
+Trigger HMS appointments sync.
+
+### `POST /api/v1/hms/sync/lab-results`
+Trigger HMS lab results sync.
+
+### `POST /api/v1/hms/sync/medical-records`
+Trigger HMS medical records sync.
+
+### `POST /api/v1/hms/sync/full`
+Trigger HMS full sync.
+
+### `GET /api/v1/hms/health`
+HMS integration health check.
 
 ### `POST /api/v1/feedback/queries/{query_id}/feedback`
 Submit thumbs up (+1), neutral (0), or thumbs down (-1) on an AI response. One feedback per query.
@@ -161,7 +196,47 @@ Aggregated impact metrics: total queries, avg latency, helpful rate, cost/time s
 
 ---
 
-## 4. Standard Error Envelope
+## 5. CDSS Clinical Alerts (Autonomous Worker-Driven)
+
+> [!NOTE]
+> `ClinicalAlert` records are **not created via a REST endpoint**. They are generated autonomously by the backend CDSS worker (`hospital_ai/workers/cdss.py`) as part of the document processing pipeline.
+
+### How alerts are created
+
+1. A document is uploaded via `POST /api/v1/documents/` and the `process_document` RQ job is enqueued.
+2. Once OCR and indexing complete, the worker enqueues a `run_cdss_analysis(session, document_id)` job using `asyncio.to_thread` for non-blocking Redis dispatch.
+3. The CDSS worker loads the patient's Knowledge Graph context (`GraphEntity`, `GraphRelation`) from PostgreSQL.
+4. A medical risk analysis prompt is constructed and submitted to the local LLM.
+5. The LLM JSON response is parsed and one or more `ClinicalAlert` rows are written to the `clinical_alerts` table with severity (`low` / `medium` / `high`), a title, and a description.
+
+### Alert fields
+
+| Field | Type | Notes |
+|-------|------|-------|
+| `id` | UUID | Auto-generated PK |
+| `patient_id` | UUID | FK → patients |
+| `source_document_id` | UUID\|null | FK → documents; nullable |
+| `severity` | `low`\|`medium`\|`high` | LLM-assigned risk level |
+| `title` | string | Short alert headline |
+| `description` | string | Full clinical rationale |
+| `is_acknowledged` | boolean | Default `false`; set by clinician |
+| `created_at` / `updated_at` | timestamptz | Auto-managed |
+
+### Future work — planned endpoint
+
+```
+GET /api/v1/patients/{patient_id}/alerts
+```
+
+This endpoint is **not yet implemented**. When added it should:
+- Require an active `read` or higher permission scope for the target patient.
+- Support filtering by `severity` and `is_acknowledged`.
+- Return alerts ordered by `created_at DESC`.
+- Include the `source_document_id` field so the UI can link back to the triggering document.
+
+---
+
+## 6. Standard Error Envelope
 
 ```json
 {
@@ -182,3 +257,4 @@ Error codes defined in [error-codes.md](error-codes.md). The `AppError` base cla
 | 2.0 | 2026-06-07 | Agent | Restructured with BFF/HMS separation |
 | 3.0 | 2026-06-07 | Agent | Added HMS integration and BFF endpoints |
 | 4.0 | 2026-06-14 | Agent | Rewritten to match actual 14 route modules from `api/router.py` — added chat-threads, feedback, rag_trace, chat_stream; corrected endpoint paths |
+| 4.1 | 2026-07-12 | Agent | Added Section 5: CDSS Clinical Alerts — documents autonomous worker pipeline, alert fields, and future GET /patients/{id}/alerts endpoint |

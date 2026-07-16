@@ -4,7 +4,7 @@ export const Route = createFileRoute("/_app/chat/patients/$patientId")({
   beforeLoad: ({ params, search }) => {
     throw redirect({
       to: "/chat",
-      search: { ...search, patient: params.patientId },
+      search: { patient: params.patientId, ...(search as any) },
     });
   },
 });

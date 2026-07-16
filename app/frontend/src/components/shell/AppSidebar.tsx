@@ -62,7 +62,11 @@ const groups: {
     items: [
       { title: "Documents", url: "/documents", icon: FileText },
       { title: "Citations", url: "/citations/c-001", icon: Quote },
-      { title: "Graph RAG", url: "/graph/patients/p-001", icon: Network },
+      {
+        title: "Graph RAG",
+        url: "/graph/patients/11111111-1111-1111-1111-111111111111",
+        icon: Network,
+      },
     ],
   },
   {

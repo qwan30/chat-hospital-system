@@ -1,5 +1,5 @@
 import uuid
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime
 
 import pytest
 from pydantic import ValidationError
@@ -147,7 +147,7 @@ async def test_revoked_permission_blocks_hms_appointment_evidence_before_query(s
     await session.execute(
         update(PatientPermission)
         .where(PatientPermission.user_id == DOCTOR_ID, PatientPermission.patient_id == PATIENT_ALICE_ID)
-        .values(deleted_at=datetime.now(timezone.utc))
+        .values(deleted_at=datetime.now(UTC))
     )
     await session.commit()
 
@@ -182,7 +182,7 @@ async def test_deleted_hms_source_record_is_not_retrieved(session_and_settings):
     await session.execute(
         update(Document)
         .where(Document.id == imported.document_id)
-        .values(deleted_at=datetime.now(timezone.utc), status="archived")
+        .values(deleted_at=datetime.now(UTC), status="archived")
     )
     await session.commit()
     thread = await create_thread(

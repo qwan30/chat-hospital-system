@@ -379,10 +379,10 @@ async def generate():
             if created >= 100:
                 break
             num_docs = 1
-            if i < 50 and created + 2 <= 100:
-                num_docs = 2
-            elif i < 20 and created + 3 <= 100:
+            if i < 20 and created + 3 <= 100:
                 num_docs = 3
+            elif i < 50 and created + 2 <= 100:
+                num_docs = 2
 
             for _ in range(num_docs):
                 if created >= 100:

@@ -20,7 +20,7 @@ function SsoCallback() {
   useEffect(() => {
     const t = setInterval(() => setStep((s) => Math.min(s + 1, steps.length - 1)), 700);
     return () => clearInterval(t);
-  }, []);
+  }, [steps.length]);
   return (
     <AuthSplitLayout>
       <Card className="p-8">

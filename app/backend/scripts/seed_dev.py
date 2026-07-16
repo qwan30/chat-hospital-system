@@ -27,7 +27,7 @@ from hospital_ai.db.migrations import (
     PATIENT_ELEANOR_ID,
     seed_synthetic_data,
 )
-from hospital_ai.db.models import Document, DocumentChunk, DocumentPage, User, AccessRequest
+from hospital_ai.db.models import Document, DocumentChunk, DocumentPage, User, AccessRequest, ChatThread
 from hospital_ai.db.session import get_session_factory
 from hospital_ai.schemas.hms import HmsAppointmentSummaryImport
 from hospital_ai.services.graph_rag import GraphEntity, GraphRelation
@@ -218,7 +218,7 @@ async def main() -> None:
                 follow_up_summary="Lisinopril 10 mg daily continued. Check HbA1c at next visit.",
             ),
             trace_id=new_trace_id(),
-            ip_address="seed_dev",
+            ip_address="127.0.0.1",
         )
 
         await HmsAppointmentEvidenceImporter(session, settings).import_summary(
@@ -242,7 +242,7 @@ async def main() -> None:
                 ),
             ),
             trace_id=new_trace_id(),
-            ip_address="seed_dev",
+            ip_address="127.0.0.1",
         )
 
         await HmsAppointmentEvidenceImporter(session, settings).import_summary(
@@ -656,15 +656,26 @@ async def main() -> None:
                 created_at=datetime.now(timezone.utc) - timedelta(hours=1),
             ))
 
-        await session.commit()
+        from hospital_ai.db.migrations import DOCTOR_ID
+        from hospital_ai.db.models import ChatThread
 
-    print("OK  Seeded synthetic users, patients, permissions, HMS appointment evidence,")
-    print("    per-patient prescriptions, lab results, discharge summaries,")
-    print("    and graph entities + relations for all 3 patients.")
-    print()
-    print("    Alice Synthetic:  medications={Lisinopril, Metformin, Amlodipine}")
-    print("    Bob Synthetic:    medications={Aspirin, Atorvastatin, Carvedilol, Ramipril}")
-    print("    Eleanor Vance:    medications={Apixaban, Metoprolol, Furosemide}")
+        # Seed a DAPT conversation for E2E testing
+        thread = await session.execute(select(ChatThread).where(ChatThread.title == "DAPT Guideline Query"))
+        if thread.scalar_one_or_none() is None:
+            session.add(
+                ChatThread(
+                    title="DAPT Guideline Query",
+                    scope="general",
+                    visibility="private",
+                    status="active",
+                    owner_user_id=DOCTOR_ID,
+                    created_trace_id="seed_dev_trace",
+                    last_message_at=datetime.now(timezone.utc),
+                )
+            )
+            await session.commit()
+
+    print("Seeded synthetic users, patients, permissions, HMS appointment evidence, and ChatThreads.")
 
 
 if __name__ == "__main__":

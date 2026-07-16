@@ -5,8 +5,8 @@ This report uses synthetic/de-identified local data and deterministic providers.
 ## Summary
 
 - `total_cases`: 6
-- `passed_cases`: 6
-- `pass_rate`: 1.0
+- `passed_cases`: 5
+- `pass_rate`: 0.833
 - `citation_validity_rate`: 1.0
 - `safe_refusal_rate`: 1.0
 - `unauthorized_chunks_to_llm`: 0
@@ -43,8 +43,8 @@ This report uses synthetic/de-identified local data and deterministic providers.
 - Observed: Based on the authorized evidence, Ward transfer requests should include receiving unit confirmation, attending approval, current observation needs, isolation precautions, and the latest medication administration status [E1].
 - Metadata: `{"citations": ["Approved ward transfer policy"]}`
 
-### graph_relation_scope - PASS
+### graph_relation_scope - FAIL
 
 - Expected: Graph relation lookup returns only patient-scoped chunk context.
-- Observed: 1 related chunk(s)
-- Metadata: `{"entities": ["metformin", "diabetes", "insulin"]}`
+- Observed: 0 related chunk(s)
+- Metadata: `{"entities": []}`

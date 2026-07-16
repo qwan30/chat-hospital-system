@@ -15,6 +15,7 @@ class Settings(BaseSettings):
     dev_auto_grant_access: bool = False
     enable_break_glass: bool = False
     demo_mode: bool = True
+    disable_guardrails: bool = False
 
     otel_enabled: bool = False
     otel_exporter_otlp_endpoint: str = "http://localhost:4318"
@@ -36,7 +37,7 @@ class Settings(BaseSettings):
         "dev-frontdesk:frontdesk@example.test"
     )
 
-    embedding_provider: str = "deterministic"
+    embedding_provider: str = "ollama"
     chat_provider: str = "stub"
     ollama_base_url: str = "http://localhost:11434"
     embedding_model: str = "bge-m3"
@@ -64,6 +65,7 @@ class Settings(BaseSettings):
         "Cite every factual claim using evidence IDs like [E1]."
     )
     streaming_enabled: bool = True
+    prometheus_enabled: bool = True
 
     # Reranker settings
     reranker_provider: str = "keyword"  # keyword | cross_encoder | tei | cohere
@@ -76,6 +78,8 @@ class Settings(BaseSettings):
     retrieval_mode: str = "vector"  # vector | bm25 | hybrid
     bm25_weight: float = 0.4
     vector_weight: float = 0.6
+    enable_hyde: bool = False
+    ab_test_retrieval: bool = False
 
     # HMS integration
     hms_base_url: str = "http://localhost:8080/api/v1"

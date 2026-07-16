@@ -2,10 +2,10 @@
 
 > Project: AI-Powered Hospital Knowledge Assistant  
 > Project Code: HOSP-AI-001  
-> Version: 2.0  
+> Version: 2.1  
 > Status: Draft  
 > Owner: Product Owner / Business Analyst  
-> Last Updated: 2026-06-07  
+> Last Updated: 2026-07-12  
 
 ---
 
@@ -21,6 +21,7 @@
 | BR-AUD-001 | All patient-related queries create audit events. | Audit event must capture actor ID, timestamp, patient ID, query type, and request IP. |
 | BR-MET-001 | AI workflows create metric events. | Performance and time-saved tracking events must be recorded (de-identified). |
 | BR-OCR-001 | OCR text must link to original document/page. | Store document references per text block during ingestion. |
+| BR-CDSS-001 | The system shall automatically analyze newly uploaded clinical documents for patient risk and generate clinical alerts when risk factors are detected. | After successful document ingestion and graph indexing, an autonomous CDSS worker must run LLM-based risk analysis using the patient's Knowledge Graph context and persist any resulting `ClinicalAlert` records (severity: low / medium / high) to the database without requiring manual clinician initiation. |
 
 ---
 
@@ -29,3 +30,4 @@
 |---|---|---|---|
 | 1.0 | 2026-04-27 | Product Owner | Initial business rules draft |
 | 2.0 | 2026-06-07 | Agent | Restructured and separated from requirements pack |
+| 2.1 | 2026-07-12 | Agent | Added BR-CDSS-001 for Autonomous CDSS Agent monitoring rule |

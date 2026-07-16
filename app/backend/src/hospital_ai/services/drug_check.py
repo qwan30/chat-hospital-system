@@ -18,7 +18,7 @@ from hospital_ai.db.models import Document
 from hospital_ai.services.graph_rag import (
     GraphEntity,
     GraphRelation,
-    extract_entities,
+    extract_entities_and_relations_nlp,
 )
 
 
@@ -94,7 +94,7 @@ class DrugCheckService:
         if not patient_id:
             return []
 
-        entities = extract_entities(query_text)
+        entities, _ = await extract_entities_and_relations_nlp(query_text)
         drug_names = [e.name for e in entities if e.entity_type == "drug"]
 
         if not drug_names:

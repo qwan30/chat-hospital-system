@@ -1,3 +1,5 @@
+from datetime import UTC
+
 import pytest
 from sqlalchemy import select
 
@@ -119,7 +121,7 @@ async def test_admin_can_access_phi_with_permission(session_and_settings):
 
 @pytest.mark.asyncio
 async def test_expired_permission_is_logged(session_and_settings):
-    from datetime import datetime, timedelta, timezone
+    from datetime import datetime, timedelta
 
     from hospital_ai.db.models import PatientPermission
 
@@ -132,7 +134,7 @@ async def test_expired_permission_is_logged(session_and_settings):
         patient_id=PATIENT_BOB_ID,
         scope="read",
         source="manual",
-        expires_at=datetime.now(timezone.utc) - timedelta(hours=1),
+        expires_at=datetime.now(UTC) - timedelta(hours=1),
     )
     session.add(expired_perm)
     await session.commit()

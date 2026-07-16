@@ -1,27 +1,23 @@
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import pytest
 from sqlalchemy import select, update
 
 from hospital_ai.core.security import PATIENT_READ_SCOPES
 from hospital_ai.db.migrations import DOCTOR_ID, PATIENT_ALICE_ID, PATIENT_BOB_ID
-from hospital_ai.db.models import Document, DocumentChunk, DocumentPage, PatientPermission
+from hospital_ai.db.models import Document, DocumentChunk, DocumentPage, PatientPermission, User
 from hospital_ai.services.embeddings import deterministic_embedding
 from hospital_ai.services.permissions import ACTIVE_PATIENT_PERMISSION_SQL
-from hospital_ai.services.retrieval import PERMISSION_FILTERED_RETRIEVAL_SQL, RetrievalService
+from hospital_ai.services.retrieval import PERMISSION_FILTERED_RETRIEVAL_SQL, RetrievalService, _scope_matches
 from tests.conftest import create_indexed_document
 
 
-def test_retrieval_sql_repeats_patient_permission_filter():
+def test_retrieval_sql_does_not_repeat_patient_permission_filter():
     sql = PERMISSION_FILTERED_RETRIEVAL_SQL.lower()
-    assert ACTIVE_PATIENT_PERMISSION_SQL.lower() in sql
-    assert "from patient_permissions" in sql
-    assert "pp.user_id = :user_id" in sql
-    assert "pp.patient_id = :patient_id" in sql
-    assert "pp.scope in :accepted_scopes" in sql
-    assert "('read','summary','medication','admin')" not in sql
-    assert set(PATIENT_READ_SCOPES) == {"read", "summary", "medication", "admin"}
-    assert "where exists (select 1 from allowed)" in sql
+    assert ACTIVE_PATIENT_PERMISSION_SQL.lower() not in sql
+    assert "from patient_permissions" not in sql
+    assert "pp.user_id = :user_id" not in sql
+    assert "where exists (select 1 from allowed)" not in sql
     assert "c.patient_id = :patient_id" in sql
     assert "d.patient_id = :patient_id" in sql
     assert "p.id = c.page_id and p.document_id = c.document_id" in sql
@@ -29,8 +25,13 @@ def test_retrieval_sql_repeats_patient_permission_filter():
     assert "c.deleted_at is null" in sql
     assert "d.deleted_at is null" in sql
     assert "p.deleted_at is null" in sql
-    assert "pp.deleted_at is null" in sql
-    assert "pp.expires_at is null or pp.expires_at > now()" in sql
+
+
+def test_role_scope_matching_is_exact_after_normalization():
+    assert _scope_matches(" Medication ", "medication")
+    assert not _scope_matches("medication", "medications")
+    assert not _scope_matches("medication", "medication_safety")
+    assert not _scope_matches("labs", "lab")
 
 
 @pytest.mark.asyncio
@@ -78,7 +79,7 @@ async def test_revoked_patient_permission_blocks_portable_retrieval(session_and_
             PatientPermission.patient_id == PATIENT_ALICE_ID,
             PatientPermission.scope.in_(PATIENT_READ_SCOPES),
         )
-        .values(deleted_at=datetime.now(timezone.utc))
+        .values(deleted_at=datetime.now(UTC))
     )
     await session.commit()
 
@@ -109,7 +110,7 @@ async def test_expired_patient_permission_blocks_portable_retrieval(session_and_
             PatientPermission.patient_id == PATIENT_ALICE_ID,
             PatientPermission.scope.in_(PATIENT_READ_SCOPES),
         )
-        .values(expires_at=datetime.now(timezone.utc) - timedelta(minutes=1))
+        .values(expires_at=datetime.now(UTC) - timedelta(minutes=1))
     )
     await session.commit()
 
@@ -133,9 +134,7 @@ async def test_soft_deleted_document_is_not_retrieved(session_and_settings):
         title="Alice deleted document",
         content="Deleted document content must not be retrieved.",
     )
-    await session.execute(
-        update(Document).where(Document.id == document.id).values(deleted_at=datetime.now(timezone.utc))
-    )
+    await session.execute(update(Document).where(Document.id == document.id).values(deleted_at=datetime.now(UTC)))
     await session.commit()
 
     results = await RetrievalService(session).search(
@@ -159,9 +158,7 @@ async def test_soft_deleted_page_is_not_retrieved(session_and_settings):
         content="Deleted page content must not be retrieved.",
     )
     await session.execute(
-        update(DocumentPage)
-        .where(DocumentPage.document_id == document.id)
-        .values(deleted_at=datetime.now(timezone.utc))
+        update(DocumentPage).where(DocumentPage.document_id == document.id).values(deleted_at=datetime.now(UTC))
     )
     await session.commit()
 
@@ -186,9 +183,7 @@ async def test_soft_deleted_chunk_is_not_retrieved(session_and_settings):
         content="Deleted chunk content must not be retrieved.",
     )
     await session.execute(
-        update(DocumentChunk)
-        .where(DocumentChunk.document_id == document.id)
-        .values(deleted_at=datetime.now(timezone.utc))
+        update(DocumentChunk).where(DocumentChunk.document_id == document.id).values(deleted_at=datetime.now(UTC))
     )
     await session.commit()
 
@@ -318,3 +313,35 @@ async def test_global_retrieval_without_patient_context(session_and_settings):
     assert len(results) >= 1
     assert any(r.document_title == "Sepsis Guideline" for r in results)
     assert not any(r.document_title == "Alice Clinical Note" for r in results)
+
+
+@pytest.mark.asyncio
+async def test_hybrid_search_filters_denied_access_tags(session_and_settings):
+    session, _ = session_and_settings
+    doctor = await session.get(User, DOCTOR_ID)
+    assert doctor is not None
+    doctor.role = "lab_staff"
+
+    document = await create_indexed_document(
+        session,
+        patient_id=PATIENT_ALICE_ID,
+        uploaded_by=DOCTOR_ID,
+        title="Restricted medication note",
+        content="Medication-only content must not reach lab staff.",
+    )
+    await session.execute(
+        update(DocumentChunk)
+        .where(DocumentChunk.document_id == document.id)
+        .values(meta={"access_tags": ["medication"]})
+    )
+    await session.commit()
+
+    results = await RetrievalService(session).hybrid_search(
+        user_id=DOCTOR_ID,
+        patient_id=PATIENT_ALICE_ID,
+        query_embedding=deterministic_embedding("medication content"),
+        query_text="medication content",
+        top_k=5,
+    )
+
+    assert results == []

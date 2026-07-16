@@ -1,12 +1,12 @@
 # Software Requirements Specification (SRS)
 
 > Project: HOSP-AI-001 — AI Hospital Knowledge Assistant  
-> Version: 1.0 · Owner: Product Owner / Tech Lead · Last Updated: 2026-06-14  
+> Version: 1.1 · Owner: Product Owner / Tech Lead · Last Updated: 2026-07-12  
 
 ## 1. Introduction
 This SRS consolidates all functional and non-functional requirements. For details, see `functional-requirements.md`, `non-functional-requirements.md`, `use-cases.md`.
 
-## 2. Functional Requirements (24)
+## 2. Functional Requirements (25)
 
 | ID | Requirement | Priority | BR | UC | API |
 |----|------------|----------|----|----|-----|
@@ -34,6 +34,7 @@ This SRS consolidates all functional and non-functional requirements. For detail
 | FR-022 | OCR retry flow | Should | BR-003 | UC-003 | `POST /documents/{id}/retry-ocr` |
 | FR-023 | RAG trace observability | Should | — | — | `GET /chat/queries/{id}/trace` |
 | FR-024 | Chat thread CRUD + participants | Should | — | — | `/chat-threads` CRUD |
+| FR-025 | Autonomous CDSS clinical alert generation | Must | BR-CDSS-001 | — | (internal worker) |
 
 ## 3. Non-Functional Requirements (22)
 
@@ -81,8 +82,10 @@ This SRS consolidates all functional and non-functional requirements. For detail
 | FR-019 | BR-004 | — | `POST /access-requests` | TC-023 |
 | FR-021 | — | — | `GET /search/global` | TC-025 |
 | FR-022 | BR-003 | UC-003 | `POST /documents/{id}/retry-ocr` | TC-024 |
+| FR-025 | BR-CDSS-001 | — | (internal CDSS worker) | cdss-flow.spec.ts |
 
 ## Change Log
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
 | 1.0 | 2026-06-14 | Agent | Consolidated 24 FRs + 22 NFRs with traceability matrix |
+| 1.1 | 2026-07-12 | Agent | Added FR-025 Autonomous CDSS Agent; updated FR count to 25; added traceability row |

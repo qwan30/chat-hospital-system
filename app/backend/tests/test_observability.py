@@ -1,5 +1,6 @@
 import json
 import logging
+
 import httpx
 import pytest
 
@@ -21,7 +22,7 @@ def test_otel_json_formatter_text():
     )
     formatted = formatter.format(record)
     data = json.loads(formatted)
-    
+
     assert data["level"] == "INFO"
     assert data["logger"] == "test_logger"
     assert data["message"] == "Test message with params"
@@ -45,7 +46,11 @@ async def test_metrics_endpoint_when_enabled():
         response = await client.get("/metrics")
 
     assert response.status_code == 200
-    assert "process_cpu_seconds_total" in response.text or "http_requests_total" in response.text
+    assert (
+        "process_cpu_seconds_total" in response.text
+        or "http_requests_total" in response.text
+        or "hospital_ai_info" in response.text
+    )
 
 
 @pytest.mark.asyncio

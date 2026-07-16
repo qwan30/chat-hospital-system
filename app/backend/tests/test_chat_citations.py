@@ -5,14 +5,22 @@ from hospital_ai.core.errors import PermissionDeniedError
 from hospital_ai.db.migrations import DOCTOR_ID, PATIENT_ALICE_ID, PATIENT_BOB_ID
 from hospital_ai.db.models import AiQuery, DocumentChunk, User
 from hospital_ai.services.chat import ChatService, citations_are_valid
+from hospital_ai.services.chat_utils import parse_prompt_evidence
 from hospital_ai.services.graph_rag import index_chunk_entities
 from tests.conftest import create_indexed_document
 
 
 def test_citation_validation_rejects_unretrieved_ids():
     assert citations_are_valid("Use insulin [E1].", {"E1", "E2"})
+    assert citations_are_valid("Metformin treats diabetes [G1].", {"G1"})
     assert not citations_are_valid("Use insulin [E3].", {"E1", "E2"})
     assert not citations_are_valid("Use insulin.", {"E1"})
+
+
+def test_prompt_parser_preserves_graph_evidence_labels():
+    prompt = "[G1] Document: Graph note (page 1)\nMetformin treats diabetes.\n\nAnswer using only the evidence."
+
+    assert parse_prompt_evidence(prompt) == [("G1", "Metformin treats diabetes.")]
 
 
 @pytest.mark.asyncio
@@ -142,7 +150,7 @@ async def test_chat_chitchat_bypass_rag(session_and_settings):
 async def test_chat_permission_denied_natural_refusal(session_and_settings):
     session, settings = session_and_settings
     doctor = await session.get(User, DOCTOR_ID)
-    
+
     # Temporarily change doctor's role to pharmacist and can_access_full_notes to False
     doctor.role = "pharmacist"
     await session.commit()
@@ -172,4 +180,3 @@ async def test_chat_permission_denied_natural_refusal(session_and_settings):
 
     assert "Bạn không có quyền xem thông tin này" in response.answer
     assert response.citations == []
-

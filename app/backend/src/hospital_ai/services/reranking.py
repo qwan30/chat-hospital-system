@@ -146,7 +146,7 @@ class CrossEncoderReranker(BaseReranker):
         # Normalize scores to [0, 1] range using sigmoid if needed
         normalized = _normalize_scores([float(s) for s in scores])
 
-        scored = list(zip(normalized, chunks))
+        scored = list(zip(normalized, chunks))  # noqa: B905
         scored.sort(key=lambda item: item[0], reverse=True)
 
         return [
@@ -201,9 +201,7 @@ class TeiReranker(BaseReranker):
 
             try:
                 response = httpx.post(
-                    f"{self.endpoint_url}/rerank",
-                    json={"query": query, "texts": batch_texts},
-                    timeout=30.0,
+                    f"{self.endpoint_url}/rerank", json={"query": query, "texts": batch_texts}, timeout=30.0
                 )
                 response.raise_for_status()
                 results = response.json()
@@ -248,11 +246,7 @@ class CohereReranker(BaseReranker):
     Requires a Cohere API key. Uses the rerank-v4.0-fast model by default.
     """
 
-    def __init__(
-        self,
-        api_key: str,
-        model_name: str = "rerank-v4.0-fast",
-    ) -> None:
+    def __init__(self, api_key: str, model_name: str = "rerank-v4.0-fast") -> None:
         self.api_key = api_key
         self.model_name = model_name
 
@@ -273,12 +267,7 @@ class CohereReranker(BaseReranker):
         try:
             client = cohere.Client(self.api_key)
             docs = [chunk.content for chunk in chunks]
-            response = client.rerank(
-                model=self.model_name,
-                query=query,
-                documents=docs,
-                top_n=top_k,
-            )
+            response = client.rerank(model=self.model_name, query=query, documents=docs, top_n=top_k)
 
             result = []
             for item in response.results:
@@ -347,13 +336,9 @@ class RerankerService:
             backend = CrossEncoderReranker(model_name=self.settings.reranker_model)
             _reranker_cache[provider] = backend
         elif provider == "tei":
-            backend = TeiReranker(
-                endpoint_url=self.settings.reranker_tei_url,
-            )
+            backend = TeiReranker(endpoint_url=self.settings.reranker_tei_url)
         elif provider == "cohere":
-            backend = CohereReranker(
-                api_key=self.settings.cohere_api_key,
-            )
+            backend = CohereReranker(api_key=self.settings.cohere_api_key)
         else:
             # Default to keyword reranker
             backend = KeywordReranker()

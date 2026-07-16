@@ -11,7 +11,7 @@ import type { Role } from "@/lib/rbac";
 import { mockUsers, type MockUser } from "@/data/mockUsers";
 import { getWorkspace, type Workspace } from "@/data/workspaces";
 import { useAuth } from "@/lib/auth-context";
-import { persistToken, clearToken } from "@/lib/api-client";
+import { persistToken } from "@/lib/api-client";
 
 const STORAGE_KEY = "hms.session";
 
@@ -49,31 +49,25 @@ function buildSession(
       : user.defaultWorkspaceId;
   const workspace = getWorkspace(wsId)!;
 
-  let assignedToken = token;
-  if (!isRealAuth && !assignedToken) {
-    if (role === "admin") assignedToken = "dev-admin";
-    else if (role === "pharmacist") assignedToken = "dev-pharmacist";
-    else if (role === "rn") assignedToken = "dev-nurse";
-    else if (role === "front_desk") assignedToken = "dev-frontdesk";
-    else if (role === "security") assignedToken = "dev-security";
-    else assignedToken = "dev-doctor";
+  if (!isRealAuth && !token) {
+    const roleTokens: Record<string, string> = {
+      cardiologist: "dev-doctor",
+      hospitalist: "dev-doctor",
+      rn: "dev-nurse",
+      pharmacist: "dev-pharmacist",
+      front_desk: "dev-records",
+      admin: "dev-admin",
+    };
+    token = roleTokens[role] || "dev-doctor";
   }
 
-  return { user, role, workspace, isRealAuth, token: assignedToken };
+  return { user, role, workspace, isRealAuth, token };
 }
 
 export function SessionProvider({ children }: { children: ReactNode }) {
   const { authUser, token, hydrated: authHydrated } = useAuth();
   const [session, setSession] = useState<Session | null>(null);
   const [hydrated, setHydrated] = useState(false);
-
-  useEffect(() => {
-    if (session?.token) {
-      persistToken(session.token);
-    } else {
-      clearToken();
-    }
-  }, [session]);
 
   // Sync with AuthProvider: if JWT user exists, map role to our Role type.
   // Otherwise fall back to localStorage mock session.
@@ -83,17 +77,25 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     if (authUser && token) {
       const role = mapBackendRole(authUser.role);
       const s = buildSession(role, undefined, true, token);
-      persistToken(s.token!);
+      persistToken(token);
       setSession(s);
     } else {
       try {
         const raw = localStorage.getItem(STORAGE_KEY);
         if (raw) {
-          const parsed = JSON.parse(raw) as { role: Role; workspaceId: string };
-          if (parsed?.role && mockUsers[parsed.role]) {
-            const s = buildSession(parsed.role, parsed.workspaceId);
-            if (s.token) persistToken(s.token);
-            setSession(s);
+          const parsed = JSON.parse(raw) as Session;
+          if (parsed && parsed.role) {
+            // Re-hydrate full session object with latest mock data + token fallback
+            const hydratedSession = buildSession(
+              parsed.role,
+              parsed.workspace?.id,
+              parsed.isRealAuth,
+              parsed.token,
+            );
+            setSession(hydratedSession);
+            if (hydratedSession.token) {
+              persistToken(hydratedSession.token);
+            }
           }
         }
       } catch {
@@ -108,7 +110,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     if (s) {
       localStorage.setItem(
         STORAGE_KEY,
-        JSON.stringify({ role: s.role, workspaceId: s.workspace.id }),
+        JSON.stringify({ role: s.role, workspaceId: s.workspace.id, token: s.token }),
       );
     } else {
       localStorage.removeItem(STORAGE_KEY);
@@ -117,6 +119,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
 
   const signIn = useCallback((role: Role, workspaceId?: string) => {
     const s = buildSession(role, workspaceId);
+    if (s.token) persistToken(s.token);
     setSession(s);
     persist(s);
   }, []);
@@ -128,6 +131,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
 
   const switchRole = useCallback((role: Role) => {
     const s = buildSession(role);
+    if (s.token) persistToken(s.token);
     setSession(s);
     persist(s);
   }, []);
@@ -162,6 +166,5 @@ function mapBackendRole(backendRole: string): Role {
   if (lower.includes("nurse") || lower === "rn") return "rn";
   if (lower.includes("hospital")) return "hospitalist";
   if (lower.includes("front") || lower.includes("desk")) return "front_desk";
-  if (lower.includes("security") || lower.includes("compliance")) return "security";
   return "cardiologist";
 }

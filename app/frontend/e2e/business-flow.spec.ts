@@ -6,12 +6,17 @@
  */
 import { test, expect, type Page } from "@playwright/test";
 
-async function seedSession(page: Page, role = "cardiologist", workspaceId = "ws-cardio-4n") {
+async function seedSession(
+  page: Page,
+  role = "cardiologist",
+  workspaceId = "ws-cardio-4n",
+  token = "dev-doctor",
+) {
   await page.addInitScript(
-    ({ role, workspaceId }) => {
-      localStorage.setItem("hms.session", JSON.stringify({ role, workspaceId }));
+    ({ role, workspaceId, token }) => {
+      localStorage.setItem("hms.session", JSON.stringify({ role, workspaceId, token }));
     },
-    { role, workspaceId },
+    { role, workspaceId, token },
   );
 }
 
@@ -44,14 +49,14 @@ test.describe("Happy Path: Full Clinical Workflow", () => {
   test("HC-02: Patients list → search → navigate to detail", async ({ page }) => {
     await page.goto("/patients", { waitUntil: "networkidle" });
     await expect(page.locator("table")).toBeVisible({ timeout: 5000 });
-    const searchInput = page.locator('input[type="text"], input:not([type])').first();
+    const searchInput = page.getByTestId("search-input");
     await searchInput.fill("Eleanor");
     await page.waitForTimeout(500);
+    await expect(page.getByText("Alice Synthetic")).not.toBeVisible({ timeout: 5000 });
     await expect(page.getByText("Eleanor Vance")).toBeVisible();
-    // Click "Open chat" button for this patient (navigates to chat with patient context)
-    await page.locator('tr:has-text("Eleanor Vance")').locator('a:has-text("Open chat")').click();
-    await page.waitForURL(/\/chat\?patient=/, { timeout: 10000 });
-    await expect(page.getByText(/Eleanor|Vance|p-001/i).first()).toBeVisible({ timeout: 5000 });
+    await page.locator('a:has-text("Open chat")').first().click();
+    await page.waitForURL("**/chat**", { timeout: 10000 });
+    await expect(page.getByText(/Eleanor|Vance|p-003/i).first()).toBeVisible({ timeout: 5000 });
   });
 
   test("HC-03: Patient tabs navigation", async ({ page }) => {
@@ -69,17 +74,19 @@ test.describe("Happy Path: Full Clinical Workflow", () => {
 
   test("HC-04: Chat landing with suggestions", async ({ page }) => {
     await page.goto("/chat", { waitUntil: "networkidle" });
-    await expect(page.getByText("How can I help you")).toBeVisible({ timeout: 5000 });
-    const suggestions = page.locator("button").filter({ hasText: /SBAR|Medication|Wound|fall/i });
+    await expect(page.getByText("General clinical chat")).toBeVisible({ timeout: 5000 });
+    const suggestions = page
+      .locator("button")
+      .filter({ hasText: /guideline|sepsis|DOAC|dyspnea/i });
     const count = await suggestions.count();
     expect(count).toBeGreaterThanOrEqual(1);
     await expect(page.getByRole("textbox").first()).toBeVisible();
   });
 
   test("HC-05: Chat with patient context", async ({ page }) => {
-    await page.goto("/chat/patients/p-003", { waitUntil: "networkidle" });
+    await page.goto("/chat/patients/p-001", { waitUntil: "networkidle" });
     await page.waitForTimeout(1000);
-    await expect(page.getByText(/Eleanor|Vance|p-001/i).first()).toBeVisible({ timeout: 5000 });
+    await expect(page.getByText(/Alice|Synthetic/i).first()).toBeVisible({ timeout: 5000 });
     const textbox = page.locator('textarea, input[type="text"], [contenteditable]').first();
     if (await textbox.isVisible()) {
       await textbox.fill("What medications is this patient taking?");

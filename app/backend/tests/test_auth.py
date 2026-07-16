@@ -196,7 +196,7 @@ async def test_get_current_user_jwt_fallback_to_static(session_and_settings):
         await get_current_user(credentials=credentials, session=session, settings=settings)
 
     assert exc_info.value.status_code == status.HTTP_401_UNAUTHORIZED
-    assert "Unknown bearer token" in exc_info.value.detail
+    assert "User validated via JWT but no active local account found." in exc_info.value.detail
 
 
 # ---------------------------------------------------------------------------

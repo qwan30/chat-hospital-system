@@ -32,11 +32,13 @@ function Page() {
     mutationFn: () => searchDocuments({ patient_id: patientId, query: q, top_k: 5 }),
   });
 
+  const { mutate } = searchMutation;
+
   useEffect(() => {
     if (searchParams.q) {
-      searchMutation.mutate();
+      mutate();
     }
-  }, [searchParams.q, searchParams.patientId]);
+  }, [searchParams.q, searchParams.patientId, mutate]);
 
   return (
     <AppShell>

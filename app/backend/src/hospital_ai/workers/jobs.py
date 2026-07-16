@@ -15,11 +15,7 @@ from hospital_ai.services.embeddings import EmbeddingService
 from hospital_ai.services.ocr import OcrService
 
 
-async def process_document(
-    session: AsyncSession,
-    document_id: uuid.UUID,
-    settings: Settings,
-) -> None:
+async def process_document(session: AsyncSession, document_id: uuid.UUID, settings: Settings) -> None:
     document = await session.get(Document, document_id)
     if document is None:
         return
@@ -36,23 +32,30 @@ async def process_document(
     await session.commit()
 
     try:
-        from hospital_ai.services.storage import LocalStorageService
+        if document.storage_uri.startswith("local://") or document.storage_uri.startswith("hms://"):
+            result = await session.execute(
+                select(DocumentPage).where(DocumentPage.document_id == document.id).order_by(DocumentPage.page_number)
+            )
+            db_pages = result.scalars().all()
+            if not db_pages:
+                raise RuntimeError(f"Virtual document has no existing pages to re-index. URI: {document.storage_uri}")
 
-        pages = OcrService().extract_pages(
-            storage_uri=document.storage_uri,
-            mime_type=document.mime_type,
-            patient_id=str(document.patient_id),
-            document_id=str(document.id),
-            storage_service=LocalStorageService(settings),
-        )
+            from hospital_ai.services.ocr import OcrPage
+
+            pages = [OcrPage(page_number=p.page_number, text=p.ocr_text, confidence=p.ocr_confidence) for p in db_pages]
+        else:
+            from hospital_ai.services.storage import LocalStorageService
+
+            pages = OcrService().extract_pages(
+                storage_uri=document.storage_uri,
+                mime_type=document.mime_type,
+                patient_id=str(document.patient_id),
+                document_id=str(document.id),
+                storage_service=LocalStorageService(settings),
+            )
     except Exception as exc:
         await _mark_failed_if_current(
-            session,
-            document_id,
-            start_generation,
-            preserve_existing_index,
-            "ocr_failed",
-            str(exc),
+            session, document_id, start_generation, preserve_existing_index, "ocr_failed", str(exc)
         )
         return
 
@@ -63,12 +66,7 @@ async def process_document(
             raise RuntimeError(f"Embedding count mismatch: expected {len(chunks)}, received {len(embeddings)}.")
     except Exception as exc:
         await _mark_failed_if_current(
-            session,
-            document_id,
-            start_generation,
-            preserve_existing_index,
-            "index_failed",
-            str(exc),
+            session, document_id, start_generation, preserve_existing_index, "index_failed", str(exc)
         )
         return
 
@@ -96,7 +94,7 @@ async def process_document(
         document.page_count = len(page_rows)
         await session.flush()
 
-        for chunk, embedding in zip(chunks, embeddings):
+        for chunk, embedding in zip(chunks, embeddings):  # noqa: B905
             page_row = page_rows[chunk.page_number]
             session.add(
                 DocumentChunk(
@@ -128,22 +126,23 @@ async def process_document(
         document.index_generation = start_generation + 1
         document.indexed_source_sha256 = source_sha256
         await session.commit()
+
+        # Enqueue CDSS analysis
+        try:
+            from hospital_ai.workers.queue import enqueue_cdss_analysis
+
+            await asyncio.to_thread(enqueue_cdss_analysis, document.id, settings)
+        except Exception:
+            pass
+
     except Exception as exc:
         await session.rollback()
         await _mark_failed_if_current(
-            session,
-            document_id,
-            start_generation,
-            preserve_existing_index,
-            "index_failed",
-            str(exc),
+            session, document_id, start_generation, preserve_existing_index, "index_failed", str(exc)
         )
 
 
-async def _populate_tsvectors(
-    session: AsyncSession,
-    document_id: uuid.UUID,
-) -> None:
+async def _populate_tsvectors(session: AsyncSession, document_id: uuid.UUID) -> None:
     """Populate tsvector column for newly indexed chunks (PostgreSQL only).
 
     Uses to_tsvector('english', content) to generate the search_vector.
@@ -170,15 +169,11 @@ async def _populate_tsvectors(
         import logging
 
         logging.getLogger(__name__).debug(
-            "tsvector population skipped for document %s (column may not exist)",
-            document_id,
+            "tsvector population skipped for document %s (column may not exist)", document_id
         )
 
 
-async def _index_graph_entities(
-    session: AsyncSession,
-    document: Document,
-) -> None:
+async def _index_graph_entities(session: AsyncSession, document: Document) -> None:
     """Extract medical entities and relations from document chunks for graph RAG.
 
     Silently skips on failure to avoid blocking the main indexing pipeline.
@@ -196,29 +191,21 @@ async def _index_graph_entities(
         total_relations = 0
         for chunk in chunks:
             entities, relations = await index_chunk_entities(
-                session,
-                chunk_id=chunk.id,
-                document_id=document.id,
-                content=chunk.content,
+                session, chunk_id=chunk.id, document_id=document.id, content=chunk.content
             )
             total_entities += len(entities)
             total_relations += len(relations)
 
         logger.info(
-            "Graph RAG indexed %d entities, %d relations for document %s",
-            total_entities,
-            total_relations,
-            document.id,
+            "Graph RAG indexed %d entities, %d relations for document %s", total_entities, total_relations, document.id
         )
     except Exception:
-        logger.debug(
-            "Graph entity indexing skipped for document %s",
-            document.id,
-            exc_info=True,
-        )
+        logger.debug("Graph entity indexing skipped for document %s", document.id, exc_info=True)
 
 
 def _source_sha256(settings: Settings, storage_uri: str) -> Optional[str]:
+    if storage_uri == "pending" or storage_uri.startswith("local://") or storage_uri.startswith("hms://"):
+        return None
     try:
         storage_root = settings.storage_root.resolve()
         source_path = Path(storage_uri)
@@ -238,10 +225,7 @@ def _failure_status(preserve_existing_index: bool, failed_status: str) -> str:
     return failed_status
 
 
-async def _locked_current_document(
-    session: AsyncSession,
-    document_id: uuid.UUID,
-) -> Optional[Document]:
+async def _locked_current_document(session: AsyncSession, document_id: uuid.UUID) -> Optional[Document]:
     result = await session.execute(
         select(Document).where(Document.id == document_id).with_for_update().execution_options(populate_existing=True)
     )
@@ -290,16 +274,9 @@ def process_document_job(document_id: str) -> None:
                 try:
                     from hospital_ai.workers.queue import enqueue_to_dead_letter
 
-                    enqueue_to_dead_letter(
-                        uuid.UUID(document_id),
-                        settings,
-                        str(exc),
-                    )
+                    enqueue_to_dead_letter(uuid.UUID(document_id), settings, str(exc))
                 except Exception:
-                    logger.error(
-                        "Failed to move document %s to dead-letter queue.",
-                        document_id,
-                    )
+                    logger.error("Failed to move document %s to dead-letter queue.", document_id)
                 raise  # Re-raise so rq marks the job as failed
 
     asyncio.run(_run())
@@ -314,8 +291,27 @@ def dead_letter_handler(document_id: str, error_message: str) -> None:
     import logging
 
     logger = logging.getLogger(__name__)
-    logger.error(
-        "DEAD-LETTER: Document %s permanently failed: %s",
-        document_id,
-        error_message,
-    )
+    logger.error("DEAD-LETTER: Document %s permanently failed: %s", document_id, error_message)
+
+
+def cdss_job_handler(document_id: str) -> None:
+    """Entry point called by rq workers for CDSS analysis."""
+    import logging
+
+    logger = logging.getLogger(__name__)
+    logger.info("Starting CDSS analysis job for %s", document_id)
+
+    async def _run() -> None:
+        from hospital_ai.db.session import get_session_factory
+        from hospital_ai.workers.cdss import run_cdss_analysis
+
+        session_factory = get_session_factory()
+        async with session_factory() as session:
+            try:
+                await run_cdss_analysis(session, uuid.UUID(document_id))
+                logger.info("CDSS analysis processed successfully for %s.", document_id)
+            except Exception as exc:
+                logger.exception("Document %s CDSS analysis failed: %s", document_id, exc)
+                raise  # Re-raise so rq marks the job as failed
+
+    asyncio.run(_run())

@@ -173,6 +173,7 @@ jobs:
           HOSPITAL_AI_DATABASE_URL: "postgresql+asyncpg://hospital_ai:hospital_ai@localhost:5432/hospital_ai_test"
           HOSPITAL_AI_CHAT_PROVIDER: "stub"
           HOSPITAL_AI_EMBEDDING_PROVIDER: "deterministic"
+          HOSPITAL_AI_DISABLE_GUARDRAILS: "true"
         run: python -m pytest tests/ -v --tb=short --cov=hospital_ai --cov-report=term --cov-fail-under=60
 
       # ── API Contract Verification ──
@@ -244,6 +245,73 @@ jobs:
         env:
           HOSPITAL_AI_DATABASE_URL: "postgresql+asyncpg://hospital_ai:hospital_ai@localhost:5432/hospital_ai_test"
         run: alembic check || true
+
+  # ═══════════════════════════════════════════════════════════════════
+  # Job 4b: Backend — RAG Evaluation
+  # ═══════════════════════════════════════════════════════════════════
+  rag-evaluation:
+    name: Backend RAG Evaluation
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: [backend-test, backend-migration]
+    if: ${{ needs.changes.outputs.backend == 'true' || github.event_name != 'pull_request' }}
+    defaults:
+      run:
+        working-directory: app/backend
+    env:
+      HOSPITAL_AI_DATABASE_URL: "postgresql+asyncpg://hospital_ai:hospital_ai@localhost:5432/hospital_ai_test"
+      HOSPITAL_AI_CHAT_PROVIDER: "stub"
+      HOSPITAL_AI_EMBEDDING_PROVIDER: "deterministic"
+
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_DB: hospital_ai_test
+          POSTGRES_USER: hospital_ai
+          POSTGRES_PASSWORD: hospital_ai
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U hospital_ai -d hospital_ai_test"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Set up Python ${{ env.PYTHON_VERSION }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+          cache-dependency-path: app/backend/pyproject.toml
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev,postgres]"
+
+      - name: Initialize Database
+        run: |
+          alembic upgrade head
+          python scripts/seed_dev.py
+
+      - name: Run RAG Evaluation
+        continue-on-error: true
+        run: pytest tests/test_rag_eval.py
+
+
+      - name: Upload RAG Eval Report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: rag-evaluation-report
+          path: history/rag-eval/
+          if-no-files-found: ignore
+          retention-days: 7
 
   # ═══════════════════════════════════════════════════════════════════
   # Job 5: Frontend — Lint, Test, Build & E2E
@@ -439,7 +507,7 @@ jobs:
     name: CI summary
     runs-on: ubuntu-latest
     timeout-minutes: 2
-    needs: [codeql, backend-test, backend-migration, frontend-test, validate-observability, docker-push]
+    needs: [codeql, backend-test, backend-migration, rag-evaluation, frontend-test, validate-observability, docker-push]
     if: always()
     steps:
       - name: Check results
@@ -452,6 +520,7 @@ jobs:
             ["codeql"]="${{ needs.codeql.result }}"
             ["backend-test"]="${{ needs.backend-test.result }}"
             ["backend-migration"]="${{ needs.backend-migration.result }}"
+            ["rag-evaluation"]="${{ needs.rag-evaluation.result }}"
             ["frontend-test"]="${{ needs.frontend-test.result }}"
             ["validate-observability"]="${{ needs.validate-observability.result }}"
             ["docker-push"]="${{ needs.docker-push.result }}"

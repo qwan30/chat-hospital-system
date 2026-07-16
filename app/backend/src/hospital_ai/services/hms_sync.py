@@ -7,7 +7,7 @@ searchable evidence into the chatbot's PostgreSQL/pgvector store.
 import hashlib
 import logging
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any, Optional
 
 from sqlalchemy import delete, select
@@ -255,7 +255,7 @@ class HmsSyncService:
                     "source_record_id": source_record_id,
                     "contains_phi": True,
                     "patient_permission_required": True,
-                    "imported_at": datetime.now(timezone.utc).isoformat(),
+                    "imported_at": datetime.now(UTC).isoformat(),
                     **metadata,
                 },
             )

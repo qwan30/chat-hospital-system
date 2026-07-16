@@ -11,7 +11,7 @@ services:
       POSTGRES_USER: hospital_ai
       POSTGRES_PASSWORD: hospital_ai
     ports:
-      - "5432:5432"
+      - "5433:5432"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U hospital_ai -d hospital_ai"]
       interval: 5s
@@ -38,14 +38,16 @@ services:
     build:
       context: ./app/backend
       dockerfile: Dockerfile
+    env_file:
+      - ./app/backend/.env
     environment:
       HOSPITAL_AI_DATABASE_URL: postgresql+asyncpg://hospital_ai:hospital_ai@postgres:5432/hospital_ai
       HOSPITAL_AI_REDIS_URL: redis://redis:6379/0
       HOSPITAL_AI_STORAGE_ROOT: /data/storage
-      HOSPITAL_AI_CORS_ORIGINS: http://localhost:3000,http://127.0.0.1:3000
+      HOSPITAL_AI_CORS_ORIGINS: http://localhost:3000,http://127.0.0.1:3000,http://localhost:8082,http://127.0.0.1:8082,http://localhost:8081,http://127.0.0.1:8081
       HOSPITAL_AI_ENVIRONMENT: local
-      HOSPITAL_AI_EMBEDDING_PROVIDER: deterministic
-      HOSPITAL_AI_CHAT_PROVIDER: stub
+      HOSPITAL_AI_EMBEDDING_PROVIDER: gemini
+      HOSPITAL_AI_CHAT_PROVIDER: gemini
       HOSPITAL_AI_WORKER_INLINE: "true"
       HOSPITAL_AI_HMS_BASE_URL: http://host.docker.internal:8080/api/v1
       HOSPITAL_AI_HMS_SYNC_ENABLED: "false"

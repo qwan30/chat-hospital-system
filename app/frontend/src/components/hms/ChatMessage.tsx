@@ -20,7 +20,15 @@ export interface ChatMessageData {
   extra?: ReactNode;
 }
 
-export function ChatMessage({ msg }: { msg: ChatMessageData }) {
+export function ChatMessage({
+  msg,
+  isError,
+  errorControls,
+}: {
+  msg: ChatMessageData;
+  isError?: boolean;
+  errorControls?: ReactNode;
+}) {
   const isAssistant = msg.role === "assistant";
 
   // Render assistant content with inline [n] markers replaced by chips
@@ -67,10 +75,12 @@ export function ChatMessage({ msg }: { msg: ChatMessageData }) {
             isAssistant
               ? "border bg-card text-card-foreground"
               : "bg-primary text-primary-foreground",
+            isError && "border border-destructive",
           )}
         >
           {renderContent()}
           {msg.extra}
+          {errorControls && <div className="mt-3">{errorControls}</div>}
         </div>
       </div>
     </div>

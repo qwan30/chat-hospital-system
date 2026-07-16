@@ -2,10 +2,10 @@
 
 > Project: AI Copilot for Hospital Management System (HMS)  
 > Project Code: HOSP-AI-001  
-> Version: 3.0  
+> Version: 4.0  
 > Status: Approved  
 > Owner: Product Owner / Business Analyst  
-> Last Updated: 2026-06-07  
+> Last Updated: 2026-07-12  
 
 ---
 
@@ -59,9 +59,38 @@ The integrated product is accepted when:
 
 ---
 
+## 5. CDSS Autonomous Alert Capability
+
+### 5.1 Overview
+The **Autonomous Clinical Decision Support System (CDSS) Agent** is an AI safety feature that proactively monitors patients by analyzing every newly uploaded clinical document for risk signals — without requiring a clinician to manually trigger a review. It extends the AI Copilot from a reactive Q&A tool into a proactive patient-safety layer.
+
+### 5.2 How it works
+1. After a document is uploaded and OCR-processed, the document ingestion pipeline automatically enqueues a CDSS analysis job.
+2. The CDSS worker queries the patient's Knowledge Graph (`GraphEntity` + `GraphRelation`) to gather structured clinical context (diagnoses, medications, allergies, procedures).
+3. The full document text combined with the graph context is submitted to the LLM with a structured prompt that requests JSON-formatted alert output: `{"alerts": [{"severity": "high"|"medium"|"low", "title": "...", "description": "..."}]}`.
+4. Parsed alerts are persisted as `ClinicalAlert` records in the database, linked to the patient and source document.
+5. Alerts surface in the HMS UI notification centre; high-severity alerts are highlighted immediately.
+
+### 5.3 Personas served
+| Persona | Benefit |
+|---|---|
+| **Doctor** | Receives proactive high-risk alerts without needing to re-read every uploaded document. |
+| **Nurse** | Notified of patient risk escalations during shift handover before reviewing physical charts. |
+| **Pharmacist** | CDSS catches drug-related risk signals in unstructured clinical notes automatically. |
+
+### 5.4 Acceptance Criteria
+- CDSS analysis is triggered automatically for every successfully processed document; no manual step is required.
+- Generated `ClinicalAlert` records include `severity`, `title`, `description`, `patient_id`, and `source_document_id`.
+- A high-severity CDSS alert (e.g., `n-007`) appears in the notification centre within 60 seconds of document processing completion.
+- All CDSS alert generation events are captured in the audit log (actor: system, action: `cdss_alert_created`).
+- The E2E test suite (`cdss-flow.spec.ts`) passes end-to-end across the full alert notification flow.
+
+---
+
 ## Change Log
 | Version | Date | Author | Change |
 |---|---|---|---|
 | 1.0 | 2026-04-27 | Product Owner | Initial flat PRD/SRS |
 | 2.0 | 2026-06-07 | Agent | Restructured into standalone PRD |
 | 3.0 | 2026-06-07 | Agent | Realigned to HMS-integrated positioning and detailed EMR data mappings |
+| 4.0 | 2026-07-12 | Agent | Added Epic 5: CDSS Autonomous Alert Capability |

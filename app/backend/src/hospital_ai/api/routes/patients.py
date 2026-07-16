@@ -1,6 +1,6 @@
 import logging
 import uuid
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime
 from typing import Optional
 
 from fastapi import APIRouter, Depends, Query, Request
@@ -242,7 +242,7 @@ async def get_patient_overview(
             evidence=chunks,
         )
         ai_summary = summary_res.answer
-        last_updated = datetime.now(timezone.utc)
+        last_updated = datetime.now(UTC)
 
     await AuditService(session).record(
         actor_user_id=current_user.id,
@@ -325,7 +325,7 @@ async def get_patient_timeline(
                             "event_type": event_type,
                             "title": title,
                             "description": description,
-                            "timestamp": timestamp or datetime.now(timezone.utc),
+                            "timestamp": timestamp or datetime.now(UTC),
                         }
                     )
         except Exception:
@@ -658,7 +658,11 @@ def _extract_dose(text: str) -> Optional[str]:
     """Extract dose pattern like '5mg', '500mg', '10mg' from text."""
     import re
 
-    m = re.search(r"(\d+\.?\d*\s*(?:mg|mcg|g|ml|IU|uL|mmol)(?:\s*(?:BID|TID|QID|daily|/ngày))?)", text, re.IGNORECASE)
+    pattern = (
+        r"(\d+\.?\d*\s*(?:mg|mcg|g|ml|IU|uL|mmol)"
+        r"(?:\s*(?:BID|TID|QID|daily|/ngày))?)"
+    )
+    m = re.search(pattern, text, re.IGNORECASE)
     return m.group(1) if m else None
 
 
@@ -678,7 +682,7 @@ def _parse_lab_content(content: str) -> list[PatientLabItem]:
     # Pattern: analyte name followed by value and optional reference range
     # Match lines like: "Hemoglobin (HGB)                  12.5     12.0-16.0 g/dL"
     lab_pattern = re.compile(
-        r"^([A-Za-zÀ-Ỹà-ỹ][A-Za-zÀ-Ỹà-ỹ\s\-().,]+?)\s{2,}"  # analyte name
+        r"^([^\W\d_][^\W\d_\s\-().,]+?)\s{2,}"  # analyte name
         r"([\d.]+(?:\s*[x×]\s*\d+[⁰¹²³⁴⁵⁶⁷⁸⁹]*(?:/[A-Za-z]+)?)?)\s+"  # value
         r"([\d.<>]+\s*[-–]\s*[\d.<>]+(?:\s*[A-Za-z/%]+)?)",  # reference range
         re.MULTILINE,
@@ -699,7 +703,7 @@ def _parse_lab_content(content: str) -> list[PatientLabItem]:
 
     # Also try simpler pattern: "Analyte: Value (Ref: range)"
     simple_pattern = re.compile(
-        r"^([A-Za-zÀ-Ỹà-ỹ][A-Za-zÀ-Ỹà-ỹ\s\-().]+?):\s*([\d.]+)\s*(?:\(.*?([\d.]+\s*[-–]\s*[\d.]+).*?\))?",
+        r"^([^\W\d_][^\W\d_\s\-().]+?):\s*([\d.]+)\s*(?:\(.*?([\d.]+\s*[-–]\s*[\d.]+).*?\))?",
         re.MULTILINE,
     )
     for match in simple_pattern.finditer(content):
@@ -742,6 +746,6 @@ def _compute_lab_flag(value: str, ref_range: Optional[str]) -> Optional[str]:
             if val_num < low:
                 return "L"
     except (ValueError, AttributeError):
-        pass
+        logger.debug("Unable to compute lab flag from value=%r and ref_range=%r", value, ref_range)
 
     return None

@@ -74,10 +74,29 @@ class ChunkingService:
                         )
                         next_index += 1
                 else:
-                    # Regular text — apply sliding window chunking
+                    # Semantic chunking - respect sentence/paragraph boundaries
                     start = 0
                     while start < len(content):
-                        end = min(start + self.max_chars, len(content))
+                        max_end = min(start + self.max_chars, len(content))
+
+                        # Find semantic split point
+                        end = max_end
+                        if max_end < len(content):
+                            best_pos = -1
+                            for sep in ("\n\n", "\n", ". ", "? ", "! "):
+                                pos = content.rfind(sep, start, max_end)
+                                if pos != -1 and pos > start + self.max_chars * 0.5:
+                                    best_pos = pos + len(sep.rstrip())
+                                    break
+
+                            if best_pos != -1:
+                                end = best_pos
+                            else:
+                                # Fallback to word boundary
+                                pos = content.rfind(" ", start, max_end)
+                                if pos != -1 and pos > start:
+                                    end = pos
+
                         chunk_content = content[start:end].strip()
                         if chunk_content:
                             chunks.append(
@@ -92,9 +111,21 @@ class ChunkingService:
                                 )
                             )
                             next_index += 1
+
                         if end >= len(content):
                             break
-                        start = max(0, end - self.overlap_chars)
+
+                        # Find semantic overlap start
+                        overlap_target = max(0, end - self.overlap_chars)
+                        start = overlap_target
+                        if overlap_target > 0:
+                            pos = content.find(". ", overlap_target, end)
+                            if pos != -1:
+                                start = pos + 2
+                            else:
+                                pos = content.find(" ", overlap_target, end)
+                                if pos != -1:
+                                    start = pos + 1
 
         return chunks
 

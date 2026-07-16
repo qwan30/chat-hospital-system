@@ -1,7 +1,7 @@
 import logging
 import math
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from fastapi import APIRouter, Depends, Path, Request
 from sqlalchemy import select
@@ -54,9 +54,7 @@ async def get_patient_graph(
         raise NotFoundError("Patient not found.")
 
     # Query graph entities scoped to this patient's document chunks
-    patient_chunk_ids = (
-        select(DocumentChunk.id).where(DocumentChunk.patient_id == patient_id).scalar_subquery()
-    )
+    patient_chunk_ids = select(DocumentChunk.id).where(DocumentChunk.patient_id == patient_id).scalar_subquery()
     entity_result = await db.execute(
         select(GraphEntity).where(GraphEntity.source_chunk_id.in_(patient_chunk_ids)).limit(200)
     )
@@ -69,7 +67,7 @@ async def get_patient_graph(
         ]
         metadata = GraphMetadata(
             patient_id=patient_id,
-            updated_at=datetime.now(timezone.utc).isoformat(),
+            updated_at=datetime.now(UTC).isoformat(),
             node_count=1,
             edge_count=0,
         )
@@ -82,14 +80,15 @@ async def get_patient_graph(
         )
 
     entity_id_set = {e.id for e in entities}
-    entity_map = {e.id: e for e in entities}
 
     # Query relations between these entities
     relation_result = await db.execute(
-        select(GraphRelation).where(
+        select(GraphRelation)
+        .where(
             GraphRelation.source_entity_id.in_(entity_id_set),
             GraphRelation.target_entity_id.in_(entity_id_set),
-        ).limit(500)
+        )
+        .limit(500)
     )
     relations = list(relation_result.scalars().all())
 
@@ -188,7 +187,7 @@ async def get_patient_graph(
                     )
                 )
         except Exception:
-            logger.warning("Graph reasoning path generation failed for patient %s", patient_id, exc_info=True)
+            logger.warning("Graph reasoning path generation failed (trace_id=%s)", trace_id, exc_info=True)
 
     # ── Deduplicate edges ─────────────────────────────────────────────
     seen_edge_keys: set[tuple[str, str, str]] = set()
@@ -201,7 +200,7 @@ async def get_patient_graph(
 
     metadata = GraphMetadata(
         patient_id=patient_id,
-        updated_at=datetime.now(timezone.utc).isoformat(),
+        updated_at=datetime.now(UTC).isoformat(),
         node_count=len(nodes),
         edge_count=len(deduped_edges),
     )

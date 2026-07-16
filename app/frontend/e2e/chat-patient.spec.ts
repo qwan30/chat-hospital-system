@@ -34,6 +34,10 @@ test.describe("/chat/patients/:patientId — duplicate submits + rapid presses",
   });
 
   test("Send button is blocked while a reply is in flight", async ({ page }) => {
+    await page.route("**/api/v1/chat/stream", async (route) => {
+      await new Promise((r) => setTimeout(r, 500));
+      await route.continue();
+    });
     await page.goto("/chat/patients/p-001");
     const composer = page.locator("textarea").first();
     const send = page.getByRole("button", { name: /^Send$/ });

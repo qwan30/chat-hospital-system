@@ -55,7 +55,31 @@ Trigger sync (manual or scheduled)
 ```
 **APIs:** POST /hms/sync/patients/{id}, GET /hms/jobs/{job_id} | **Tables:** patients, hms_sync_logs
 
+## BF-005: Document Upload → CDSS Analysis → Clinical Alert
+
+```
+Clinician uploads clinical document (e.g. prescription PDF)
+  → System stores file (status=uploaded)
+  → RQ enqueues OCR → status=ocr_processing
+  → Worker: PyMuPDF extracts text → document_pages rows
+  → SUCCESS? → ocr_completed → Enqueue entity extraction
+  → Entity Extraction: NLP pipeline identifies medications, diagnoses, lab values
+  → Graph Indexing: Entities linked in knowledge graph (patient nodes + concept nodes)
+  → CDSS Analysis (NEW): run_cdss_analysis(patient_id, extracted_entities)
+      → Cross-references extracted entities with patient history (allergies, meds)
+      → Detects risk patterns (e.g. drug interactions, bleeding risk)
+      → Severity ≥ HIGH? → Creates ClinicalAlert row (kind='ai', read=false)
+  → Alert Saved to DB → clinical_alerts table
+  → Alert pushed to /notifications feed (kind='ai', href='/patients/{id}')
+  → Doctor opens /notifications → 'High Risk Clinical Alert' visible (unread)
+  → Doctor clicks Open → navigates to /patients/{id} for full patient context
+```
+**APIs:** POST /documents/upload, POST /cdss/analyze (internal worker) | **Tables:** documents, document_pages, document_chunks, clinical_alerts, notifications
+
+---
+
 ## Change Log
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
 | 1.0 | 2026-06-14 | Agent | 4 critical flows: Chat RAG, Document OCR, Access Request, HMS Sync |
+| 2.0 | 2026-07-12 | QA Agent | Added BF-005: CDSS Autonomous Agent flow (Document Upload → OCR → Entity Extraction → Graph Indexing → CDSS Analysis → Clinical Alert → /notifications) |

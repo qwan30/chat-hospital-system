@@ -10,7 +10,7 @@ import asyncio
 import hashlib
 import math
 import uuid
-from datetime import date, datetime, timezone
+from datetime import date
 
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
@@ -281,7 +281,7 @@ async def seed(session: AsyncSession) -> None:
     print(f"   Patients: {len(patients)}")
     print(f"   Permissions: {len(permissions)}")
     print(f"   Documents: {len(sample_docs)}")
-    print(f"   Chat threads: 1")
+    print("   Chat threads: 1")
 
 
 async def main() -> None:

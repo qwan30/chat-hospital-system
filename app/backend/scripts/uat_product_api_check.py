@@ -14,7 +14,7 @@ from collections.abc import Iterable
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any
+from typing import Optional, Any
 
 import httpx
 
@@ -70,8 +70,8 @@ class UatApiRunner:
         method: str,
         path: str,
         *,
-        token: str | None = None,
-        json_body: dict[str, Any] | None = None,
+        token: Optional[str] = None,
+        json_body: Optional[dict[str, Any]] = None,
     ) -> httpx.Response:
         headers = {"accept": "application/json"}
         role = token or "anonymous"
@@ -417,7 +417,7 @@ class UatApiRunner:
         label: str,
         token: str,
         payload: dict[str, Any],
-    ) -> dict[str, Any] | None:
+    ) -> Optional[dict[str, Any]]:
         response = self.request(label, "POST", "/chat-threads", token=token, json_body=payload)
         if response.status_code != 200:
             return None
@@ -466,7 +466,7 @@ def response_contains_phi(responses: Iterable[httpx.Response]) -> bool:
     return False
 
 
-def first_matching(items: Iterable[dict[str, Any]], predicate) -> dict[str, Any] | None:
+def first_matching(items: Iterable[dict[str, Any]], predicate) -> Optional[dict[str, Any]]:
     for item in items:
         if predicate(item):
             return item

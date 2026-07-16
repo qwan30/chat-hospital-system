@@ -31,12 +31,20 @@ test.describe("/graph/patients/:patientId — reasoning stream controls", () => 
     await seedSession(page);
     // Intercept the graph API so the test is backend-independent.
     await page.route("**/api/v1/graph/patients/**", async (route) => {
-      await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(MOCK_GRAPH) });
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify(MOCK_GRAPH),
+      });
     });
     // Also intercept any other /api calls to prevent network errors in CI.
     await page.route("**/api/v1/**", async (route) => {
       if (!route.request().url().includes("/graph/patients/")) {
-        await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({}) });
+        await route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify({}),
+        });
       }
     });
   });

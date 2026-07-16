@@ -54,9 +54,7 @@ export const MOCK_PATIENT_DETAIL = {
   attending_physician: "Dr. Nguyen",
   ward: "Cardiology",
   allergies: [],
-  active_medications: [
-    { name: "Metformin", dose: "500mg", frequency: "BID", route: "oral" },
-  ],
+  active_medications: [{ name: "Metformin", dose: "500mg", frequency: "BID", route: "oral" }],
 };
 
 export const MOCK_PATIENT_GRAPH = {

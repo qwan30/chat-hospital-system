@@ -14,6 +14,7 @@ Requires:
     HOSPITAL_AI_DATABASE_URL environment variable set (or uses .env).
 """
 
+from typing import Optional
 import asyncio
 import hashlib
 import math
@@ -210,7 +211,7 @@ DEMO_AUDIT_ENTRIES = [
 ]
 
 
-async def setup_demo(settings: Settings | None = None) -> None:
+async def setup_demo(settings: Optional[Settings] = None) -> None:
     """Seed the database with demo data."""
     if settings is None:
         settings = Settings()

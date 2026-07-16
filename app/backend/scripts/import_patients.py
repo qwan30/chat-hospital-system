@@ -48,7 +48,7 @@ def read_xlsx(path: Path):
     headers = [cell.value for cell in next(ws.iter_rows(min_row=1, max_row=1))]
     rows = []
     for row in ws.iter_rows(min_row=2, values_only=True):
-        rows.append(dict(zip(headers, row)))
+        rows.append(dict(zip(headers, row)))  # noqa: B905
     wb.close()
     return rows
 

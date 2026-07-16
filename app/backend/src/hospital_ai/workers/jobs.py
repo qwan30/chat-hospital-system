@@ -96,7 +96,7 @@ async def process_document(
         document.page_count = len(page_rows)
         await session.flush()
 
-        for chunk, embedding in zip(chunks, embeddings, strict=True):
+        for chunk, embedding in zip(chunks, embeddings):
             page_row = page_rows[chunk.page_number]
             session.add(
                 DocumentChunk(

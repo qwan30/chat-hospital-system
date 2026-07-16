@@ -1,6 +1,6 @@
 from typing import Optional
 import logging
-from datetime import UTC, datetime, timedelta
+from datetime import timezone, datetime, timedelta
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Request
@@ -220,13 +220,13 @@ async def review_access_request(
 
     req.status = payload.status
     req.reviewed_by_user_id = current_user.id
-    req.reviewed_at = datetime.now(UTC)
+    req.reviewed_at = datetime.now(timezone.utc)
     req.review_notes = payload.notes
 
     trace_id = new_trace_id()
 
     if payload.status == "approved":
-        expires_at = datetime.now(UTC) + timedelta(hours=12)
+        expires_at = datetime.now(timezone.utc) + timedelta(hours=12)
         permission = PatientPermission(
             user_id=req.user_id,
             patient_id=req.patient_id,

@@ -1,4 +1,4 @@
-from datetime import UTC, datetime, timedelta
+from datetime import timezone, datetime, timedelta
 
 import pytest
 from sqlalchemy import select, update
@@ -72,7 +72,7 @@ async def test_revoked_patient_permission_blocks_portable_retrieval(session_and_
             PatientPermission.patient_id == PATIENT_ALICE_ID,
             PatientPermission.scope.in_(PATIENT_READ_SCOPES),
         )
-        .values(deleted_at=datetime.now(UTC))
+        .values(deleted_at=datetime.now(timezone.utc))
     )
     await session.commit()
 
@@ -103,7 +103,7 @@ async def test_expired_patient_permission_blocks_portable_retrieval(session_and_
             PatientPermission.patient_id == PATIENT_ALICE_ID,
             PatientPermission.scope.in_(PATIENT_READ_SCOPES),
         )
-        .values(expires_at=datetime.now(UTC) - timedelta(minutes=1))
+        .values(expires_at=datetime.now(timezone.utc) - timedelta(minutes=1))
     )
     await session.commit()
 
@@ -127,7 +127,7 @@ async def test_soft_deleted_document_is_not_retrieved(session_and_settings):
         title="Alice deleted document",
         content="Deleted document content must not be retrieved.",
     )
-    await session.execute(update(Document).where(Document.id == document.id).values(deleted_at=datetime.now(UTC)))
+    await session.execute(update(Document).where(Document.id == document.id).values(deleted_at=datetime.now(timezone.utc)))
     await session.commit()
 
     results = await RetrievalService(session).search(
@@ -151,7 +151,7 @@ async def test_soft_deleted_page_is_not_retrieved(session_and_settings):
         content="Deleted page content must not be retrieved.",
     )
     await session.execute(
-        update(DocumentPage).where(DocumentPage.document_id == document.id).values(deleted_at=datetime.now(UTC))
+        update(DocumentPage).where(DocumentPage.document_id == document.id).values(deleted_at=datetime.now(timezone.utc))
     )
     await session.commit()
 
@@ -176,7 +176,7 @@ async def test_soft_deleted_chunk_is_not_retrieved(session_and_settings):
         content="Deleted chunk content must not be retrieved.",
     )
     await session.execute(
-        update(DocumentChunk).where(DocumentChunk.document_id == document.id).values(deleted_at=datetime.now(UTC))
+        update(DocumentChunk).where(DocumentChunk.document_id == document.id).values(deleted_at=datetime.now(timezone.utc))
     )
     await session.commit()
 

@@ -12,7 +12,7 @@ import sys
 import uuid
 from collections.abc import Iterable
 from dataclasses import dataclass, field
-from datetime import UTC, datetime
+from datetime import timezone, datetime
 from pathlib import Path
 from typing import Optional, Any
 
@@ -426,7 +426,7 @@ class UatApiRunner:
     def write_artifacts(self, results: list[ScenarioResult]) -> Path:
         self.output_dir.mkdir(parents=True, exist_ok=True)
         evidence_payload = {
-            "generated_at": datetime.now(UTC).isoformat(),
+            "generated_at": datetime.now(timezone.utc).isoformat(),
             "base_url": self.base_url,
             "results": [result.__dict__ for result in results],
             "requests": [evidence.__dict__ for evidence in self.evidence],
@@ -479,7 +479,7 @@ def short_run_id() -> str:
 
 def default_output_dir() -> Path:
     repo_root = Path(__file__).resolve().parents[3]
-    timestamp = datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")
+    timestamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
     return repo_root / "history" / "kotaemon-chat-assistant-ui" / "uat-evidence" / timestamp
 
 
@@ -487,7 +487,7 @@ def render_markdown_report(results: list[ScenarioResult], evidence_path: Path) -
     lines = [
         "# API UAT Summary",
         "",
-        f"Generated: {datetime.now(UTC).isoformat()}",
+        f"Generated: {datetime.now(timezone.utc).isoformat()}",
         f"Evidence JSON: `{evidence_path.name}`",
         "",
         "| Scenario | Severity if failed | Result | Evidence |",

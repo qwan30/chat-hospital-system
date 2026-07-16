@@ -1,6 +1,6 @@
 import os
 from collections.abc import AsyncIterator
-from datetime import UTC, datetime, timedelta
+from datetime import timezone, datetime, timedelta
 from pathlib import Path
 
 import pytest
@@ -71,7 +71,7 @@ async def test_postgres_retrieval_blocks_revoked_permission(
             PatientPermission.patient_id == PATIENT_ALICE_ID,
             PatientPermission.scope.in_(PATIENT_READ_SCOPES),
         )
-        .values(deleted_at=datetime.now(UTC))
+        .values(deleted_at=datetime.now(timezone.utc))
     )
     await session.commit()
 
@@ -104,7 +104,7 @@ async def test_postgres_retrieval_blocks_expired_permission(
             PatientPermission.patient_id == PATIENT_ALICE_ID,
             PatientPermission.scope.in_(PATIENT_READ_SCOPES),
         )
-        .values(expires_at=datetime.now(UTC) - timedelta(minutes=1))
+        .values(expires_at=datetime.now(timezone.utc) - timedelta(minutes=1))
     )
     await session.commit()
 

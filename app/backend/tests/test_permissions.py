@@ -1,4 +1,4 @@
-from datetime import UTC
+from datetime import timezone
 
 import pytest
 from sqlalchemy import select
@@ -134,7 +134,7 @@ async def test_expired_permission_is_logged(session_and_settings):
         patient_id=PATIENT_BOB_ID,
         scope="read",
         source="manual",
-        expires_at=datetime.now(UTC) - timedelta(hours=1),
+        expires_at=datetime.now(timezone.utc) - timedelta(hours=1),
     )
     session.add(expired_perm)
     await session.commit()

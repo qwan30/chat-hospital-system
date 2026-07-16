@@ -1,7 +1,7 @@
 from typing import Optional
 import logging
 import uuid
-from datetime import UTC, date, datetime
+from datetime import timezone, date, datetime
 
 from fastapi import APIRouter, Depends, Query, Request
 from sqlalchemy import func, or_, select
@@ -237,7 +237,7 @@ async def get_patient_overview(
             evidence=chunks,
         )
         ai_summary = summary_res.answer
-        last_updated = datetime.now(UTC)
+        last_updated = datetime.now(timezone.utc)
 
     await AuditService(session).record(
         actor_user_id=current_user.id,
@@ -320,7 +320,7 @@ async def get_patient_timeline(
                             "event_type": event_type,
                             "title": title,
                             "description": description,
-                            "timestamp": timestamp or datetime.now(UTC),
+                            "timestamp": timestamp or datetime.now(timezone.utc),
                         }
                     )
         except Exception:

@@ -1,6 +1,6 @@
 from typing import Optional
 import logging
-from datetime import UTC, datetime
+from datetime import timezone, datetime
 from uuid import UUID
 
 from sqlalchemy import select
@@ -82,7 +82,7 @@ class MemoryService:
                 memory.active_entities = active_entities
                 memory.source_ids = combined_source_ids
                 memory.active_patient_id = patient_id
-                memory.updated_at = datetime.now(UTC)
+                memory.updated_at = datetime.now(timezone.utc)
             else:
                 memory = ChatSessionMemory(
                     thread_id=thread_id,

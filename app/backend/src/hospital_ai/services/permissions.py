@@ -1,7 +1,7 @@
 import logging
 import uuid
 from collections.abc import Iterable
-from datetime import UTC, datetime
+from datetime import timezone, datetime
 from typing import Optional, Any
 
 from sqlalchemy import exists, or_, select
@@ -32,7 +32,7 @@ def active_patient_permission_filters(
     accepted_scopes: Iterable[str],
     now: Optional[datetime] = None,
 ):
-    active_at = now or datetime.now(UTC)
+    active_at = now or datetime.now(timezone.utc)
     return (
         PatientPermission.user_id == user_id,
         PatientPermission.patient_id == patient_id,
@@ -127,7 +127,7 @@ class PermissionService:
             PatientPermission.user_id == user.id,
             PatientPermission.patient_id == patient_id,
             PatientPermission.scope.in_(accepted),
-            PatientPermission.expires_at <= datetime.now(UTC),
+            PatientPermission.expires_at <= datetime.now(timezone.utc),
             PatientPermission.deleted_at.is_(None),
         )
         result_expired = await self.session.execute(stmt_expired)

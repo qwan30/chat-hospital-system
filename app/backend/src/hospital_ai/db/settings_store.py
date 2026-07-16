@@ -37,7 +37,7 @@ class SystemSetting(TimestampMixin, Base):
     key: Mapped[str] = mapped_column(String(128), unique=True, nullable=False, index=True)
     value_json: Mapped[str] = mapped_column(Text, nullable=False)
     updated_by_user_id: Mapped[Optional[uuid.UUID]] = mapped_column(nullable=True)
-    description: Optional[Mapped[str]] = mapped_column(String(512), nullable=True)
+    description: Mapped[Optional[str]] = mapped_column(String(512), nullable=True)
 
 
 # ── CRUD helpers ─────────────────────────────────────────────────────────

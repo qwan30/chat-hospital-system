@@ -9,7 +9,7 @@ import logging
 import time
 from collections.abc import AsyncIterator, Awaitable, Callable
 from dataclasses import dataclass, field
-from datetime import UTC, datetime
+from datetime import timezone, datetime
 from typing import Optional, Any
 from uuid import UUID
 
@@ -346,7 +346,7 @@ async def _apply_stream_completion(
     if thread_id is not None:
         scope = "patient-linked" if patient_id is not None else "general"
         permission_state = "allowed" if patient_id is not None else "not-required"
-        now = datetime.now(UTC)
+        now = datetime.now(timezone.utc)
         user_message = ChatMessage(
             thread_id=thread_id,
             sender_user_id=user_id,
@@ -375,7 +375,7 @@ async def _apply_stream_completion(
                 "validation": completion.validation_status,
             },
             trace_id=trace_id,
-            created_at=datetime.now(UTC),
+            created_at=datetime.now(timezone.utc),
         )
         session.add(user_message)
         session.add(assistant_message)
@@ -576,7 +576,7 @@ async def chat_stream(
             if payload.thread_id is not None:
                 scope = "patient-linked" if effective_patient_id is not None else "general"
                 permission_state = "allowed" if effective_patient_id is not None else "not-required"
-                now = datetime.now(UTC)
+                now = datetime.now(timezone.utc)
                 session.add(
                     ChatMessage(
                         thread_id=payload.thread_id,
@@ -604,12 +604,12 @@ async def chat_stream(
                         citations=[],
                         meta={"streaming": True, "result": result_status, "confidence": "low"},
                         trace_id=trace_id,
-                        created_at=datetime.now(UTC),
+                        created_at=datetime.now(timezone.utc),
                     )
                 )
                 thread = await session.get(ChatThread, payload.thread_id)
                 if thread is not None:
-                    thread.last_message_at = datetime.now(UTC)
+                    thread.last_message_at = datetime.now(timezone.utc)
 
             await AuditService(session).record(
                 actor_user_id=current_user.id,

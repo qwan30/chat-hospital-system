@@ -1,4 +1,4 @@
-from datetime import UTC, datetime, timedelta
+from datetime import timezone, datetime, timedelta
 
 import pytest
 from sqlalchemy import update
@@ -49,7 +49,7 @@ async def test_patient_search_excludes_revoked_permissions(session_and_settings)
             PatientPermission.patient_id.in_([PATIENT_ALICE_ID, PATIENT_ELEANOR_ID]),
             PatientPermission.scope.in_(PATIENT_READ_SCOPES),
         )
-        .values(deleted_at=datetime.now(UTC))
+        .values(deleted_at=datetime.now(timezone.utc))
     )
     await session.commit()
 
@@ -75,7 +75,7 @@ async def test_patient_search_excludes_expired_permissions(session_and_settings)
             PatientPermission.patient_id.in_([PATIENT_ALICE_ID, PATIENT_ELEANOR_ID]),
             PatientPermission.scope.in_(PATIENT_READ_SCOPES),
         )
-        .values(expires_at=datetime.now(UTC) - timedelta(minutes=1))
+        .values(expires_at=datetime.now(timezone.utc) - timedelta(minutes=1))
     )
     await session.commit()
 

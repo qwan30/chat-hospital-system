@@ -78,7 +78,7 @@ async def main() -> None:
                     status="active",
                     owner_user_id=DOCTOR_ID,
                     created_trace_id="seed_dev_trace",
-                    last_message_at=datetime.datetime.now(datetime.UTC),
+                    last_message_at=datetime.datetime.now(datetime.timezone),
                 )
             )
             await session.commit()

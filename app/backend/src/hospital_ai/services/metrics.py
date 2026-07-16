@@ -29,15 +29,15 @@ class MetricEvent(Base):
     query_id: Mapped[Optional[uuid.UUID]] = mapped_column(ForeignKey("ai_queries.id"), nullable=True, index=True)
     user_id: Mapped[Optional[uuid.UUID]] = mapped_column(ForeignKey("users.id"), nullable=True, index=True)
     task_type: Mapped[str] = mapped_column(String(64), nullable=False)
-    baseline_manual_time_sec: Optional[Mapped[int]] = mapped_column(Integer, nullable=True)
-    actual_ai_time_sec: Optional[Mapped[int]] = mapped_column(Integer, nullable=True)
-    estimated_time_saved_sec: Optional[Mapped[int]] = mapped_column(Integer, nullable=True)
-    estimated_cost_saved: Optional[Mapped[float]] = mapped_column(Numeric(12, 2), nullable=True)
-    documents_retrieved: Optional[Mapped[int]] = mapped_column(Integer, nullable=True)
-    citations_count: Optional[Mapped[int]] = mapped_column(Integer, nullable=True)
-    query_latency_ms: Optional[Mapped[int]] = mapped_column(Integer, nullable=True)
-    retrieval_latency_ms: Optional[Mapped[int]] = mapped_column(Integer, nullable=True)
-    generation_latency_ms: Optional[Mapped[int]] = mapped_column(Integer, nullable=True)
+    baseline_manual_time_sec: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    actual_ai_time_sec: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    estimated_time_saved_sec: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    estimated_cost_saved: Mapped[Optional[float]] = mapped_column(Numeric(12, 2), nullable=True)
+    documents_retrieved: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    citations_count: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    query_latency_ms: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    retrieval_latency_ms: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    generation_latency_ms: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     shared_thread_id: Mapped[Optional[uuid.UUID]] = mapped_column(nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
 
@@ -51,7 +51,7 @@ class UserFeedback(Base):
     query_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("ai_queries.id"), nullable=False, index=True)
     user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"), nullable=False, index=True)
     rating: Mapped[int] = mapped_column(Integer, nullable=False)  # -1, 0, 1
-    comment: Optional[Mapped[str]] = mapped_column(Text, nullable=True)
+    comment: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
 
 

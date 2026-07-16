@@ -597,15 +597,11 @@ async def chat_stream(
 
         # ── Graph RAG Enrichment ─────────────────────────────────────────────
         try:
-            if effective_patient_id and evidence:
-                from sqlalchemy import select
+            if effective_patient_id:
+                from hospital_ai.services.chat import extract_entities_and_relations_nlp, find_related_entities
 
-                from hospital_ai.db.models import GraphEntity
-                from hospital_ai.services.graph_rag import find_related_entities
-
-                chunk_ids = [c.chunk_id for c in evidence]
-                res = await session.execute(select(GraphEntity.name).where(GraphEntity.source_chunk_id.in_(chunk_ids)))
-                entity_names = list(set(res.scalars().all()))
+                query_entities, _ = await extract_entities_and_relations_nlp(payload.question)
+                entity_names = [entity.name for entity in query_entities]
 
                 if entity_names:
                     graph_ctx = await find_related_entities(
@@ -623,6 +619,7 @@ async def chat_stream(
                             for ge in graph_evidence:
                                 ge.metadata["retrieval_method"] = "graph"
                             evidence.extend(graph_evidence)
+                            evidence = evidence[: payload.top_k]
         except Exception:
             logger.warning("Graph RAG enrichment skipped", exc_info=True)
 

@@ -5,10 +5,10 @@ from sqlalchemy import select, update
 
 from hospital_ai.core.security import PATIENT_READ_SCOPES
 from hospital_ai.db.migrations import DOCTOR_ID, PATIENT_ALICE_ID, PATIENT_BOB_ID
-from hospital_ai.db.models import Document, DocumentChunk, DocumentPage, PatientPermission
+from hospital_ai.db.models import Document, DocumentChunk, DocumentPage, PatientPermission, User
 from hospital_ai.services.embeddings import deterministic_embedding
 from hospital_ai.services.permissions import ACTIVE_PATIENT_PERMISSION_SQL
-from hospital_ai.services.retrieval import PERMISSION_FILTERED_RETRIEVAL_SQL, RetrievalService
+from hospital_ai.services.retrieval import PERMISSION_FILTERED_RETRIEVAL_SQL, RetrievalService, _scope_matches
 from tests.conftest import create_indexed_document
 
 
@@ -25,6 +25,13 @@ def test_retrieval_sql_does_not_repeat_patient_permission_filter():
     assert "c.deleted_at is null" in sql
     assert "d.deleted_at is null" in sql
     assert "p.deleted_at is null" in sql
+
+
+def test_role_scope_matching_is_exact_after_normalization():
+    assert _scope_matches(" Medication ", "medication")
+    assert not _scope_matches("medication", "medications")
+    assert not _scope_matches("medication", "medication_safety")
+    assert not _scope_matches("labs", "lab")
 
 
 @pytest.mark.asyncio
@@ -270,3 +277,35 @@ async def test_authorized_patient_chunks_are_retrieved(session_and_settings):
     assert len(results) == 1
     assert results[0].evidence_id == "E1"
     assert results[0].document_title == "Alice discharge"
+
+
+@pytest.mark.asyncio
+async def test_hybrid_search_filters_denied_access_tags(session_and_settings):
+    session, _ = session_and_settings
+    doctor = await session.get(User, DOCTOR_ID)
+    assert doctor is not None
+    doctor.role = "lab_staff"
+
+    document = await create_indexed_document(
+        session,
+        patient_id=PATIENT_ALICE_ID,
+        uploaded_by=DOCTOR_ID,
+        title="Restricted medication note",
+        content="Medication-only content must not reach lab staff.",
+    )
+    await session.execute(
+        update(DocumentChunk)
+        .where(DocumentChunk.document_id == document.id)
+        .values(meta={"access_tags": ["medication"]})
+    )
+    await session.commit()
+
+    results = await RetrievalService(session).hybrid_search(
+        user_id=DOCTOR_ID,
+        patient_id=PATIENT_ALICE_ID,
+        query_embedding=deterministic_embedding("medication content"),
+        query_text="medication content",
+        top_k=5,
+    )
+
+    assert results == []

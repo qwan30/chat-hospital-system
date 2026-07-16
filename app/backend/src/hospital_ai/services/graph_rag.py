@@ -24,7 +24,7 @@ import re
 import uuid
 from dataclasses import dataclass
 
-from sqlalchemy import Float, ForeignKey, String, func, or_, select
+from sqlalchemy import Float, ForeignKey, String, delete, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -92,6 +92,42 @@ class GraphContext:
 # ── Entity extraction (NLP) ──────────────────────────────────────────────
 
 
+_EXPLICIT_RELATION_PATTERN = re.compile(
+    r"(?P<source>[A-Za-z][A-Za-z0-9 _-]{0,79}?)\s+"
+    r"(?:(?:also|directly)\s+)?"
+    r"(?P<relation>treats|causes|contraindicates|prescribed[_ ]for|has[_ ]symptom)\s+"
+    r"(?P<target>[A-Za-z][A-Za-z0-9 _-]{0,79}?)(?=[.,;]|$)",
+    re.IGNORECASE,
+)
+
+
+def _extract_explicit_relations_fallback(content: str) -> tuple[list[ExtractedEntity], list[ExtractedRelation]]:
+    """Extract only explicit graph relations when an LLM response is unavailable.
+
+    The fallback intentionally does not infer relations: it recognizes a small,
+    deterministic grammar so offline safety evaluations can validate the same
+    patient-scoped graph traversal as production indexing.
+    """
+    entities: dict[str, ExtractedEntity] = {}
+    relations: list[ExtractedRelation] = []
+    seen_relations: set[tuple[str, str, str]] = set()
+
+    for match in _EXPLICIT_RELATION_PATTERN.finditer(content):
+        source = match.group("source").strip().casefold()
+        target = match.group("target").strip().casefold()
+        relation_type = match.group("relation").casefold().replace(" ", "_")
+        relation_key = (source, target, relation_type)
+        if relation_key in seen_relations:
+            continue
+
+        seen_relations.add(relation_key)
+        entities.setdefault(source, ExtractedEntity(source, "concept"))
+        entities.setdefault(target, ExtractedEntity(target, "concept"))
+        relations.append(ExtractedRelation(source, target, relation_type))
+
+    return list(entities.values()), relations
+
+
 async def extract_entities_and_relations_nlp(content: str) -> tuple[list[ExtractedEntity], list[ExtractedRelation]]:
     """Extract entities and relations from text using the LLM via Proposition Transfer."""
     llm = get_llm_manager().get()
@@ -156,7 +192,7 @@ async def extract_entities_and_relations_nlp(content: str) -> tuple[list[Extract
         return entities, relations
     except Exception as e:
         logging.getLogger(__name__).warning("NLP extraction failed: %s", e)
-        return [], []
+        return _extract_explicit_relations_fallback(content)
 
 
 # ── Database operations ──────────────────────────────────────────────────
@@ -168,7 +204,9 @@ async def index_chunk_entities(
     document_id: uuid.UUID,
     content: str,
 ) -> tuple[list[GraphEntity], list[GraphRelation]]:
-    """Extract and persist entities and relations from a chunk."""
+    """Replace a chunk's graph projection with freshly extracted entities."""
+    await session.execute(delete(GraphRelation).where(GraphRelation.source_chunk_id == chunk_id))
+    await session.execute(delete(GraphEntity).where(GraphEntity.source_chunk_id == chunk_id))
     entities, relations = await extract_entities_and_relations_nlp(content)
 
     entity_rows: dict[str, GraphEntity] = {}
@@ -231,11 +269,27 @@ async def find_related_entities(
     # Lazy import to avoid a circular dependency between the graph_rag
     # module (registered against `Base`) and the wider models module that
     # imports services for relationship targets.
-    from hospital_ai.db.models import DocumentChunk
+    from hospital_ai.db.models import Document, DocumentChunk, DocumentPage
 
     allowed_chunks = None
     if patient_id is not None:
-        allowed_chunks = select(DocumentChunk.id).where(DocumentChunk.patient_id == patient_id).scalar_subquery()
+        allowed_chunks = (
+            select(DocumentChunk.id)
+            .join(Document, Document.id == DocumentChunk.document_id)
+            .join(
+                DocumentPage,
+                (DocumentPage.id == DocumentChunk.page_id) & (DocumentPage.document_id == DocumentChunk.document_id),
+            )
+            .where(
+                DocumentChunk.patient_id == patient_id,
+                Document.patient_id == patient_id,
+                Document.status == "indexed",
+                DocumentChunk.deleted_at.is_(None),
+                Document.deleted_at.is_(None),
+                DocumentPage.deleted_at.is_(None),
+            )
+            .scalar_subquery()
+        )
 
     def _scope_to_patient(stmt):
         if allowed_chunks is None:

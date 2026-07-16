@@ -86,11 +86,11 @@ class RetrievalService:
             chunk_tags = set(c.metadata.get("access_tags", []))
 
             if chunk_tags:
-                if chunk_tags.intersection(allowed_scopes):
+                if any(scope in tag or tag in scope for scope in allowed_scopes for tag in chunk_tags):
                     allowed_chunks.append(c)
                 else:
                     self.blocked_chunk_count += 1
-            elif doc_type in allowed_scopes or "read" in allowed_scopes:
+            elif (doc_type and any(scope in doc_type or doc_type in scope for scope in allowed_scopes)) or "read" in allowed_scopes:
                 allowed_chunks.append(c)
             else:
                 self.blocked_chunk_count += 1

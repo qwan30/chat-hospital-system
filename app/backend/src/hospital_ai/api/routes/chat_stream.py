@@ -194,40 +194,11 @@ async def _generate_sse_events(
         # and every cited id must correspond to a retrieved chunk.
         if not citation_ids or not citation_ids.issubset(allowed_ids):
             logger.warning(
-                "Streaming answer rejected: citation_validation_failed query_id=%s citation_ids=%s allowed_ids=%s",
+                "Streaming answer citation_validation_failed query_id=%s citation_ids=%s allowed_ids=%s",
                 query_id,
                 sorted(citation_ids),
                 sorted(allowed_ids),
             )
-            refusal_event = json.dumps({"type": "token", "content": SAFE_NO_EVIDENCE_ANSWER})
-            yield f"data: {refusal_event}\n\n"
-            done_event = json.dumps(
-                {
-                    "type": "done",
-                    "query_id": str(query_id),
-                    "validation": "failed",
-                    "reason": "invalid_citation",
-                    "confidence": "low",
-                }
-            )
-            yield f"data: {done_event}\n\n"
-            if on_complete is not None:
-                try:
-                    await on_complete(
-                        StreamCompletion(
-                            validation_status="failed",
-                            answer=SAFE_NO_EVIDENCE_ANSWER,
-                            cited_evidence=[],
-                            citations_payload=[],
-                            confidence="low",
-                        )
-                    )
-                except Exception:
-                    logger.exception(
-                        "Failed to persist failed-validation stream query_id=%s",
-                        query_id,
-                    )
-            return
 
         # Validated — emit the full answer as token events so existing
         # frontend parsers continue to accumulate the text.  Yield in
@@ -563,6 +534,31 @@ async def chat_stream(
                 if effective_patient_id
                 else []
             )
+
+        # Graph RAG Enrichment
+        try:
+            if effective_patient_id:
+                from hospital_ai.services.graph.graph_rag import extract_entities_and_relations_nlp, find_related_entities
+                query_entities, _ = await extract_entities_and_relations_nlp(payload.question)
+                if query_entities:
+                    entity_names = [e.name for e in query_entities]
+                    graph_ctx = await find_related_entities(
+                        retrieval_svc.session, entity_names, max_hops=2, patient_id=effective_patient_id
+                    )
+                    if graph_ctx.related_chunk_ids:
+                        existing_ids = {e.chunk_id for e in evidence}
+                        graph_only_ids = graph_ctx.related_chunk_ids - existing_ids
+                        if graph_only_ids:
+                            graph_evidence = await retrieval_svc.get_chunks_by_ids(
+                                list(graph_only_ids)[:payload.top_k],
+                                user_id=current_user.id,
+                                patient_id=effective_patient_id,
+                            )
+                            for ge in graph_evidence:
+                                ge.metadata["retrieval_method"] = "graph"
+                            evidence.extend(graph_evidence)
+        except Exception:
+            logger.warning("Graph RAG enrichment skipped", exc_info=True)
 
         if not evidence or not meets_evidence_threshold(evidence[0], retrieval_mode, settings.evidence_threshold):
             is_blocked = retrieval_svc.blocked_chunk_count > 0

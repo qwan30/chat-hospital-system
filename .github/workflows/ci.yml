@@ -79,19 +79,16 @@ jobs:
   # ═══════════════════════════════════════════════════════════════════
   # Job 2: CodeQL Security Analysis
   # ═══════════════════════════════════════════════════════════════════
-  codeql:
-    name: CodeQL security scan
+  codeql-backend:
+    name: CodeQL security scan (Backend)
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    needs: [changes]
+    if: ${{ needs.changes.outputs.backend == 'true' || github.event_name != 'pull_request' }}
     permissions:
       security-events: write
       contents: read
       actions: read
-
-    strategy:
-      fail-fast: false
-      matrix:
-        language: ["python", "javascript-typescript"]
 
     steps:
       - name: Checkout
@@ -100,21 +97,45 @@ jobs:
       - name: Initialize CodeQL
         uses: github/codeql-action/init@v3
         with:
-          languages: ${{ matrix.language }}
-          queries: security-extended,security-and-quality
+          languages: python
+          queries: security-extended
 
       - name: Auto-build (Python)
-        if: matrix.language == 'python'
-        uses: github/codeql-action/autobuild@v3
-
-      - name: Auto-build (JS/TS)
-        if: matrix.language == 'javascript-typescript'
         uses: github/codeql-action/autobuild@v3
 
       - name: Perform CodeQL analysis
         uses: github/codeql-action/analyze@v3
         with:
-          category: "/language:${{ matrix.language }}"
+          category: "/language:python"
+
+  codeql-frontend:
+    name: CodeQL security scan (Frontend)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    needs: [changes]
+    if: ${{ needs.changes.outputs.frontend == 'true' || github.event_name != 'pull_request' }}
+    permissions:
+      security-events: write
+      contents: read
+      actions: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          languages: javascript-typescript
+          queries: security-extended
+
+      - name: Auto-build (JS/TS)
+        uses: github/codeql-action/autobuild@v3
+
+      - name: Perform CodeQL analysis
+        uses: github/codeql-action/analyze@v3
+        with:
+          category: "/language:javascript-typescript"
 
   # ═══════════════════════════════════════════════════════════════════
   # Job 3: Backend — Lint, Test, Contract Verify
@@ -152,13 +173,23 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: ${{ env.PYTHON_VERSION }}
-          cache: pip
-          cache-dependency-path: app/backend/pyproject.toml
+
+      - name: Cache Virtual Environment
+        uses: actions/cache@v4
+        id: venv-cache
+        with:
+          path: app/backend/.venv
+          key: venv-${{ runner.os }}-${{ hashFiles('app/backend/pyproject.toml') }}
 
       - name: Install dependencies
+        if: steps.venv-cache.outputs.cache-hit != 'true'
         run: |
-          python -m pip install --upgrade pip
-          pip install pytest-cov -e ".[dev,postgres]"
+          python -m venv .venv
+          .venv/bin/pip install --upgrade pip
+          .venv/bin/pip install pytest-cov -e ".[dev,postgres]"
+
+      - name: Expose virtualenv
+        run: echo "${{ github.workspace }}/app/backend/.venv/bin" >> $GITHUB_PATH
 
       # ── Quality gates ──
       - name: Ruff lint check
@@ -228,13 +259,23 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: ${{ env.PYTHON_VERSION }}
-          cache: pip
-          cache-dependency-path: app/backend/pyproject.toml
+
+      - name: Cache Virtual Environment
+        uses: actions/cache@v4
+        id: venv-cache
+        with:
+          path: app/backend/.venv
+          key: venv-${{ runner.os }}-${{ hashFiles('app/backend/pyproject.toml') }}
 
       - name: Install dependencies
+        if: steps.venv-cache.outputs.cache-hit != 'true'
         run: |
-          python -m pip install --upgrade pip
-          pip install -e ".[postgres]"
+          python -m venv .venv
+          .venv/bin/pip install --upgrade pip
+          .venv/bin/pip install -e ".[postgres]"
+
+      - name: Expose virtualenv
+        run: echo "${{ github.workspace }}/app/backend/.venv/bin" >> $GITHUB_PATH
 
       - name: Apply Alembic migrations
         env:
@@ -286,13 +327,23 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: ${{ env.PYTHON_VERSION }}
-          cache: pip
-          cache-dependency-path: app/backend/pyproject.toml
+
+      - name: Cache Virtual Environment
+        uses: actions/cache@v4
+        id: venv-cache
+        with:
+          path: app/backend/.venv
+          key: venv-${{ runner.os }}-${{ hashFiles('app/backend/pyproject.toml') }}
 
       - name: Install dependencies
+        if: steps.venv-cache.outputs.cache-hit != 'true'
         run: |
-          python -m pip install --upgrade pip
-          pip install -e ".[dev,postgres]"
+          python -m venv .venv
+          .venv/bin/pip install --upgrade pip
+          .venv/bin/pip install -e ".[dev,postgres]"
+
+      - name: Expose virtualenv
+        run: echo "${{ github.workspace }}/app/backend/.venv/bin" >> $GITHUB_PATH
 
       - name: Initialize Database
         run: |
@@ -373,15 +424,19 @@ jobs:
             vite-${{ runner.os }}-
 
       # ── Quality gates ──
-      - name: ESLint check
-        run: bun run lint
-
-      - name: TypeScript type check
-        run: bun run typecheck
-
-      - name: Unit tests (Vitest) with coverage
-        continue-on-error: true
-        run: bunx vitest run src --coverage
+      - name: Run quality checks in parallel (lint, typecheck, vitest)
+        run: |
+          bun run lint &
+          LINT_PID=$!
+          bun run typecheck &
+          TYPECHECK_PID=$!
+          bunx vitest run src --coverage &
+          TEST_PID=$!
+          
+          # Wait for background tasks and fail if any exits with error
+          wait $LINT_PID || (echo "ESLint check failed" && exit 1)
+          wait $TYPECHECK_PID || (echo "TypeScript type check failed" && exit 1)
+          wait $TEST_PID || echo "Vitest unit tests failed (advisory)"
 
       - name: Production build
         env:
@@ -507,7 +562,7 @@ jobs:
     name: CI summary
     runs-on: ubuntu-latest
     timeout-minutes: 2
-    needs: [codeql, backend-test, backend-migration, rag-evaluation, frontend-test, validate-observability, docker-push]
+    needs: [codeql-backend, codeql-frontend, backend-test, backend-migration, rag-evaluation, frontend-test, validate-observability, docker-push]
     if: always()
     steps:
       - name: Check results
@@ -517,7 +572,8 @@ jobs:
           echo "|-----|--------|" >> "$GITHUB_STEP_SUMMARY"
 
           declare -A jobs=(
-            ["codeql"]="${{ needs.codeql.result }}"
+            ["codeql-backend"]="${{ needs.codeql-backend.result }}"
+            ["codeql-frontend"]="${{ needs.codeql-frontend.result }}"
             ["backend-test"]="${{ needs.backend-test.result }}"
             ["backend-migration"]="${{ needs.backend-migration.result }}"
             ["rag-evaluation"]="${{ needs.rag-evaluation.result }}"

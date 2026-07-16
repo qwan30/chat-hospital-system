@@ -11,7 +11,7 @@ Architecture principle (Clean Architecture / Dependency Rule):
     (api/) catches them and decides how to present them to clients.
 """
 
-from typing import Any
+from typing import Any, Optional
 
 
 class AppError(Exception):

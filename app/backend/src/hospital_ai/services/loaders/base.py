@@ -6,6 +6,7 @@ LoadedPage objects, each representing a page/section of the document.
 """
 
 
+from typing import Optional
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from pathlib import Path

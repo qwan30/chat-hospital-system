@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { AppShell } from "@/components/shell/AppShell";
 import { PageHeader } from "@/components/hms/PageHeader";
 import { Card } from "@/components/ui/card";
@@ -69,6 +69,15 @@ export const notifications: AppNotification[] = [
     ts: "2026-06-12T03:14:00Z",
     read: true,
     href: "/integrations/vector-index",
+  },
+  {
+    id: "n-007",
+    kind: "ai",
+    title: "High Risk Clinical Alert",
+    body: "CDSS detected severe Bleeding Risk due to new Aspirin prescription. Cross-referenced with patient history.",
+    ts: "2026-07-12T02:15:00Z",
+    read: false,
+    href: "/patients/11111111-1111-1111-1111-111111111111",
   },
 ];
 import { KeyRound, ScanText, RotateCw, Sparkles, Cog } from "lucide-react";
@@ -154,9 +163,12 @@ function NotificationsPage() {
                 <div className="mt-1 text-xs text-muted-foreground">{formatRelative(n.ts)}</div>
               </div>
               {n.href ? (
-                <a href={n.href} className="text-xs font-semibold text-primary hover:underline">
+                <Link
+                  to={n.href as any}
+                  className="text-xs font-semibold text-primary hover:underline"
+                >
                   Open →
-                </a>
+                </Link>
               ) : null}
             </div>
           );

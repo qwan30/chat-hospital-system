@@ -8,8 +8,8 @@ relationship traversal.
 
 ## Architecture
 
-    Document chunks → entity_extraction() → GraphEntity + GraphRelation rows
-    Query → extract_query_entities() → SQL traversal → related chunks
+    Document chunks → LLM extraction → GraphEntity + GraphRelation rows
+    Query → extract query terms → SQL traversal → related chunks
 
 This avoids a dedicated graph database (Neo4j/ArangoDB) by leveraging the
 existing PostgreSQL / SQLite database.  A future migration can promote
@@ -18,16 +18,19 @@ these tables into a true graph engine.
 
 from __future__ import annotations
 
+import json
+import logging
 import re
 import uuid
 from dataclasses import dataclass
-from typing import Optional
 
-from sqlalchemy import Float, ForeignKey, String, func, or_, select
+from sqlalchemy import Float, ForeignKey, String, delete, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Mapped, mapped_column
 
 from hospital_ai.db.models import Base, TimestampMixin
+from hospital_ai.services.llm.base import LLMMessage
+from hospital_ai.services.llm.manager import get_llm_manager
 
 # ── ORM Models ──────────────────────────────────────────────────────────
 
@@ -86,168 +89,110 @@ class GraphContext:
     summary: str
 
 
-# ── Entity extraction (heuristic) ────────────────────────────────────────
+# ── Entity extraction (NLP) ──────────────────────────────────────────────
 
-# Patterns for common medical entities (English + Vietnamese)
-DRUG_PATTERN = re.compile(
-    r"\b(aspirin|metformin|lisinopril|amlodipine|atorvastatin|omeprazole|"
-    r"amoxicillin|vancomycin|ciprofloxacin|warfarin|heparin|insulin|"
-    r"ibuprofen|acetaminophen|prednisone|hydrochlorothiazide|"
-    r"gabapentin|sertraline|fluoxetine|clopidogrel|losartan|"
-    r"pantoprazole|paracetamol|apixaban|metoprolol)\b",
-    re.IGNORECASE,
-)
 
-CONDITION_PATTERN = re.compile(
-    r"\b(hypertension|diabetes|pneumonia|sepsis|heart failure|"
-    r"atrial fibrillation|copd|asthma|obesity|anemia|"
-    r"chronic kidney disease|stroke|myocardial infarction|"
-    r"urinary tract infection|cellulitis|deep vein thrombosis|"
-    # Vietnamese conditions
-    r"tăng huyết áp|tang huyet ap|đái tháo đường|dai thao duong|"
-    r"viêm phổi|viem phoi|viêm phế quản|viem phe quan|"
-    r"rối loạn lipid máu|roi loan lipid mau|suy tim|"
-    r"nhồi máu cơ tim|nhoi mau co tim|đột quỵ|dot quy|"
-    r"viêm dạ dày|viem da day|suy thận|suy than)\b",
-    re.IGNORECASE,
-)
-
-LAB_PATTERN = re.compile(
-    r"\b(hemoglobin|hematocrit|wbc|platelet|creatinine|bun|"
-    r"glucose|hba1c|troponin|bnp|alt|ast|albumin|bilirubin|"
-    r"sodium|potassium|chloride|bicarbonate|inr|ptt|"
-    # Vietnamese lab names
-    r"hồng cầu|hong cau|bạch cầu|bach cau|tiểu cầu|tieu cau|"
-    r"cholesterol|triglyceride|"
-    r"hemoglobin|hematocrit)\b",
+_EXPLICIT_RELATION_PATTERN = re.compile(
+    r"(?P<source>[A-Za-z][A-Za-z0-9 _-]{0,79}?)\s+"
+    r"(?:(?:also|directly)\s+)?"
+    r"(?P<relation>treats|causes|contraindicates|prescribed[_ ]for|has[_ ]symptom)\s+"
+    r"(?P<target>[A-Za-z][A-Za-z0-9 _-]{0,79}?)(?=[.,;]|$)",
     re.IGNORECASE,
 )
 
 
-def extract_entities(text: str) -> list[ExtractedEntity]:
-    """Extract medical entities from text using pattern matching."""
+def _extract_explicit_relations_fallback(content: str) -> tuple[list[ExtractedEntity], list[ExtractedRelation]]:
+    """Extract only explicit graph relations when an LLM response is unavailable.
+
+    The fallback intentionally does not infer relations: it recognizes a small,
+    deterministic grammar so offline safety evaluations can validate the same
+    patient-scoped graph traversal as production indexing.
+    """
     entities: dict[str, ExtractedEntity] = {}
-
-    for match in DRUG_PATTERN.finditer(text):
-        name = match.group(1).lower()
-        entities[name] = ExtractedEntity(name=name, entity_type="drug")
-
-    for match in CONDITION_PATTERN.finditer(text):
-        name = match.group(1).lower()
-        entities[name] = ExtractedEntity(name=name, entity_type="condition")
-
-    for match in LAB_PATTERN.finditer(text):
-        name = match.group(1).lower()
-        entities[name] = ExtractedEntity(name=name, entity_type="lab")
-
-    return list(entities.values())
-
-
-def extract_relations(text: str, entities: list[ExtractedEntity]) -> list[ExtractedRelation]:
-    """Extract relations between entities found in the text via co-occurrence."""
     relations: list[ExtractedRelation] = []
-    if len(entities) < 2:
-        return relations
+    seen_relations: set[tuple[str, str, str]] = set()
 
-    seen_pairs: set[tuple[str, str]] = set()
-    text_lower = text.lower()
+    for match in _EXPLICIT_RELATION_PATTERN.finditer(content):
+        source = match.group("source").strip().casefold()
+        target = match.group("target").strip().casefold()
+        relation_type = match.group("relation").casefold().replace(" ", "_")
+        relation_key = (source, target, relation_type)
+        if relation_key in seen_relations:
+            continue
 
-    # Co-occurrence within same chunk: link drugs to conditions, labs to conditions, drugs to labs
-    drugs = [e for e in entities if e.entity_type == "drug"]
-    conditions = [e for e in entities if e.entity_type == "condition"]
-    labs = [e for e in entities if e.entity_type == "lab"]
+        seen_relations.add(relation_key)
+        entities.setdefault(source, ExtractedEntity(source, "concept"))
+        entities.setdefault(target, ExtractedEntity(target, "concept"))
+        relations.append(ExtractedRelation(source, target, relation_type))
 
-    for drug in drugs:
-        for cond in conditions:
-            key = (drug.name, cond.name)
-            if key not in seen_pairs and (drug.name in text_lower and cond.name in text_lower):
-                seen_pairs.add(key)
-                relations.append(
-                    ExtractedRelation(
-                        source_name=drug.name,
-                        target_name=cond.name,
-                        relation_type="treats",
-                        weight=0.7,
-                    )
-                )
-                relations.append(
-                    ExtractedRelation(
-                        source_name=drug.name,
-                        target_name=cond.name,
-                        relation_type="mentioned_with",
-                        weight=0.5,
-                    )
-                )
-                relations.append(
-                    ExtractedRelation(
-                        source_name=drug.name,
-                        target_name=cond.name,
-                        relation_type="mentioned_with",
-                        weight=0.5,
-                    )
-                )
+    return list(entities.values()), relations
 
-    for lab in labs:
-        for cond in conditions:
-            key = (lab.name, cond.name)
-            if key not in seen_pairs and (lab.name in text_lower and cond.name in text_lower):
-                seen_pairs.add(key)
-                relations.append(
-                    ExtractedRelation(
-                        source_name=lab.name,
-                        target_name=cond.name,
-                        relation_type="indicates",
-                        weight=0.6,
-                    )
-                )
-                relations.append(
-                    ExtractedRelation(
-                        source_name=lab.name,
-                        target_name=cond.name,
-                        relation_type="mentioned_with",
-                        weight=0.5,
-                    )
-                )
-                relations.append(
-                    ExtractedRelation(
-                        source_name=lab.name,
-                        target_name=cond.name,
-                        relation_type="mentioned_with",
-                        weight=0.5,
-                    )
-                )
 
-    for drug in drugs:
-        for lab in labs:
-            key = (drug.name, lab.name)
-            if key not in seen_pairs and (drug.name in text_lower and lab.name in text_lower):
-                seen_pairs.add(key)
-                relations.append(
-                    ExtractedRelation(
-                        source_name=drug.name,
-                        target_name=lab.name,
-                        relation_type="monitored_by",
-                        weight=0.5,
-                    )
-                )
-                relations.append(
-                    ExtractedRelation(
-                        source_name=drug.name,
-                        target_name=lab.name,
-                        relation_type="mentioned_with",
-                        weight=0.5,
-                    )
-                )
-                relations.append(
-                    ExtractedRelation(
-                        source_name=drug.name,
-                        target_name=lab.name,
-                        relation_type="mentioned_with",
-                        weight=0.5,
-                    )
-                )
+async def extract_entities_and_relations_nlp(content: str) -> tuple[list[ExtractedEntity], list[ExtractedRelation]]:
+    """Extract entities and relations from text using the LLM via Proposition Transfer."""
+    llm = get_llm_manager().get()
 
-    return relations
+    prompt = (
+        "You are a medical NLP engine. Your task is to extract medical entities "
+        "and explicitly stated relations from the provided text.\n"
+        "Entities must be medical concepts such as conditions, drugs, labs, symptoms, or procedures.\n"
+        "Explicit relations must be one of: treats, causes, contraindicates, "
+        "prescribed_for, has_symptom. Do NOT extract fuzzy 'mentioned_with' relations.\n"
+        "Only extract a relation if the text explicitly states or strongly implies it "
+        '(e.g. "X treats Y", "X causes Y").\n'
+        "\n"
+        "Respond ONLY with valid JSON in the exact following format, without markdown wrapping:\n"
+        "{\n"
+        '  "entities": [\n'
+        '    {"name": "entity name in lowercase", "entity_type": "drug"}\n'
+        "  ],\n"
+        '  "relations": [\n'
+        '    {"source_name": "entity 1", "target_name": "entity 2", "relation_type": "treats"}\n'
+        "  ]\n"
+        "}"
+    )
+
+    messages = [
+        LLMMessage(role="system", content=prompt),
+        LLMMessage(role="user", content=content),
+    ]
+
+    try:
+        response = await llm.generate(messages, temperature=0.0)
+        text = response.text.strip()
+
+        # Robust JSON extraction via regex (handles conversational filler)
+        match = re.search(r"\{.*\}", text, re.DOTALL)
+        if match:
+            text = match.group(0)
+
+        data = json.loads(text.strip())
+
+        entities = []
+        for e in data.get("entities", []):
+            entities.append(
+                ExtractedEntity(
+                    name=e["name"].lower(),
+                    entity_type=e["entity_type"].lower(),
+                    confidence=1.0,
+                )
+            )
+
+        relations = []
+        for r in data.get("relations", []):
+            relations.append(
+                ExtractedRelation(
+                    source_name=r["source_name"].lower(),
+                    target_name=r["target_name"].lower(),
+                    relation_type=r["relation_type"].lower(),
+                    weight=1.0,
+                )
+            )
+
+        return entities, relations
+    except Exception as e:
+        logging.getLogger(__name__).warning("NLP extraction failed: %s", e)
+        return _extract_explicit_relations_fallback(content)
 
 
 # ── Database operations ──────────────────────────────────────────────────
@@ -259,9 +204,10 @@ async def index_chunk_entities(
     document_id: uuid.UUID,
     content: str,
 ) -> tuple[list[GraphEntity], list[GraphRelation]]:
-    """Extract and persist entities and relations from a chunk."""
-    entities = extract_entities(content)
-    relations = extract_relations(content, entities)
+    """Replace a chunk's graph projection with freshly extracted entities."""
+    await session.execute(delete(GraphRelation).where(GraphRelation.source_chunk_id == chunk_id))
+    await session.execute(delete(GraphEntity).where(GraphEntity.source_chunk_id == chunk_id))
+    entities, relations = await extract_entities_and_relations_nlp(content)
 
     entity_rows: dict[str, GraphEntity] = {}
     for entity in entities:
@@ -300,7 +246,7 @@ async def find_related_entities(
     entity_names: list[str],
     *,
     max_hops: int = 2,
-    patient_id: Optional[uuid.UUID] = None,
+    patient_id: uuid.UUID | None = None,
 ) -> GraphContext:
     """Find entities related to the given names via graph traversal.
 
@@ -323,18 +269,36 @@ async def find_related_entities(
     # Lazy import to avoid a circular dependency between the graph_rag
     # module (registered against `Base`) and the wider models module that
     # imports services for relationship targets.
-    from hospital_ai.db.models import DocumentChunk
+    from hospital_ai.db.models import Document, DocumentChunk, DocumentPage
+
+    allowed_chunks = None
+    if patient_id is not None:
+        allowed_chunks = (
+            select(DocumentChunk.id)
+            .join(Document, Document.id == DocumentChunk.document_id)
+            .join(
+                DocumentPage,
+                (DocumentPage.id == DocumentChunk.page_id) & (DocumentPage.document_id == DocumentChunk.document_id),
+            )
+            .where(
+                DocumentChunk.patient_id == patient_id,
+                Document.patient_id == patient_id,
+                Document.status == "indexed",
+                DocumentChunk.deleted_at.is_(None),
+                Document.deleted_at.is_(None),
+                DocumentPage.deleted_at.is_(None),
+            )
+            .scalar_subquery()
+        )
 
     def _scope_to_patient(stmt):
-        if patient_id is None:
+        if allowed_chunks is None:
             return stmt
-        allowed_chunks = select(DocumentChunk.id).where(DocumentChunk.patient_id == patient_id).scalar_subquery()
         return stmt.where(GraphEntity.source_chunk_id.in_(allowed_chunks))
 
     def _scope_relations_to_patient(stmt):
-        if patient_id is None:
+        if allowed_chunks is None:
             return stmt
-        allowed_chunks = select(DocumentChunk.id).where(DocumentChunk.patient_id == patient_id).scalar_subquery()
         return stmt.where(GraphRelation.source_chunk_id.in_(allowed_chunks))
 
     # Find seed entities (patient-scoped).
@@ -353,6 +317,7 @@ async def find_related_entities(
 
     # BFS traversal (patient-scoped at every hop).
     visited_ids: set[uuid.UUID] = {e.id for e in seed_entities}
+    visited_relation_ids: set[uuid.UUID] = set()
     all_entities = list(seed_entities)
     all_relations: list[GraphRelation] = []
     frontier_ids = visited_ids.copy()
@@ -363,19 +328,25 @@ async def find_related_entities(
 
         result = await session.execute(
             _scope_relations_to_patient(
-                select(GraphRelation).where(
+                select(GraphRelation)
+                .where(
                     or_(
                         GraphRelation.source_entity_id.in_(frontier_ids),
                         GraphRelation.target_entity_id.in_(frontier_ids),
                     )
                 )
+                .where(GraphRelation.relation_type != "mentioned_with")
             )
         )
         relations = list(result.scalars().all())
-        all_relations.extend(relations)
+
+        new_relations = [r for r in relations if r.id not in visited_relation_ids]
+        all_relations.extend(new_relations)
+        for r in new_relations:
+            visited_relation_ids.add(r.id)
 
         next_frontier: set[uuid.UUID] = set()
-        for rel in relations:
+        for rel in new_relations:
             for eid in (rel.source_entity_id, rel.target_entity_id):
                 if eid not in visited_ids:
                     next_frontier.add(eid)
@@ -387,6 +358,18 @@ async def find_related_entities(
             )
             new_entities = list(result.scalars().all())
             all_entities.extend(new_entities)
+
+            # Expand next_frontier by name to enable cross-chunk traversal
+            new_entity_names = {e.name.lower() for e in new_entities}
+            if new_entity_names:
+                expanded_result = await session.execute(
+                    _scope_to_patient(select(GraphEntity.id).where(func.lower(GraphEntity.name).in_(new_entity_names)))
+                )
+                expanded_ids = set(expanded_result.scalars().all())
+                for eid in expanded_ids:
+                    if eid not in visited_ids:
+                        next_frontier.add(eid)
+                        visited_ids.add(eid)
 
         frontier_ids = next_frontier
 

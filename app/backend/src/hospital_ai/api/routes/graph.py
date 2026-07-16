@@ -1,7 +1,7 @@
 import logging
 import math
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from fastapi import APIRouter, Depends, Path, Request
 from sqlalchemy import select
@@ -187,7 +187,7 @@ async def get_patient_graph(
                     )
                 )
         except Exception:
-            logger.warning("Graph reasoning path generation failed", exc_info=True)
+            logger.warning("Graph reasoning path generation failed (trace_id=%s)", trace_id, exc_info=True)
 
     # ── Deduplicate edges ─────────────────────────────────────────────
     seen_edge_keys: set[tuple[str, str, str]] = set()
@@ -200,7 +200,7 @@ async def get_patient_graph(
 
     metadata = GraphMetadata(
         patient_id=patient_id,
-        updated_at=datetime.now(timezone.utc).isoformat(),
+        updated_at=datetime.now(UTC).isoformat(),
         node_count=len(nodes),
         edge_count=len(deduped_edges),
     )

@@ -2,7 +2,6 @@ import asyncio
 import hashlib
 import uuid
 from pathlib import Path
-from typing import Optional
 
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -36,15 +35,27 @@ async def process_document(
     await session.commit()
 
     try:
-        from hospital_ai.services.storage import LocalStorageService
+        if document.storage_uri.startswith("local://") or document.storage_uri.startswith("hms://"):
+            result = await session.execute(
+                select(DocumentPage).where(DocumentPage.document_id == document.id).order_by(DocumentPage.page_number)
+            )
+            db_pages = result.scalars().all()
+            if not db_pages:
+                raise RuntimeError(f"Virtual document has no existing pages to re-index. URI: {document.storage_uri}")
 
-        pages = OcrService().extract_pages(
-            storage_uri=document.storage_uri,
-            mime_type=document.mime_type,
-            patient_id=str(document.patient_id),
-            document_id=str(document.id),
-            storage_service=LocalStorageService(settings),
-        )
+            from hospital_ai.services.ocr import OcrPage
+
+            pages = [OcrPage(page_number=p.page_number, text=p.ocr_text, confidence=p.ocr_confidence) for p in db_pages]
+        else:
+            from hospital_ai.services.storage import LocalStorageService
+
+            pages = OcrService().extract_pages(
+                storage_uri=document.storage_uri,
+                mime_type=document.mime_type,
+                patient_id=str(document.patient_id),
+                document_id=str(document.id),
+                storage_service=LocalStorageService(settings),
+            )
     except Exception as exc:
         await _mark_failed_if_current(
             session,
@@ -96,7 +107,7 @@ async def process_document(
         document.page_count = len(page_rows)
         await session.flush()
 
-        for chunk, embedding in zip(chunks, embeddings):
+        for chunk, embedding in zip(chunks, embeddings, strict=True):
             page_row = page_rows[chunk.page_number]
             session.add(
                 DocumentChunk(
@@ -128,6 +139,15 @@ async def process_document(
         document.index_generation = start_generation + 1
         document.indexed_source_sha256 = source_sha256
         await session.commit()
+
+        # Enqueue CDSS analysis
+        try:
+            from hospital_ai.workers.queue import enqueue_cdss_analysis
+
+            await asyncio.to_thread(enqueue_cdss_analysis, document.id, settings)
+        except Exception:
+            pass
+
     except Exception as exc:
         await session.rollback()
         await _mark_failed_if_current(
@@ -218,7 +238,9 @@ async def _index_graph_entities(
         )
 
 
-def _source_sha256(settings: Settings, storage_uri: str) -> Optional[str]:
+def _source_sha256(settings: Settings, storage_uri: str) -> str | None:
+    if storage_uri == "pending" or storage_uri.startswith("local://") or storage_uri.startswith("hms://"):
+        return None
     try:
         storage_root = settings.storage_root.resolve()
         source_path = Path(storage_uri)
@@ -241,7 +263,7 @@ def _failure_status(preserve_existing_index: bool, failed_status: str) -> str:
 async def _locked_current_document(
     session: AsyncSession,
     document_id: uuid.UUID,
-) -> Optional[Document]:
+) -> Document | None:
     result = await session.execute(
         select(Document).where(Document.id == document_id).with_for_update().execution_options(populate_existing=True)
     )
@@ -319,3 +341,26 @@ def dead_letter_handler(document_id: str, error_message: str) -> None:
         document_id,
         error_message,
     )
+
+
+def cdss_job_handler(document_id: str) -> None:
+    """Entry point called by rq workers for CDSS analysis."""
+    import logging
+
+    logger = logging.getLogger(__name__)
+    logger.info("Starting CDSS analysis job for %s", document_id)
+
+    async def _run() -> None:
+        from hospital_ai.db.session import get_session_factory
+        from hospital_ai.workers.cdss import run_cdss_analysis
+
+        session_factory = get_session_factory()
+        async with session_factory() as session:
+            try:
+                await run_cdss_analysis(session, uuid.UUID(document_id))
+                logger.info("CDSS analysis processed successfully for %s.", document_id)
+            except Exception as exc:
+                logger.exception("Document %s CDSS analysis failed: %s", document_id, exc)
+                raise  # Re-raise so rq marks the job as failed
+
+    asyncio.run(_run())

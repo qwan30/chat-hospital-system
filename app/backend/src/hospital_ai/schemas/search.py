@@ -1,5 +1,4 @@
 from datetime import date
-from typing import Optional
 from uuid import UUID
 
 from hospital_ai.schemas.common import ApiSchema
@@ -9,8 +8,8 @@ class SearchPatient(ApiSchema):
     id: UUID
     full_name: str
     mrn: str
-    dob: Optional[date] = None
-    department: Optional[str] = None
+    dob: date | None = None
+    department: str | None = None
     status: str
 
 
@@ -23,7 +22,7 @@ class SearchDocument(ApiSchema):
 
 class SearchThread(ApiSchema):
     id: UUID
-    title: Optional[str] = None
+    title: str | None = None
     patient_id: UUID
 
 

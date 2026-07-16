@@ -1,4 +1,11 @@
-import { useState, useRef, type FormEvent, type ReactNode, type ChangeEvent } from "react";
+import {
+  useState,
+  useRef,
+  type FormEvent,
+  type ReactNode,
+  type ChangeEvent,
+  type KeyboardEvent,
+} from "react";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Paperclip, Send, X, FileText } from "lucide-react";
@@ -12,7 +19,7 @@ export function ChatComposer({
   onValueChange,
   allowAttachment = false,
 }: {
-  onSend: (text: string, file?: File) => void;
+  onSend: (text: string, file?: File) => void | Promise<void>;
   contextNode?: ReactNode;
   disabled?: boolean;
   disabledHint?: string;
@@ -22,6 +29,7 @@ export function ChatComposer({
 }) {
   const [internalText, setInternalText] = useState("");
   const [attachedFile, setAttachedFile] = useState<File | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const isControlled = controlledValue !== undefined;
@@ -32,19 +40,36 @@ export function ChatComposer({
     else setInternalText(v);
   };
 
-  const submit = (e: FormEvent) => {
+  const submit = async (e: FormEvent) => {
     e.preventDefault();
-    if (disabled) return;
+    if (disabled || isSubmitting) return;
     if (!text.trim() && !attachedFile) return;
-    onSend(text.trim(), attachedFile || undefined);
+
+    const payloadText = text.trim();
+    const payloadFile = attachedFile || undefined;
+
     setText("");
     setAttachedFile(null);
     if (fileInputRef.current) fileInputRef.current.value = "";
+
+    setIsSubmitting(true);
+    try {
+      await onSend(payloadText, payloadFile);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handleFileChange = (e: ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       setAttachedFile(e.target.files[0]);
+    }
+  };
+
+  const handleKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      submit(e);
     }
   };
 
@@ -81,16 +106,14 @@ export function ChatComposer({
         value={text}
         aria-label="Message input"
         onChange={(e) => setText(e.target.value)}
-        onKeyDown={(e) => {
-          if (e.key === "Enter" && !e.shiftKey) submit(e);
-        }}
-        rows={2}
+        onKeyDown={handleKeyDown}
+        rows={Math.max(2, Math.min(6, text.split("\n").length))}
         placeholder={
-          disabled
+          disabled || isSubmitting
             ? (disabledHint ?? "Waiting for current response…")
             : "Ask anything about the indexed knowledge base..."
         }
-        disabled={disabled}
+        disabled={disabled || isSubmitting}
         className="min-h-[44px] resize-none border-0 bg-transparent p-2 shadow-none focus-visible:ring-0"
       />
       <div className="flex items-center justify-between">
@@ -110,7 +133,7 @@ export function ChatComposer({
                 variant="ghost"
                 size="sm"
                 className="h-8 px-2"
-                disabled={disabled}
+                disabled={disabled || isSubmitting}
                 aria-label="Attach file"
                 onClick={() => fileInputRef.current?.click()}
               >
@@ -124,7 +147,11 @@ export function ChatComposer({
               : "Cited answers only · ⇧↵ for newline"}
           </span>
         </div>
-        <Button type="submit" size="sm" disabled={disabled || (!text.trim() && !attachedFile)}>
+        <Button
+          type="submit"
+          size="sm"
+          disabled={disabled || isSubmitting || (!text.trim() && !attachedFile)}
+        >
           <Send className="mr-1 h-3.5 w-3.5" /> Send
         </Button>
       </div>

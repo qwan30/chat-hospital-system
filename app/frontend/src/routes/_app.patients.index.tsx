@@ -1,4 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { RouteError } from "@/components/hms/RouteError";
 import { AppShell } from "@/components/shell/AppShell";
 import { PageHeader } from "@/components/hms/PageHeader";
 import { Card } from "@/components/ui/card";
@@ -17,9 +18,9 @@ import { StatusBadge } from "@/components/hms/StatusBadge";
 import { AccessRequestDialog } from "@/components/hms/AccessRequestDialog";
 import { Bell, Bookmark, Filter, Lock, MessageSquare, Search } from "lucide-react";
 import { searchPatients } from "@/lib/api/patients";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useSession } from "@/lib/session";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, keepPreviousData } from "@tanstack/react-query";
 
 export const Route = createFileRoute("/_app/patients/")({
   head: () => ({
@@ -29,6 +30,7 @@ export const Route = createFileRoute("/_app/patients/")({
     ],
   }),
   component: PatientsPage,
+  errorComponent: RouteError,
 });
 
 const statusToneClass: Record<string, string> = {
@@ -48,11 +50,22 @@ function calculateAge(dob: string | null): number | string {
 
 function PatientsPage() {
   const [q, setQ] = useState("");
+  const [debouncedQ, setDebouncedQ] = useState("");
   const { session } = useSession();
 
-  const { data: searchResponse, isLoading } = useQuery({
-    queryKey: ["patients", q],
-    queryFn: () => searchPatients(q || undefined, 50),
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedQ(q), 300);
+    return () => clearTimeout(t);
+  }, [q]);
+
+  const {
+    data: searchResponse,
+    isLoading,
+    isError,
+  } = useQuery({
+    queryKey: ["patients", debouncedQ],
+    queryFn: () => searchPatients(debouncedQ || undefined, 50),
+    placeholderData: keepPreviousData,
   });
 
   const filtered = searchResponse?.items || [];
@@ -127,6 +140,7 @@ function PatientsPage() {
           <div className="relative flex-1 max-w-sm">
             <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input
+              data-testid="search-input"
               value={q}
               onChange={(e) => setQ(e.target.value)}
               placeholder="Search by name, MRN..."
@@ -151,6 +165,12 @@ function PatientsPage() {
               <TableRow>
                 <TableCell colSpan={6} className="text-center py-8">
                   Loading patients...
+                </TableCell>
+              </TableRow>
+            ) : isError ? (
+              <TableRow>
+                <TableCell colSpan={6} className="text-center py-8 text-destructive">
+                  Failed to load patients. Please try again.
                 </TableCell>
               </TableRow>
             ) : (

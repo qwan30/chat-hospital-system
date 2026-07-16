@@ -1,0 +1,27 @@
+[
+  {
+    "input": "What is the sepsis bundle protocol?",
+    "expected_output": "The 1-hour sepsis bundle includes measuring lactate, blood cultures, broad-spectrum antibiotics, rapid administration of 30 mL/kg crystalloid for hypotension or lactate >= 4 mmol/L, and applying vasopressors if hypotensive during or after fluid resuscitation.",
+    "retrieval_context": ["Sepsis Protocol 2024: 1-Hour Bundle involves lactate measurement, blood cultures prior to antibiotics, broad-spectrum antibiotics, 30 mL/kg crystalloid for hypotension, and vasopressors if MAP < 65 mm Hg."]
+  },
+  {
+    "input": "What are the common symptoms of a blood transfusion reaction?",
+    "expected_output": "Common symptoms of a blood transfusion reaction include fever, chills, pruritus, urticaria, dyspnea, and back pain.",
+    "retrieval_context": ["Transfusion Reactions Guidelines: Patients may exhibit symptoms such as fever, chills, pruritus (itching), urticaria (hives), dyspnea (shortness of breath), and back pain. Severe cases may involve hypotension or anaphylaxis."]
+  },
+  {
+    "input": "What is the standard discharge criteria for pneumonia patients?",
+    "expected_output": "Pneumonia patients can be discharged when they are clinically stable, have a temperature <= 37.8C, heart rate <= 100 bpm, respiratory rate <= 24 breaths/min, systolic BP >= 90 mmHg, arterial oxygen saturation >= 90% or pO2 >= 60 mmHg on room air, and can maintain oral intake.",
+    "retrieval_context": ["Pneumonia Discharge Criteria 2023: Clinical stability includes temp <= 37.8C, HR <= 100 bpm, RR <= 24 breaths/min, SBP >= 90 mmHg, SaO2 >= 90% on room air, and ability to take oral medications and maintain nutrition."]
+  },
+  {
+    "input": "What is the maximum daily dose of Acetaminophen for an adult?",
+    "expected_output": "The maximum daily dose of Acetaminophen for a healthy adult is 4,000 mg per day. However, it may be lower for individuals with liver problems.",
+    "retrieval_context": ["Acetaminophen Dosing Guidelines: The recommended maximum daily dose for a healthy adult is 4,000 mg/day. Caution is advised for patients with hepatic impairment, where the dose should be reduced."]
+  },
+  {
+    "input": "What is the initial management for a patient presenting with an acute ischemic stroke?",
+    "expected_output": "Initial management includes assessing airway, breathing, and circulation (ABCs), obtaining a non-contrast head CT to rule out hemorrhage, checking blood glucose, and evaluating for thrombolytic therapy (tPA) if within the 4.5-hour time window.",
+    "retrieval_context": ["Stroke Protocol 2024: Immediate steps for suspected acute ischemic stroke involve ABC assessment, STAT non-contrast head CT, blood glucose check, and evaluation for tPA eligibility within 4.5 hours of symptom onset."]
+  }
+]

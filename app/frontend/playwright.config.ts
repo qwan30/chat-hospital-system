@@ -13,6 +13,7 @@ export default defineConfig({
     baseURL: BASE_URL,
     trace: "retain-on-failure",
     actionTimeout: 10_000,
+    video: "on",
   },
   projects: [{ name: "chromium", use: { ...devices["Desktop Chrome"] } }],
   webServer: process.env.E2E_BASE_URL

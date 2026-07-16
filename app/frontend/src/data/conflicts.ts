@@ -17,7 +17,7 @@ export const drugConflicts: DrugConflict[] = [
   {
     id: "c-001",
     patient: "Eleanor Vance",
-    patientId: "p-001",
+    patientId: "11111111-1111-1111-1111-111111111111",
     drug: "Amiodarone 200mg PO daily",
     conflictsWith: "Warfarin 5mg PO daily",
     type: "interaction",
@@ -45,7 +45,7 @@ export const drugConflicts: DrugConflict[] = [
   {
     id: "c-003",
     patient: "Marcus Okafor",
-    patientId: "p-002",
+    patientId: "22222222-2222-2222-2222-222222222222",
     drug: "Penicillin G 5 MU IV q6h",
     conflictsWith: "Documented penicillin allergy (hives, 2018)",
     type: "allergy",

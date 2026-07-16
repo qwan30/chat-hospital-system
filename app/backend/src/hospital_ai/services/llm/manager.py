@@ -11,6 +11,7 @@ from typing import Optional
 
 from hospital_ai.core.config import Settings, get_settings
 from hospital_ai.services.llm.base import BaseLLM
+from hospital_ai.services.llm.instrumentation import InstrumentedLLM
 
 logger = logging.getLogger(__name__)
 
@@ -42,6 +43,7 @@ class LLMManager:
             return self._providers[name]
 
         llm = self._create_provider(name)
+        llm = InstrumentedLLM(llm)
         self._providers[name] = llm
         logger.info("Initialized LLM provider: %s (model: %s)", name, llm.model_name())
         return llm

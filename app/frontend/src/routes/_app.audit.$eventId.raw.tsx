@@ -15,7 +15,7 @@ function Page() {
     ts: "2026-06-12T16:42:11Z",
     actor: "Dr. S. Chen",
     action: "chat.completion",
-    patient: "p-001",
+    patient: "11111111-1111-1111-1111-111111111111",
     citations: ["c-001", "c-002"],
     result: "ok",
     traceId: "t-9f3a",

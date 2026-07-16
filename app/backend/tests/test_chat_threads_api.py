@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pytest
 from sqlalchemy import select, update
@@ -110,7 +110,7 @@ async def test_patient_thread_requires_active_patient_permission(session_and_set
     await session.execute(
         update(PatientPermission)
         .where(PatientPermission.user_id == DOCTOR_ID, PatientPermission.patient_id == PATIENT_ALICE_ID)
-        .values(deleted_at=datetime.now(timezone.utc))
+        .values(deleted_at=datetime.now(UTC))
     )
     await session.commit()
 

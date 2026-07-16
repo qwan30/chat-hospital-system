@@ -742,6 +742,7 @@ def _compute_lab_flag(value: str, ref_range: Optional[str]) -> Optional[str]:
             if val_num < low:
                 return "L"
     except (ValueError, AttributeError):
-        pass
+        logger.debug("Unable to compute lab flag for value=%r ref_range=%r", value, ref_range)
+        return None
 
     return None

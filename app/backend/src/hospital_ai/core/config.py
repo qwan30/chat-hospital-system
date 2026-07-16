@@ -59,6 +59,7 @@ class Settings(BaseSettings):
         "Cite every factual claim using evidence IDs like [E1]."
     )
     streaming_enabled: bool = True
+    prometheus_enabled: bool = True
 
     # Reranker settings
     reranker_provider: str = "keyword"  # keyword | cross_encoder | tei | cohere

@@ -98,18 +98,22 @@ def create_app(settings: Optional[Settings] = None) -> FastAPI:
     if active_settings.otel_enabled:
         try:
             from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
+
             FastAPIInstrumentor().instrument_app(app)
         except Exception as e:
             import logging
+
             logging.getLogger(__name__).warning("Failed to instrument FastAPI with OpenTelemetry: %s", e)
 
     # Instrument FastAPI with Prometheus if enabled
     if active_settings.prometheus_enabled:
         try:
             from prometheus_fastapi_instrumentator import Instrumentator
+
             Instrumentator().instrument(app).expose(app, endpoint="/metrics")
         except Exception as e:
             import logging
+
             logging.getLogger(__name__).warning("Failed to initialize Prometheus metrics: %s", e)
 
     if active_settings.cors_origin_list:

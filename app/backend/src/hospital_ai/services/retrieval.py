@@ -12,6 +12,7 @@ from hospital_ai.core.security import PATIENT_READ_SCOPES, ROLE_PERMISSIONS
 from hospital_ai.core.telemetry import RAG_EVIDENCE_COUNT, RAG_RETRIEVAL_DURATION
 from hospital_ai.db.models import Document, DocumentChunk, DocumentPage, User
 from hospital_ai.services.permissions import (
+    ACTIVE_PATIENT_PERMISSION_SQL,
     active_patient_permission_exists,
 )
 

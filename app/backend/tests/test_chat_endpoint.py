@@ -195,8 +195,7 @@ async def test_chat_global_query_without_patient_context(session_and_settings):
         uploaded_by=DOCTOR_ID,
         title="Apixaban Guideline",
         content=(
-            "DOAC renal-dose adjustment rules for apixaban: "
-            "reduce dose to 2.5 mg BID if serum creatinine >= 1.5 mg/dL."
+            "DOAC renal-dose adjustment rules for apixaban: reduce dose to 2.5 mg BID if serum creatinine >= 1.5 mg/dL."
         ),
     )
 

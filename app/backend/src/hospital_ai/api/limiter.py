@@ -10,6 +10,7 @@ Import this limiter instance in route modules and apply via decorator:
 """
 
 import os
+
 from slowapi import Limiter
 from slowapi.util import get_remote_address
 

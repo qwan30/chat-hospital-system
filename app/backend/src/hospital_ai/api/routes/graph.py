@@ -36,7 +36,7 @@ def _canonical_entity_info(name: str, entity_type: str) -> tuple[str, str, Optio
     # Lower case and strip to clean
     n = name.strip().lower()
     t = _map_entity_type_to_graph_type(entity_type)
-    
+
     # Common normalization mapping
     # conditions
     if n in ("diabetes", "type 2 diabetes mellitus", "đái tháo đường", "dai thao duong"):
@@ -49,7 +49,7 @@ def _canonical_entity_info(name: str, entity_type: str) -> tuple[str, str, Optio
         return "Coronary Artery Disease (CAD)", "diagnosis", None
     if n in ("atrial fibrillation", "atrial fibrillation (afib)", "afib"):
         return "Atrial Fibrillation (AFib)", "diagnosis", None
-    
+
     # drugs
     if "lisinopril" in n:
         return "Lisinopril", "medication", None
@@ -71,7 +71,7 @@ def _canonical_entity_info(name: str, entity_type: str) -> tuple[str, str, Optio
         return "Metoprolol", "medication", None
     if "furosemide" in n:
         return "Furosemide", "medication", None
-    
+
     # labs
     if "hba1c" in n:
         val = name if "%" in name else None
@@ -101,11 +101,11 @@ def _canonical_entity_info(name: str, entity_type: str) -> tuple[str, str, Optio
     if "egfr" in n:
         val = name if any(c.isdigit() for c in name) else None
         return "eGFR", "lab", val
-    
+
     # encounters / procedures
     if "cabg" in n or "coronary artery bypass" in n:
         return "CABG Procedure", "encounter", None
-        
+
     return name.title(), t, None
 
 
@@ -211,7 +211,7 @@ async def get_patient_graph(
 
     # Position consolidated nodes in concentric sectors by type
     typed_consolidated: dict[str, list[dict]] = {}
-    for key, val in consolidated_nodes.items():
+    for val in consolidated_nodes.values():
         typed_consolidated.setdefault(val["type"], []).append(val)
 
     center_x, center_y = 400, 240

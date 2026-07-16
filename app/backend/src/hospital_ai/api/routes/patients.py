@@ -4,6 +4,7 @@ from datetime import UTC, date, datetime
 from typing import Optional
 
 from fastapi import APIRouter, Depends, Query, Request
+from pydantic import BaseModel
 from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -64,8 +65,6 @@ async def search_patients(
     return PatientSearchResponse(items=patients)
 
 
-from pydantic import BaseModel, Field
-
 class PatientCreate(BaseModel):
     mrn: str
     full_name: str
@@ -92,6 +91,7 @@ async def create_patient(
     await session.flush()
 
     from hospital_ai.db.models import PatientPermission as PP
+
     for scope in ("read", "summary", "medication", "upload", "admin"):
         perm = PP(
             user_id=current_user.id,

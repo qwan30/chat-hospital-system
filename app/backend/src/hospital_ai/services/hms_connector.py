@@ -5,7 +5,7 @@ clinical data that gets ingested as retrievable evidence chunks.
 """
 
 import logging
-from typing import Any
+from typing import Any, Optional
 
 import httpx
 
@@ -23,7 +23,7 @@ class HmsApiClient:
         self.api_key = settings.hms_api_key
         self.timeout = settings.hms_sync_timeout_seconds
 
-    def _headers(self, jwt_token: str | None = None) -> dict[str, str]:
+    def _headers(self, jwt_token: Optional[str] = None) -> dict[str, str]:
         headers: dict[str, str] = {"Accept": "application/json"}
         if jwt_token:
             headers["Authorization"] = f"Bearer {jwt_token}"
@@ -31,7 +31,7 @@ class HmsApiClient:
             headers["X-Api-Key"] = self.api_key
         return headers
 
-    async def _get(self, path: str, *, jwt_token: str | None = None, params: dict[str, Any] | None = None) -> Any:
+    async def _get(self, path: str, *, jwt_token: Optional[str] = None, params: Optional[dict[str, Any]] = None) -> Any:
         url = f"{self.base_url}{path}"
         from urllib.parse import urlparse
 
@@ -60,8 +60,8 @@ class HmsApiClient:
         self,
         path: str,
         *,
-        jwt_token: str | None = None,
-        json: dict[str, Any] | None = None,
+        jwt_token: Optional[str] = None,
+        json: Optional[dict[str, Any]] = None,
     ) -> Any:
         url = f"{self.base_url}{path}"
         from urllib.parse import urlparse
@@ -110,26 +110,26 @@ class HmsApiClient:
 
     # ── Patient integration endpoints ──────────────────────────────
 
-    async def get_patient(self, patient_id: str, *, jwt_token: str | None = None) -> dict[str, Any]:
+    async def get_patient(self, patient_id: str, *, jwt_token: Optional[str] = None) -> dict[str, Any]:
         self._validate_patient_id(patient_id)
         # Keeps legacy compatibility mapping but routes to snapshot
         return await self.get_patient_snapshot(patient_id, jwt_token=jwt_token)
 
-    async def search_patients(self, query: str, *, jwt_token: str | None = None) -> list[dict[str, Any]]:
+    async def search_patients(self, query: str, *, jwt_token: Optional[str] = None) -> list[dict[str, Any]]:
         result = await self._get("/ai/patients", jwt_token=jwt_token, params={"query": query})
         return result if isinstance(result, list) else []
 
-    async def get_patient_snapshot(self, patient_id: str, *, jwt_token: str | None = None) -> dict[str, Any]:
+    async def get_patient_snapshot(self, patient_id: str, *, jwt_token: Optional[str] = None) -> dict[str, Any]:
         self._validate_patient_id(patient_id)
         return await self._get(f"/ai/patients/{patient_id}/snapshot", jwt_token=jwt_token)
 
-    async def get_patient_timeline(self, patient_id: str, *, jwt_token: str | None = None) -> list[dict[str, Any]]:
+    async def get_patient_timeline(self, patient_id: str, *, jwt_token: Optional[str] = None) -> list[dict[str, Any]]:
         self._validate_patient_id(patient_id)
         result = await self._get(f"/ai/patients/{patient_id}/timeline", jwt_token=jwt_token)
         return result if isinstance(result, list) else []
 
     async def check_clinician_permissions(
-        self, patient_id: str, user_id: str, *, jwt_token: str | None = None
+        self, patient_id: str, user_id: str, *, jwt_token: Optional[str] = None
     ) -> dict[str, Any]:
         self._validate_patient_id(patient_id)
         return await self._get(
@@ -142,7 +142,7 @@ class HmsApiClient:
         clinician_user_id: str,
         justification: str,
         *,
-        jwt_token: str | None = None,
+        jwt_token: Optional[str] = None,
     ) -> dict[str, Any]:
         """POST an access request to the HMS for audit and approval.
 
@@ -160,7 +160,7 @@ class HmsApiClient:
         )
 
     async def get_incremental_changes(
-        self, since: str | None = None, *, jwt_token: str | None = None
+        self, since: Optional[str] = None, *, jwt_token: Optional[str] = None
     ) -> dict[str, Any]:
         params = {"since": since} if since else {}
         return await self._get("/ai/changes", jwt_token=jwt_token, params=params)
@@ -170,8 +170,8 @@ class HmsApiClient:
     async def get_appointments(
         self,
         *,
-        patient_id: str | None = None,
-        jwt_token: str | None = None,
+        patient_id: Optional[str] = None,
+        jwt_token: Optional[str] = None,
     ) -> list[dict[str, Any]]:
         params: dict[str, Any] = {}
         if patient_id:
@@ -179,7 +179,7 @@ class HmsApiClient:
         result = await self._get("/appointments", jwt_token=jwt_token, params=params)
         return result if isinstance(result, list) else []
 
-    async def get_appointment(self, appointment_id: str, *, jwt_token: str | None = None) -> dict[str, Any]:
+    async def get_appointment(self, appointment_id: str, *, jwt_token: Optional[str] = None) -> dict[str, Any]:
         return await self._get(f"/appointments/{appointment_id}", jwt_token=jwt_token)
 
     # ── Lab result endpoints ───────────────────────────────────────
@@ -187,8 +187,8 @@ class HmsApiClient:
     async def get_lab_results(
         self,
         *,
-        patient_id: str | None = None,
-        jwt_token: str | None = None,
+        patient_id: Optional[str] = None,
+        jwt_token: Optional[str] = None,
     ) -> list[dict[str, Any]]:
         params: dict[str, Any] = {}
         if patient_id:
@@ -201,8 +201,8 @@ class HmsApiClient:
     async def get_medical_records(
         self,
         *,
-        patient_id: str | None = None,
-        jwt_token: str | None = None,
+        patient_id: Optional[str] = None,
+        jwt_token: Optional[str] = None,
     ) -> list[dict[str, Any]]:
         params: dict[str, Any] = {}
         if patient_id:
@@ -215,8 +215,8 @@ class HmsApiClient:
     async def get_vital_signs(
         self,
         *,
-        patient_id: str | None = None,
-        jwt_token: str | None = None,
+        patient_id: Optional[str] = None,
+        jwt_token: Optional[str] = None,
     ) -> list[dict[str, Any]]:
         params: dict[str, Any] = {}
         if patient_id:

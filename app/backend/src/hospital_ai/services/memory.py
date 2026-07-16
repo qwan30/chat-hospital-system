@@ -1,5 +1,6 @@
 import logging
 from datetime import UTC, datetime
+from typing import Optional
 from uuid import UUID
 
 from sqlalchemy import select
@@ -21,7 +22,7 @@ class MemoryService:
     async def update_session_memory(
         self,
         thread_id: UUID,
-        patient_id: UUID | None,
+        patient_id: Optional[UUID],
         new_question: str,
         new_answer: str,
         source_ids: list[str],

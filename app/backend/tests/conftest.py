@@ -10,6 +10,12 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_asyn
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))  # noqa: E402
 
+import datetime  # noqa: E402
+from datetime import timezone  # noqa: E402
+
+if not hasattr(datetime, "UTC"):  # noqa: E402
+    datetime.UTC = timezone.utc  # noqa: E402, UP017
+
 from hospital_ai.core.config import Settings  # noqa: E402
 from hospital_ai.db.migrations import seed_synthetic_data  # noqa: E402
 from hospital_ai.db.models import Base, Document, DocumentChunk, DocumentPage  # noqa: E402

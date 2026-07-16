@@ -1,5 +1,6 @@
 import logging
 import time
+from typing import Optional
 from uuid import UUID
 
 from sqlalchemy import select
@@ -68,12 +69,12 @@ class ChatService:
         self,
         *,
         user: User,
-        patient_id: UUID | None,
+        patient_id: Optional[UUID],
         question: str,
         top_k: int,
         trace_id: str,
         ip_address: str,
-        thread_id: UUID | None = None,
+        thread_id: Optional[UUID] = None,
         pipeline: str = "auto",
     ) -> ChatResponse:
         started = time.perf_counter()
@@ -330,7 +331,7 @@ class ChatService:
 
         if not evidence or not meets_evidence_threshold(evidence[0], retrieval_mode, self.settings.evidence_threshold):
             is_blocked = retrieval_svc.blocked_chunk_count > 0
-            answer_text = SAFE_NO_EVIDENCE_ANSWER
+            answer_text = PERMISSION_DENIED_CHAT_ANSWER if is_blocked else SAFE_NO_EVIDENCE_ANSWER
             result_status = "denied" if is_blocked else "no_evidence"
             outcome = "denied" if is_blocked else "allowed"
 
@@ -525,7 +526,7 @@ class ChatService:
         )
 
     async def _get_conversation_history(
-        self, thread_id: UUID, user_id: UUID, request_patient_id: UUID | None
+        self, thread_id: UUID, user_id: UUID, request_patient_id: Optional[UUID]
     ) -> list[dict[str, str]]:
         """Fetch recent messages from a chat thread for conversation context."""
         thread = await self.session.get(ChatThread, thread_id)

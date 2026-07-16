@@ -11,6 +11,7 @@ from __future__ import annotations
 import json
 import uuid
 from collections.abc import AsyncIterator
+from typing import Optional
 
 import pytest
 
@@ -130,7 +131,7 @@ class _FakeLLM(BaseLLM):
         messages: list[LLMMessage],
         *,
         temperature: float = 0.0,
-        max_tokens: int | None = None,
+        max_tokens: Optional[int] = None,
     ) -> LLMResponse:
         return LLMResponse(text=self._answer, model=self._model, finish_reason="stop")
 
@@ -139,7 +140,7 @@ class _FakeLLM(BaseLLM):
         messages: list[LLMMessage],
         *,
         temperature: float = 0.0,
-        max_tokens: int | None = None,
+        max_tokens: Optional[int] = None,
     ) -> AsyncIterator[str]:
         for word in self._answer.split(" "):
             yield word + " "
@@ -153,7 +154,7 @@ class _RaisingLLM(_FakeLLM):
         messages: list[LLMMessage],
         *,
         temperature: float = 0.0,
-        max_tokens: int | None = None,
+        max_tokens: Optional[int] = None,
     ) -> AsyncIterator[str]:
         # Yield nothing; the internal error must be sanitized before reaching client.
         if False:  # pragma: no cover - generator type stub

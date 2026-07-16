@@ -11,7 +11,7 @@ Architecture principle (Clean Architecture / Dependency Rule):
     (api/) catches them and decides how to present them to clients.
 """
 
-from typing import Any
+from typing import Any, Optional
 
 
 class AppError(Exception):
@@ -26,7 +26,7 @@ class AppError(Exception):
         metadata: Optional dict of contextual data (e.g. patient_id, role).
     """
 
-    def __init__(self, code: str, message: str, metadata: dict[str, Any] | None = None) -> None:
+    def __init__(self, code: str, message: str, metadata: Optional[dict[str, Any]] = None) -> None:
         self.code = code
         self.message = message
         self.metadata = metadata or {}

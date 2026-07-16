@@ -67,7 +67,7 @@ async def get_patient_graph(
         ]
         metadata = GraphMetadata(
             patient_id=patient_id,
-            updated_at=datetime.now(timezone.utc).isoformat(),
+            updated_at=datetime.now(UTC).isoformat(),
             node_count=1,
             edge_count=0,
         )

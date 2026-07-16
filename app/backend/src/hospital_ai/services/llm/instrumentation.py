@@ -1,5 +1,6 @@
 import time
 from collections.abc import AsyncIterator
+from typing import Optional
 
 from hospital_ai.core.telemetry import LLM_REQUEST_DURATION, LLM_TOKEN_USAGE
 from hospital_ai.services.llm.base import BaseLLM, LLMMessage, LLMResponse
@@ -16,7 +17,7 @@ class InstrumentedLLM(BaseLLM):
         messages: list[LLMMessage],
         *,
         temperature: float = 0.0,
-        max_tokens: int | None = None,
+        max_tokens: Optional[int] = None,
     ) -> LLMResponse:
         start_time = time.perf_counter()
 
@@ -50,7 +51,7 @@ class InstrumentedLLM(BaseLLM):
         messages: list[LLMMessage],
         *,
         temperature: float = 0.0,
-        max_tokens: int | None = None,
+        max_tokens: Optional[int] = None,
     ) -> AsyncIterator[str]:
         # For streaming, we might not have usage data easily, but we can measure duration.
         start_time = time.perf_counter()

@@ -23,6 +23,7 @@ import logging
 import re
 import uuid
 from dataclasses import dataclass
+from typing import Optional
 
 from sqlalchemy import Float, ForeignKey, String, delete, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -246,7 +247,7 @@ async def find_related_entities(
     entity_names: list[str],
     *,
     max_hops: int = 2,
-    patient_id: uuid.UUID | None = None,
+    patient_id: Optional[uuid.UUID] = None,
 ) -> GraphContext:
     """Find entities related to the given names via graph traversal.
 

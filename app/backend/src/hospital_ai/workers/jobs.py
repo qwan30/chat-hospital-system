@@ -2,6 +2,7 @@ import asyncio
 import hashlib
 import uuid
 from pathlib import Path
+from typing import Optional
 
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -14,11 +15,7 @@ from hospital_ai.services.embeddings import EmbeddingService
 from hospital_ai.services.ocr import OcrService
 
 
-async def process_document(
-    session: AsyncSession,
-    document_id: uuid.UUID,
-    settings: Settings,
-) -> None:
+async def process_document(session: AsyncSession, document_id: uuid.UUID, settings: Settings) -> None:
     document = await session.get(Document, document_id)
     if document is None:
         return
@@ -58,12 +55,7 @@ async def process_document(
             )
     except Exception as exc:
         await _mark_failed_if_current(
-            session,
-            document_id,
-            start_generation,
-            preserve_existing_index,
-            "ocr_failed",
-            str(exc),
+            session, document_id, start_generation, preserve_existing_index, "ocr_failed", str(exc)
         )
         return
 
@@ -74,12 +66,7 @@ async def process_document(
             raise RuntimeError(f"Embedding count mismatch: expected {len(chunks)}, received {len(embeddings)}.")
     except Exception as exc:
         await _mark_failed_if_current(
-            session,
-            document_id,
-            start_generation,
-            preserve_existing_index,
-            "index_failed",
-            str(exc),
+            session, document_id, start_generation, preserve_existing_index, "index_failed", str(exc)
         )
         return
 
@@ -107,7 +94,7 @@ async def process_document(
         document.page_count = len(page_rows)
         await session.flush()
 
-        for chunk, embedding in zip(chunks, embeddings, strict=True):
+        for chunk, embedding in zip(chunks, embeddings):  # noqa: B905
             page_row = page_rows[chunk.page_number]
             session.add(
                 DocumentChunk(
@@ -151,19 +138,11 @@ async def process_document(
     except Exception as exc:
         await session.rollback()
         await _mark_failed_if_current(
-            session,
-            document_id,
-            start_generation,
-            preserve_existing_index,
-            "index_failed",
-            str(exc),
+            session, document_id, start_generation, preserve_existing_index, "index_failed", str(exc)
         )
 
 
-async def _populate_tsvectors(
-    session: AsyncSession,
-    document_id: uuid.UUID,
-) -> None:
+async def _populate_tsvectors(session: AsyncSession, document_id: uuid.UUID) -> None:
     """Populate tsvector column for newly indexed chunks (PostgreSQL only).
 
     Uses to_tsvector('english', content) to generate the search_vector.
@@ -190,15 +169,11 @@ async def _populate_tsvectors(
         import logging
 
         logging.getLogger(__name__).debug(
-            "tsvector population skipped for document %s (column may not exist)",
-            document_id,
+            "tsvector population skipped for document %s (column may not exist)", document_id
         )
 
 
-async def _index_graph_entities(
-    session: AsyncSession,
-    document: Document,
-) -> None:
+async def _index_graph_entities(session: AsyncSession, document: Document) -> None:
     """Extract medical entities and relations from document chunks for graph RAG.
 
     Silently skips on failure to avoid blocking the main indexing pipeline.
@@ -216,29 +191,19 @@ async def _index_graph_entities(
         total_relations = 0
         for chunk in chunks:
             entities, relations = await index_chunk_entities(
-                session,
-                chunk_id=chunk.id,
-                document_id=document.id,
-                content=chunk.content,
+                session, chunk_id=chunk.id, document_id=document.id, content=chunk.content
             )
             total_entities += len(entities)
             total_relations += len(relations)
 
         logger.info(
-            "Graph RAG indexed %d entities, %d relations for document %s",
-            total_entities,
-            total_relations,
-            document.id,
+            "Graph RAG indexed %d entities, %d relations for document %s", total_entities, total_relations, document.id
         )
     except Exception:
-        logger.debug(
-            "Graph entity indexing skipped for document %s",
-            document.id,
-            exc_info=True,
-        )
+        logger.debug("Graph entity indexing skipped for document %s", document.id, exc_info=True)
 
 
-def _source_sha256(settings: Settings, storage_uri: str) -> str | None:
+def _source_sha256(settings: Settings, storage_uri: str) -> Optional[str]:
     if storage_uri == "pending" or storage_uri.startswith("local://") or storage_uri.startswith("hms://"):
         return None
     try:
@@ -260,10 +225,7 @@ def _failure_status(preserve_existing_index: bool, failed_status: str) -> str:
     return failed_status
 
 
-async def _locked_current_document(
-    session: AsyncSession,
-    document_id: uuid.UUID,
-) -> Document | None:
+async def _locked_current_document(session: AsyncSession, document_id: uuid.UUID) -> Optional[Document]:
     result = await session.execute(
         select(Document).where(Document.id == document_id).with_for_update().execution_options(populate_existing=True)
     )
@@ -312,16 +274,9 @@ def process_document_job(document_id: str) -> None:
                 try:
                     from hospital_ai.workers.queue import enqueue_to_dead_letter
 
-                    enqueue_to_dead_letter(
-                        uuid.UUID(document_id),
-                        settings,
-                        str(exc),
-                    )
+                    enqueue_to_dead_letter(uuid.UUID(document_id), settings, str(exc))
                 except Exception:
-                    logger.error(
-                        "Failed to move document %s to dead-letter queue.",
-                        document_id,
-                    )
+                    logger.error("Failed to move document %s to dead-letter queue.", document_id)
                 raise  # Re-raise so rq marks the job as failed
 
     asyncio.run(_run())
@@ -336,11 +291,7 @@ def dead_letter_handler(document_id: str, error_message: str) -> None:
     import logging
 
     logger = logging.getLogger(__name__)
-    logger.error(
-        "DEAD-LETTER: Document %s permanently failed: %s",
-        document_id,
-        error_message,
-    )
+    logger.error("DEAD-LETTER: Document %s permanently failed: %s", document_id, error_message)
 
 
 def cdss_job_handler(document_id: str) -> None:

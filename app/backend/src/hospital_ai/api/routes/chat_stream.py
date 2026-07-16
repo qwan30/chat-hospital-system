@@ -10,7 +10,7 @@ import time
 from collections.abc import AsyncIterator, Awaitable, Callable
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
-from typing import Any
+from typing import Any, Optional
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Request
@@ -66,7 +66,7 @@ class StreamCompletion:
     cited_evidence: list[Any] = field(default_factory=list)
     citations_payload: list[dict] = field(default_factory=list)
     confidence: str = "low"
-    failure_reason: str | None = None
+    failure_reason: Optional[str] = None
 
 
 OnCompleteCallback = Callable[[StreamCompletion], Awaitable[None]]
@@ -80,7 +80,7 @@ async def _generate_sse_events(
     conversation_history: list,
     query_id: UUID,
     pipeline_name: str,
-    on_complete: OnCompleteCallback | None = None,
+    on_complete: Optional[OnCompleteCallback] = None,
 ) -> AsyncIterator[str]:
     """Generate SSE events with token-by-token streaming.
 
@@ -326,13 +326,13 @@ async def _apply_stream_completion(
     *,
     ai_query_id: UUID,
     user_id: UUID,
-    patient_id: UUID | None,
-    thread_id: UUID | None,
+    patient_id: Optional[UUID],
+    thread_id: Optional[UUID],
     question: str,
     evidence: list,
     retrieval_mode: str,
     trace_id: str,
-    ip_address: str | None,
+    ip_address: Optional[str],
     started: float,
     completion: StreamCompletion,
 ) -> None:
@@ -459,10 +459,10 @@ async def _persist_stream_completion(
 
 def _log_telemetry(
     settings: Settings,
-    patient_id: UUID | None,
-    evidence: list | None = None,
+    patient_id: Optional[UUID],
+    evidence: Optional[list] = None,
     blocked_count: int = 0,
-    failure_reason: str | None = None,
+    failure_reason: Optional[str] = None,
 ) -> None:
     import hashlib
 

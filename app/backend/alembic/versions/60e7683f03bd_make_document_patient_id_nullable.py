@@ -29,11 +29,11 @@ def upgrade() -> None:
         batch_op.create_index(batch_op.f('ix_ai_queries_patient_id'), ['patient_id'], unique=False)
         batch_op.create_index(batch_op.f('ix_ai_queries_user_id'), ['user_id'], unique=False)
 
-    with op.batch_alter_table('audit_logs', schema=None) as batch_op:
         batch_op.alter_column('ip_address',
                existing_type=sa.VARCHAR(length=45),
                type_=hospital_ai.db.models.InetAddress(length=64),
-               existing_nullable=True)
+               existing_nullable=True,
+               postgresql_using='ip_address::inet')
         batch_op.drop_index(batch_op.f('ix_audit_logs_actor_created'))
         batch_op.drop_index(batch_op.f('ix_audit_logs_patient_created'))
         batch_op.create_index(batch_op.f('ix_audit_logs_actor_user_id'), ['actor_user_id'], unique=False)
@@ -110,7 +110,8 @@ def downgrade() -> None:
         batch_op.alter_column('ip_address',
                existing_type=hospital_ai.db.models.InetAddress(length=64),
                type_=sa.VARCHAR(length=45),
-               existing_nullable=True)
+               existing_nullable=True,
+               postgresql_using='ip_address::varchar')
 
     with op.batch_alter_table('ai_queries', schema=None) as batch_op:
         batch_op.drop_index(batch_op.f('ix_ai_queries_user_id'))

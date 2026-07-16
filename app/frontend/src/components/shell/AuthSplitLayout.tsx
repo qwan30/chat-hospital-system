@@ -1,34 +1,29 @@
 import type { ReactNode } from "react";
 import { Wordmark } from "@/components/hms/Logo";
 import { ShieldCheck, Lock, Eye, Stethoscope } from "lucide-react";
-import authHero from "@/assets/auth-hero.png.asset.json";
+import backgroundLeftLogin from "@/assets/background-left-login.png";
 
 export function AuthSplitLayout({ children }: { children: ReactNode }) {
   return (
     <div className="grid min-h-screen w-full bg-background lg:grid-cols-[1.1fr_1fr]">
-      <div className="relative hidden flex-col justify-between overflow-hidden bg-linear-to-br from-primary via-primary to-ai p-10 text-primary-foreground lg:flex">
+      <div className="relative hidden flex-col justify-between overflow-hidden p-10 lg:flex text-slate-900 border-r border-border bg-slate-50">
         <img
-          src={authHero.url}
+          src={backgroundLeftLogin}
           alt=""
           aria-hidden="true"
-          className="pointer-events-none absolute inset-0 h-full w-full object-cover opacity-60 mix-blend-screen"
+          className="pointer-events-none absolute inset-y-0 right-0 h-full w-full object-cover object-[10%_center] animate-in fade-in duration-300"
         />
-        <div className="absolute inset-0 bg-linear-to-br from-primary/70 via-primary/40 to-ai/60" />
-        <div
-          className="absolute inset-0 opacity-20"
-          style={{
-            backgroundImage:
-              "radial-gradient(circle at 20% 20%, white 0, transparent 40%), radial-gradient(circle at 80% 60%, white 0, transparent 35%)",
-          }}
-        />
+        {/* Soft transition gradient from solid slate-50 to transparent */}
+        <div className="absolute inset-y-0 right-0 w-[30%] bg-gradient-to-l from-slate-50 via-slate-50/60 to-transparent pointer-events-none" />
+
         <div className="relative">
-          <Wordmark className="[&_span]:text-primary-foreground" />
-          <h1 className="mt-12 max-w-md text-4xl font-semibold leading-tight tracking-tight">
+          <Wordmark />
+          <h1 className="mt-12 max-w-md text-4xl font-semibold leading-tight tracking-tight text-slate-900">
             Smarter insights.
             <br />
             Better patient care.
           </h1>
-          <p className="mt-3 max-w-md text-sm text-primary-foreground/80">
+          <p className="mt-3 max-w-md text-sm text-slate-600 font-medium">
             HMS AI Copilot is your hospital's evidence-first knowledge assistant — cited,
             permission-aware, and built for clinicians.
           </p>
@@ -42,11 +37,11 @@ export function AuthSplitLayout({ children }: { children: ReactNode }) {
           ].map((f) => (
             <div
               key={f.t}
-              className="rounded-xl border border-white/15 bg-white/10 p-3 backdrop-blur"
+              className="rounded-xl border border-slate-200 bg-white/75 p-3 backdrop-blur-xs shadow-xs text-slate-800"
             >
-              <f.icon className="h-4 w-4" />
-              <p className="mt-2 font-medium">{f.t}</p>
-              <p className="text-xs text-primary-foreground/70">{f.d}</p>
+              <f.icon className="h-4 w-4 text-primary" />
+              <p className="mt-2 font-semibold text-slate-900">{f.t}</p>
+              <p className="text-xs text-slate-500 font-medium">{f.d}</p>
             </div>
           ))}
         </div>

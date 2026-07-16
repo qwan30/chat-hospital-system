@@ -41,7 +41,7 @@ Tài liệu này không thay thế:
 | Thuộc tính              | Nội dung                                                            |
 |-------------------------|---------------------------------------------------------------------|
 | Tên dự án               | HOSP-AI-001 — AI-Powered Hospital Knowledge Assistant               |
-| Loại hệ thống           | Web Application (Next.js 16 frontend + FastAPI backend)             |
+| Loại hệ thống           | Web Application (TanStack Start frontend + FastAPI backend)             |
 | Product Owner           | Product Owner (see stakeholders.md)                                 |
 | Tech Lead               | Tech Lead / System Architect                                        |
 | QA Lead                 | QA Lead                                                             |
@@ -169,7 +169,7 @@ Không cài đặt Redis cluster, Kafka, hoặc ElasticSearch cho MVP.
 Modular Backend-for-Frontend (BFF) + Service Layer
 ```
 
-Lý do: FastAPI BFF đóng vai trò single entry point cho Next.js UI. Service layer tách biệt business logic khỏi API handlers. PostgreSQL là database duy nhất cho cả transactional data và vector search.
+Lý do: FastAPI BFF đóng vai trò single entry point cho TanStack Start UI. Service layer tách biệt business logic khỏi API handlers. PostgreSQL là database duy nhất cho cả transactional data và vector search.
 
 | Lựa chọn | Kết luận |
 |-----------|----------|
@@ -180,7 +180,7 @@ Lý do: FastAPI BFF đóng vai trò single entry point cho Next.js UI. Service l
 ### 6.2. Quy tắc phụ thuộc
 
 ```
-Next.js UI → FastAPI BFF (routes/) → Service Layer (services/) → Database (db/)
+TanStack Start UI → FastAPI BFF (routes/) → Service Layer (services/) → Database (db/)
                                                                   → LLM Manager
                                                                   → Embedding Service
                                                                   → HMS Connector
@@ -210,7 +210,7 @@ app/
 │       └── workers/         # RQ job definitions + queue
 ├── frontend/
 │   └── src/
-│       ├── app/(app)/       # 14 Next.js App Router pages
+│       ├── app/(app)/       # 14 TanStack Start App Router pages
 │       ├── components/      # 60+ feature components + 30 UI primitives
 │       └── lib/             # API client, auth context, constants
 ```

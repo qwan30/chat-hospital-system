@@ -6,10 +6,11 @@
  * http://localhost:8000/api/v1). In dev, Vite proxies /api -> backend.
  */
 
-const DEFAULT_API_URL = "http://localhost:8000/api/v1";
+const DEFAULT_API_URL = "/api";
 
 function getBaseUrl(): string {
-  if (typeof window === "undefined") return DEFAULT_API_URL;
+  // SSR needs absolute URL; browser uses relative /api → Vite proxy → backend
+  if (typeof window === "undefined") return "http://localhost:8000/api/v1";
   return (import.meta.env.VITE_API_URL as string) || DEFAULT_API_URL;
 }
 
@@ -35,7 +36,6 @@ export class ApiError extends Error {
     this.code = code;
   }
 }
-
 
 export async function apiFetch<T>(
   path: string,

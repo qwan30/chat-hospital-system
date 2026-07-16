@@ -24,6 +24,8 @@ class Settings(BaseSettings):
     # access via the seeded dev users.  See audit finding F-SEC-001.
     dev_bearer_tokens: str = (
         "dev-doctor:doctor@example.test,"
+        "dev-nurse:nurse@example.test,"
+        "dev-pharmacist:pharmacist@example.test,"
         "dev-records:records@example.test,"
         "dev-security:security@example.test,"
         "dev-admin:admin@example.test"

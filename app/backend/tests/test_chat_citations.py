@@ -125,3 +125,59 @@ async def test_chat_surfaces_drug_warnings_when_conflict_exists(session_and_sett
         assert warning.interacting_entity
         assert warning.severity in ("critical", "high", "medium", "low")
         assert warning.message
+
+
+@pytest.mark.asyncio
+async def test_chat_chitchat_bypass_rag(session_and_settings):
+    session, settings = session_and_settings
+    doctor = await session.get(User, DOCTOR_ID)
+
+    response = await ChatService(session, settings).answer(
+        user=doctor,
+        patient_id=PATIENT_ALICE_ID,
+        question="Hello!",
+        top_k=5,
+        trace_id="trace-chitchat",
+        ip_address="127.0.0.1",
+    )
+
+    assert response.pipeline == "chitchat"
+    assert "Xin chào" in response.answer or "hello" in response.answer.lower()
+    assert response.citations == []
+
+
+@pytest.mark.asyncio
+async def test_chat_permission_denied_natural_refusal(session_and_settings):
+    session, settings = session_and_settings
+    doctor = await session.get(User, DOCTOR_ID)
+    
+    # Temporarily change doctor's role to pharmacist and can_access_full_notes to False
+    doctor.role = "pharmacist"
+    await session.commit()
+
+    # Index a document with a tag/content that is NOT medication/safety related (e.g. cardiology note)
+    # So the role filter blocks it.
+    await create_indexed_document(
+        session,
+        patient_id=PATIENT_ALICE_ID,
+        uploaded_by=DOCTOR_ID,
+        title="Cardiology clinical note",
+        content="Patient has severe coronary artery disease.",
+    )
+
+    response = await ChatService(session, settings).answer(
+        user=doctor,
+        patient_id=PATIENT_ALICE_ID,
+        question="What is the coronary disease status?",
+        top_k=5,
+        trace_id="trace-blocked",
+        ip_address="127.0.0.1",
+    )
+
+    # Restore role to doctor
+    doctor.role = "doctor"
+    await session.commit()
+
+    assert "Bạn không có quyền xem thông tin này" in response.answer
+    assert response.citations == []
+

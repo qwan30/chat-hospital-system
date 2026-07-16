@@ -13,7 +13,7 @@
 | SH-001 | Product Owner | Internal | Product vision, feature prioritization, acceptance sign-off |
 | SH-002 | System Architect | Internal | Architecture design, ADRs, technical standards |
 | SH-003 | Backend Team | Internal | FastAPI development, API design, database |
-| SH-004 | Frontend Team | Internal | Next.js UI, component library, UX |
+| SH-004 | Frontend Team | Internal | TanStack Start UI, component library, UX |
 | SH-005 | QA Team | Internal | Test planning, execution, defect tracking |
 | SH-006 | DevOps Team | Internal | CI/CD, deployment, monitoring, infrastructure |
 | SH-007 | Security Team | Internal | Security architecture, HIPAA compliance, audit |

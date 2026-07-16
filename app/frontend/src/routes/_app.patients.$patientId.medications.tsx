@@ -1,5 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { useQuery } from "@tanstack/react-query";
 import { Card } from "@/components/ui/card";
+import { getPatientMedications, type PatientMedicationResponse } from "@/lib/api/patients";
 
 export const Route = createFileRoute("/_app/patients/$patientId/medications")({
   head: () => ({ meta: [{ title: "Medications — HMS AI Copilot" }] }),
@@ -7,6 +9,56 @@ export const Route = createFileRoute("/_app/patients/$patientId/medications")({
 });
 
 function Page() {
+  const { patientId } = Route.useParams();
+
+  const {
+    data: meds,
+    isLoading,
+    error,
+  } = useQuery<PatientMedicationResponse>({
+    queryKey: ["patient-medications", patientId],
+    queryFn: () => getPatientMedications(patientId),
+  });
+
+  if (isLoading) {
+    return (
+      <div className="space-y-4">
+        <Card className="p-0 overflow-hidden">
+          <div className="animate-pulse">
+            <div className="bg-muted/40 px-4 py-2">
+              <div className="h-4 w-64 rounded bg-muted" />
+            </div>
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="border-t px-4 py-2">
+                <div className="h-4 w-32 rounded bg-muted" />
+              </div>
+            ))}
+          </div>
+        </Card>
+      </div>
+    );
+  }
+
+  if (error || !meds) {
+    return (
+      <div className="space-y-4">
+        <Card className="p-5">
+          <p className="text-sm text-destructive">Unable to load medications. Please try again.</p>
+        </Card>
+      </div>
+    );
+  }
+
+  if (meds.medications.length === 0) {
+    return (
+      <div className="space-y-4">
+        <Card className="p-5">
+          <p className="text-sm text-muted-foreground">No medications found for this patient.</p>
+        </Card>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-4">
       <Card className="p-0 overflow-hidden">
@@ -21,19 +73,13 @@ function Page() {
             </tr>
           </thead>
           <tbody>
-            {[
-              ["Apixaban", "5 mg BID", "PO", "2025-03-04", "Dr. S. Chen"],
-              ["Metoprolol succinate", "50 mg daily", "PO", "2024-11-12", "Dr. S. Chen"],
-              ["Atorvastatin", "40 mg HS", "PO", "2023-09-01", "Dr. M. Patel"],
-              ["Lisinopril", "10 mg daily", "PO", "2022-04-15", "Dr. M. Patel"],
-              ["Pantoprazole", "40 mg daily", "PO", "2025-01-20", "Dr. L. Garcia"],
-            ].map((r, i) => (
-              <tr key={i} className="border-t">
-                <td className="px-4 py-2 font-medium">{r[0]}</td>
-                <td className="px-4 py-2">{r[1]}</td>
-                <td className="px-4 py-2">{r[2]}</td>
-                <td className="px-4 py-2 text-xs">{r[3]}</td>
-                <td className="px-4 py-2 text-xs text-muted-foreground">{r[4]}</td>
+            {meds.medications.map((med, i) => (
+              <tr key={`${med.drug_name}-${i}`} className="border-t">
+                <td className="px-4 py-2 font-medium">{med.drug_name}</td>
+                <td className="px-4 py-2">{med.dose ?? "—"}</td>
+                <td className="px-4 py-2">{med.route ?? "—"}</td>
+                <td className="px-4 py-2 text-xs">{med.started ?? "—"}</td>
+                <td className="px-4 py-2 text-xs text-muted-foreground">{med.prescriber ?? "—"}</td>
               </tr>
             ))}
           </tbody>

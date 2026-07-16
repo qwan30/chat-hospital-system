@@ -1,5 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { useQuery } from "@tanstack/react-query";
 import { Card } from "@/components/ui/card";
+import { getPatientLabs, type PatientLabResponse } from "@/lib/api/patients";
 
 export const Route = createFileRoute("/_app/patients/$patientId/labs")({
   head: () => ({ meta: [{ title: "Labs — HMS AI Copilot" }] }),
@@ -7,6 +9,56 @@ export const Route = createFileRoute("/_app/patients/$patientId/labs")({
 });
 
 function Page() {
+  const { patientId } = Route.useParams();
+
+  const {
+    data: labsResp,
+    isLoading,
+    error,
+  } = useQuery<PatientLabResponse>({
+    queryKey: ["patient-labs", patientId],
+    queryFn: () => getPatientLabs(patientId),
+  });
+
+  if (isLoading) {
+    return (
+      <div className="space-y-4">
+        <Card className="p-0 overflow-hidden">
+          <div className="animate-pulse">
+            <div className="bg-muted/40 px-4 py-2">
+              <div className="h-4 w-64 rounded bg-muted" />
+            </div>
+            {[1, 2, 3, 4].map((i) => (
+              <div key={i} className="border-t px-4 py-2">
+                <div className="h-4 w-32 rounded bg-muted" />
+              </div>
+            ))}
+          </div>
+        </Card>
+      </div>
+    );
+  }
+
+  if (error || !labsResp) {
+    return (
+      <div className="space-y-4">
+        <Card className="p-5">
+          <p className="text-sm text-destructive">Unable to load lab results. Please try again.</p>
+        </Card>
+      </div>
+    );
+  }
+
+  if (labsResp.labs.length === 0) {
+    return (
+      <div className="space-y-4">
+        <Card className="p-5">
+          <p className="text-sm text-muted-foreground">No lab results found for this patient.</p>
+        </Card>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-4">
       <Card className="p-0 overflow-hidden">
@@ -21,35 +73,25 @@ function Page() {
             </tr>
           </thead>
           <tbody>
-            {[
-              ["Sodium", "139 mmol/L", "135-145", "—", "Today 06:20"],
-              ["Potassium", "4.2 mmol/L", "3.5-5.0", "—", "Today 06:20"],
-              ["Creatinine", "1.1 mg/dL", "0.6-1.2", "—", "Today 06:20"],
-              ["Hemoglobin", "11.2 g/dL", "12.0-15.5", "L", "Today 06:20"],
-              ["Platelets", "188 ×10⁹/L", "150-400", "—", "Today 06:20"],
-              ["INR", "1.0", "0.8-1.2", "—", "Today 06:20"],
-              ["BNP", "420 pg/mL", "<100", "H", "Today 06:20"],
-              ["Troponin I", "0.02 ng/mL", "<0.04", "—", "Today 06:20"],
-            ].map((r, i) => (
-              <tr key={i} className="border-t">
-                <td className="px-4 py-2">{r[0]}</td>
-                <td className="px-4 py-2 font-medium">{r[1]}</td>
-                <td className="px-4 py-2 text-muted-foreground">{r[2]}</td>
-                <td
-                  className={
-                    "px-4 py-2 font-semibold " +
-                    (r[3] === "H"
-                      ? "text-destructive"
-                      : r[3] === "L"
-                        ? "text-warning"
-                        : "text-muted-foreground")
-                  }
-                >
-                  {r[3]}
-                </td>
-                <td className="px-4 py-2 text-xs">{r[4]}</td>
-              </tr>
-            ))}
+            {labsResp.labs.map((lab, i) => {
+              const flagClass =
+                lab.flag === "H"
+                  ? "text-destructive"
+                  : lab.flag === "L"
+                    ? "text-warning"
+                    : "text-muted-foreground";
+              return (
+                <tr key={`${lab.analyte}-${i}`} className="border-t">
+                  <td className="px-4 py-2">{lab.analyte}</td>
+                  <td className="px-4 py-2 font-medium">{lab.value ?? "—"}</td>
+                  <td className="px-4 py-2 text-muted-foreground">{lab.reference_range ?? "—"}</td>
+                  <td className={`px-4 py-2 font-semibold ${flagClass}`}>
+                    {lab.flag === "H" ? "H" : lab.flag === "L" ? "L" : "—"}
+                  </td>
+                  <td className="px-4 py-2 text-xs">{lab.collected ?? "—"}</td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </Card>

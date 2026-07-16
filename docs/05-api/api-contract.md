@@ -11,7 +11,9 @@
 
 ## 1. Architecture
 
-The backend is a **FastAPI BFF (Backend-for-Frontend)** serving the Next.js UI. The API base path is `/api/v1`. All endpoints use JSON request/response bodies, UUID primary keys, and require JWT-based authentication via `get_current_user` dependency. Rate limiting is enforced via `slowapi`.
+The backend is a **FastAPI BFF (Backend-for-Frontend)** serving the TanStack Start UI. The API base path is `/api/v1`. In development, the Vite frontend proxies `/api` → `http://localhost:8000/api/v1` (see `vite.config.ts`). All endpoints use JSON request/response bodies, UUID primary keys, and require JWT-based authentication via `get_current_user` dependency. Rate limiting is enforced via `slowapi`.
+
+> **Important:** The frontend API client (`src/lib/api-client.ts`) defaults to `DEFAULT_API_URL = "/api"` — a relative path that goes through the Vite proxy. In SSR mode, the absolute URL `http://localhost:8000/api/v1` is used.
 
 ---
 
@@ -31,7 +33,7 @@ All routes are mounted in `app/backend/src/hospital_ai/api/router.py`:
 | `/chat-threads` | `routes/chat_threads.py` | Chat thread CRUD |
 | `/hms` | `routes/hms.py` | HMS integration sync |
 | `/audit` | `routes/audit.py` | Audit log access (security/admin only) |
-| `/settings` | `routes/settings.py` | System settings management (14 configurable keys) |
+| `/settings` | `routes/settings.py` | System settings management (14 configurable keys). **Admin-only**: GET requires `admin` or `security` role; PUT/DELETE requires `admin`. Frontend RBAC enforces this via `ADMIN_ONLY` in `rbac.ts`. |
 | `/dashboard` | `routes/dashboard.py` | Dashboard summary metrics |
 | `/search` | `routes/search.py` | Global entity search (rate limited 20/min) |
 | `/access-requests` | `routes/access_requests.py` | Patient access requests |

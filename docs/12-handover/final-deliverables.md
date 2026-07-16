@@ -6,7 +6,7 @@ This project is best presented as a full-stack/backend AI engineering MVP, not a
 
 Safe one-line summary:
 
-> Built a privacy-aware hospital knowledge assistant MVP with FastAPI, Next.js, permission-filtered RAG, citation validation, audit logs, HMS evidence import, and verified backend/frontend contract tests using synthetic data.
+> Built a privacy-aware hospital knowledge assistant MVP with FastAPI, TanStack Start, permission-filtered RAG, citation validation, audit logs, HMS evidence import, and verified backend/frontend contract tests using synthetic data.
 
 Avoid claims of HIPAA compliance, production deployment, real hospital users, or measured ROI unless separate evidence is added.
 
@@ -26,7 +26,7 @@ The project targets a safer workflow:
 
 | Layer | Implementation | Evidence |
 |---|---|---|
-| Frontend | Next.js App Router, React, TypeScript, chat/documents/audit/metrics/settings pages | `app/frontend/src/app`, `app/frontend/src/components` |
+| Frontend | TanStack Start App Router, React, TypeScript, chat/documents/audit/metrics/settings pages | `app/frontend/src/app`, `app/frontend/src/components` |
 | API | FastAPI route modules under `/api/v1` | `app/backend/src/hospital_ai/api/routes` |
 | Data | SQLAlchemy async models, Alembic migrations, PostgreSQL/pgvector target, SQLite test mode | `app/backend/src/hospital_ai/db`, `app/backend/alembic` |
 | RAG | Permission-filtered retrieval, citation validation, safe refusal, streaming validation | `services/retrieval.py`, `services/chat.py`, `api/routes/chat_stream.py` |
@@ -85,7 +85,7 @@ Fresh authenticated workflow screenshots and human demo sign-off are still recom
 
 ## Safe CV Bullets
 
-- Built a full-stack hospital knowledge assistant MVP with FastAPI, Next.js, SQLAlchemy, PostgreSQL/pgvector-ready retrieval, and synthetic/de-identified clinical workflows.
+- Built a full-stack hospital knowledge assistant MVP with FastAPI, TanStack Start, SQLAlchemy, PostgreSQL/pgvector-ready retrieval, and synthetic/de-identified clinical workflows.
 - Implemented permission-filtered RAG so patient evidence is filtered by active scope before it can be passed to answer generation.
 - Added citation validation, safe-refusal behavior, and audit trails for patient-grounded AI answers.
 - Integrated document upload/indexing and HMS appointment/sync data as citeable evidence sources.

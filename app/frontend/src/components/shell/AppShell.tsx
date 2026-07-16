@@ -11,16 +11,28 @@ export function AppShell({
   children,
   rightRail,
   maxWidth = "max-w-[1400px]",
+  fixedHeight = false,
 }: {
   children: ReactNode;
   rightRail?: ReactNode;
   maxWidth?: string;
+  fixedHeight?: boolean;
 }) {
   return (
     <SidebarProvider>
-      <div className="flex min-h-screen w-full bg-background">
+      <div
+        className={cn(
+          "flex w-full bg-background",
+          fixedHeight ? "h-screen overflow-hidden" : "min-h-screen",
+        )}
+      >
         <AppSidebar />
-        <SidebarInset className="flex min-w-0 flex-1 flex-col">
+        <SidebarInset
+          className={cn(
+            "flex min-w-0 flex-1 flex-col",
+            fixedHeight ? "h-screen overflow-hidden" : "",
+          )}
+        >
           <a
             href="#main-content"
             className="sr-only focus:not-sr-only focus:absolute focus:left-2 focus:top-2 focus:z-50 focus:rounded-md focus:bg-primary focus:px-3 focus:py-1.5 focus:text-xs focus:font-medium focus:text-primary-foreground"
@@ -30,21 +42,45 @@ export function AppShell({
           <Topbar />
           <OfflineBanner />
           <ActingAsBanner />
-          <div className={cn("mx-auto flex w-full flex-1 gap-6 px-6 py-6", maxWidth)}>
-            <main id="main-content" className="min-w-0 flex-1">
+          <div
+            className={cn(
+              "mx-auto flex w-full gap-6 px-6 py-6",
+              maxWidth,
+              fixedHeight ? "flex-1 overflow-hidden min-h-0" : "flex-1",
+            )}
+          >
+            <main
+              id="main-content"
+              className={cn(
+                "min-w-0 flex-1",
+                fixedHeight ? "h-full overflow-hidden flex flex-col" : "",
+              )}
+            >
               {children}
             </main>
             {rightRail ? (
-              <aside className="hidden w-[340px] shrink-0 xl:block">
-                <div className="sticky top-20 max-h-[calc(100vh-6rem)] overflow-y-auto">
+              <aside
+                className={cn(
+                  "hidden w-[340px] shrink-0 xl:block",
+                  fixedHeight ? "h-full overflow-hidden" : "",
+                )}
+              >
+                <div
+                  className={cn(
+                    "overflow-y-auto",
+                    fixedHeight ? "h-full pb-6" : "sticky top-20 max-h-[calc(100vh-6rem)]",
+                  )}
+                >
                   {rightRail}
                 </div>
               </aside>
             ) : null}
           </div>
-          <div className={cn("mx-auto w-full px-6 pb-6", maxWidth)}>
-            <SafetyFooter />
-          </div>
+          {!fixedHeight && (
+            <div className={cn("mx-auto w-full px-6 pb-6", maxWidth)}>
+              <SafetyFooter />
+            </div>
+          )}
         </SidebarInset>
       </div>
     </SidebarProvider>

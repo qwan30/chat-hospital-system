@@ -42,6 +42,7 @@ const ADMIN_ONLY = [
   "/integrations",
   "/metrics",
   "/screens",
+  "/settings",
   "/audit/compliance-summary",
   "/audit/export",
   "/audit/denied",

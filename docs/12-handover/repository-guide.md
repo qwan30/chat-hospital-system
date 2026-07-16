@@ -12,7 +12,7 @@
 | Execution flows | 216 |
 | Languages | Python (137), TypeScript/TSX (150), JS, CSS |
 | Backend | FastAPI 0.95+ |
-| Frontend | Next.js 16.2 |
+| Frontend | TanStack Start |
 | Database | PostgreSQL + pgvector |
 
 ## 2. Backend (`app/backend/`)
@@ -120,7 +120,7 @@
 ## 4. Data Flow
 
 ```
-Clinician → Next.js UI → FastAPI BFF (14 routes)
+Clinician → TanStack Start UI → FastAPI BFF (14 routes)
     → Permission Check (RBAC + ABAC)
     → RAG Pipeline (embed → retrieve → rerank → generate → validate)
     → Drug Check (allergy + interaction)

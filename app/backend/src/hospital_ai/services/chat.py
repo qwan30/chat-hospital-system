@@ -166,21 +166,19 @@ class ChatService:
             ]
 
             t_gen_start = time.perf_counter()
-            try:
-                response = await llm.generate(messages)
-                ans_text = response.text
-            except Exception:
-                if self.settings.chat_provider == "stub":
-                    lower_q = question.lower()
-                    if "xin chào" in lower_q or "chào" in lower_q or "hello" in lower_q or "hi" in lower_q:
-                        ans_text = "Xin chào! Tôi là trợ lý ảo HMS AI Copilot. Tôi có thể giúp gì cho bạn hôm nay?"
-                    elif "cảm ơn" in lower_q or "cám ơn" in lower_q or "thank" in lower_q or "thanks" in lower_q:
-                        ans_text = "Không có gì! Nếu bạn cần thêm thông tin gì khác, cứ hỏi tôi nhé."
-                    else:
-                        ans_text = (
-                            "Tôi là HMS AI Copilot, trợ lý thông tin bệnh viện của bạn. Tôi có thể giúp gì cho bạn?"
-                        )
+            if self.settings.chat_provider == "stub":
+                lower_q = question.lower()
+                if "xin chào" in lower_q or "chào" in lower_q or "hello" in lower_q or "hi" in lower_q:
+                    ans_text = "Xin chào! Tôi là trợ lý ảo HMS AI Copilot. Tôi có thể giúp gì cho bạn hôm nay?"
+                elif "cảm ơn" in lower_q or "cám ơn" in lower_q or "thank" in lower_q or "thanks" in lower_q:
+                    ans_text = "Không có gì! Nếu bạn cần thêm thông tin gì khác, cứ hỏi tôi nhé."
                 else:
+                    ans_text = "Tôi là HMS AI Copilot, trợ lý thông tin bệnh viện của bạn. Tôi có thể giúp gì cho bạn?"
+            else:
+                try:
+                    response = await llm.generate(messages)
+                    ans_text = response.text
+                except Exception:
                     raise
             t_gen_ms = int((time.perf_counter() - t_gen_start) * 1000)
 

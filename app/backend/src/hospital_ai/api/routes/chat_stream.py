@@ -107,26 +107,23 @@ async def _generate_sse_events(
                 ),
                 LLMMessage(role="user", content=question),
             ]
-            full_text = ""
-            try:
-                async for token in llm.stream(messages):
-                    full_text += token
-                    event = json.dumps({"type": "token", "content": token})
-                    yield f"data: {event}\n\n"
-            except Exception:
-                if settings.chat_provider == "stub":
-                    lower_q = question.lower()
-                    if "xin chào" in lower_q or "chào" in lower_q or "hello" in lower_q or "hi" in lower_q:
-                        full_text = "Xin chào! Tôi là trợ lý ảo HMS AI Copilot. Tôi có thể giúp gì cho bạn hôm nay?"
-                    elif "cảm ơn" in lower_q or "cám ơn" in lower_q or "thank" in lower_q or "thanks" in lower_q:
-                        full_text = "Không có gì! Nếu bạn cần thêm thông tin gì khác, cứ hỏi tôi nhé."
-                    else:
-                        full_text = (
-                            "Tôi là HMS AI Copilot, trợ lý thông tin bệnh viện của bạn. Tôi có thể giúp gì cho bạn?"
-                        )
-                    event = json.dumps({"type": "token", "content": full_text})
-                    yield f"data: {event}\n\n"
+            if settings.chat_provider == "stub":
+                lower_q = question.lower()
+                if "xin chào" in lower_q or "chào" in lower_q or "hello" in lower_q or "hi" in lower_q:
+                    full_text = "Xin chào! Tôi là trợ lý ảo HMS AI Copilot. Tôi có thể giúp gì cho bạn hôm nay?"
+                elif "cảm ơn" in lower_q or "cám ơn" in lower_q or "thank" in lower_q or "thanks" in lower_q:
+                    full_text = "Không có gì! Nếu bạn cần thêm thông tin gì khác, cứ hỏi tôi nhé."
                 else:
+                    full_text = "Tôi là HMS AI Copilot, trợ lý thông tin bệnh viện của bạn. Tôi có thể giúp gì cho bạn?"
+                event = json.dumps({"type": "token", "content": full_text})
+                yield f"data: {event}\n\n"
+            else:
+                try:
+                    async for token in llm.stream(messages):
+                        full_text += token
+                        event = json.dumps({"type": "token", "content": token})
+                        yield f"data: {event}\n\n"
+                except Exception:
                     raise
 
             # Emit metadata, done, and run on_complete

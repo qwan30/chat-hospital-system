@@ -8,6 +8,7 @@ export function Logo({ className, size = 28 }: { className?: string; size?: numb
         className,
       )}
       style={{ width: size, height: size }}
+      role="img"
       aria-label="HMS AI Copilot"
     >
       <svg viewBox="0 0 24 24" width={size * 0.65} height={size * 0.65} fill="none">

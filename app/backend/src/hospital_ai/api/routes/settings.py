@@ -7,6 +7,8 @@ database table so they survive restarts.
 
 from __future__ import annotations
 
+from typing import Optional
+
 from fastapi import APIRouter, Depends, Request
 from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -59,21 +61,21 @@ class SettingsResponse(BaseModel):
 
 
 class SettingsUpdateRequest(BaseModel):
-    chat_provider: str | None = None
-    chat_model: str | None = None
-    openai_chat_model: str | None = None
-    openai_base_url: str | None = None
-    ollama_base_url: str | None = None
-    system_prompt: str | None = None
-    streaming_enabled: bool | None = None
-    embedding_provider: str | None = None
-    embedding_model: str | None = None
-    embedding_dimensions: int | None = Field(None, ge=64, le=4096)
-    openai_embedding_model: str | None = None
-    retrieval_top_k: int | None = Field(None, ge=1, le=50)
-    evidence_threshold: float | None = Field(None, ge=0.0, le=1.0)
-    chunk_size: int | None = Field(None, ge=64, le=4096)
-    chunk_overlap: int | None = Field(None, ge=0, le=512)
+    chat_provider: Optional[str] = None
+    chat_model: Optional[str] = None
+    openai_chat_model: Optional[str] = None
+    openai_base_url: Optional[str] = None
+    ollama_base_url: Optional[str] = None
+    system_prompt: Optional[str] = None
+    streaming_enabled: Optional[bool] = None
+    embedding_provider: Optional[str] = None
+    embedding_model: Optional[str] = None
+    embedding_dimensions: Optional[int] = Field(None, ge=64, le=4096)
+    openai_embedding_model: Optional[str] = None
+    retrieval_top_k: Optional[int] = Field(None, ge=1, le=50)
+    evidence_threshold: Optional[float] = Field(None, ge=0.0, le=1.0)
+    chunk_size: Optional[int] = Field(None, ge=64, le=4096)
+    chunk_overlap: Optional[int] = Field(None, ge=0, le=512)
 
 
 # ── Routes ───────────────────────────────────────────────────────────

@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
+from typing import Optional
 
 from hospital_ai.core.errors import ExternalServiceError
 from hospital_ai.services.loaders.base import BaseDocumentLoader, LoadedPage
@@ -21,7 +22,7 @@ class CompositeLoader:
     and falls back to OCR for unrecognized binary formats.
     """
 
-    def __init__(self, loaders: list[BaseDocumentLoader] | None = None) -> None:
+    def __init__(self, loaders: Optional[list[BaseDocumentLoader]] = None) -> None:
         if loaders is not None:
             self._loaders = loaders
         else:

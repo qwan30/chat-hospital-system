@@ -64,7 +64,7 @@ describe("getStoredApiUrl / persistApiUrl", () => {
   });
 
   it("returns the default API URL when nothing is stored", () => {
-    expect(getStoredApiUrl()).toBe("http://localhost:8000/api/v1");
+    expect(getStoredApiUrl()).toBe("/api");
   });
 
   it("persists and retrieves a custom API URL", () => {

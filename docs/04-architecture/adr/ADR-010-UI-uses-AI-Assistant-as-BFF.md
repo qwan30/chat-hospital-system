@@ -8,14 +8,14 @@
 - **Last Updated:** 2026-06-07
 
 ## Context
-Exposing the frontend application directly to both the HMS API and the Chatbot API requires the Next.js UI to orchestrate complex multi-service requests (e.g. checking permissions, querying patient details, generating summaries, and writing logs). This increases UI code complexity and network latency.
+Exposing the frontend application directly to both the HMS API and the Chatbot API requires the TanStack Start UI to orchestrate complex multi-service requests (e.g. checking permissions, querying patient details, generating summaries, and writing logs). This increases UI code complexity and network latency.
 
 ## Decision
-We chose the AI Assistant FastAPI backend to act as a unified **Backend-For-Frontend (BFF)** layer. The Next.js UI communicates exclusively with the BFF. The BFF performs all backend orchestration, queries HMS APIs, reads pgvector, and consolidates payloads.
+We chose the AI Assistant FastAPI backend to act as a unified **Backend-For-Frontend (BFF)** layer. The TanStack Start UI communicates exclusively with the BFF. The BFF performs all backend orchestration, queries HMS APIs, reads pgvector, and consolidates payloads.
 
 ## Consequences
 - **Pros:**
-  - Standardizes the API request contract for the Next.js UI.
+  - Standardizes the API request contract for the TanStack Start UI.
   - Simplifies the UI client state management and security token handling.
   - Improves API latency by routing orchestration inside the local network.
 - **Cons:**

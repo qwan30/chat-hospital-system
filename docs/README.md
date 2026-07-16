@@ -11,6 +11,7 @@ Welcome to the documentation pack for the AI-Powered Hospital Knowledge Assistan
 The documentation is organized into the following folders under `docs/`:
 
 *   **`00-overview/`**: Project foundation, context, and governance.
+    *   [current-source-status.md](00-overview/current-source-status.md) — **Live Status** — Current source snapshot with stack, route inventory, and known exceptions.
     *   [project-foundation.md](00-overview/project-foundation.md) — **Source of Truth** — technical standards, architecture, conventions.
     *   [project-context.md](00-overview/project-context.md) — Project metadata, business background, key statistics.
     *   [documentation-index.md](00-overview/documentation-index.md) — Persona-based reading paths and directory map.

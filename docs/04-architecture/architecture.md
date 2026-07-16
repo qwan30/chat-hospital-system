@@ -11,7 +11,7 @@
 
 ## 1. Architecture Goals and Constraints
 *   **System of Record Separation**: The HMS owns all transactional hospital clinical data. The AI assistant functions as a read-model caching layer and RAG vector store.
-*   **Next.js UI BFF Aggregator**: The Next.js web application interacts exclusively with the AI Assistant Backend (BFF), which consolidates endpoints and proxies EMR data checks to the HMS API.
+*   **TanStack Start UI BFF Aggregator**: The TanStack Start web application interacts exclusively with the AI Assistant Backend (BFF), which consolidates endpoints and proxies EMR data checks to the HMS API.
 *   **Local-first Privacy**: No patient Protected Health Information (PHI) is processed by external cloud LLMs. Local quantized models (Qwen2.5 3B/7B via Ollama) are used.
 *   **HNSW Vector Indexing**: Document chunks, metadata, and embeddings are managed locally in PostgreSQL using the `pgvector` extension.
 
@@ -23,7 +23,7 @@ The multi-layer integration architecture operates as follows:
 
 ```mermaid
 flowchart TD
-    UI[Next.js Web UI] -->|BFF APIs| BFF[AI Assistant FastAPI Backend]
+    UI[TanStack Start Web UI] -->|BFF APIs| BFF[AI Assistant FastAPI Backend]
     BFF -->|Read-only caches & RAG| PG[(AI PostgreSQL + pgvector)]
     BFF -->|Inference Queries| LLM[Local Ollama / vLLM Engine]
     BFF -->|Enqueue OCR task| Redis[(Redis Task Queue — RQ)]
@@ -44,7 +44,7 @@ flowchart TD
 
 | Component Layer | Responsibility | Primary Datastore |
 |---|---|---|
-| **Next.js Web UI** | Interacts with Chat, Patient snapshots, Document OCR dashboards, and Metrics views. | Browser state |
+| **TanStack Start Web UI** | Interacts with Chat, Patient snapshots, Document OCR dashboards, and Metrics views. | Browser state |
 | **FastAPI Backend (BFF)** | Direct entry point for UI. Handles request validation, routes queries, checks policies, and performs auth bridge mappings. | PostgreSQL |
 | **HMS Spring Boot API** | External system of record owning clinical patient records, logins, appointments, and access requests. | HMS Production DB |
 | **RQ Indexing Worker** | Processes uploaded documents via RQ (Redis Queue), performs page OCR, and generates vector chunks. | Local filesystem / S3 |
@@ -62,7 +62,7 @@ This sequence outlines permission check routing before HMS EMR snapshots are cac
 ```mermaid
 sequenceDiagram
     actor Doctor
-    participant UI as Next.js Web UI
+    participant UI as TanStack Start Web UI
     participant BFF as FastAPI BFF
     participant HMS as HMS Spring Boot API
     participant PG as pgvector Database

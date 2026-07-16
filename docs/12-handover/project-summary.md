@@ -12,10 +12,10 @@ Source template: `evidence-sheet.md`
 
 | Field | Evidence-backed answer | Classification |
 |---|---|---|
-| What this project is | A full-stack hospital knowledge assistant with a FastAPI backend, Next.js frontend, permission-filtered RAG, citation handling, chat threads, document ingestion, HMS evidence import/sync, audit logs, and metrics surfaces. | VERIFIED |
+| What this project is | A full-stack hospital knowledge assistant with a FastAPI backend, TanStack Start frontend, permission-filtered RAG, citation handling, chat threads, document ingestion, HMS evidence import/sync, audit logs, and metrics surfaces. | VERIFIED |
 | Problem it targets | Hospital staff need faster access to policy, clinical, patient, and operational knowledge while preventing unauthorized PHI exposure. | VERIFIED from docs |
 | Primary users | Doctors, nurses, pharmacists, records staff, admin/IT, and product/project stakeholders. | VERIFIED from docs |
-| Main stack | FastAPI, SQLAlchemy, Alembic, PostgreSQL/pgvector, Redis/RQ, Next.js 16, React 19, TypeScript, Tailwind CSS, shadcn-style UI, Vitest/TAP tests, Pytest. | VERIFIED |
+| Main stack | FastAPI, SQLAlchemy, Alembic, PostgreSQL/pgvector, Redis/RQ, TanStack Start, React 19, TypeScript, Tailwind CSS, shadcn-style UI, Vitest/TAP tests, Pytest. | VERIFIED |
 | Current strongest evidence | Backend test suite passes `250 passed, 2 skipped`; frontend workspace tests pass `18` TAP checks; API contract verifier passes; synthetic RAG eval and live API UAT reports exist; Docker/GitHub Actions workflow files exist. | VERIFIED |
 | Deployment status | Docker Compose and GitHub Actions workflows are configured, but no live deployment URL or successful CI run was verified in this audit. | VERIFIED plus MISSING |
 | Adoption evidence | Public GitHub repo exists with 0 stars, 0 forks, 0 open issues, one public branch, and no open PR evidence. No user/adoption analytics found. | VERIFIED |
@@ -57,7 +57,7 @@ Overall assessment: the repository has strong implementation and test evidence f
 | pgvector | migrations and CI service image | Vector retrieval support | VERIFIED as configured |
 | SQLite / aiosqlite | backend dev/test dependencies | Local tests and lightweight dev DB | VERIFIED |
 | Redis/RQ | `workers/queue.py`, Docker Compose | Background document indexing queue | VERIFIED as implemented/configured |
-| Next.js | `app/frontend/package.json`, build output | Frontend app router runtime | VERIFIED |
+| TanStack Start | `app/frontend/package.json`, build output | Frontend app router runtime | VERIFIED |
 | React | `app/frontend/package.json`, component files | UI rendering | VERIFIED |
 | TypeScript | frontend source and `npm run typecheck` | Frontend type safety | VERIFIED |
 | Tailwind CSS v4 | frontend package and CSS usage | Styling system | VERIFIED |
@@ -113,7 +113,7 @@ Overall assessment: the repository has strong implementation and test evidence f
 | Decision | Evidence | Why it matters | Classification |
 |---|---|---|---|
 | FastAPI backend | `main.py`, routers, backend README | Clear Python API surface for RAG, documents, HMS, audit, settings. | VERIFIED |
-| Next.js frontend | `app/frontend`, package scripts, App Router pages | Modern full-stack frontend with dashboard/chat/document surfaces. | VERIFIED |
+| TanStack Start frontend | `app/frontend`, package scripts, App Router pages | Modern full-stack frontend with dashboard/chat/document surfaces. | VERIFIED |
 | Permission-first retrieval | PermissionService and RetrievalService | Prevents unauthorized patient chunks from reaching answer generation. | VERIFIED |
 | Citation-bound answers | ChatService and streaming validation | Supports traceability and reduces unsupported answer risk. | VERIFIED |
 | Local-first/dev-safe defaults | config docs and deterministic/stub defaults | Lets the app run without external LLM dependencies during tests. | VERIFIED |
@@ -164,8 +164,8 @@ Resume-safe ownership wording should say "built" or "implemented" only if the us
 | Frontend typecheck | Passed | `npm run typecheck` | Yes | VERIFIED |
 | Frontend lint | Passed | `npm run lint` | Yes | VERIFIED |
 | Frontend production build | Passed | `npm run build` | Yes | VERIFIED |
-| Next build compile time | `7.8s` compile, TypeScript `23.5s` in this local run | Next.js build output | Only as local build evidence, not product performance | VERIFIED |
-| Static pages generated | `11/11` | Next.js build output | Maybe, as app size context | VERIFIED |
+| Next build compile time | `7.8s` compile, TypeScript `23.5s` in this local run | TanStack Start build output | Only as local build evidence, not product performance | VERIFIED |
+| Static pages generated | `11/11` | TanStack Start build output | Maybe, as app size context | VERIFIED |
 | Backend route decorators | `34` | Static route scan | Yes, as scope count | VERIFIED |
 | Alembic migrations | `6` | `app/backend/alembic/versions/*.py` | Yes | VERIFIED |
 | Backend model classes in `db/models.py` | `13` listed model classes | Static inspection | Yes with exact scope | VERIFIED |
@@ -228,7 +228,7 @@ These counts are suitable for evidence inventory. They should not be inflated in
 | Docker image workflow | Workflow builds/pushes backend/frontend images to GHCR. | VERIFIED as configured |
 | Live URL | No live deployment URL found in repo or GitHub homepage metadata. | MISSING |
 | Successful remote CI run | Workflow definitions exist, but current run status was not verified in this audit. | MISSING |
-| Root lockfile warning | Next.js build warned about multiple lockfiles and selected `D:\projects\chatbot-hospital-system\package-lock.json` as root. | VERIFIED limitation |
+| Root lockfile warning | TanStack Start build warned about multiple lockfiles and selected `D:\projects\chatbot-hospital-system\package-lock.json` as root. | VERIFIED limitation |
 
 ## 13. Adoption and External Impact Evidence
 
@@ -253,7 +253,7 @@ These are evidence-safe claim ingredients, not final resume bullets.
 
 | Claim ingredient | Evidence basis | Classification |
 |---|---|---|
-| Built a full-stack hospital knowledge assistant with FastAPI and Next.js | Backend/frontend source, docs, build/test results | VERIFIED |
+| Built a full-stack hospital knowledge assistant with FastAPI and TanStack Start | Backend/frontend source, docs, build/test results | VERIFIED |
 | Implemented permission-filtered RAG so unauthorized patient chunks are filtered before LLM context construction | RetrievalService, PermissionService, tests | VERIFIED |
 | Added citation validation and audit traces for patient-grounded answers | ChatService, streaming route, RetrievedEvidence, audit tests | VERIFIED |
 | Built persistent chat threads with participants, sharing/archive behavior, and patient-linked messages | Backend routes/models/tests and frontend shell/tests | VERIFIED |

@@ -9,6 +9,7 @@ from __future__ import annotations
 import logging
 import math
 import re
+from typing import Optional
 
 from hospital_ai.services.retrieval import RetrievedChunk
 
@@ -213,7 +214,7 @@ async def bm25_search_postgres(
     query: str,
     *,
     top_k: int = 10,
-    scope_filter: str | None = None,
+    scope_filter: Optional[str] = None,
 ) -> list[RetrievedChunk]:
     """Execute a BM25 full-text search against PostgreSQL tsvector index.
 

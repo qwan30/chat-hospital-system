@@ -11,6 +11,7 @@ from __future__ import annotations
 import json
 import uuid
 from collections.abc import AsyncIterator
+from typing import Optional
 
 import pytest
 
@@ -23,8 +24,9 @@ from hospital_ai.services.retrieval import RetrievedChunk
 # ── F-SEC-001: dev bearer tokens guarded by environment ─────────────────
 
 
-def test_token_user_map_returns_default_in_local_environment():
-    settings = Settings(environment="local")
+def test_token_user_map_returns_default_in_local_environment(monkeypatch):
+    monkeypatch.delenv("HOSPITAL_AI_DEV_BEARER_TOKENS", raising=False)
+    settings = Settings(environment="local", _env_file=None)
     mapping = settings.token_user_map
     assert mapping.get("dev-doctor") == "doctor@example.test"
     assert mapping.get("dev-admin") == "admin@example.test"
@@ -129,7 +131,7 @@ class _FakeLLM(BaseLLM):
         messages: list[LLMMessage],
         *,
         temperature: float = 0.0,
-        max_tokens: int | None = None,
+        max_tokens: Optional[int] = None,
     ) -> LLMResponse:
         return LLMResponse(text=self._answer, model=self._model, finish_reason="stop")
 
@@ -138,7 +140,7 @@ class _FakeLLM(BaseLLM):
         messages: list[LLMMessage],
         *,
         temperature: float = 0.0,
-        max_tokens: int | None = None,
+        max_tokens: Optional[int] = None,
     ) -> AsyncIterator[str]:
         for word in self._answer.split(" "):
             yield word + " "
@@ -152,7 +154,7 @@ class _RaisingLLM(_FakeLLM):
         messages: list[LLMMessage],
         *,
         temperature: float = 0.0,
-        max_tokens: int | None = None,
+        max_tokens: Optional[int] = None,
     ) -> AsyncIterator[str]:
         # Yield nothing; the internal error must be sanitized before reaching client.
         if False:  # pragma: no cover - generator type stub

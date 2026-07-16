@@ -1,4 +1,5 @@
 import uuid
+from typing import Optional
 
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy import select
@@ -13,9 +14,9 @@ router = APIRouter()
 
 
 async def _list_logs(
-    patient_id: uuid.UUID | None,
-    action: str | None,
-    outcome: str | None,
+    patient_id: Optional[uuid.UUID],
+    action: Optional[str],
+    outcome: Optional[str],
     limit: int,
     session: AsyncSession,
     current_user: User,
@@ -36,9 +37,9 @@ async def _list_logs(
 
 @router.get("/logs", response_model=AuditLogList)
 async def list_logs(
-    patient_id: uuid.UUID | None = None,
-    action: str | None = None,
-    outcome: str | None = None,
+    patient_id: Optional[uuid.UUID] = None,
+    action: Optional[str] = None,
+    outcome: Optional[str] = None,
     limit: int = Query(default=50, ge=1, le=200),
     session: AsyncSession = Depends(get_session),
     current_user: User = Depends(get_current_user),
@@ -48,9 +49,9 @@ async def list_logs(
 
 @router.get("/events", response_model=AuditLogList)
 async def list_events_alias(
-    patient_id: uuid.UUID | None = None,
-    action: str | None = None,
-    outcome: str | None = None,
+    patient_id: Optional[uuid.UUID] = None,
+    action: Optional[str] = None,
+    outcome: Optional[str] = None,
     limit: int = Query(default=50, ge=1, le=200),
     session: AsyncSession = Depends(get_session),
     current_user: User = Depends(get_current_user),

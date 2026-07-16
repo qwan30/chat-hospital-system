@@ -1,6 +1,7 @@
 import logging
 import uuid
 from datetime import UTC, date, datetime
+from typing import Optional
 
 from fastapi import APIRouter, Depends, Query, Request
 from sqlalchemy import func, or_, select
@@ -33,7 +34,7 @@ router = APIRouter()
 @router.get("/search", response_model=PatientSearchResponse)
 async def search_patients(
     request: Request,
-    q: str | None = Query(default=None),
+    q: Optional[str] = Query(default=None),
     limit: int = Query(default=20, ge=1, le=100),
     session: AsyncSession = Depends(get_session),
     current_user: User = Depends(get_current_user),
@@ -657,7 +658,11 @@ def _extract_dose(text: str) -> Optional[str]:
     """Extract dose pattern like '5mg', '500mg', '10mg' from text."""
     import re
 
-    m = re.search(r"(\d+\.?\d*\s*(?:mg|mcg|g|ml|IU|uL|mmol)(?:\s*(?:BID|TID|QID|daily|/ngày))?)", text, re.IGNORECASE)
+    pattern = (
+        r"(\d+\.?\d*\s*(?:mg|mcg|g|ml|IU|uL|mmol)"
+        r"(?:\s*(?:BID|TID|QID|daily|/ngày))?)"
+    )
+    m = re.search(pattern, text, re.IGNORECASE)
     return m.group(1) if m else None
 
 
@@ -677,7 +682,7 @@ def _parse_lab_content(content: str) -> list[PatientLabItem]:
     # Pattern: analyte name followed by value and optional reference range
     # Match lines like: "Hemoglobin (HGB)                  12.5     12.0-16.0 g/dL"
     lab_pattern = re.compile(
-        r"^([A-Za-zÀ-Ỹà-ỹ][A-Za-zÀ-Ỹà-ỹ\s\-().,]+?)\s{2,}"  # analyte name
+        r"^([^\W\d_][^\W\d_\s\-().,]+?)\s{2,}"  # analyte name
         r"([\d.]+(?:\s*[x×]\s*\d+[⁰¹²³⁴⁵⁶⁷⁸⁹]*(?:/[A-Za-z]+)?)?)\s+"  # value
         r"([\d.<>]+\s*[-–]\s*[\d.<>]+(?:\s*[A-Za-z/%]+)?)",  # reference range
         re.MULTILINE,
@@ -698,7 +703,7 @@ def _parse_lab_content(content: str) -> list[PatientLabItem]:
 
     # Also try simpler pattern: "Analyte: Value (Ref: range)"
     simple_pattern = re.compile(
-        r"^([A-Za-zÀ-Ỹà-ỹ][A-Za-zÀ-Ỹà-ỹ\s\-().]+?):\s*([\d.]+)\s*(?:\(.*?([\d.]+\s*[-–]\s*[\d.]+).*?\))?",
+        r"^([^\W\d_][^\W\d_\s\-().]+?):\s*([\d.]+)\s*(?:\(.*?([\d.]+\s*[-–]\s*[\d.]+).*?\))?",
         re.MULTILINE,
     )
     for match in simple_pattern.finditer(content):

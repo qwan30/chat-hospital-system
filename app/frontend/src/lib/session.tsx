@@ -56,6 +56,7 @@ function buildSession(
       rn: "dev-nurse",
       pharmacist: "dev-pharmacist",
       front_desk: "dev-records",
+      admin: "dev-admin",
     };
     token = roleTokens[role] || "dev-doctor";
   }

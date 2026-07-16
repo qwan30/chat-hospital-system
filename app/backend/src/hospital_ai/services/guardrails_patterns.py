@@ -67,9 +67,9 @@ PHI_PATTERNS = {
     # Basic phone number pattern (US format)
     "Phone": re.compile(r"\b(?:\+?1[-.]?)?\(?([0-9]{3})\)?[-. ]?([0-9]{3})[-. ]?([0-9]{4})\b"),
     # MRN pattern (assuming typical formats, adjust as needed)
-    "MRN": re.compile(r"\b(?:MRN|Medical Record Number)[\s:]*([A-Z0-9-]{5,15})\b", re.IGNORECASE),
+    "MRN": re.compile(r"\b(?:Union[MRN, Medical] Record Number)[\s:]*([A-Z0-9-]{5,15})\b", re.IGNORECASE),
     # Date of Birth
-    "DOB": re.compile(r"\b(?:DOB|Date of Birth)[\s:]*(\d{1,2}[/-]\d{1,2}[/-]\d{2,4})\b", re.IGNORECASE),
+    "DOB": re.compile(r"\b(?:Union[DOB, Date] of Birth)[\s:]*(\d{1,2}[/-]\d{1,2}[/-]\d{2,4})\b", re.IGNORECASE),
 }
 
 # Indicators of providing uncited medical advice
@@ -83,7 +83,7 @@ MEDICAL_ADVICE_INDICATORS = [
         r"treatment plan",
         r"my recommendation is",
         r"you need to",
-        r"take \d+(?:mg|g|mcg|ml)",
+        r"take \d+(?:Union[mg, g, mcg, ml])",
         r"stop taking",
         r"start taking",
         r"diagnosis is",

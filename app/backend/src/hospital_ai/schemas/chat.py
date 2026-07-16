@@ -1,3 +1,4 @@
+from typing import Optional
 from uuid import UUID
 
 from pydantic import BaseModel, Field, root_validator
@@ -6,18 +7,18 @@ from hospital_ai.schemas.documents import EvidenceRead
 
 
 class ChatContext(BaseModel):
-    patient_id: UUID | None = None
-    document_ids: list[UUID] | None = None
+    patient_id: Optional[UUID] = None
+    document_ids: Optional[list[UUID]] = None
 
 
 class ChatRequest(BaseModel):
-    patient_id: UUID | None = None
+    patient_id: Optional[UUID] = None
     question: str = Field(min_length=1, max_length=4000)
-    context: ChatContext | None = None
+    context: Optional[ChatContext] = None
     top_k: int = Field(default=5, ge=1, le=20)
-    thread_id: UUID | None = None
+    thread_id: Optional[UUID] = None
     pipeline: str = Field(default="auto", description="Reasoning pipeline: auto, simple, decompose, patient_summary")
-    mode: str | None = None
+    mode: Optional[str] = None
 
     @root_validator(pre=True)
     def map_message_to_question(cls, values):
@@ -43,11 +44,11 @@ class ChatResponse(BaseModel):
     citations: list[EvidenceRead]
     confidence: str
     disclaimer: str = "AI output must be verified by clinical staff."
-    thread_id: UUID | None = None
-    pipeline: str | None = None
+    thread_id: Optional[UUID] = None
+    pipeline: Optional[str] = None
     warnings: list[DrugWarningSchema] = []
-    safety_status: str | None = None
-    mode: str | None = None
+    safety_status: Optional[str] = None
+    mode: Optional[str] = None
 
 
 class RagTraceEvidence(BaseModel):
@@ -57,13 +58,13 @@ class RagTraceEvidence(BaseModel):
     chunk_id: UUID
     rank: int
     retrieval_score: float
-    rerank_score: float | None = None
-    retrieval_method: str | None = None
-    rerank_method: str | None = None
+    rerank_score: Optional[float] = None
+    retrieval_method: Optional[str] = None
+    rerank_method: Optional[str] = None
     citation_label: str
-    content: str | None = None
-    document_title: str | None = None
-    page: int | None = None
+    content: Optional[str] = None
+    document_title: Optional[str] = None
+    page: Optional[int] = None
 
 
 class RagTraceResponse(BaseModel):
@@ -71,10 +72,10 @@ class RagTraceResponse(BaseModel):
 
     query_id: UUID
     question: str
-    answer: str | None = None
+    answer: Optional[str] = None
     status: str
-    pipeline: str | None = None
-    model: str | None = None
-    latency_ms: int | None = None
+    pipeline: Optional[str] = None
+    model: Optional[str] = None
+    latency_ms: Optional[int] = None
     evidence: list[RagTraceEvidence]
     created_at: str

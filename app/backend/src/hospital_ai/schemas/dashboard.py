@@ -1,4 +1,5 @@
 from datetime import datetime
+from typing import Optional
 from uuid import UUID
 
 from hospital_ai.schemas.common import ApiSchema
@@ -8,7 +9,7 @@ class RecentPatient(ApiSchema):
     id: UUID
     full_name: str
     mrn: str
-    last_accessed: datetime | None = None
+    last_accessed: Optional[datetime] = None
 
 
 class DocumentStats(ApiSchema):

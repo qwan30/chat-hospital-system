@@ -1,4 +1,5 @@
 import uuid
+from typing import Optional
 
 from fastapi import APIRouter, Depends, File, Form, Query, Request, UploadFile
 from sqlalchemy import select
@@ -125,8 +126,8 @@ async def upload_document(
 @router.get("", response_model=DocumentListResponse)
 async def list_documents(
     request: Request,
-    patient_id: uuid.UUID | None = None,
-    status: str | None = Query(default=None, min_length=1, max_length=32),
+    patient_id: Optional[uuid.UUID] = None,
+    status: Optional[str] = Query(default=None, min_length=1, max_length=32),
     limit: int = Query(default=50, ge=1, le=200),
     session: AsyncSession = Depends(get_session),
     current_user: User = Depends(get_current_user),

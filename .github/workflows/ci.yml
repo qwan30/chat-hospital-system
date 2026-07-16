@@ -258,6 +258,10 @@ jobs:
     defaults:
       run:
         working-directory: app/backend
+    env:
+      HOSPITAL_AI_DATABASE_URL: "postgresql+asyncpg://hospital_ai:hospital_ai@localhost:5432/hospital_ai_test"
+      HOSPITAL_AI_CHAT_PROVIDER: "stub"
+      HOSPITAL_AI_EMBEDDING_PROVIDER: "deterministic"
 
     services:
       postgres:
@@ -291,18 +295,14 @@ jobs:
           pip install -e ".[dev,postgres]"
 
       - name: Initialize Database
-        env:
-          HOSPITAL_AI_DATABASE_URL: "postgresql+asyncpg://hospital_ai:hospital_ai@localhost:5432/hospital_ai_test"
         run: |
           alembic upgrade head
           python scripts/seed_dev.py
 
       - name: Run RAG Evaluation
         continue-on-error: true
-        env:
-          HOSPITAL_AI_DATABASE_URL: "postgresql+asyncpg://hospital_ai:hospital_ai@localhost:5432/hospital_ai_test"
-          HOSPITAL_AI_CHAT_PROVIDER: "stub"
         run: pytest tests/test_rag_eval.py
+
 
       - name: Upload RAG Eval Report
         if: always()

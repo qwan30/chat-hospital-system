@@ -27,8 +27,7 @@ export interface EvidenceItem {
 const SNIPPET_PREVIEW_LENGTH = 120;
 
 export function EvidenceRail({ items }: { items: EvidenceItem[] }) {
-  const [selectedEvidence, setSelectedEvidence] =
-    useState<EvidenceItem | null>(null);
+  const [selectedEvidence, setSelectedEvidence] = useState<EvidenceItem | null>(null);
 
   return (
     <>
@@ -83,8 +82,7 @@ export function EvidenceRail({ items }: { items: EvidenceItem[] }) {
                           params={{ documentId: it.document_id }}
                           className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"
                         >
-                          Open Document{" "}
-                          <ExternalLink className="h-3 w-3" />
+                          Open Document <ExternalLink className="h-3 w-3" />
                         </Link>
                       </div>
                     </div>
@@ -111,9 +109,7 @@ export function EvidenceRail({ items }: { items: EvidenceItem[] }) {
                   <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-citation/10 font-mono text-xs font-semibold text-citation">
                     [{selectedEvidence.n}]
                   </div>
-                  <DialogTitle className="text-base">
-                    {selectedEvidence.title}
-                  </DialogTitle>
+                  <DialogTitle className="text-base">{selectedEvidence.title}</DialogTitle>
                 </div>
                 <DialogDescription className="flex items-center gap-1.5 pt-1">
                   <FileText className="h-3.5 w-3.5" />
@@ -128,12 +124,8 @@ export function EvidenceRail({ items }: { items: EvidenceItem[] }) {
 
               {/* Meta info */}
               <div className="flex items-center justify-between pt-2">
-                <Badge
-                  variant="secondary"
-                  className="bg-citation/10 text-citation"
-                >
-                  Relevance{" "}
-                  {(selectedEvidence.relevance * 100).toFixed(0)}%
+                <Badge variant="secondary" className="bg-citation/10 text-citation">
+                  Relevance {(selectedEvidence.relevance * 100).toFixed(0)}%
                 </Badge>
                 <Link
                   to="/documents/$documentId"

@@ -113,7 +113,10 @@ export async function apiFetch<T>(
 
     let errMsg = response.statusText;
     if (errorData.message) {
-      errMsg = typeof errorData.message === "string" ? errorData.message : JSON.stringify(errorData.message);
+      errMsg =
+        typeof errorData.message === "string"
+          ? errorData.message
+          : JSON.stringify(errorData.message);
     } else if (errorData.detail) {
       if (typeof errorData.detail === "string") {
         errMsg = errorData.detail;
@@ -121,7 +124,11 @@ export async function apiFetch<T>(
         try {
           errMsg = errorData.detail
             .map((err: any) => {
-              const loc = err.loc ? err.loc.filter((l: any) => l !== "body" && l !== "query" && l !== "path").join(".") : "";
+              const loc = err.loc
+                ? err.loc
+                    .filter((l: any) => l !== "body" && l !== "query" && l !== "path")
+                    .join(".")
+                : "";
               return loc ? `${loc}: ${err.msg}` : err.msg;
             })
             .join("; ");
@@ -133,11 +140,7 @@ export async function apiFetch<T>(
       }
     }
 
-    throw new ApiError(
-      response.status,
-      errorData.error || "UNKNOWN",
-      errMsg,
-    );
+    throw new ApiError(response.status, errorData.error || "UNKNOWN", errMsg);
   }
 
   if (response.status === 204) return undefined as unknown as T;

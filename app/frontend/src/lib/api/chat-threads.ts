@@ -73,7 +73,7 @@ export async function updateChatThread(
     title?: string;
     visibility?: "private" | "shared";
     status?: "active" | "archived";
-  }
+  },
 ): Promise<ChatThreadRead> {
   return apiFetch<ChatThreadRead>(`/chat-threads/${threadId}`, {
     method: "PATCH",

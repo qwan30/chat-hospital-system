@@ -4,7 +4,17 @@ import { AppShell } from "@/components/shell/AppShell";
 import { Card } from "@/components/ui/card";
 import { ChatComposer } from "@/components/hms/ChatComposer";
 import { Logo } from "@/components/hms/Logo";
-import { Clock, MessageSquare, Sparkles, Heart, ShieldCheck, Pin, PinOff, Edit2, Check } from "lucide-react";
+import {
+  Clock,
+  MessageSquare,
+  Sparkles,
+  Heart,
+  ShieldCheck,
+  Pin,
+  PinOff,
+  Edit2,
+  Check,
+} from "lucide-react";
 import { useState, useMemo, useEffect } from "react";
 import { ChatMessage, type ChatMessageData } from "@/components/hms/ChatMessage";
 import { EvidenceRail, type EvidenceItem } from "@/components/hms/EvidenceRail";
@@ -17,7 +27,12 @@ import { streamChat } from "@/lib/stream-client";
 import { getStoredApiUrl } from "@/lib/api-client";
 import { uploadDocument } from "@/lib/api/documents";
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
-import { listChatThreads, createChatThread, getChatThread, updateChatThread } from "@/lib/api/chat-threads";
+import {
+  listChatThreads,
+  createChatThread,
+  getChatThread,
+  updateChatThread,
+} from "@/lib/api/chat-threads";
 import { formatDistanceToNow } from "date-fns";
 import {
   DropdownMenu,
@@ -137,8 +152,7 @@ function GlobalChat() {
   };
 
   const renameMutation = useMutation({
-    mutationFn: ({ id, title }: { id: string; title: string }) =>
-      updateChatThread(id, { title }),
+    mutationFn: ({ id, title }: { id: string; title: string }) => updateChatThread(id, { title }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["chat-threads"] });
       setEditingThreadId(null);
@@ -163,7 +177,6 @@ function GlobalChat() {
     });
   }, [backendThreads, pinnedThreadIds]);
 
-
   const { data: threadDetail } = useQuery({
     queryKey: ["chat-thread", thread],
     queryFn: () => getChatThread(thread!),
@@ -179,7 +192,10 @@ function GlobalChat() {
         id: m.id,
         role: m.role as "user" | "assistant",
         content: m.content,
-        time: parseUtcDate(m.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+        time: parseUtcDate(m.created_at).toLocaleTimeString([], {
+          hour: "2-digit",
+          minute: "2-digit",
+        }),
         rawCitations: m.citations.map((c) => ({
           evidence_id: c.evidence_id || (c as any).id,
           document_id: c.document_id,
@@ -228,7 +244,7 @@ function GlobalChat() {
       (p) =>
         p.full_name.toLowerCase().includes(query) ||
         (p.mrn && p.mrn.toLowerCase().includes(query)) ||
-        (p.department && p.department.toLowerCase().includes(query))
+        (p.department && p.department.toLowerCase().includes(query)),
     );
   }, [patientsList, patientSearchQuery]);
 
@@ -245,7 +261,7 @@ function GlobalChat() {
 
   const renderThreadItem = (t: any, isPinned: boolean) => {
     const isEditing = editingThreadId === t.id;
-    
+
     // Display relative time
     let relativeTime = "";
     try {
@@ -259,10 +275,13 @@ function GlobalChat() {
     if (isEditing) {
       return (
         <li key={t.id} className="rounded-md bg-muted/50 p-2 border border-border/60">
-          <div className="flex flex-col gap-2" onClick={(e) => {
-            e.stopPropagation();
-            e.preventDefault();
-          }}>
+          <div
+            className="flex flex-col gap-2"
+            onClick={(e) => {
+              e.stopPropagation();
+              e.preventDefault();
+            }}
+          >
             <input
               type="text"
               value={editTitleVal}
@@ -343,7 +362,7 @@ function GlobalChat() {
             </div>
           </div>
         </Link>
-        
+
         {/* Hover Actions */}
         <div className="absolute right-1.5 top-1/2 -translate-y-1/2 flex items-center gap-1 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity">
           <Button
@@ -367,7 +386,7 @@ function GlobalChat() {
               "h-7 w-7 cursor-pointer",
               isPinned
                 ? "text-ai hover:text-ai/80 hover:bg-ai/10"
-                : "text-muted-foreground hover:text-foreground hover:bg-muted-foreground/10"
+                : "text-muted-foreground hover:text-foreground hover:bg-muted-foreground/10",
             )}
             onClick={(e) => {
               e.preventDefault();
@@ -376,7 +395,11 @@ function GlobalChat() {
             }}
             title={isPinned ? "Unpin session" : "Pin session"}
           >
-            {isPinned ? <PinOff className="h-3.5 w-3.5" /> : <Pin className="h-3.5 w-3.5 rotate-45" />}
+            {isPinned ? (
+              <PinOff className="h-3.5 w-3.5" />
+            ) : (
+              <Pin className="h-3.5 w-3.5 rotate-45" />
+            )}
           </Button>
         </div>
       </li>
@@ -400,11 +423,17 @@ function GlobalChat() {
             <ChevronDown className="ml-1 h-3 w-3" />
           </button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="start" className="w-[300px] max-h-[300px] overflow-hidden flex flex-col p-1">
-          <div className="px-2 py-1.5 shrink-0" onClick={(e) => {
-            e.stopPropagation();
-            e.preventDefault();
-          }}>
+        <DropdownMenuContent
+          align="start"
+          className="w-[300px] max-h-[300px] overflow-hidden flex flex-col p-1"
+        >
+          <div
+            className="px-2 py-1.5 shrink-0"
+            onClick={(e) => {
+              e.stopPropagation();
+              e.preventDefault();
+            }}
+          >
             <input
               type="text"
               placeholder="Search patient by name or MRN..."
@@ -427,9 +456,7 @@ function GlobalChat() {
               General hospital knowledge
             </DropdownMenuItem>
             {filteredPatients.length === 0 ? (
-              <div className="p-4 text-center text-xs text-muted-foreground">
-                No patients found
-              </div>
+              <div className="p-4 text-center text-xs text-muted-foreground">No patients found</div>
             ) : (
               filteredPatients.map((p) => (
                 <DropdownMenuItem
@@ -668,7 +695,7 @@ function GlobalChat() {
             <div className="mb-3 flex items-center gap-2 text-sm font-semibold shrink-0">
               <Clock className="h-4 w-4 text-muted-foreground" /> Recent threads
             </div>
-            
+
             <div className="flex-1 overflow-y-auto space-y-4 pr-1">
               {pinnedThreads.length > 0 && (
                 <div>
@@ -680,7 +707,7 @@ function GlobalChat() {
                   </ul>
                 </div>
               )}
-              
+
               <div>
                 {pinnedThreads.length > 0 && (
                   <div className="mb-1.5 flex items-center gap-1.5 px-2 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
@@ -705,9 +732,7 @@ function GlobalChat() {
           <div className="flex-1 overflow-y-auto pr-2">
             <div className="mx-auto flex max-w-3xl flex-col items-center pt-10 text-center">
               <Logo size={56} />
-              <h1 className="mt-5 text-3xl font-semibold tracking-tight">
-                General clinical chat
-              </h1>
+              <h1 className="mt-5 text-3xl font-semibold tracking-tight">General clinical chat</h1>
               <p className="mt-2 text-sm text-muted-foreground">
                 Cited answers from your hospital's indexed knowledge base. PHI-safe and
                 audit-logged.
@@ -806,7 +831,9 @@ function GlobalChat() {
                   let relativeTime = "";
                   try {
                     if (t.created_at) {
-                      relativeTime = formatDistanceToNow(parseUtcDate(t.created_at), { addSuffix: true });
+                      relativeTime = formatDistanceToNow(parseUtcDate(t.created_at), {
+                        addSuffix: true,
+                      });
                     }
                   } catch (e) {
                     console.error(e);

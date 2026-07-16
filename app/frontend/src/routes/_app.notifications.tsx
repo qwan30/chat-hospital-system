@@ -119,7 +119,9 @@ function NotificationsPage() {
   const resolvedItems = items.map((n) => {
     if (n.accessRequestIndex !== undefined && accessRequests) {
       const ar = accessRequests[n.accessRequestIndex];
-      return ar && ar.id ? { ...n, href: `/access-requests/${ar.id}` } : { ...n, href: "/access-requests" };
+      return ar && ar.id
+        ? { ...n, href: `/access-requests/${ar.id}` }
+        : { ...n, href: "/access-requests" };
     }
     return n;
   });
@@ -186,7 +188,10 @@ function NotificationsPage() {
                 <div className="mt-1 text-xs text-muted-foreground">{formatRelative(n.ts)}</div>
               </div>
               {n.href ? (
-                <Link to={n.href as any} className="shrink-0 text-xs font-semibold text-primary hover:underline">
+                <Link
+                  to={n.href as any}
+                  className="shrink-0 text-xs font-semibold text-primary hover:underline"
+                >
                   Open →
                 </Link>
               ) : n.accessRequestIndex !== undefined && arLoading ? (

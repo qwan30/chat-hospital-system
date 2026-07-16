@@ -39,8 +39,16 @@ import {
   YAxis,
 } from "recharts";
 // ── Static chart data (backend doesn't serve chart series yet) ──────────────
-interface DailyQueryPoint { d: string; queries: number; refused: number; }
-interface LookupPoint { w: string; manual: number; copilot: number; }
+interface DailyQueryPoint {
+  d: string;
+  queries: number;
+  refused: number;
+}
+interface LookupPoint {
+  w: string;
+  manual: number;
+  copilot: number;
+}
 
 const dailyQueries: DailyQueryPoint[] = [
   { d: "Mon", queries: 142, refused: 6 },
@@ -74,7 +82,7 @@ function deriveLookupInsights(data: LookupPoint[]): string[] {
   const avgManual = +(data.reduce((s, d) => s + d.manual, 0) / data.length).toFixed(2);
   const avgCopilot = +(data.reduce((s, d) => s + d.copilot, 0) / data.length).toFixed(2);
   const timeSavedPct = +(((avgManual - avgCopilot) / avgManual) * 100).toFixed(1);
-  const bestWeek = data.reduce((best, d) => d.copilot < best.copilot ? d : best, data[0]);
+  const bestWeek = data.reduce((best, d) => (d.copilot < best.copilot ? d : best), data[0]);
   return [
     `Copilot lookup time ${copilotDelta < 0 ? "dropped" : "increased"} by ${Math.abs(copilotDelta)} min over ${data.length} weeks (${first.w}→${last.w}), while manual stayed near ${avgManual} min average.`,
     `On average, copilot resolves lookups in ${avgCopilot} min vs. ${avgManual} min manually — a ${timeSavedPct}% time saving per query.`,
@@ -89,11 +97,14 @@ function deriveQueryInsights(data: DailyQueryPoint[]): string[] {
   const totalQ = data.reduce((s, d) => s + d.queries, 0);
   const totalR = data.reduce((s, d) => s + d.refused, 0);
   const refusalRate = +((totalR / totalQ) * 100).toFixed(2);
-  const peak = data.reduce((best, d) => d.queries > best.queries ? d : best, data[0]);
-  const low = data.reduce((best, d) => d.queries < best.queries ? d : best, data[0]);
+  const peak = data.reduce((best, d) => (d.queries > best.queries ? d : best), data[0]);
+  const low = data.reduce((best, d) => (d.queries < best.queries ? d : best), data[0]);
   const weekdayAvg = +(data.slice(0, 5).reduce((s, d) => s + d.queries, 0) / 5).toFixed(0);
   const weekendAvg = +(data.slice(5).reduce((s, d) => s + d.queries, 0) / 2).toFixed(0);
-  const worstRefusalDay = data.reduce((worst, d) => d.refused > worst.refused ? d : worst, data[0]);
+  const worstRefusalDay = data.reduce(
+    (worst, d) => (d.refused > worst.refused ? d : worst),
+    data[0],
+  );
   return [
     `Total queries this week: ${totalQ.toLocaleString()} with ${totalR} refused — an overall refusal rate of ${refusalRate}%.`,
     `Peak load was ${peak.d} (${peak.queries} queries). Lowest was ${low.d} (${low.queries} queries) — a ${(((peak.queries - low.queries) / low.queries) * 100).toFixed(0)}% variance across the week.`,
@@ -481,7 +492,12 @@ function Dashboard() {
                 ))}
               </div>
             ) : (
-              <Button variant="outline" size="sm" onClick={analyzeLookup} disabled={analyzingLookup}>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={analyzeLookup}
+                disabled={analyzingLookup}
+              >
                 {analyzingLookup ? (
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 ) : (

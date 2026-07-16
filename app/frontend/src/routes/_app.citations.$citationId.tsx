@@ -63,7 +63,7 @@ function CitationDetails() {
     (d) =>
       d.title.toLowerCase().includes(citationData.title.toLowerCase()) ||
       d.title.toLowerCase().includes(citationData.sourceFile.toLowerCase()) ||
-      d.storage_uri.toLowerCase().includes(citationData.sourceFile.toLowerCase())
+      d.storage_uri.toLowerCase().includes(citationData.sourceFile.toLowerCase()),
   );
 
   const targetDocId = matchedDoc?.id || docList?.items?.[0]?.id;
@@ -227,13 +227,23 @@ function CitationDetails() {
 
                 <div className="border-t pt-4">
                   {targetDocId ? (
-                    <Button variant="outline" className="w-full text-xs gap-1.5" disabled={isMissing} asChild>
+                    <Button
+                      variant="outline"
+                      className="w-full text-xs gap-1.5"
+                      disabled={isMissing}
+                      asChild
+                    >
                       <Link to="/documents/$documentId" params={{ documentId: targetDocId }}>
                         <ExternalLink className="h-3 w-3" /> View Original Document
                       </Link>
                     </Button>
                   ) : (
-                    <Button variant="outline" className="w-full text-xs gap-1.5" disabled={isMissing} asChild>
+                    <Button
+                      variant="outline"
+                      className="w-full text-xs gap-1.5"
+                      disabled={isMissing}
+                      asChild
+                    >
                       <Link to="/documents">
                         <ExternalLink className="h-3 w-3" /> View Original Document
                       </Link>

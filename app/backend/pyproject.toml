@@ -52,7 +52,7 @@ postgres = [
   "pgvector>=0.3.0"
 ]
 ocr = [
-  "paddleocr<3.0.0"
+  "paddleocr<4.0.0"
 ]
 tables = [
   "pdfplumber>=0.10.0"

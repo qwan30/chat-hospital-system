@@ -656,7 +656,6 @@ async def main() -> None:
                 created_at=datetime.now(timezone.utc) - timedelta(hours=1),
             ))
 
-        from hospital_ai.db.migrations import DOCTOR_ID
         from hospital_ai.db.models import ChatThread
 
         # Seed a DAPT conversation for E2E testing

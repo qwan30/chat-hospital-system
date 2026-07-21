@@ -187,7 +187,7 @@ git commit -m "data: govern canonical RAG corpus"
 - Create: `app/backend/src/hospital_ai/evaluation/ingestion.py`
 - Create: `app/backend/tests/evaluation/test_ingestion_certification.py`
 - Modify: `app/backend/scripts/ingest_synthetic_dataset.py`
-- Modify: `app/backend/src/hospital_ai/workers/tasks.py`
+- Modify: `app/backend/src/hospital_ai/workers/jobs.py`
 
 **Interfaces:**
 - Consumes: `CorpusManifest` from Task 1.
@@ -246,7 +246,7 @@ Expected: first-run complete accounting and second-run idempotency pass with zer
 Run change detection, per-task review, fixes, and re-review. Commit:
 
 ```powershell
-git add app/backend/src/hospital_ai/evaluation/ingestion.py app/backend/tests/evaluation/test_ingestion_certification.py app/backend/scripts/ingest_synthetic_dataset.py app/backend/src/hospital_ai/workers/tasks.py
+git add app/backend/src/hospital_ai/evaluation/ingestion.py app/backend/tests/evaluation/test_ingestion_certification.py app/backend/scripts/ingest_synthetic_dataset.py app/backend/src/hospital_ai/workers/jobs.py
 git commit -m "backend: certify corpus ingestion"
 ```
 

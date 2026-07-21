@@ -4,7 +4,7 @@ from datetime import UTC, date, datetime
 from typing import Literal, Optional
 
 from fastapi import APIRouter, Depends, Query, Request
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, validator
 from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -73,6 +73,15 @@ class PatientCreate(BaseModel):
     department: Optional[str] = Field(default=None, max_length=128)
     status: Literal["active", "stable", "watch", "critical"] = "active"
 
+    @validator("full_name", pre=True)
+    def strip_full_name(cls, value: object) -> object:
+        if isinstance(value, str):
+            stripped = value.strip()
+            if not stripped:
+                raise ValueError("full_name must not be blank")
+            return stripped
+        return value
+
 
 @router.post("", response_model=PatientRead)
 async def create_patient(
@@ -86,7 +95,7 @@ async def create_patient(
 
     patient = Patient(
         mrn=payload.mrn,
-        full_name=payload.full_name.strip(),
+        full_name=payload.full_name,
         dob=payload.dob,
         department=payload.department,
         status=payload.status,
@@ -102,7 +111,7 @@ async def create_patient(
         outcome="allowed",
         trace_id=new_trace_id(),
         ip_address=get_request_ip(request),
-        metadata={"department": payload.department, "status": payload.status},
+        metadata={"source": "patient_registration"},
     )
     await session.commit()
     return patient

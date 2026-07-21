@@ -102,6 +102,7 @@ async def test_create_patient_grants_no_implicit_patient_permissions(session_and
     "payload",
     [
         {"mrn": "MRN-90004", "full_name": ""},
+        {"mrn": "MRN-90004", "full_name": "   "},
         {"mrn": "mrn-90004", "full_name": "Synthetic Person"},
         {"mrn": "MRN-90004", "full_name": "Synthetic Person", "status": "discharged"},
     ],
@@ -133,7 +134,7 @@ async def test_create_patient_audit_omits_phi(session_and_settings):
 
     assert patient.full_name == "Synthetic Person"
     assert audit_log is not None
-    assert audit_log.meta == {"department": "Records", "status": "stable"}
+    assert audit_log.meta == {"source": "patient_registration"}
     assert "mrn" not in audit_log.meta
     assert "full_name" not in audit_log.meta
 

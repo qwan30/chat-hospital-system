@@ -130,7 +130,12 @@ async def test_create_patient_audit_omits_phi(session_and_settings):
         session,
         user,
     )
-    audit_log = await session.scalar(select(AuditLog).where(AuditLog.action == "patient.create"))
+    audit_log = await session.scalar(
+        select(AuditLog).where(
+            AuditLog.action == "patient.create",
+            AuditLog.object_id == patient.id,
+        )
+    )
 
     assert patient.full_name == "Synthetic Person"
     assert audit_log is not None

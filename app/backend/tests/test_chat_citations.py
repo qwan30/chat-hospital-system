@@ -165,6 +165,44 @@ async def test_chat_chitchat_applies_output_guardrail(session_and_settings, monk
 
 
 @pytest.mark.asyncio
+async def test_chat_persists_only_cited_retrieved_evidence(session_and_settings, monkeypatch):
+    from hospital_ai.services.reasoning import DISCLAIMER, ReasoningResult
+
+    session, settings = session_and_settings
+    doctor = await session.get(User, DOCTOR_ID)
+    await create_indexed_document(
+        session, patient_id=PATIENT_ALICE_ID, uploaded_by=DOCTOR_ID, title="Cited", content="Cited evidence."
+    )
+    await create_indexed_document(
+        session, patient_id=PATIENT_ALICE_ID, uploaded_by=DOCTOR_ID, title="Uncited", content="Uncited evidence."
+    )
+
+    async def only_first(self, _pipeline, _question, evidence, _history):
+        return ReasoningResult(
+            answer="Only the first item is used [E1].",
+            citations=[],
+            confidence="high",
+            disclaimer=DISCLAIMER,
+            pipeline="simple_qa",
+        )
+
+    monkeypatch.setattr(ChatService, "_run_pipeline", only_first)
+    response = await ChatService(session, settings).answer(
+        user=doctor,
+        patient_id=PATIENT_ALICE_ID,
+        question="What evidence is available?",
+        top_k=2,
+        trace_id="cited-only",
+        ip_address="127.0.0.1",
+    )
+    rows = (
+        await session.scalars(select(RetrievedEvidence).where(RetrievedEvidence.ai_query_id == response.query_id))
+    ).all()
+    assert len(rows) == 1
+    assert rows[0].citation_label == "E1"
+
+
+@pytest.mark.asyncio
 async def test_chat_permission_denied_natural_refusal(session_and_settings):
     session, settings = session_and_settings
     doctor = await session.get(User, DOCTOR_ID)

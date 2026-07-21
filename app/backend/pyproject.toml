@@ -45,6 +45,7 @@ guardrails = [
 ]
 dev = [
   "aiosqlite>=0.20.0",
+  "PyYAML>=6.0.0",
   "pytest>=8.2.0",
   "pytest-asyncio>=0.23.0",
   "ruff>=0.6.0"

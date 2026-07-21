@@ -41,8 +41,7 @@ def upgrade() -> None:
         "WHERE search_vector IS NULL"
     )
     op.execute(
-        "CREATE INDEX IF NOT EXISTS ix_document_chunks_search_vector "
-        "ON document_chunks USING gin (search_vector)"
+        "CREATE INDEX IF NOT EXISTS ix_document_chunks_search_vector ON document_chunks USING gin (search_vector)"
     )
     op.execute(
         """
@@ -68,3 +67,5 @@ def downgrade() -> None:
     op.execute("DROP TRIGGER IF EXISTS trg_document_chunks_search_vector ON document_chunks")
     op.execute("DROP FUNCTION IF EXISTS document_chunks_search_vector_update()")
     op.execute("DROP INDEX IF EXISTS ix_document_chunks_search_vector")
+    # Restore the parent migration's portable placeholder type.
+    op.execute("ALTER TABLE document_chunks ALTER COLUMN search_vector TYPE text USING search_vector::text")

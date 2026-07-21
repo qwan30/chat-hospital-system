@@ -41,6 +41,15 @@ def test_forward_bm25_migration_creates_tsvector_and_gin_index():
     assert any("tsvector" in migration and "gin" in migration for migration in forward_migrations)
 
 
+def test_bm25_migration_downgrade_restores_parent_text_schema_contract():
+    from pathlib import Path
+
+    migration = (Path(__file__).parents[1] / "alembic" / "versions" / "0009_repair_search_vector_gin.py").read_text()
+    assert "def downgrade" in migration
+    assert "ALTER COLUMN search_vector TYPE text" in migration
+    assert "DROP TRIGGER" in migration
+
+
 def test_role_scope_matching_is_exact_after_normalization():
     assert _scope_matches(" Medication ", "medication")
     assert not _scope_matches("medication", "medications")

@@ -620,6 +620,13 @@ function GlobalChat() {
         abortControllerRef.current.signal,
       );
 
+      if (streamResult.error) {
+        setStreamError(streamResult.error);
+        setStreamingId(null);
+        setStreamingText("");
+        return;
+      }
+
       // The backend `streamResult.citations` is ordered 1 to N for the current response.
       // We will assign `c.n = index + 1` so that the inline citations `[1]` match the rawCitations array order.
       const reply: ChatMessageData = {
@@ -685,6 +692,13 @@ function GlobalChat() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialQ]);
+
+  useEffect(() => {
+    return () => {
+      abortControllerRef.current?.abort();
+      abortControllerRef.current = null;
+    };
+  }, []);
 
   if (messages.length === 0 && !thread && !patientId) {
     return (

@@ -16,33 +16,6 @@ from hospital_ai.services.permissions import (
     active_patient_permission_exists,
 )
 
-GLOBAL_RETRIEVAL_SQL = """
-with ranked_chunks as (
-  select
-    c.id as chunk_id,
-    c.document_id,
-    c.page_id,
-    p.page_number,
-    d.title,
-    c.content,
-    c.metadata,
-    1 - (c.embedding <=> CAST(:query_embedding AS vector)) as score
-  from document_chunks c
-  join documents d on d.id = c.document_id
-  join document_pages p on p.id = c.page_id and p.document_id = c.document_id
-  where c.patient_id is null
-    and d.patient_id is null
-    and d.status = 'indexed'
-    and c.deleted_at is null
-    and d.deleted_at is null
-    and p.deleted_at is null
-    and c.embedding is not null
-  order by c.embedding <=> CAST(:query_embedding AS vector)
-  limit :top_k
-)
-select * from ranked_chunks
-"""
-
 PERMISSION_FILTERED_RETRIEVAL_SQL = f"""
 with allowed as (
 {ACTIVE_PATIENT_PERMISSION_SQL}
@@ -61,8 +34,8 @@ ranked_chunks as (
   join documents d on d.id = c.document_id
   join document_pages p on p.id = c.page_id and p.document_id = c.document_id
   where exists (select 1 from allowed)
-    and (c.patient_id = :patient_id or c.patient_id is null)
-    and (d.patient_id = :patient_id or d.patient_id is null)
+    and c.patient_id = :patient_id
+    and d.patient_id = :patient_id
     and d.status = 'indexed'
     and c.deleted_at is null
     and d.deleted_at is null
@@ -143,6 +116,9 @@ class RetrievalService:
         query_embedding: Sequence[float],
         top_k: int,
     ) -> list[RetrievedChunk]:
+        if patient_id is None:
+            return []
+
         start_time = time.perf_counter()
         bind = self.session.get_bind()
         if bind.dialect.name == "postgresql":
@@ -190,6 +166,9 @@ class RetrievalService:
         Returns:
             Merged and de-duplicated chunks sorted by relevance.
         """
+        if patient_id is None:
+            return []
+
         start_time = time.perf_counter()
 
         if retrieval_mode == "vector":
@@ -254,26 +233,21 @@ class RetrievalService:
         chunk_ids: list[uuid.UUID],
         *,
         user_id: uuid.UUID,
-        patient_id: uuid.UUID,
+        patient_id: Optional[uuid.UUID],
     ) -> list[RetrievedChunk]:
         """Fetch specific chunks by ID, applying permission checks.
 
         Used by graph RAG to retrieve evidence discovered through
         entity relationship traversal.
         """
-        if not chunk_ids:
+        if not chunk_ids or patient_id is None:
             return []
 
-        # Verify permission using PermissionService
-        from hospital_ai.services.permissions import PermissionService
-
-        has_access = await PermissionService(self.session).has_patient_scope(
+        permission_exists = active_patient_permission_exists(
             user_id=user_id,
             patient_id=patient_id,
             accepted_scopes=PATIENT_READ_SCOPES,
         )
-        if not has_access:
-            return []
 
         result = await self.session.execute(
             select(
@@ -285,10 +259,18 @@ class RetrievalService:
                 Document.title,
             )
             .join(Document, Document.id == DocumentChunk.document_id)
-            .join(DocumentPage, DocumentPage.id == DocumentChunk.page_id)
+            .join(
+                DocumentPage,
+                and_(
+                    DocumentPage.id == DocumentChunk.page_id,
+                    DocumentPage.document_id == DocumentChunk.document_id,
+                ),
+            )
             .where(
+                permission_exists,
                 DocumentChunk.id.in_(chunk_ids),
-                (DocumentChunk.patient_id == patient_id) | (DocumentChunk.patient_id.is_(None)),
+                DocumentChunk.patient_id == patient_id,
+                Document.patient_id == patient_id,
                 Document.status == "indexed",
                 DocumentChunk.deleted_at.is_(None),
                 Document.deleted_at.is_(None),
@@ -321,6 +303,9 @@ class RetrievalService:
         top_k: int,
     ) -> list[RetrievedChunk]:
         """BM25 full-text search using tsvector (PostgreSQL) or Python fallback."""
+        if patient_id is None:
+            return []
+
         bind = self.session.get_bind()
         if bind.dialect.name == "postgresql":
             chunks = await self._bm25_search_postgres(
@@ -350,66 +335,41 @@ class RetrievalService:
         import logging
 
         if patient_id is None:
-            sql = text("""
-                select
-                    c.id as chunk_id,
-                    c.document_id,
-                    p.page_number,
-                    d.title,
-                    c.content,
-                    c.metadata,
-                    ts_rank_cd(c.search_vector, plainto_tsquery('english', :query_text)) as rank
-                from document_chunks c
-                join documents d on d.id = c.document_id
-                join document_pages p on p.id = c.page_id and p.document_id = c.document_id
-                where c.patient_id is null
-                  and d.patient_id is null
-                  and d.status = 'indexed'
-                  and c.deleted_at is null
-                  and d.deleted_at is null
-                  and p.deleted_at is null
-                  and c.search_vector @@ plainto_tsquery('english', :query_text)
-                order by rank desc
-                limit :top_k
-            """)
-            params = {
-                "query_text": query_text,
-                "top_k": top_k,
-            }
-        else:
-            sql = text(f"""
-                with allowed as (
-                {ACTIVE_PATIENT_PERMISSION_SQL}
-                )
-                select
-                    c.id as chunk_id,
-                    c.document_id,
-                    p.page_number,
-                    d.title,
-                    c.content,
-                    c.metadata,
-                    ts_rank_cd(c.search_vector, plainto_tsquery('english', :query_text)) as rank
-                from document_chunks c
-                join documents d on d.id = c.document_id
-                join document_pages p on p.id = c.page_id and p.document_id = c.document_id
-                where exists (select 1 from allowed)
-                  and (c.patient_id = :patient_id or c.patient_id is null)
-                  and (d.patient_id = :patient_id or d.patient_id is null)
-                  and d.status = 'indexed'
-                  and c.deleted_at is null
-                  and d.deleted_at is null
-                  and p.deleted_at is null
-                  and c.search_vector @@ plainto_tsquery('english', :query_text)
-                order by rank desc
-                limit :top_k
-            """).bindparams(bindparam("accepted_scopes", expanding=True))
-            params = {
-                "user_id": user_id,
-                "patient_id": patient_id,
-                "accepted_scopes": tuple(sorted(PATIENT_READ_SCOPES)),
-                "query_text": query_text,
-                "top_k": top_k,
-            }
+            return []
+
+        sql = text(f"""
+            with allowed as (
+            {ACTIVE_PATIENT_PERMISSION_SQL}
+            )
+            select
+                c.id as chunk_id,
+                c.document_id,
+                p.page_number,
+                d.title,
+                c.content,
+                c.metadata,
+                ts_rank_cd(c.search_vector, plainto_tsquery('english', :query_text)) as rank
+            from document_chunks c
+            join documents d on d.id = c.document_id
+            join document_pages p on p.id = c.page_id and p.document_id = c.document_id
+            where exists (select 1 from allowed)
+              and c.patient_id = :patient_id
+              and d.patient_id = :patient_id
+              and d.status = 'indexed'
+              and c.deleted_at is null
+              and d.deleted_at is null
+              and p.deleted_at is null
+              and c.search_vector @@ plainto_tsquery('english', :query_text)
+            order by rank desc
+            limit :top_k
+        """).bindparams(bindparam("accepted_scopes", expanding=True))
+        params = {
+            "user_id": user_id,
+            "patient_id": patient_id,
+            "accepted_scopes": tuple(sorted(PATIENT_READ_SCOPES)),
+            "query_text": query_text,
+            "top_k": top_k,
+        }
 
         try:
             result = await self.session.execute(sql, params)
@@ -451,51 +411,33 @@ class RetrievalService:
         from hospital_ai.services.bm25 import BM25Scorer
 
         if patient_id is None:
-            stmt = (
-                select(DocumentChunk, Document, DocumentPage)
-                .join(Document, Document.id == DocumentChunk.document_id)
-                .join(
-                    DocumentPage,
-                    and_(
-                        DocumentPage.id == DocumentChunk.page_id,
-                        DocumentPage.document_id == DocumentChunk.document_id,
-                    ),
-                )
-                .where(
-                    DocumentChunk.patient_id.is_(None),
-                    Document.patient_id.is_(None),
-                    Document.status == "indexed",
-                    DocumentChunk.deleted_at.is_(None),
-                    Document.deleted_at.is_(None),
-                    DocumentPage.deleted_at.is_(None),
-                )
+            return []
+
+        permission_exists = active_patient_permission_exists(
+            user_id=user_id,
+            patient_id=patient_id,
+            accepted_scopes=PATIENT_READ_SCOPES,
+        )
+        stmt = (
+            select(DocumentChunk, Document, DocumentPage)
+            .join(Document, Document.id == DocumentChunk.document_id)
+            .join(
+                DocumentPage,
+                and_(
+                    DocumentPage.id == DocumentChunk.page_id,
+                    DocumentPage.document_id == DocumentChunk.document_id,
+                ),
             )
-        else:
-            permission_exists = active_patient_permission_exists(
-                user_id=user_id,
-                patient_id=patient_id,
-                accepted_scopes=PATIENT_READ_SCOPES,
+            .where(
+                permission_exists,
+                DocumentChunk.patient_id == patient_id,
+                Document.patient_id == patient_id,
+                Document.status == "indexed",
+                DocumentChunk.deleted_at.is_(None),
+                Document.deleted_at.is_(None),
+                DocumentPage.deleted_at.is_(None),
             )
-            stmt = (
-                select(DocumentChunk, Document, DocumentPage)
-                .join(Document, Document.id == DocumentChunk.document_id)
-                .join(
-                    DocumentPage,
-                    and_(
-                        DocumentPage.id == DocumentChunk.page_id,
-                        DocumentPage.document_id == DocumentChunk.document_id,
-                    ),
-                )
-                .where(
-                    permission_exists,
-                    (DocumentChunk.patient_id == patient_id) | (DocumentChunk.patient_id.is_(None)),
-                    (Document.patient_id == patient_id) | (Document.patient_id.is_(None)),
-                    Document.status == "indexed",
-                    DocumentChunk.deleted_at.is_(None),
-                    Document.deleted_at.is_(None),
-                    DocumentPage.deleted_at.is_(None),
-                )
-            )
+        )
         result = await self.session.execute(stmt)
         all_chunks = [
             RetrievedChunk(
@@ -523,22 +465,18 @@ class RetrievalService:
         top_k: int,
     ) -> list[RetrievedChunk]:
         if patient_id is None:
-            sql = text(GLOBAL_RETRIEVAL_SQL)
-            params = {
-                "query_embedding": format_pgvector(query_embedding),
-                "top_k": top_k,
-            }
-        else:
-            sql = text(PERMISSION_FILTERED_RETRIEVAL_SQL).bindparams(
-                bindparam("accepted_scopes", expanding=True),
-            )
-            params = {
-                "user_id": user_id,
-                "patient_id": patient_id,
-                "accepted_scopes": tuple(sorted(PATIENT_READ_SCOPES)),
-                "query_embedding": format_pgvector(query_embedding),
-                "top_k": top_k,
-            }
+            return []
+
+        sql = text(PERMISSION_FILTERED_RETRIEVAL_SQL).bindparams(
+            bindparam("accepted_scopes", expanding=True),
+        )
+        params = {
+            "user_id": user_id,
+            "patient_id": patient_id,
+            "accepted_scopes": tuple(sorted(PATIENT_READ_SCOPES)),
+            "query_embedding": format_pgvector(query_embedding),
+            "top_k": top_k,
+        }
         result = await self.session.execute(sql, params)
         rows = result.mappings().all()
         return [
@@ -564,53 +502,34 @@ class RetrievalService:
         top_k: int,
     ) -> list[RetrievedChunk]:
         if patient_id is None:
-            stmt = (
-                select(DocumentChunk, Document, DocumentPage)
-                .join(Document, Document.id == DocumentChunk.document_id)
-                .join(
-                    DocumentPage,
-                    and_(
-                        DocumentPage.id == DocumentChunk.page_id,
-                        DocumentPage.document_id == DocumentChunk.document_id,
-                    ),
-                )
-                .where(
-                    DocumentChunk.patient_id.is_(None),
-                    Document.patient_id.is_(None),
-                    Document.status == "indexed",
-                    DocumentChunk.deleted_at.is_(None),
-                    Document.deleted_at.is_(None),
-                    DocumentPage.deleted_at.is_(None),
-                    DocumentChunk.embedding.is_not(None),
-                )
+            return []
+
+        permission_exists = active_patient_permission_exists(
+            user_id=user_id,
+            patient_id=patient_id,
+            accepted_scopes=PATIENT_READ_SCOPES,
+        )
+        stmt = (
+            select(DocumentChunk, Document, DocumentPage)
+            .join(Document, Document.id == DocumentChunk.document_id)
+            .join(
+                DocumentPage,
+                and_(
+                    DocumentPage.id == DocumentChunk.page_id,
+                    DocumentPage.document_id == DocumentChunk.document_id,
+                ),
             )
-        else:
-            permission_exists = active_patient_permission_exists(
-                user_id=user_id,
-                patient_id=patient_id,
-                accepted_scopes=PATIENT_READ_SCOPES,
+            .where(
+                permission_exists,
+                DocumentChunk.patient_id == patient_id,
+                Document.patient_id == patient_id,
+                Document.status == "indexed",
+                DocumentChunk.deleted_at.is_(None),
+                Document.deleted_at.is_(None),
+                DocumentPage.deleted_at.is_(None),
+                DocumentChunk.embedding.is_not(None),
             )
-            stmt = (
-                select(DocumentChunk, Document, DocumentPage)
-                .join(Document, Document.id == DocumentChunk.document_id)
-                .join(
-                    DocumentPage,
-                    and_(
-                        DocumentPage.id == DocumentChunk.page_id,
-                        DocumentPage.document_id == DocumentChunk.document_id,
-                    ),
-                )
-                .where(
-                    permission_exists,
-                    (DocumentChunk.patient_id == patient_id) | (DocumentChunk.patient_id.is_(None)),
-                    (Document.patient_id == patient_id) | (Document.patient_id.is_(None)),
-                    Document.status == "indexed",
-                    DocumentChunk.deleted_at.is_(None),
-                    Document.deleted_at.is_(None),
-                    DocumentPage.deleted_at.is_(None),
-                    DocumentChunk.embedding.is_not(None),
-                )
-            )
+        )
         result = await self.session.execute(stmt)
         scored = []
         for chunk, document, page in result.all():

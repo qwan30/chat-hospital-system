@@ -214,6 +214,5 @@ async def test_chat_global_query_without_patient_context(session_and_settings):
     )
 
     assert isinstance(response, ChatResponse)
-    assert response.answer != SAFE_NO_EVIDENCE_ANSWER
-    assert len(response.citations) >= 1
-    assert response.citations[0].document_title == "Apixaban Guideline"
+    assert response.answer == SAFE_NO_EVIDENCE_ANSWER
+    assert response.citations == []

@@ -21,6 +21,8 @@ def test_retrieval_sql_does_not_repeat_patient_permission_filter():
     assert "c.patient_id = :patient_id" in sql
     assert "d.patient_id = :patient_id" in sql
     assert "p.id = c.page_id and p.document_id = c.document_id" in sql
+    assert "or c.patient_id is null" not in sql
+    assert "or d.patient_id is null" not in sql
     assert "c.embedding is not null" in sql
     assert "c.deleted_at is null" in sql
     assert "d.deleted_at is null" in sql
@@ -280,39 +282,64 @@ async def test_authorized_patient_chunks_are_retrieved(session_and_settings):
 
 
 @pytest.mark.asyncio
-async def test_global_retrieval_without_patient_context(session_and_settings):
+async def test_global_knowledge_is_runtime_quarantined(session_and_settings):
     session, _ = session_and_settings
-
-    # 1. Create a global guideline document (patient_id=None)
     await create_indexed_document(
         session,
         patient_id=None,
         uploaded_by=DOCTOR_ID,
-        title="Sepsis Guideline",
-        content="Sepsis 1-hour bundle requires lactate measurement, blood cultures, and broad-spectrum antibiotics.",
+        title="Unreviewed Guideline",
+        content="Unreviewed public guidance.",
     )
 
-    # 2. Create a patient-specific document (patient_id=PATIENT_ALICE_ID)
+    service = RetrievalService(session)
+    assert (
+        await service.search(
+            user_id=DOCTOR_ID,
+            patient_id=None,
+            query_embedding=deterministic_embedding("guidance"),
+            top_k=5,
+        )
+        == []
+    )
+    assert (
+        await service.hybrid_search(
+            user_id=DOCTOR_ID,
+            patient_id=None,
+            query_embedding=deterministic_embedding("guidance"),
+            query_text="guidance",
+            top_k=5,
+        )
+        == []
+    )
+
+
+@pytest.mark.asyncio
+async def test_patient_linked_excludes_global_knowledge(session_and_settings):
+    session, _ = session_and_settings
+    await create_indexed_document(
+        session,
+        patient_id=None,
+        uploaded_by=DOCTOR_ID,
+        title="Unreviewed Guideline",
+        content="Shared discharge guidance must stay quarantined.",
+    )
     await create_indexed_document(
         session,
         patient_id=PATIENT_ALICE_ID,
         uploaded_by=DOCTOR_ID,
-        title="Alice Clinical Note",
-        content="Alice is undergoing sepsis observation and has normal vitals.",
+        title="Alice Discharge Note",
+        content="Alice-specific discharge guidance.",
     )
 
-    # 3. Retrieve with patient_id=None (Global search)
     results = await RetrievalService(session).search(
         user_id=DOCTOR_ID,
-        patient_id=None,
-        query_embedding=deterministic_embedding("sepsis 1-hour bundle lactate"),
+        patient_id=PATIENT_ALICE_ID,
+        query_embedding=deterministic_embedding("discharge guidance"),
         top_k=5,
     )
 
-    # Should retrieve the global guideline, but NOT Alice's clinical note
-    assert len(results) >= 1
-    assert any(r.document_title == "Sepsis Guideline" for r in results)
-    assert not any(r.document_title == "Alice Clinical Note" for r in results)
+    assert [result.document_title for result in results] == ["Alice Discharge Note"]
 
 
 @pytest.mark.asyncio

@@ -4,15 +4,22 @@ from __future__ import annotations
 
 import json
 import uuid
+from datetime import UTC, datetime, timedelta
 
 import pytest
-from sqlalchemy import func, select
+from sqlalchemy import func, select, update
 from starlette.requests import Request
 
 from hospital_ai.api.routes.chat_stream import chat_stream
 from hospital_ai.core.errors import ExternalServiceError
 from hospital_ai.db.migrations import DOCTOR_ID, PATIENT_ALICE_ID, PATIENT_BOB_ID
-from hospital_ai.db.models import DocumentChunk, DocumentPage, RetrievedEvidence, User
+from hospital_ai.db.models import (
+    DocumentChunk,
+    DocumentPage,
+    PatientPermission,
+    RetrievedEvidence,
+    User,
+)
 from hospital_ai.schemas.chat import ChatRequest
 from hospital_ai.services.chat import SAFE_NO_EVIDENCE_ANSWER, ChatService
 from hospital_ai.services.graph_rag import (
@@ -140,6 +147,126 @@ async def test_graph_evidence_fetch_excludes_soft_deleted_page(session_and_setti
     evidence = await RetrievalService(session).get_chunks_by_ids(
         [chunk.id], user_id=DOCTOR_ID, patient_id=PATIENT_ALICE_ID
     )
+    assert evidence == []
+
+
+@pytest.mark.asyncio
+async def test_graph_evidence_excludes_mismatched_document_patient(session_and_settings):
+    session, _ = session_and_settings
+    alice_doc = await create_indexed_document(
+        session,
+        patient_id=PATIENT_ALICE_ID,
+        uploaded_by=DOCTOR_ID,
+        title="Alice chunk",
+        content="Alice evidence must retain its document ownership.",
+    )
+    bob_doc = await create_indexed_document(
+        session,
+        patient_id=PATIENT_BOB_ID,
+        uploaded_by=DOCTOR_ID,
+        title="Bob document",
+        content="Bob evidence must remain isolated.",
+    )
+    chunk = await _chunk(session, alice_doc.id)
+    await session.execute(
+        update(DocumentChunk).where(DocumentChunk.id == chunk.id).values(document_id=bob_doc.id, chunk_index=1)
+    )
+    await session.commit()
+
+    evidence = await RetrievalService(session).get_chunks_by_ids(
+        [chunk.id], user_id=DOCTOR_ID, patient_id=PATIENT_ALICE_ID
+    )
+
+    assert evidence == []
+
+
+@pytest.mark.asyncio
+async def test_graph_evidence_excludes_mismatched_page_document(session_and_settings):
+    session, _ = session_and_settings
+    source_doc = await create_indexed_document(
+        session,
+        patient_id=PATIENT_ALICE_ID,
+        uploaded_by=DOCTOR_ID,
+        title="Alice source",
+        content="Alice evidence must retain its page ownership.",
+    )
+    other_doc = await create_indexed_document(
+        session,
+        patient_id=PATIENT_ALICE_ID,
+        uploaded_by=DOCTOR_ID,
+        title="Alice other document",
+        content="A different Alice document still cannot supply the page.",
+    )
+    chunk = await _chunk(session, source_doc.id)
+    other_page = (
+        await session.execute(select(DocumentPage).where(DocumentPage.document_id == other_doc.id))
+    ).scalar_one()
+    await session.execute(update(DocumentChunk).where(DocumentChunk.id == chunk.id).values(page_id=other_page.id))
+    await session.commit()
+
+    evidence = await RetrievalService(session).get_chunks_by_ids(
+        [chunk.id], user_id=DOCTOR_ID, patient_id=PATIENT_ALICE_ID
+    )
+
+    assert evidence == []
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("deleted_layer", ["chunk", "document", "page"])
+async def test_graph_evidence_excludes_soft_deleted_join_layer(session_and_settings, deleted_layer):
+    session, _ = session_and_settings
+    document = await create_indexed_document(
+        session,
+        patient_id=PATIENT_ALICE_ID,
+        uploaded_by=DOCTOR_ID,
+        title=f"Deleted {deleted_layer}",
+        content=f"Evidence from a deleted {deleted_layer} must be excluded.",
+    )
+    chunk = await _chunk(session, document.id)
+    page = await session.get(DocumentPage, chunk.page_id)
+    assert page is not None
+    deleted_rows = {"chunk": chunk, "document": document, "page": page}
+    deleted_rows[deleted_layer].deleted_at = func.now()
+    await session.commit()
+
+    evidence = await RetrievalService(session).get_chunks_by_ids(
+        [chunk.id], user_id=DOCTOR_ID, patient_id=PATIENT_ALICE_ID
+    )
+
+    assert evidence == []
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("permission_state", ["revoked", "expired"])
+async def test_graph_evidence_excludes_inactive_permission(session_and_settings, permission_state):
+    session, _ = session_and_settings
+    document = await create_indexed_document(
+        session,
+        patient_id=PATIENT_ALICE_ID,
+        uploaded_by=DOCTOR_ID,
+        title=f"{permission_state.title()} permission",
+        content="Evidence requires an active accepted permission.",
+    )
+    chunk = await _chunk(session, document.id)
+    inactive_value = (
+        {"deleted_at": datetime.now(UTC)}
+        if permission_state == "revoked"
+        else {"expires_at": datetime.now(UTC) - timedelta(minutes=1)}
+    )
+    await session.execute(
+        update(PatientPermission)
+        .where(
+            PatientPermission.user_id == DOCTOR_ID,
+            PatientPermission.patient_id == PATIENT_ALICE_ID,
+        )
+        .values(**inactive_value)
+    )
+    await session.commit()
+
+    evidence = await RetrievalService(session).get_chunks_by_ids(
+        [chunk.id], user_id=DOCTOR_ID, patient_id=PATIENT_ALICE_ID
+    )
+
     assert evidence == []
 
 

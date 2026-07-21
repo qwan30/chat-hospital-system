@@ -16,6 +16,8 @@ _CHUNK_SIZE = 1024 * 1024
 _GENERATOR = "HOSP-AI-001 synthetic dataset generator"
 _GENERATOR_VERSION = "1.0"
 _SOURCE = "dataset_generation_instruction.md"
+_EXPECTED_PATIENT_COUNT = 100
+_EXPECTED_PATIENT_RECORD_COUNT = 200
 _EXPECTED_NESTED_DUPLICATE_PAIR_COUNT = 210
 _PATIENT_PDF = re.compile(r"^patient_(MRN\d{4})_(.+)\.pdf$")
 _PATIENT_LAB = re.compile(r"^patient_(MRN\d{4})_labs\.csv$")
@@ -25,6 +27,14 @@ _MIME_TYPES = {
     ".md": "text/markdown",
     ".pdf": "application/pdf",
 }
+_GOVERNED_DIRECTORIES = (
+    ("patients_documents", "patient_record"),
+    ("patients_labs", "patient_record"),
+    ("drugs", "public_knowledge"),
+    ("guidelines/nursing", "public_knowledge"),
+    ("security", "audit_fixture"),
+    ("metadata", "metadata"),
+)
 
 
 class CorpusValidationError(ValueError):
@@ -96,14 +106,33 @@ def build_manifest(data_root: Path, duplicate_root: Path | None) -> CorpusManife
 
 def validate_manifest(manifest: CorpusManifest, data_root: Path) -> CorpusValidationResult:
     """Validate all manifest items and return every detected governance error."""
-    root = _resolve_root(data_root)
-    patient_lookup = _load_patient_lookup(root)
     errors: list[str] = []
+    try:
+        root = _resolve_root(data_root)
+    except (OSError, CorpusValidationError) as exc:
+        return CorpusValidationResult(
+            is_valid=False,
+            patient_count=0,
+            patient_record_count=0,
+            duplicate_digest_count=0,
+            orphan_patient_file_count=0,
+            mismatch_patient_file_count=0,
+            null_ownership_count=0,
+            errors=(str(exc),),
+        )
+
+    try:
+        patient_lookup = _load_patient_lookup(root, errors)
+    except (OSError, ValueError, CorpusValidationError) as exc:
+        patient_lookup = {}
+        errors.append(str(exc))
+
+    governed_file_groups = _collect_governed_files(root, errors)
+
     orphan_patient_file_count = 0
     mismatch_patient_file_count = 0
     null_ownership_count = 0
     digest_counts: Counter[str] = Counter()
-    governed_file_groups = tuple(_governed_files(root))
     expected_classifications = {
         path.relative_to(root).as_posix(): classification
         for classification, paths in governed_file_groups
@@ -170,6 +199,14 @@ def validate_manifest(manifest: CorpusManifest, data_root: Path) -> CorpusValida
     if duplicate_digest_count:
         errors.append(f"Duplicate manifest digests: {duplicate_digest_count}")
 
+    if manifest.patient_count != _EXPECTED_PATIENT_COUNT:
+        errors.append(f"Expected exactly 100 patients; manifest declares {manifest.patient_count}")
+    if manifest.patient_record_count != _EXPECTED_PATIENT_RECORD_COUNT:
+        errors.append(f"Expected exactly 200 patient records; manifest declares {manifest.patient_record_count}")
+    if len(patient_lookup) != _EXPECTED_PATIENT_COUNT:
+        errors.append(f"Expected exactly 100 patients on disk; found {len(patient_lookup)}")
+    if len(expected_patient_record_paths) != _EXPECTED_PATIENT_RECORD_COUNT:
+        errors.append(f"Expected exactly 200 patient records on disk; found {len(expected_patient_record_paths)}")
     if manifest.patient_count != len(patient_lookup):
         errors.append("Manifest patient count does not match patient record ownership")
     if manifest.patient_record_count != len(expected_patient_record_paths):
@@ -188,19 +225,27 @@ def validate_manifest(manifest: CorpusManifest, data_root: Path) -> CorpusValida
 
 
 def _governed_files(root: Path) -> Iterable[tuple[str, tuple[Path, ...]]]:
-    for directory, classification in (
-        ("patients_documents", "patient_record"),
-        ("patients_labs", "patient_record"),
-        ("drugs", "public_knowledge"),
-        ("guidelines/nursing", "public_knowledge"),
-        ("security", "audit_fixture"),
-        ("metadata", "metadata"),
-    ):
+    for directory, classification in _GOVERNED_DIRECTORIES:
         governed_directory = _resolve_contained(root, root / directory)
         if not governed_directory.is_dir():
             raise CorpusValidationError(f"Required corpus directory is missing: {directory}")
         files = tuple(sorted(path for path in governed_directory.rglob("*") if path.is_file()))
         yield classification, files
+
+
+def _collect_governed_files(root: Path, errors: list[str]) -> tuple[tuple[str, tuple[Path, ...]], ...]:
+    groups: list[tuple[str, tuple[Path, ...]]] = []
+    for directory, classification in _GOVERNED_DIRECTORIES:
+        try:
+            governed_directory = _resolve_contained(root, root / directory)
+            if not governed_directory.is_dir():
+                raise CorpusValidationError(f"Required corpus directory is missing: {directory}")
+            groups.append(
+                (classification, tuple(sorted(path for path in governed_directory.rglob("*") if path.is_file())))
+            )
+        except (OSError, CorpusValidationError) as exc:
+            errors.append(str(exc))
+    return tuple(groups)
 
 
 def _build_file(root: Path, path: Path, patient_lookup: dict[str, UUID], classification: str) -> CorpusFile:
@@ -233,10 +278,14 @@ def _build_file(root: Path, path: Path, patient_lookup: dict[str, UUID], classif
     )
 
 
-def _load_patient_lookup(root: Path) -> dict[str, UUID]:
+def _load_patient_lookup(root: Path, errors: list[str] | None = None) -> dict[str, UUID]:
     seed_path = _resolve_contained(root, root / "metadata/generated_patients_seed.csv")
     if not seed_path.is_file():
-        raise CorpusValidationError("Missing patient seed metadata")
+        message = "Missing patient seed metadata"
+        if errors is None:
+            raise CorpusValidationError(message)
+        errors.append(message)
+        return {}
 
     patient_lookup: dict[str, UUID] = {}
     with seed_path.open(newline="", encoding="utf-8") as source:
@@ -244,10 +293,24 @@ def _load_patient_lookup(root: Path) -> dict[str, UUID]:
             mrn = row.get("mrn", "").strip()
             patient_id = row.get("patient_id", "").strip()
             if not mrn or not patient_id:
-                raise CorpusValidationError("Patient seed metadata has a missing MRN or patient_id")
+                message = "Patient seed metadata has a missing MRN or patient_id"
+                if errors is None:
+                    raise CorpusValidationError(message)
+                errors.append(message)
+                continue
             if mrn in patient_lookup:
-                raise CorpusValidationError(f"Patient seed metadata has duplicate MRN: {mrn}")
-            patient_lookup[mrn] = UUID(patient_id)
+                message = f"Patient seed metadata has duplicate MRN: {mrn}"
+                if errors is None:
+                    raise CorpusValidationError(message)
+                errors.append(message)
+                continue
+            try:
+                patient_lookup[mrn] = UUID(patient_id)
+            except ValueError as exc:
+                message = f"Invalid patient UUID for {mrn}: {exc}"
+                if errors is None:
+                    raise CorpusValidationError(message) from exc
+                errors.append(message)
     return patient_lookup
 
 

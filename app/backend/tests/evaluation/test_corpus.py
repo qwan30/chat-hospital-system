@@ -1,3 +1,4 @@
+import shutil
 from pathlib import Path
 
 import pytest
@@ -123,3 +124,60 @@ def test_manifest_validation_enforces_path_derived_classification(corpus_root: P
 
     assert result.is_valid is False
     assert any(error.startswith("Classification mismatch:") for error in result.errors)
+
+
+def test_manifest_validation_requires_fixed_corpus_baseline(corpus_root: Path) -> None:
+    manifest = build_manifest(corpus_root, None)
+    reduced_manifest = manifest.copy(update={"patient_count": 99, "patient_record_count": 198})
+
+    result = validate_manifest(reduced_manifest, corpus_root)
+
+    assert result.is_valid is False
+    assert "Expected exactly 100 patients; manifest declares 99" in result.errors
+    assert "Expected exactly 200 patient records; manifest declares 198" in result.errors
+
+
+def test_manifest_validation_reports_seed_and_patient_pair_removal(corpus_root: Path, tmp_path: Path) -> None:
+    copied_root = tmp_path / "data"
+    shutil.copytree(corpus_root, copied_root)
+    seed_path = copied_root / "metadata" / "generated_patients_seed.csv"
+    seed_path.write_text(
+        "\n".join(line for line in seed_path.read_text(encoding="utf-8").splitlines() if "MRN-0001" not in line) + "\n",
+        encoding="utf-8",
+    )
+    (copied_root / "patients_documents" / "patient_MRN0001_lab_result.pdf").unlink()
+    (copied_root / "patients_labs" / "patient_MRN0001_labs.csv").unlink()
+    manifest = build_manifest(corpus_root, None)
+
+    result = validate_manifest(manifest, copied_root)
+
+    assert result.is_valid is False
+    assert any(error.startswith("Missing file:") for error in result.errors)
+    assert any("Expected exactly 100 patients" in error for error in result.errors)
+
+
+def test_manifest_validation_collects_malformed_seed_errors(corpus_root: Path, tmp_path: Path) -> None:
+    copied_root = tmp_path / "data"
+    shutil.copytree(corpus_root, copied_root)
+    seed_path = copied_root / "metadata" / "generated_patients_seed.csv"
+    seed_path.write_text("patient_id,mrn\nnot-a-uuid,MRN-0001\nnot-a-uuid-2,MRN-0002\n", encoding="utf-8")
+    manifest = build_manifest(corpus_root, None)
+
+    result = validate_manifest(manifest, copied_root)
+
+    assert result.is_valid is False
+    assert sum("Invalid patient UUID" in error for error in result.errors) == 2
+
+
+def test_manifest_validation_collects_missing_directory_errors(corpus_root: Path, tmp_path: Path) -> None:
+    copied_root = tmp_path / "data"
+    shutil.copytree(corpus_root, copied_root)
+    shutil.rmtree(copied_root / "patients_labs")
+    shutil.rmtree(copied_root / "drugs")
+    manifest = build_manifest(corpus_root, None)
+
+    result = validate_manifest(manifest, copied_root)
+
+    assert result.is_valid is False
+    assert any("Required corpus directory is missing: patients_labs" in error for error in result.errors)
+    assert any("Required corpus directory is missing: drugs" in error for error in result.errors)

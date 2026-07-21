@@ -566,6 +566,10 @@ async def get_patient_labs(
     stmt = (
         select(DocumentChunk, Document)
         .join(Document, Document.id == DocumentChunk.document_id)
+        .join(
+            DocumentPage,
+            (DocumentPage.id == DocumentChunk.page_id) & (DocumentPage.document_id == DocumentChunk.document_id),
+        )
         .where(
             DocumentChunk.patient_id == patient_id,
             Document.patient_id == patient_id,
@@ -573,6 +577,7 @@ async def get_patient_labs(
             Document.status == "indexed",
             DocumentChunk.deleted_at.is_(None),
             Document.deleted_at.is_(None),
+            DocumentPage.deleted_at.is_(None),
         )
         .order_by(Document.created_at.desc())
         .limit(50)

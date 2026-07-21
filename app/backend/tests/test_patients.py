@@ -5,7 +5,7 @@ from pydantic import ValidationError
 from sqlalchemy import select, update
 from starlette.requests import Request
 
-from hospital_ai.api.routes.patients import PatientCreate, get_patient_labs, create_patient, search_patients
+from hospital_ai.api.routes.patients import PatientCreate, create_patient, get_patient_labs, search_patients
 from hospital_ai.core.errors import PermissionDeniedError
 from hospital_ai.core.security import PATIENT_READ_SCOPES
 from hospital_ai.db.migrations import DOCTOR_ID, PATIENT_ALICE_ID, PATIENT_ELEANOR_ID

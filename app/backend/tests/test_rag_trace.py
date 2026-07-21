@@ -16,7 +16,7 @@ from sqlalchemy import select, update
 
 from hospital_ai.api.routes.rag_trace import get_rag_trace
 from hospital_ai.db.migrations import DOCTOR_ID, PATIENT_ALICE_ID
-from hospital_ai.db.models import AiQuery, PatientPermission, RetrievedEvidence, User
+from hospital_ai.db.models import AiQuery, DocumentChunk, DocumentPage, PatientPermission, RetrievedEvidence, User
 from hospital_ai.schemas.chat import RagTraceEvidence, RagTraceResponse
 from hospital_ai.services.chat import ChatService
 from tests.conftest import create_indexed_document
@@ -98,6 +98,54 @@ class TestRagTraceSchemas:
 
 
 class TestRetrievedEvidenceTraceFields:
+    @pytest.mark.asyncio
+    async def test_trace_redacts_access_tag_denied_to_current_role(self, session_and_settings):
+        session, settings = session_and_settings
+        doctor = await session.get(User, DOCTOR_ID)
+        document = await create_indexed_document(
+            session, patient_id=PATIENT_ALICE_ID, uploaded_by=DOCTOR_ID, title="Tagged", content="Medication evidence."
+        )
+        response = await ChatService(session, settings).answer(
+            user=doctor,
+            patient_id=PATIENT_ALICE_ID,
+            question="What evidence is available?",
+            top_k=1,
+            trace_id="trace-tag",
+            ip_address="127.0.0.1",
+        )
+        doctor.role = "lab_staff"
+        await session.execute(
+            update(DocumentChunk)
+            .where(DocumentChunk.document_id == document.id)
+            .values(meta={"access_tags": ["medication"]})
+        )
+        await session.commit()
+        assert (await get_rag_trace(query_id=response.query_id, user=doctor, db=session)).evidence == []
+
+    @pytest.mark.asyncio
+    async def test_trace_redacts_mismatched_page_document_chain(self, session_and_settings):
+        session, settings = session_and_settings
+        doctor = await session.get(User, DOCTOR_ID)
+        document = await create_indexed_document(
+            session, patient_id=PATIENT_ALICE_ID, uploaded_by=DOCTOR_ID, title="Chain", content="Chain evidence."
+        )
+        response = await ChatService(session, settings).answer(
+            user=doctor,
+            patient_id=PATIENT_ALICE_ID,
+            question="What evidence is available?",
+            top_k=1,
+            trace_id="trace-chain",
+            ip_address="127.0.0.1",
+        )
+        chunk = (await session.scalars(select(DocumentChunk).where(DocumentChunk.document_id == document.id))).one()
+        other = await create_indexed_document(
+            session, patient_id=PATIENT_ALICE_ID, uploaded_by=DOCTOR_ID, title="Other", content="Other evidence."
+        )
+        page = (await session.scalars(select(DocumentPage).where(DocumentPage.document_id == other.id))).one()
+        chunk.page_id = page.id
+        await session.commit()
+        assert (await get_rag_trace(query_id=response.query_id, user=doctor, db=session)).evidence == []
+
     @pytest.mark.asyncio
     async def test_trace_redacts_evidence_after_permission_revocation(self, session_and_settings):
         """Trace visibility must be re-authorized at read time, not at retrieval time."""

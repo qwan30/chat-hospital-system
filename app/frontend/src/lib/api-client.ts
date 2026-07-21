@@ -37,20 +37,28 @@ export class ApiError extends Error {
   }
 }
 
-function mapIds(obj: any, mapFn: (val: string) => string): any {
-  if (obj === null || obj === undefined) return obj;
-  if (typeof obj === "string") return mapFn(obj);
-  if (Array.isArray(obj)) return obj.map((item) => mapIds(item, mapFn));
-  if (typeof obj === "object") {
-    const res: any = {};
-    for (const key in obj) {
-      if (Object.prototype.hasOwnProperty.call(obj, key)) {
-        res[key] = mapIds(obj[key], mapFn);
-      }
-    }
-    return res;
+const ID_KEYS = new Set(["id", "from_node", "to_node"]);
+
+function isIdentifierKey(key: string | undefined): boolean {
+  return key !== undefined && (ID_KEYS.has(key) || key.endsWith("_id"));
+}
+
+function mapApiIds(value: unknown, mapFn: (value: string) => string, key?: string): unknown {
+  if (typeof value === "string") {
+    return isIdentifierKey(key) ? mapFn(value) : value;
   }
-  return obj;
+  if (Array.isArray(value)) {
+    return value.map((item) => mapApiIds(item, mapFn, key));
+  }
+  if (value !== null && typeof value === "object") {
+    return Object.fromEntries(
+      Object.entries(value).map(([childKey, childValue]) => [
+        childKey,
+        mapApiIds(childValue, mapFn, childKey),
+      ]),
+    );
+  }
+  return value;
 }
 
 export async function apiFetch<T>(
@@ -90,15 +98,23 @@ export async function apiFetch<T>(
   // Map p-001..p-012 and ar-001..ar-099 to backend UUIDs in request body
   let body = init.body;
   if (typeof body === "string") {
-    body = body
-      .replace(/\b(p-0(0[1-9]|1[0-2]))\b/g, (match) => {
-        const num = parseInt(match.substring(2), 10);
-        return "20000000-0000-0000-0000-" + num.toString().padStart(12, "0");
-      })
-      .replace(/\b(ar-0(0[1-9]|[1-9][0-9]))\b/g, (match) => {
-        const num = parseInt(match.substring(3), 10);
-        return "90000000-0000-0000-0000-" + num.toString().padStart(12, "0");
-      });
+    try {
+      body = JSON.stringify(
+        mapApiIds(JSON.parse(body), (value) =>
+          value
+            .replace(/\b(p-0(0[1-9]|1[0-2]))\b/g, (match) => {
+              const num = parseInt(match.substring(2), 10);
+              return "20000000-0000-0000-0000-" + num.toString().padStart(12, "0");
+            })
+            .replace(/\b(ar-0(0[1-9]|[1-9][0-9]))\b/g, (match) => {
+              const num = parseInt(match.substring(3), 10);
+              return "90000000-0000-0000-0000-" + num.toString().padStart(12, "0");
+            }),
+        ),
+      );
+    } catch {
+      // Non-JSON bodies pass through unchanged.
+    }
   }
 
   const response = await fetch(url, { ...init, body, headers });
@@ -147,7 +163,7 @@ export async function apiFetch<T>(
 
   const data = await response.json();
   // Map backend UUIDs back to p-001..p-012, and ar-001..ar-099 in response
-  return mapIds(data, (val) => {
+  return mapApiIds(data, (val) => {
     if (val.startsWith("20000000-0000-0000-0000-")) {
       const hex = val.substring(24);
       const num = parseInt(hex, 10);
@@ -163,7 +179,7 @@ export async function apiFetch<T>(
       }
     }
     return val;
-  });
+  }) as T;
 }
 
 // ── Auth helpers ─────────────────────────────────────────────────────

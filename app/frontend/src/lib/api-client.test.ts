@@ -194,6 +194,66 @@ describe("apiFetch", () => {
     const [, init] = fetchMock.mock.calls[0];
     expect(init.headers).not.toHaveProperty("Content-Type");
   });
+
+  it("maps response demo IDs only in identifier fields", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () =>
+          Promise.resolve({
+            patient_id: "20000000-0000-0000-0000-000000000001",
+            content: "Reference 20000000-0000-0000-0000-000000000001 exactly",
+            citation_text: "90000000-0000-0000-0000-000000000002",
+            nested: {
+              document_id: "90000000-0000-0000-0000-000000000002",
+              title: "Case 90000000-0000-0000-0000-000000000002",
+            },
+          }),
+      }),
+    );
+
+    const result = await apiFetch<{
+      patient_id: string;
+      content: string;
+      citation_text: string;
+      nested: { document_id: string; title: string };
+    }>("/test", {}, { baseUrl: "http://base" });
+
+    expect(result.patient_id).toBe("p-001");
+    expect(result.nested.document_id).toBe("ar-002");
+    expect(result.content).toBe("Reference 20000000-0000-0000-0000-000000000001 exactly");
+    expect(result.citation_text).toBe("90000000-0000-0000-0000-000000000002");
+    expect(result.nested.title).toBe("Case 90000000-0000-0000-0000-000000000002");
+  });
+
+  it("maps JSON request demo IDs only in identifier fields", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: () => Promise.resolve({}),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    await apiFetch(
+      "/test",
+      {
+        method: "POST",
+        body: JSON.stringify({
+          patient_id: "p-001",
+          question: "Compare p-001 with the literal text ar-002",
+        }),
+      },
+      { baseUrl: "http://base" },
+    );
+
+    const [, init] = fetchMock.mock.calls[0];
+    expect(JSON.parse(init.body)).toEqual({
+      patient_id: "20000000-0000-0000-0000-000000000001",
+      question: "Compare p-001 with the literal text ar-002",
+    });
+  });
 });
 
 // ---------------------------------------------------------------------------

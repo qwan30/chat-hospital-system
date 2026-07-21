@@ -1,6 +1,6 @@
 # Specification & AI Instruction Manual for Generating English HMS Datasets
 
-This document serves as a comprehensive specification and instruction set for generating the complete, realistic clinical and system datasets for the **AI-Powered Hospital Knowledge Assistant (HOSP-AI-001)**. 
+This document serves as a comprehensive specification and instruction set for generating the complete, realistic clinical and system datasets for the **AI-Powered Hospital Knowledge Assistant (HOSP-AI-001)**.
 
 Following the project direction, **all clinical documents, guidelines, and safety databases must be generated in English** to align with the core MVP scope defined in [project-foundation.md](file:///d:/projects/chatbot-hospital-system/docs/00-overview/project-foundation.md#L90) and ensure maximum retrieval and reasoning accuracy.
 
@@ -98,8 +98,8 @@ When these files are uploaded or indexed, the ingestion pipeline must receive th
 Copy and paste the prompt below into another LLM (e.g., Claude 3.5 Sonnet, GPT-4o) to generate the complete dataset.
 
 ```markdown
-You are an expert Medical Data Generator and Health Informatics Specialist. 
-Generate a complete dataset of clinical files in English for the chatbot-hospital-system project (HOSP-AI-001). 
+You are an expert Medical Data Generator and Health Informatics Specialist.
+Generate a complete dataset of clinical files in English for the chatbot-hospital-system project (HOSP-AI-001).
 
 ### Setup Requirements:
 1. Generate synthetic patients with MRNs from MRN-0001 to MRN-0100.

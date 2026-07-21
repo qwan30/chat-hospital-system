@@ -1,6 +1,6 @@
 # Implementation Plan: RAG Ingestion, Graph Filtering, and Citations Hardening
 
-This document outlines a detailed multi-phase plan to upgrade the parsing, graph retrieval, and citation validation capabilities of the **AI-Powered Hospital Knowledge Assistant (HOSP-AI-001)**. 
+This document outlines a detailed multi-phase plan to upgrade the parsing, graph retrieval, and citation validation capabilities of the **AI-Powered Hospital Knowledge Assistant (HOSP-AI-001)**.
 
 ---
 
@@ -196,5 +196,3 @@ This document outlines a detailed multi-phase plan to upgrade the parsing, graph
 *   **Verification:** Run RAG evaluation test scripts to verify the recall rates and check the visual highlights in the PDF viewer.
 *   **Code Review:** Check the incremental graph update logic to ensure soft-deletion handles deleted documents correctly.
 *   **Commit:** Git commit changes with message `feat(RAG): incremental graph updates and multi-recall search optimization`.
-
-

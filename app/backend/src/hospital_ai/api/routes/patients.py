@@ -1,15 +1,16 @@
 import logging
 import uuid
 from datetime import UTC, date, datetime
-from typing import Optional
+from typing import Literal, Optional
 
 from fastapi import APIRouter, Depends, Query, Request
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from hospital_ai.api.deps import get_current_user, get_request_ip, get_session
 from hospital_ai.core.config import Settings, get_settings
+from hospital_ai.core.errors import PermissionDeniedError
 from hospital_ai.core.security import PATIENT_READ_SCOPES, new_trace_id, sanitize_audit_query
 from hospital_ai.db.models import Document, DocumentChunk, DocumentPage, Patient, User
 from hospital_ai.schemas.documents import DocumentRead
@@ -66,11 +67,11 @@ async def search_patients(
 
 
 class PatientCreate(BaseModel):
-    mrn: str
-    full_name: str
+    mrn: str = Field(min_length=5, max_length=64, regex=r"^[A-Z0-9-]+$")
+    full_name: str = Field(min_length=1, max_length=255)
     dob: Optional[date] = None
-    department: Optional[str] = None
-    status: str = "active"
+    department: Optional[str] = Field(default=None, max_length=128)
+    status: Literal["active", "stable", "watch", "critical"] = "active"
 
 
 @router.post("", response_model=PatientRead)
@@ -80,26 +81,18 @@ async def create_patient(
     session: AsyncSession = Depends(get_session),
     current_user: User = Depends(get_current_user),
 ) -> Patient:
+    if current_user.role not in {"records_staff", "admin"}:
+        raise PermissionDeniedError("Only records staff or admins can register patients.")
+
     patient = Patient(
         mrn=payload.mrn,
-        full_name=payload.full_name,
+        full_name=payload.full_name.strip(),
         dob=payload.dob,
         department=payload.department,
         status=payload.status,
     )
     session.add(patient)
     await session.flush()
-
-    from hospital_ai.db.models import PatientPermission as PP
-
-    for scope in ("read", "summary", "medication", "upload", "admin"):
-        perm = PP(
-            user_id=current_user.id,
-            patient_id=patient.id,
-            scope=scope,
-            source="manual",
-        )
-        session.add(perm)
 
     await AuditService(session).record(
         actor_user_id=current_user.id,
@@ -109,7 +102,7 @@ async def create_patient(
         outcome="allowed",
         trace_id=new_trace_id(),
         ip_address=get_request_ip(request),
-        metadata={"mrn": payload.mrn, "full_name": payload.full_name},
+        metadata={"department": payload.department, "status": payload.status},
     )
     await session.commit()
     return patient

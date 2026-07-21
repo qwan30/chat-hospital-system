@@ -21,6 +21,7 @@ import { Bell, Bookmark, Filter, Lock, MessageSquare, Search } from "lucide-reac
 import { searchPatients } from "@/lib/api/patients";
 import { useState, useEffect } from "react";
 import { useSession } from "@/lib/session";
+import { canCreatePatient } from "@/lib/rbac";
 import { useQuery, keepPreviousData } from "@tanstack/react-query";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
@@ -230,7 +231,9 @@ function PatientsPage() {
                 )}
               </PopoverContent>
             </Popover>
-            <AddPatientDialog trigger={<Button size="sm">Add patient</Button>} />
+            {session && canCreatePatient(session.role) && (
+              <AddPatientDialog trigger={<Button size="sm">Add patient</Button>} />
+            )}
           </>
         }
       />

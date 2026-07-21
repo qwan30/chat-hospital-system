@@ -163,6 +163,10 @@ export function canAccessPatientTab(role: Role, tab: string): boolean {
   return PATIENT_TABS[role]?.includes(tab) ?? false;
 }
 
+export function canCreatePatient(role: Role): boolean {
+  return role === "front_desk";
+}
+
 /** First patient sub-tab a role can see — used to redirect away from forbidden tabs. */
 export function firstAllowedPatientTab(role: Role): string {
   return PATIENT_TABS[role]?.[0] ?? "overview";

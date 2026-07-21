@@ -24,7 +24,11 @@ import { cn } from "@/lib/utils";
 import { searchPatients, getPatient } from "@/lib/api/patients";
 import { useSession } from "@/lib/session";
 import { streamChat } from "@/lib/stream-client";
-import { hasStreamScopeChanged, type StreamScope } from "@/lib/stream-scope";
+import {
+  hasStreamScopeChanged,
+  isCurrentStreamRequest,
+  type StreamScope,
+} from "@/lib/stream-scope";
 import { getStoredApiUrl } from "@/lib/api-client";
 import { uploadDocument } from "@/lib/api/documents";
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
@@ -581,6 +585,8 @@ function GlobalChat() {
       requestController = new AbortController();
       abortControllerRef.current = requestController;
       activeStreamScopeRef.current = { patientId, threadId: thread };
+      const isActiveRequest = () =>
+        isCurrentStreamRequest(abortControllerRef.current, requestController);
 
       const payloadContext = uploadedDocId ? { document_ids: [uploadedDocId] } : undefined;
 
@@ -592,6 +598,7 @@ function GlobalChat() {
             patient_id: patientId ?? null,
             title: text.substring(0, 50) || "New chat",
           });
+          if (!isActiveRequest()) return;
           activeThreadId = newThread.id;
           createdThreadIdRef.current = newThread.id;
           activeStreamScopeRef.current = { patientId, threadId: newThread.id };
@@ -615,6 +622,7 @@ function GlobalChat() {
           context: payloadContext,
         },
         (event) => {
+          if (!isActiveRequest()) return;
           if (event.type === "token") {
             fullText += event.content || "";
             setStreamingText(fullText);
@@ -625,6 +633,8 @@ function GlobalChat() {
         },
         requestController.signal,
       );
+
+      if (!isActiveRequest()) return;
 
       if (streamResult.error) {
         setStreamError(streamResult.error);
@@ -655,6 +665,7 @@ function GlobalChat() {
       }
       return;
     } catch (err: any) {
+      if (!isCurrentStreamRequest(abortControllerRef.current, requestController)) return;
       console.warn("Backend stream failed:", err);
       const isSimulated = simulate === "stream-fail" && err.name === "AbortError";
       if (err.name === "AbortError" && !isSimulated) {

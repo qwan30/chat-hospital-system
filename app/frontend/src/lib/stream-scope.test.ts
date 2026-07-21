@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { hasStreamScopeChanged } from "./stream-scope";
+import { hasStreamScopeChanged, isCurrentStreamRequest } from "./stream-scope";
 
 describe("hasStreamScopeChanged", () => {
   it("keeps a new-thread stream alive after the request adopts the created thread", () => {
@@ -25,5 +25,13 @@ describe("hasStreamScopeChanged", () => {
         { patientId: "patient-a", threadId: "thread-b" },
       ),
     ).toBe(true);
+  });
+
+  it("rejects state writes from an aborted request after a newer request starts", () => {
+    const oldRequest = new AbortController();
+    const newRequest = new AbortController();
+
+    expect(isCurrentStreamRequest(newRequest, oldRequest)).toBe(false);
+    expect(isCurrentStreamRequest(newRequest, newRequest)).toBe(true);
   });
 });

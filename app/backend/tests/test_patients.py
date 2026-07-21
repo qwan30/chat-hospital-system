@@ -5,11 +5,12 @@ from pydantic import ValidationError
 from sqlalchemy import select, update
 from starlette.requests import Request
 
-from hospital_ai.api.routes.patients import PatientCreate, create_patient, search_patients
+from hospital_ai.api.routes.patients import PatientCreate, get_patient_labs, create_patient, search_patients
 from hospital_ai.core.errors import PermissionDeniedError
 from hospital_ai.core.security import PATIENT_READ_SCOPES
 from hospital_ai.db.migrations import DOCTOR_ID, PATIENT_ALICE_ID, PATIENT_ELEANOR_ID
-from hospital_ai.db.models import AuditLog, PatientPermission, User
+from hospital_ai.db.models import AuditLog, DocumentChunk, DocumentPage, PatientPermission, User
+from tests.conftest import create_indexed_document
 
 
 def _request() -> Request:
@@ -210,3 +211,37 @@ async def test_patient_search_excludes_expired_permissions(session_and_settings)
     )
 
     assert response.items == []
+
+
+@pytest.mark.asyncio
+async def test_labs_exclude_mismatched_page_chain_and_preserve_high_low_identity(session_and_settings):
+    session, _ = session_and_settings
+    doctor = await session.get(User, DOCTOR_ID)
+    document = await create_indexed_document(
+        session, patient_id=PATIENT_ALICE_ID, uploaded_by=DOCTOR_ID, title="Labs", content="Glucose  180 70-110"
+    )
+    document.document_type = "lab_result"
+    chunk = (await session.scalars(select(DocumentChunk).where(DocumentChunk.document_id == document.id))).one()
+    chunk.meta = {"labs": [{"analyte": "Glucose", "value": "180", "reference_range": "70-110"}]}
+    await session.commit()
+    response = await get_patient_labs(PATIENT_ALICE_ID, _request(), session, doctor)
+    assert response.labs[0].analyte == "Glucose"
+    assert response.labs[0].flag == "H"
+    opposite = await create_indexed_document(
+        session, patient_id=PATIENT_ALICE_ID, uploaded_by=DOCTOR_ID, title="Labs low", content="Glucose"
+    )
+    opposite.document_type = "lab_result"
+    opposite_chunk = (
+        await session.scalars(select(DocumentChunk).where(DocumentChunk.document_id == opposite.id))
+    ).one()
+    opposite_chunk.meta = {"labs": [{"analyte": "Glucose", "value": "60", "reference_range": "70-110"}]}
+    await session.commit()
+    observations = await get_patient_labs(PATIENT_ALICE_ID, _request(), session, doctor)
+    assert {item.flag for item in observations.labs} == {"H", "L"}
+    other = await create_indexed_document(
+        session, patient_id=PATIENT_ALICE_ID, uploaded_by=DOCTOR_ID, title="Other", content="Other"
+    )
+    page = (await session.scalars(select(DocumentPage).where(DocumentPage.document_id == other.id))).one()
+    chunk.page_id = page.id
+    await session.commit()
+    assert [item.flag for item in (await get_patient_labs(PATIENT_ALICE_ID, _request(), session, doctor)).labs] == ["L"]

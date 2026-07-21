@@ -622,7 +622,16 @@ async def get_patient_labs(
     seen_analytes: set[str] = set()
     deduped_labs: list[PatientLabItem] = []
     for lab in labs:
-        key = lab.analyte.lower()
+        # Do not collapse clinically opposing observations (e.g. high then
+        # low glucose) merely because they share an analyte name.
+        key = "|".join(
+            [
+                lab.analyte.strip().casefold(),
+                (lab.value or "").strip().casefold(),
+                (lab.flag or "").strip().casefold(),
+                (lab.collected or "").strip(),
+            ]
+        )
         if key not in seen_analytes:
             seen_analytes.add(key)
             deduped_labs.append(lab)

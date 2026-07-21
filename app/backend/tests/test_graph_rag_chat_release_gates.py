@@ -8,12 +8,15 @@ from datetime import UTC, datetime, timedelta
 
 import pytest
 from sqlalchemy import func, select, update
+from sqlalchemy.ext.asyncio import async_sessionmaker
 from starlette.requests import Request
 
 from hospital_ai.api.routes.chat_stream import chat_stream
 from hospital_ai.core.errors import ExternalServiceError
 from hospital_ai.db.migrations import DOCTOR_ID, PATIENT_ALICE_ID, PATIENT_BOB_ID
 from hospital_ai.db.models import (
+    AiQuery,
+    AuditLog,
     DocumentChunk,
     DocumentPage,
     PatientPermission,
@@ -21,7 +24,7 @@ from hospital_ai.db.models import (
     User,
 )
 from hospital_ai.schemas.chat import ChatRequest
-from hospital_ai.services.chat import SAFE_NO_EVIDENCE_ANSWER, ChatService
+from hospital_ai.services.chat import SAFE_NO_EVIDENCE_ANSWER, SAFE_PHI_LEAK_BLOCKED_ANSWER, ChatService
 from hospital_ai.services.graph_rag import (
     ExtractedEntity,
     ExtractedRelation,
@@ -31,6 +34,7 @@ from hospital_ai.services.graph_rag import (
     find_related_entities,
     index_chunk_entities,
 )
+from hospital_ai.services.guardrails import GuardrailResult
 from hospital_ai.services.reasoning import DISCLAIMER, ReasoningResult
 from hospital_ai.services.retrieval import RetrievalService, RetrievedChunk
 from tests.conftest import create_indexed_document
@@ -433,3 +437,64 @@ async def test_stream_and_nonstream_share_graph_only_evidence_contract(session_a
     done_events = [event for event in events if event.get("type") == "done"]
     assert done_events[-1]["validation"] == "passed"
     assert not [event for event in events if event.get("type") == "error"]
+
+
+@pytest.mark.asyncio
+async def test_stream_output_guardrail_persists_refusal_terminal_state(session_and_settings, monkeypatch):
+    session, settings = session_and_settings
+    doctor = await session.get(User, DOCTOR_ID)
+    await create_indexed_document(
+        session,
+        patient_id=PATIENT_ALICE_ID,
+        uploaded_by=DOCTOR_ID,
+        title="Guardrail source",
+        content="Authorized clinical evidence.",
+    )
+
+    class UnsafeLlm:
+        async def stream(self, _messages):
+            yield "Secret generated PHI [E1]."
+
+        def model_name(self):
+            return "unsafe-test"
+
+    class BlockingGuardrail:
+        async def scan(self, _prompt, _output):
+            return GuardrailResult(blocked=True, reason="detected PHI")
+
+    monkeypatch.setattr(
+        "hospital_ai.api.routes.chat_stream.LLMManager",
+        lambda _settings: type("Manager", (), {"get": lambda self: UnsafeLlm()})(),
+    )
+    monkeypatch.setattr(
+        "hospital_ai.api.routes.chat_stream.get_output_guardrail",
+        lambda: BlockingGuardrail(),
+    )
+    monkeypatch.setattr(
+        "hospital_ai.api.routes.chat_stream.get_session_factory",
+        lambda: async_sessionmaker(session.bind, expire_on_commit=False),
+    )
+
+    response = await chat_stream(
+        payload=ChatRequest(patient_id=PATIENT_ALICE_ID, question="What is in the record?", top_k=1),
+        request=_request(),
+        session=session,
+        current_user=doctor,
+        settings=settings,
+    )
+    events = await _events(response)
+
+    assert [event["type"] for event in events] == ["token", "done"]
+    assert events[0]["content"] == SAFE_PHI_LEAK_BLOCKED_ANSWER
+    assert "Secret generated PHI" not in json.dumps(events)
+
+    query = (await session.execute(select(AiQuery).order_by(AiQuery.created_at.desc()))).scalars().first()
+    assert query is not None
+    await session.refresh(query)
+    assert query.status == "refused"
+    assert query.answer == SAFE_PHI_LEAK_BLOCKED_ANSWER
+    audit = (
+        await session.execute(select(AuditLog).where(AuditLog.action == "chat.stream", AuditLog.object_id == query.id))
+    ).scalar_one()
+    assert audit.outcome == "denied"
+    assert audit.meta["reason"] == "output_guardrail_blocked"

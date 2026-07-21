@@ -1,0 +1,77 @@
+{
+  "$schema": "https://aka.ms/codetour-schema",
+  "title": "Graph RAG & Dynamic Data PR Tour",
+  "description": "Walkthrough of the SSE streaming fixes, hybrid search scoring, and RAG security invariants.",
+  "ref": "feat/dynamic-patient-data-and-graph-rag",
+  "steps": [
+    {
+      "directory": "app/backend/src/hospital_ai/api/routes",
+      "title": "Tour Start: Chat Streaming",
+      "description": "**Situation**: Reviewing the new Graph RAG and dynamic patient data implementation.\n**Mechanism**: We will walk through the SSE streaming endpoint fixes, retrieval score handling, and the E2E tests enforcing RAG security.\n**Implication**: Provides context on how latency and security are balanced in the new streaming architecture.\n**Gotcha**: Make sure to check the exact `ref` or branch you are on, as these changes are specific to the `feat/dynamic-patient-data-and-graph-rag` branch."
+    },
+    {
+      "file": "app/backend/src/hospital_ai/api/routes/chat_stream.py",
+      "selection": {
+        "start": { "line": 181, "character": 0 },
+        "end": { "line": 185, "character": 0 }
+      },
+      "title": "TTFT Optimization",
+      "description": "**Situation**: Generating the LLM response.\n**Mechanism**: Tokens are yielded to the SSE stream immediately as they arrive from the LLM.\n**Implication**: Minimizes Time To First Token (TTFT), giving the user an instant, responsive UI.\n**Gotcha**: Because we stream early, any post-generation validation (like guardrails) must handle mid-stream redaction."
+    },
+    {
+      "file": "app/backend/src/hospital_ai/api/routes/chat_stream.py",
+      "selection": {
+        "start": { "line": 194, "character": 0 },
+        "end": { "line": 201, "character": 0 }
+      },
+      "title": "Mid-Stream Redaction",
+      "description": "**Situation**: The output guardrail scan runs after the full text is generated.\n**Mechanism**: If the scan detects a policy violation (e.g., PHI leak), an `error` event is emitted with a safe fallback answer.\n**Implication**: Enforces strict security requirements before the interaction completes.\n**Gotcha**: The frontend must be designed to catch this `error` event and overwrite the already-streamed partial text with the safe refusal message."
+    },
+    {
+      "file": "app/backend/src/hospital_ai/api/routes/chat_stream.py",
+      "selection": {
+        "start": { "line": 236, "character": 0 },
+        "end": { "line": 244, "character": 0 }
+      },
+      "title": "Citation Fidelity Check",
+      "description": "**Situation**: Validating the LLM's citations against the retrieved context.\n**Mechanism**: Ensures every cited ID (`[E1]`, etc.) actually exists in the allowed chunks. If not, the stream is aborted with a `SAFE_NO_EVIDENCE_ANSWER`.\n**Implication**: Strongly mitigates hallucinated references and ensures the answer is grounded in actual patient data.\n**Gotcha**: Just like the guardrail check, this is a mid-stream redaction event."
+    },
+    {
+      "file": "app/backend/src/hospital_ai/services/retrieval.py",
+      "line": 363,
+      "title": "BM25 Raw Rank",
+      "description": "**Situation**: Executing a keyword search in PostgreSQL.\n**Mechanism**: Uses `ts_rank_cd` to compute the cover density ranking of the search vector against the query.\n**Implication**: Enables high-quality sparse retrieval to complement dense vector embeddings.\n**Gotcha**: `ts_rank_cd` returns unbounded scores, meaning they cannot be safely compared to standard 0.0-1.0 cosine similarity thresholds without normalization."
+    },
+    {
+      "file": "app/backend/src/hospital_ai/services/retrieval.py",
+      "selection": {
+        "start": { "line": 240, "character": 0 },
+        "end": { "line": 244, "character": 0 }
+      },
+      "title": "RRF Score Fusion",
+      "description": "**Situation**: Fusing hybrid search results from both vector and BM25 strategies.\n**Mechanism**: Reciprocal Rank Fusion (RRF) recalculates scores based on the rank position in each result list, rather than their absolute values.\n**Implication**: Bypasses absolute threshold bugs caused by mixing bounded cosine scores with unbounded BM25 scores.\n**Gotcha**: RRF scores typically hover in a small absolute range (e.g., 0.01-0.03), so standard vector distance thresholds will filter them all out if applied downstream."
+    },
+    {
+      "file": "app/frontend/e2e/test_chat_stream.spec.ts",
+      "selection": {
+        "start": { "line": 60, "character": 0 },
+        "end": { "line": 64, "character": 0 }
+      },
+      "title": "E2E: Evidence Fidelity",
+      "description": "**Situation**: End-to-End testing of the RAG pipeline for a specific patient.\n**Mechanism**: We assert that the LLM successfully synthesizes clinical facts (Apixaban adjustments, eGFR) from the retrieved chunks.\n**Implication**: Proves that the end-to-end flow from embedding to UI actually retrieves and utilizes the correct clinical data.\n**Gotcha**: We use flexible regexes because LLM generation phrasing is non-deterministic."
+    },
+    {
+      "file": "app/frontend/e2e/test_chat_stream.spec.ts",
+      "selection": {
+        "start": { "line": 97, "character": 0 },
+        "end": { "line": 101, "character": 0 }
+      },
+      "title": "E2E: Cross-Patient Isolation",
+      "description": "**Situation**: Testing security scoping within a specific patient context.\n**Mechanism**: Asserts that asking for another patient's condition (Alice's data) within Eleanor's context does not leak any unauthorized data.\n**Implication**: Guarantees the RAG backend enforces strict patient isolation filters, preventing horizontal privilege escalation.\n**Gotcha**: The test validates both the absence of the leaked data and the presence of a safe refusal/denial message."
+    },
+    {
+      "title": "Next Steps",
+      "description": "**Situation**: The tour is complete.\n**Mechanism**: You have reviewed the core streaming updates, the retrieval scoring mechanisms, and the E2E invariant checks.\n**Implication**: You are now ready to approve the PR with confidence in its latency and security design.\n**Gotcha**: Don't forget to run `bun run test:e2e` locally if you want to see the streaming redaction in action."
+    }
+  ]
+}

@@ -1,0 +1,66 @@
+{
+  "$schema": "https://aka.ms/codetour-schema",
+  "title": "Dynamic Patient Data and Graph RAG Branch Review",
+  "description": "A reviewer-focused path through the branch's data, retrieval, streaming, graph, and frontend integration changes.",
+  "ref": "feat/dynamic-patient-data-and-graph-rag",
+  "steps": [
+    {
+      "file": "docs/plan-rag-graph-improvements.md",
+      "line": 1,
+      "title": "Branch Intent",
+      "description": "Start with the proposed Graph RAG improvement scope. It explains the intended direction, but it is planning evidence rather than proof that the runtime and safety gates pass."
+    },
+    {
+      "file": "app/backend/scripts/generate_100_patients.py",
+      "line": 1,
+      "title": "Synthetic Patient Generation",
+      "description": "The dataset generator expands the demo corpus. Review reproducibility, provenance, stable identifiers, and whether generated records remain synthetic before trusting downstream evaluation."
+    },
+    {
+      "file": "app/backend/scripts/seed_dev.py",
+      "line": 1,
+      "title": "Development Seed Orchestration",
+      "description": "This script now carries a large amount of dataset and clinical-demo setup. Its breadth makes it a key reliability seam and a candidate for later decomposition after release gates are established."
+    },
+    {
+      "file": "app/backend/src/hospital_ai/services/retrieval.py",
+      "pattern": "class RetrievalService",
+      "title": "Permission-Filtered Retrieval",
+      "description": "Retrieval combines role filtering, vector/BM25 paths, and hybrid ranking. Verify authorization across the full patient-document-page-chunk join and keep score thresholds aware of each ranking scale."
+    },
+    {
+      "file": "app/backend/src/hospital_ai/services/chat.py",
+      "pattern": "class ChatService",
+      "title": "Canonical Chat Answer Path",
+      "description": "This module is the canonical non-streaming answer path. It is the reference interface for evidence selection, citation validation, audit behavior, and refusal semantics."
+    },
+    {
+      "file": "app/backend/src/hospital_ai/api/routes/chat_stream.py",
+      "pattern": "async def chat_stream",
+      "title": "Streaming Safety Parity",
+      "description": "The SSE route must reproduce every safety contract from the canonical chat path, including cited-only evidence, sanitized errors, trace persistence, and disconnect handling."
+    },
+    {
+      "file": "app/backend/src/hospital_ai/api/routes/graph.py",
+      "pattern": "async def get_patient_graph",
+      "title": "Patient Graph Endpoint",
+      "description": "This route assembles the patient graph and deduplicates entities and edges. The central gotcha is proving that every returned node and relation remains patient-scoped under all roles and filters."
+    },
+    {
+      "file": "app/frontend/src/components/hms/GraphCanvas.tsx",
+      "pattern": "export function GraphCanvas",
+      "title": "Graph Interaction Module",
+      "description": "The canvas owns substantial layout and interaction behavior. It delivers a rich demo, but its growing interface and hook dependencies indicate a future seam between layout, visibility state, and rendering."
+    },
+    {
+      "file": "app/frontend/src/routes/_app.chat.index.tsx",
+      "line": 1,
+      "title": "Integrated Patient Chat UI",
+      "description": "The route connects live patient selection, streaming chat, and evidence presentation. Review it with a real backend because mock-driven browser tests cannot certify end-to-end RAG behavior."
+    },
+    {
+      "title": "Recommended Next Move",
+      "description": "Certify and package this branch before adding features: reconcile the dirty tree, add adversarial Graph RAG and transport-parity gates, run live backend-to-browser flows, then publish a focused PR with CI evidence."
+    }
+  ]
+}

@@ -34,15 +34,15 @@ export function ChatMessage({
   // Render assistant content with inline [n] markers replaced by chips
   const renderContent = () => {
     if (!msg.citations?.length) return <p className="whitespace-pre-wrap">{msg.content}</p>;
-    const parts = msg.content.split(/(\[\d+\])/g);
+    const parts = msg.content.split(/(\[[EG]?\d+\])/g);
     return (
       <p className="whitespace-pre-wrap leading-relaxed">
         {parts.map((p, i) => {
-          const m = p.match(/^\[(\d+)\]$/);
+          const m = p.match(/^\[([EG]?\d+)\]$/);
           if (m) {
-            const n = Number(m[1]);
-            const c = msg.citations!.find((c) => c.n === n);
-            if (c) return <CitationChip key={i} n={n} sourceId={c.sourceId} className="mx-0.5" />;
+            const refId = m[1];
+            const c = msg.citations!.find((c) => c.sourceId === refId || c.n === Number(refId));
+            if (c) return <CitationChip key={i} n={c.n} sourceId={c.sourceId} className="mx-0.5" />;
           }
           return <span key={i}>{p}</span>;
         })}

@@ -1,10 +1,10 @@
 {
   "schema_version": "1.1",
-  "feature_slug": "portfolio-hardening-2026-06",
+  "feature_slug": "dynamic-patient-data-and-graph-rag",
   "mode": "standard_feature",
-  "active_skill": "khuym:compounding",
-  "phase": "compounding-complete",
-  "phase_number": 8,
+  "active_skill": "khuym:reviewing",
+  "phase": "review-complete",
+  "phase_number": 6,
   "epic_id": "",
   "approved_gates": {
     "context": true,
@@ -16,15 +16,15 @@
   "active_beads": [],
   "active_workers": [],
   "blockers": [],
-  "focus": "C:\\Users\\NITRO\\.gemini\\antigravity-ide\\brain\\5507f115-418c-4ab0-b569-3598b736f83e\\walkthrough.md",
-  "summary": "Completed full interactive browser click-flow verification of all 7 roles, resolved critical privilege leaks, route guard leakage on /audit, and implemented security auditor mapping.",
-  "next_action": "User review of bugs_and_bad_cases.md and walkthrough.md for final sign-off.",
+  "focus": ".tours/pr-reviewer-graph-rag.tour",
+  "summary": "Stabilized RAG streaming by fixing TTFT, BM25 normalization, hybrid search RRF merging, and updating ChatMessage.tsx citations. Passed Mario SDLC Playwright E2E.",
+  "next_action": "PR Review using .tours/pr-reviewer-graph-rag.tour",
   "deferred_beads": [],
   "last_compounding_run": {
-    "feature": "portfolio-hardening-2026-06",
-    "date": "2026-06-22",
+    "feature": "dynamic-patient-data-and-graph-rag",
+    "date": "2026-07-21",
     "learnings_file": "history/learnings/critical-patterns.md",
     "critical_promotions": 0
   },
-  "last_updated": "2026-06-22T00:20:00+07:00"
+  "last_updated": "2026-07-21T16:18:00+00:00"
 }

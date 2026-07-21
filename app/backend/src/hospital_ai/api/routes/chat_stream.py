@@ -177,13 +177,56 @@ async def _generate_sse_events(
             LLMMessage(role="user", content=prompt),
         ]
 
-        # F-RAG-001: Buffer the LLM stream so we can validate citations
-        # against the authorized evidence set BEFORE any token leaves the
-        # server.  This trades token-level streaming UX for safety —
-        # invalid citations must never reach the wire.
+        # Stream tokens immediately to avoid blocking TTFT
         full_text = ""
         async for token in llm.stream(messages):
             full_text += token
+            event = json.dumps({"type": "token", "content": token})
+            yield f"data: {event}\n\n"
+
+        # Output Guardrail Check
+        from hospital_ai.services.guardrails import get_output_guardrail
+        from hospital_ai.services.chat import SAFE_PHI_LEAK_BLOCKED_ANSWER
+
+        output_guard = get_output_guardrail()
+        output_result = await output_guard.scan(question, full_text)
+
+        if output_result.blocked:
+            logger.warning(
+                "Streaming answer rejected: output_guardrail_blocked query_id=%s reason=%s",
+                query_id,
+                output_result.reason,
+            )
+            refusal_event = json.dumps({"type": "error", "message": SAFE_PHI_LEAK_BLOCKED_ANSWER})
+            yield f"data: {refusal_event}\n\n"
+            done_event = json.dumps(
+                {
+                    "type": "done",
+                    "query_id": str(query_id),
+                    "validation": "failed",
+                    "reason": "output_guardrail_blocked",
+                    "confidence": "low",
+                }
+            )
+            yield f"data: {done_event}\n\n"
+            if on_complete is not None:
+                try:
+                    await on_complete(
+                        StreamCompletion(
+                            validation_status="failed",
+                            answer=SAFE_PHI_LEAK_BLOCKED_ANSWER,
+                            cited_evidence=[],
+                            citations_payload=[],
+                            confidence="low",
+                            failure_reason="output_guardrail_blocked",
+                        )
+                    )
+                except Exception:
+                    logger.exception(
+                        "Failed to persist failed-validation stream query_id=%s",
+                        query_id,
+                    )
+            return
 
         citation_ids = extract_citation_ids(full_text)
         allowed_ids = {item.evidence_id for item in evidence}
@@ -197,7 +240,7 @@ async def _generate_sse_events(
                 sorted(citation_ids),
                 sorted(allowed_ids),
             )
-            refusal_event = json.dumps({"type": "token", "content": SAFE_NO_EVIDENCE_ANSWER})
+            refusal_event = json.dumps({"type": "error", "message": SAFE_NO_EVIDENCE_ANSWER})
             yield f"data: {refusal_event}\n\n"
             done_event = json.dumps(
                 {
@@ -227,14 +270,6 @@ async def _generate_sse_events(
                         query_id,
                     )
             return
-
-        # Validated — emit the full answer as token events so existing
-        # frontend parsers continue to accumulate the text.  Yield in
-        # whitespace-preserving chunks to keep the streaming contract.
-        for piece in full_text.splitlines(keepends=True):
-            if piece:
-                event = json.dumps({"type": "token", "content": piece})
-                yield f"data: {event}\n\n"
 
         # Emit only evidence that was actually cited.
         cited_evidence = [item for item in evidence if item.evidence_id in citation_ids]
@@ -412,6 +447,27 @@ async def _apply_stream_completion(
         if thread is not None:
             thread.last_message_at = assistant_message.created_at
 
+    from hospital_ai.services.metrics import MetricsService, TimingBreakdown
+
+    try:
+        timing = TimingBreakdown(
+            total_ms=elapsed_ms(started),
+            retrieval_ms=0,
+            generation_ms=elapsed_ms(started),
+            embedding_ms=0,
+        )
+        await MetricsService(session).record_query_metrics(
+            query_id=ai_query.id,
+            user_id=user_id,
+            task_type="simple_qa" if evidence else "chitchat",
+            timing=timing,
+            documents_retrieved=len(evidence),
+            citations_count=len(completion.citations_payload),
+            thread_id=thread_id,
+        )
+    except Exception:
+        logger.warning("Metrics recording failed in stream completion", exc_info=True)
+
     await AuditService(session).record(
         actor_user_id=user_id,
         action="chat.stream",
@@ -544,6 +600,46 @@ async def chat_stream(
             yield f"data: {event}\n\n"
 
         return StreamingResponse(denied_stream(), media_type="text/event-stream")
+
+    # --- Input Guardrail Check ---
+    from hospital_ai.services.guardrails import get_input_guardrail
+    from hospital_ai.services.chat import SAFE_INJECTION_DETECTED_ANSWER
+
+    input_guard = get_input_guardrail()
+    input_result = await input_guard.scan(payload.question)
+
+    if input_result.blocked:
+        ai_query.status = "denied"
+        ai_query.answer = SAFE_INJECTION_DETECTED_ANSWER
+        ai_query.latency_ms = elapsed_ms(started)
+        await AuditService(session).record(
+            actor_user_id=current_user.id,
+            action="chat.stream",
+            object_type="ai_query",
+            object_id=ai_query.id,
+            patient_id=effective_patient_id,
+            outcome="denied",
+            trace_id=trace_id,
+            ip_address=get_request_ip(request),
+            metadata={"reason": "input_guardrail_blocked", "details": input_result.reason},
+        )
+        await session.commit()
+
+        _log_telemetry(settings=settings, patient_id=effective_patient_id, failure_reason="input_guardrail_blocked")
+
+        async def input_denied_stream() -> AsyncIterator[str]:
+            event = json.dumps({"type": "token", "content": SAFE_INJECTION_DETECTED_ANSWER})
+            yield f"data: {event}\n\n"
+            done_event = json.dumps({
+                "type": "done",
+                "query_id": str(ai_query.id),
+                "validation": "failed",
+                "reason": "input_guardrail_blocked",
+                "confidence": "low",
+            })
+            yield f"data: {done_event}\n\n"
+
+        return StreamingResponse(input_denied_stream(), media_type="text/event-stream")
 
     # Gather conversation history
     conversation_history: list = []

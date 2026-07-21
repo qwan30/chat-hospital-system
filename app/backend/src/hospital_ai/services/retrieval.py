@@ -243,6 +243,8 @@ class RetrievalService:
             top_k=top_k,
         )
 
+        # Allow downstream consumers to inspect item.metadata if they need absolute scores
+
         duration = time.perf_counter() - start_time
         RAG_RETRIEVAL_DURATION.labels(mode="hybrid").observe(duration)
         RAG_EVIDENCE_COUNT.labels(scope="patient-linked" if patient_id else "general").observe(len(fused))
@@ -421,7 +423,6 @@ class RetrievalService:
         if not rows:
             return []
 
-        max_rank = float(rows[0]["rank"]) if rows[0]["rank"] else 1.0
         return [
             RetrievedChunk(
                 evidence_id=f"E{index}",
@@ -429,7 +430,7 @@ class RetrievalService:
                 document_title=row["title"],
                 page=row["page_number"],
                 chunk_id=row["chunk_id"],
-                score=round(float(row["rank"]) / max(max_rank, 0.001), 4),
+                score=float(row["rank"]),
                 content=row["content"],
                 metadata={
                     **(dict(row["metadata"] or {})),

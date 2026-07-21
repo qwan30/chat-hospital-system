@@ -15,7 +15,7 @@ from typing import Optional
 
 import pytest
 
-from hospital_ai.api.routes.chat_stream import _generate_sse_events
+from hospital_ai.api.routes.chat_stream import StreamCompletion, _ensure_stream_terminal, _generate_sse_events
 from hospital_ai.core.config import Settings
 from hospital_ai.core.errors import ExternalServiceError
 from hospital_ai.services.chat import SAFE_PHI_LEAK_BLOCKED_ANSWER
@@ -23,6 +23,34 @@ from hospital_ai.services.chat_utils import meets_evidence_threshold
 from hospital_ai.services.guardrails import GuardrailResult
 from hospital_ai.services.llm.base import BaseLLM, LLMMessage, LLMResponse
 from hospital_ai.services.retrieval import RetrievedChunk
+
+
+@pytest.mark.asyncio
+async def test_stream_background_finalizes_disconnect_before_first_token():
+    completions: list[StreamCompletion] = []
+
+    async def capture(completion: StreamCompletion) -> None:
+        completions.append(completion)
+
+    state = {"finished": False}
+    await _ensure_stream_terminal(state, capture)
+
+    assert len(completions) == 1
+    assert completions[0].validation_status == "failed"
+    assert completions[0].failure_reason == "disconnected"
+
+
+@pytest.mark.asyncio
+async def test_stream_background_does_not_finalize_completed_stream_twice():
+    completions: list[StreamCompletion] = []
+
+    async def capture(completion: StreamCompletion) -> None:
+        completions.append(completion)
+
+    await _ensure_stream_terminal({"finished": True}, capture)
+
+    assert completions == []
+
 
 # ── F-SEC-001: dev bearer tokens guarded by environment ─────────────────
 

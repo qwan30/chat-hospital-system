@@ -17,6 +17,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
+from starlette.background import BackgroundTask
 
 from hospital_ai.api.deps import get_current_user, get_request_ip, get_session
 from hospital_ai.api.limiter import limiter
@@ -614,6 +615,28 @@ async def _persist_stream_completion(
         await session.commit()
 
 
+async def _ensure_stream_terminal(
+    completion_state: dict[str, bool],
+    on_complete: OnCompleteCallback,
+) -> None:
+    """Finalize a stream whose body never reached its completion callback."""
+    if completion_state["finished"]:
+        return
+    try:
+        await on_complete(
+            StreamCompletion(
+                validation_status="failed",
+                answer="",
+                cited_evidence=[],
+                citations_payload=[],
+                confidence="low",
+                failure_reason="disconnected",
+            )
+        )
+    except BaseException:
+        logger.exception("Unable to finalize an interrupted chat stream")
+
+
 def _log_telemetry(
     settings: Settings,
     patient_id: Optional[UUID],
@@ -907,6 +930,7 @@ async def chat_stream(
     captured_query_id = ai_query.id
     captured_question = payload.question
     captured_ip = get_request_ip(request)
+    completion_state = {"finished": False}
 
     async def _on_complete(completion: StreamCompletion) -> None:
         persistence_kwargs = {
@@ -950,6 +974,7 @@ async def chat_stream(
             blocked_count=blocked_chunk_count,
             failure_reason=completion.failure_reason,
         )
+        completion_state["finished"] = True
 
     return StreamingResponse(
         _generate_sse_events(
@@ -967,4 +992,5 @@ async def chat_stream(
             "Connection": "keep-alive",
             "X-Accel-Buffering": "no",
         },
+        background=BackgroundTask(_ensure_stream_terminal, completion_state, _on_complete),
     )

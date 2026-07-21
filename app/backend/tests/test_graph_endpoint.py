@@ -7,7 +7,7 @@ from starlette.requests import Request
 
 from hospital_ai.api.routes.graph import _canonical_entity_info, get_patient_graph
 from hospital_ai.db.migrations import DOCTOR_ID, PATIENT_ALICE_ID, PATIENT_BOB_ID
-from hospital_ai.db.models import DocumentChunk, DocumentPage, User
+from hospital_ai.db.models import DocumentChunk, DocumentPage, PatientPermission, User
 from hospital_ai.services.graph_rag import GraphEntity, GraphRelation
 from tests.conftest import create_indexed_document
 
@@ -226,6 +226,27 @@ async def test_patient_graph_excludes_relations_from_invalid_source_chunks(
 
     assert response.edges == []
     assert response.reasoning_path == []
+
+
+@pytest.mark.asyncio
+async def test_patient_graph_filters_source_chunks_denied_by_role_access_tags(session_and_settings):
+    session, _ = session_and_settings
+    document, chunk, _, _ = await _seed_graph_entities(session)
+    chunk.meta = {"access_tags": ["medication"]}
+    lab_user = User(email="graph-lab@example.test", full_name="Graph Lab", role="lab_staff")
+    session.add(lab_user)
+    await session.flush()
+    session.add(PatientPermission(user_id=lab_user.id, patient_id=PATIENT_ALICE_ID, scope="read"))
+    await session.commit()
+
+    response = await get_patient_graph(
+        request=_request(PATIENT_ALICE_ID),
+        patient_id=PATIENT_ALICE_ID,
+        db=session,
+        current_user=lab_user,
+    )
+
+    assert [node.type for node in response.nodes] == ["patient"]
 
 
 @pytest.mark.asyncio

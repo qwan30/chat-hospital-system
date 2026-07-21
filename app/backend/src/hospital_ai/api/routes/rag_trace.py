@@ -14,14 +14,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from hospital_ai.api.deps import get_current_user
 from hospital_ai.db.models import (
     AiQuery,
-    Document,
-    DocumentChunk,
-    DocumentPage,
     RetrievedEvidence,
     User,
 )
 from hospital_ai.db.session import get_session
 from hospital_ai.schemas.chat import RagTraceEvidence, RagTraceResponse
+from hospital_ai.services.retrieval import RetrievalService
 
 router = APIRouter()
 
@@ -54,35 +52,25 @@ async def get_rag_trace(
     if ai_query.user_id != user.id and user.role != "admin":
         raise HTTPException(status_code=403, detail="Not authorized to view this trace.")
 
-    # Fetch all retrieved evidence with chunk details
+    # Re-authorize each persisted evidence row against the current patient
+    # grant, active document/page chain, and role tags. A trace is historical
+    # telemetry, not a bypass around read-time evidence authorization.
     evidence_result = await db.execute(
         select(RetrievedEvidence).where(RetrievedEvidence.ai_query_id == query_id).order_by(RetrievedEvidence.rank)
     )
     evidence_rows = evidence_result.scalars().all()
+    visible_chunks = await RetrievalService(db).get_chunks_by_ids(
+        [ev.chunk_id for ev in evidence_rows],
+        user_id=user.id,
+        patient_id=ai_query.patient_id,
+    )
+    visible_by_chunk_id = {chunk.chunk_id: chunk for chunk in visible_chunks}
 
-    # Gather chunk details for content and document info
     trace_evidence = []
     for ev in evidence_rows:
-        # Fetch chunk and its document
-        chunk_result = await db.execute(
-            select(DocumentChunk, Document, DocumentPage)
-            .join(Document, Document.id == DocumentChunk.document_id)
-            .join(
-                DocumentPage,
-                DocumentPage.id == DocumentChunk.page_id,
-            )
-            .where(DocumentChunk.id == ev.chunk_id)
-        )
-        row = chunk_result.first()
-
-        content = None
-        doc_title = None
-        page_num = None
-        if row:
-            chunk_obj, doc_obj, page_obj = row
-            content = chunk_obj.content
-            doc_title = doc_obj.title
-            page_num = page_obj.page_number
+        chunk = visible_by_chunk_id.get(ev.chunk_id)
+        if chunk is None:
+            continue
 
         trace_evidence.append(
             RagTraceEvidence(
@@ -94,9 +82,9 @@ async def get_rag_trace(
                 retrieval_method=ev.retrieval_method,
                 rerank_method=ev.rerank_method,
                 citation_label=ev.citation_label,
-                content=content,
-                document_title=doc_title,
-                page=page_num,
+                content=chunk.content,
+                document_title=chunk.document_title,
+                page=chunk.page,
             )
         )
 

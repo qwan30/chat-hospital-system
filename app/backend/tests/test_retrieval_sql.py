@@ -29,6 +29,18 @@ def test_retrieval_sql_does_not_repeat_patient_permission_filter():
     assert "p.deleted_at is null" in sql
 
 
+def test_forward_bm25_migration_creates_tsvector_and_gin_index():
+    from pathlib import Path
+
+    migrations = Path(__file__).parents[1] / "alembic" / "versions"
+    forward_migrations = [
+        path.read_text(encoding="utf-8").lower()
+        for path in migrations.glob("*.py")
+        if "search_vector" in path.read_text(encoding="utf-8").lower() and path.name != "0006_add_phase4_tables.py"
+    ]
+    assert any("tsvector" in migration and "gin" in migration for migration in forward_migrations)
+
+
 def test_role_scope_matching_is_exact_after_normalization():
     assert _scope_matches(" Medication ", "medication")
     assert not _scope_matches("medication", "medications")

@@ -14,7 +14,7 @@ from hospital_ai.api.limiter import limiter
 from hospital_ai.core.config import Settings, get_settings
 from hospital_ai.core.errors import ExternalServiceError
 from hospital_ai.core.security import new_trace_id
-from hospital_ai.db.models import AccessRequest, PatientPermission, User
+from hospital_ai.db.models import AccessRequest, Patient, PatientPermission, User
 from hospital_ai.services.audit import AuditService
 from hospital_ai.services.hms_connector import HmsApiClient
 
@@ -69,6 +69,13 @@ async def create_access_request(
     settings: Settings = Depends(get_settings),
 ) -> AccessRequestResponse:
     trace_id = new_trace_id()
+
+    # Resolve the target before handing the request to an external approval
+    # system or creating audit/workflow rows. This prevents unknown identifiers
+    # from becoming an identity oracle through downstream failures.
+    patient = await session.get(Patient, payload.patient_id)
+    if patient is None or patient.deleted_at is not None:
+        raise HTTPException(status_code=404, detail="Patient not found")
 
     # P1-2: When HMS sync is enabled, route the access request through
     # the HMS for audit and approval BEFORE granting local permission.

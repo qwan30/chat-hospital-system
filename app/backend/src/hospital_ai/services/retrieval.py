@@ -8,6 +8,7 @@ from typing import Any, Optional
 from sqlalchemy import and_, bindparam, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from hospital_ai.core.errors import ExternalServiceError
 from hospital_ai.core.security import PATIENT_READ_SCOPES, ROLE_PERMISSIONS
 from hospital_ai.core.telemetry import RAG_EVIDENCE_COUNT, RAG_RETRIEVAL_DURATION
 from hospital_ai.db.models import Document, DocumentChunk, DocumentPage, User
@@ -375,8 +376,8 @@ class RetrievalService:
             result = await self.session.execute(sql, params)
             rows = result.mappings().all()
         except Exception as exc:
-            logging.getLogger(__name__).warning("BM25 PostgreSQL search failed (search_vector may not exist): %s", exc)
-            return []
+            logging.getLogger(__name__).exception("BM25 PostgreSQL search failed")
+            raise ExternalServiceError("PostgreSQL full-text search is unavailable.") from exc
 
         if not rows:
             return []

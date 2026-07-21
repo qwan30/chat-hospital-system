@@ -4,6 +4,7 @@ Provides token-by-token streaming responses using the LLM provider
 abstraction layer, inspired by kotaemon's generator-based streaming.
 """
 
+import asyncio
 import json
 import logging
 import time
@@ -73,6 +74,12 @@ class StreamCompletion:
 
 
 OnCompleteCallback = Callable[[StreamCompletion], Awaitable[None]]
+SAFE_EXTERNAL_SERVICE_ERROR_MESSAGE = "Stream failed because an external service was unavailable."
+
+
+class _StreamPersistenceError(Exception):
+    """Raised when a terminal stream outcome cannot be persisted."""
+
 
 _REFUSAL_REASONS = {
     "input_guardrail_blocked",
@@ -142,6 +149,42 @@ async def _finalize_stream_outcome(
     )
 
 
+async def _complete_stream(
+    on_complete: Optional[OnCompleteCallback],
+    completion: StreamCompletion,
+) -> None:
+    if on_complete is None:
+        return
+    try:
+        await on_complete(completion)
+    except asyncio.CancelledError:
+        raise
+    except Exception as exc:
+        raise _StreamPersistenceError from exc
+
+
+async def _best_effort_failed_completion(
+    on_complete: Optional[OnCompleteCallback],
+    *,
+    failure_reason: str,
+) -> None:
+    if on_complete is None:
+        return
+    try:
+        await on_complete(
+            StreamCompletion(
+                validation_status="failed",
+                answer="",
+                cited_evidence=[],
+                citations_payload=[],
+                confidence="low",
+                failure_reason=failure_reason,
+            )
+        )
+    except BaseException:
+        logger.exception("Failed to persist terminal stream state reason=%s", failure_reason)
+
+
 async def _generate_sse_events(
     *,
     settings: Settings,
@@ -194,6 +237,14 @@ async def _generate_sse_events(
             if output_result.blocked:
                 refusal_event = json.dumps({"type": "token", "content": SAFE_PHI_LEAK_BLOCKED_ANSWER})
                 yield f"data: {refusal_event}\n\n"
+                await _complete_stream(
+                    on_complete,
+                    StreamCompletion(
+                        validation_status="failed",
+                        answer=SAFE_PHI_LEAK_BLOCKED_ANSWER,
+                        failure_reason="output_guardrail_blocked",
+                    ),
+                )
                 done_event = json.dumps(
                     {
                         "type": "done",
@@ -204,14 +255,6 @@ async def _generate_sse_events(
                     }
                 )
                 yield f"data: {done_event}\n\n"
-                if on_complete is not None:
-                    await on_complete(
-                        StreamCompletion(
-                            validation_status="failed",
-                            answer=SAFE_PHI_LEAK_BLOCKED_ANSWER,
-                            failure_reason="output_guardrail_blocked",
-                        )
-                    )
                 return
 
             event = json.dumps({"type": "token", "content": full_text})
@@ -227,6 +270,16 @@ async def _generate_sse_events(
                 }
             )
             yield f"data: {meta_event}\n\n"
+            await _complete_stream(
+                on_complete,
+                StreamCompletion(
+                    validation_status="passed",
+                    answer=full_text,
+                    cited_evidence=[],
+                    citations_payload=[],
+                    confidence="high",
+                ),
+            )
             done_event = json.dumps(
                 {
                     "type": "done",
@@ -235,23 +288,6 @@ async def _generate_sse_events(
                 }
             )
             yield f"data: {done_event}\n\n"
-
-            if on_complete is not None:
-                try:
-                    await on_complete(
-                        StreamCompletion(
-                            validation_status="passed",
-                            answer=full_text,
-                            cited_evidence=[],
-                            citations_payload=[],
-                            confidence="high",
-                        )
-                    )
-                except Exception:
-                    logger.exception(
-                        "Failed to persist chitchat stream query_id=%s",
-                        query_id,
-                    )
             return
 
         # Build prompt
@@ -285,6 +321,17 @@ async def _generate_sse_events(
             )
             refusal_event = json.dumps({"type": "token", "content": SAFE_PHI_LEAK_BLOCKED_ANSWER})
             yield f"data: {refusal_event}\n\n"
+            await _complete_stream(
+                on_complete,
+                StreamCompletion(
+                    validation_status="failed",
+                    answer=SAFE_PHI_LEAK_BLOCKED_ANSWER,
+                    cited_evidence=[],
+                    citations_payload=[],
+                    confidence="low",
+                    failure_reason="output_guardrail_blocked",
+                ),
+            )
             done_event = json.dumps(
                 {
                     "type": "done",
@@ -295,23 +342,6 @@ async def _generate_sse_events(
                 }
             )
             yield f"data: {done_event}\n\n"
-            if on_complete is not None:
-                try:
-                    await on_complete(
-                        StreamCompletion(
-                            validation_status="failed",
-                            answer=SAFE_PHI_LEAK_BLOCKED_ANSWER,
-                            cited_evidence=[],
-                            citations_payload=[],
-                            confidence="low",
-                            failure_reason="output_guardrail_blocked",
-                        )
-                    )
-                except Exception:
-                    logger.exception(
-                        "Failed to persist output-guardrail refusal query_id=%s",
-                        query_id,
-                    )
             return
 
         citation_ids = extract_citation_ids(full_text)
@@ -328,6 +358,17 @@ async def _generate_sse_events(
             )
             refusal_event = json.dumps({"type": "token", "content": SAFE_NO_EVIDENCE_ANSWER})
             yield f"data: {refusal_event}\n\n"
+            await _complete_stream(
+                on_complete,
+                StreamCompletion(
+                    validation_status="failed",
+                    answer=SAFE_NO_EVIDENCE_ANSWER,
+                    cited_evidence=[],
+                    citations_payload=[],
+                    confidence="low",
+                    failure_reason="invalid_citation",
+                ),
+            )
             done_event = json.dumps(
                 {
                     "type": "done",
@@ -338,23 +379,6 @@ async def _generate_sse_events(
                 }
             )
             yield f"data: {done_event}\n\n"
-            if on_complete is not None:
-                try:
-                    await on_complete(
-                        StreamCompletion(
-                            validation_status="failed",
-                            answer=SAFE_NO_EVIDENCE_ANSWER,
-                            cited_evidence=[],
-                            citations_payload=[],
-                            confidence="low",
-                            failure_reason="invalid_citation",
-                        )
-                    )
-                except Exception:
-                    logger.exception(
-                        "Failed to persist failed-validation stream query_id=%s",
-                        query_id,
-                    )
             return
 
         # Validated — emit the full answer as token events so existing
@@ -398,7 +422,16 @@ async def _generate_sse_events(
         )
         yield f"data: {meta_event}\n\n"
 
-        # Done
+        await _complete_stream(
+            on_complete,
+            StreamCompletion(
+                validation_status="passed",
+                answer=full_text,
+                cited_evidence=cited_evidence,
+                citations_payload=citations,
+                confidence=confidence,
+            ),
+        )
         done_event = json.dumps(
             {
                 "type": "done",
@@ -408,48 +441,26 @@ async def _generate_sse_events(
         )
         yield f"data: {done_event}\n\n"
 
-        # Persist after successful streaming so the answer survives a reload.
-        if on_complete is not None:
-            try:
-                await on_complete(
-                    StreamCompletion(
-                        validation_status="passed",
-                        answer=full_text,
-                        cited_evidence=cited_evidence,
-                        citations_payload=citations,
-                        confidence=confidence,
-                    )
-                )
-            except Exception:
-                logger.exception(
-                    "Failed to persist completed stream query_id=%s",
-                    query_id,
-                )
-
+    except _StreamPersistenceError:
+        logger.exception("SSE chat completion persistence failed query_id=%s", query_id)
+        error_event = json.dumps(
+            {
+                "type": "error",
+                "code": "INTERNAL_ERROR",
+                "message": "Stream failed due to an internal error.",
+            }
+        )
+        yield f"data: {error_event}\n\n"
+    except asyncio.CancelledError:
+        await _best_effort_failed_completion(on_complete, failure_reason="cancelled")
+        raise
     except AppError as exc:
-        # Sanitized client-facing error (preserves AppError contract).
-        if on_complete is not None:
-            try:
-                await on_complete(
-                    StreamCompletion(
-                        validation_status="failed",
-                        answer="",
-                        cited_evidence=[],
-                        citations_payload=[],
-                        confidence="low",
-                        failure_reason="app_error",
-                    )
-                )
-            except Exception:
-                logger.exception(
-                    "Failed to persist application stream failure query_id=%s",
-                    query_id,
-                )
+        await _best_effort_failed_completion(on_complete, failure_reason="app_error")
         error_event = json.dumps(
             {
                 "type": "error",
                 "code": exc.code,
-                "message": exc.message,
+                "message": SAFE_EXTERNAL_SERVICE_ERROR_MESSAGE,
             }
         )
         yield f"data: {error_event}\n\n"
@@ -457,23 +468,7 @@ async def _generate_sse_events(
         # F-SEC-004: Never leak internal exception strings to the client.
         # Log the full trace server-side, return a generic message.
         logger.exception("SSE chat stream failed unexpectedly query_id=%s", query_id)
-        if on_complete is not None:
-            try:
-                await on_complete(
-                    StreamCompletion(
-                        validation_status="failed",
-                        answer="",
-                        cited_evidence=[],
-                        citations_payload=[],
-                        confidence="low",
-                        failure_reason="internal_error",
-                    )
-                )
-            except Exception:
-                logger.exception(
-                    "Failed to persist internal stream failure query_id=%s",
-                    query_id,
-                )
+        await _best_effort_failed_completion(on_complete, failure_reason="internal_error")
         error_event = json.dumps(
             {
                 "type": "error",
@@ -894,9 +889,11 @@ async def chat_stream(
     await session.commit()
 
     # Capture state for the post-stream persistence callback. The callback
-    # uses a fresh session opened from the global factory because the
-    # request-bound `session` may be closed by the time streaming finishes.
-    session_factory = get_session_factory()
+    # uses a fresh session bound to the same engine because the request-bound
+    # `session` may be closed by the time streaming finishes.
+    session_factory = (
+        async_sessionmaker(session.bind, expire_on_commit=False) if session.bind is not None else get_session_factory()
+    )
     captured_user_id = current_user.id
     captured_patient_id = effective_patient_id
     captured_thread_id = payload.thread_id
@@ -905,20 +902,39 @@ async def chat_stream(
     captured_ip = get_request_ip(request)
 
     async def _on_complete(completion: StreamCompletion) -> None:
-        await _persist_stream_completion(
-            session_factory,
-            ai_query_id=captured_query_id,
-            user_id=captured_user_id,
-            patient_id=captured_patient_id,
-            thread_id=captured_thread_id,
-            question=captured_question,
-            evidence=evidence,
-            retrieval_mode=retrieval_mode,
-            trace_id=trace_id,
-            ip_address=captured_ip,
-            started=started,
-            completion=completion,
-        )
+        persistence_kwargs = {
+            "ai_query_id": captured_query_id,
+            "user_id": captured_user_id,
+            "patient_id": captured_patient_id,
+            "thread_id": captured_thread_id,
+            "question": captured_question,
+            "evidence": evidence,
+            "retrieval_mode": retrieval_mode,
+            "trace_id": trace_id,
+            "ip_address": captured_ip,
+            "started": started,
+            "completion": completion,
+        }
+        try:
+            await _persist_stream_completion(session_factory, **persistence_kwargs)
+        except BaseException as exc:
+            fallback_completion = StreamCompletion(
+                validation_status="failed",
+                answer="",
+                cited_evidence=[],
+                citations_payload=[],
+                confidence="low",
+                failure_reason="cancelled" if isinstance(exc, asyncio.CancelledError) else "persistence_error",
+            )
+            await _apply_stream_completion(
+                session,
+                **{
+                    **persistence_kwargs,
+                    "completion": fallback_completion,
+                },
+            )
+            await session.commit()
+            raise
 
         _log_telemetry(
             settings=settings,

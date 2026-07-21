@@ -5,6 +5,7 @@ verifying SSE event format, authorization, no-evidence fallback, and error
 handling per F-SEC-004.
 """
 
+import asyncio
 import json
 import uuid
 from unittest.mock import AsyncMock, Mock, patch
@@ -58,10 +59,14 @@ async def test_chat_stream_input_guardrail_blocks_all_downstream_work(session_an
     guardrail = Mock()
     guardrail.scan = AsyncMock(return_value=GuardrailResult(blocked=True, reason="prompt injection"))
     embed = AsyncMock(side_effect=AssertionError("embedding must not run"))
+    vector_search = AsyncMock(side_effect=AssertionError("vector retrieval must not run"))
+    hybrid_search = AsyncMock(side_effect=AssertionError("hybrid retrieval must not run"))
     llm_get = Mock(side_effect=AssertionError("LLMManager.get must not run"))
 
     monkeypatch.setattr("hospital_ai.api.routes.chat_stream.get_input_guardrail", lambda: guardrail)
     monkeypatch.setattr("hospital_ai.api.routes.chat_stream.EmbeddingService.embed", embed)
+    monkeypatch.setattr("hospital_ai.api.routes.chat_stream.RetrievalService.search", vector_search)
+    monkeypatch.setattr("hospital_ai.api.routes.chat_stream.RetrievalService.hybrid_search", hybrid_search)
     monkeypatch.setattr("hospital_ai.api.routes.chat_stream.LLMManager.get", llm_get)
 
     response = await chat_stream(
@@ -79,6 +84,8 @@ async def test_chat_stream_input_guardrail_blocks_all_downstream_work(session_an
     assert [event["type"] for event in events] == ["token", "done"]
     assert events[0]["content"] == SAFE_INJECTION_DETECTED_ANSWER
     embed.assert_not_awaited()
+    vector_search.assert_not_awaited()
+    hybrid_search.assert_not_awaited()
     llm_get.assert_not_called()
 
     query = (await session.execute(select(AiQuery).order_by(AiQuery.created_at.desc()))).scalars().first()
@@ -343,3 +350,93 @@ async def test_chat_stream_error_no_leak(session_and_settings):
     ).scalar_one()
     assert audit.outcome == "failed"
     assert audit.meta["reason"] == "internal_error"
+
+
+@pytest.mark.asyncio
+async def test_chat_stream_persistence_failure_does_not_leave_query_streaming(session_and_settings):
+    session, settings = session_and_settings
+    doctor = await session.get(User, DOCTOR_ID)
+    await create_indexed_document(
+        session,
+        patient_id=PATIENT_ALICE_ID,
+        uploaded_by=DOCTOR_ID,
+        title="Persistence failure source",
+        content="Patient status is stable.",
+    )
+
+    with patch(
+        "hospital_ai.api.routes.chat_stream._persist_stream_completion",
+        new=AsyncMock(side_effect=RuntimeError("database unavailable")),
+    ):
+        response = await chat_stream(
+            payload=ChatRequest(patient_id=PATIENT_ALICE_ID, question="What is the patient status?"),
+            request=_request(),
+            session=session,
+            current_user=doctor,
+            settings=settings,
+        )
+        body = b""
+        async for chunk in response.body_iterator:
+            body += chunk.encode("utf-8")
+
+    events = _parse_sse_events(body)
+    assert not [event for event in events if event["type"] == "done"]
+    assert events[-1]["type"] == "error"
+    assert "database unavailable" not in body.decode("utf-8")
+
+    query = (await session.execute(select(AiQuery).order_by(AiQuery.created_at.desc()))).scalars().first()
+    assert query is not None
+    await session.refresh(query)
+    assert query.status == "failed"
+    audit = (
+        await session.execute(select(AuditLog).where(AuditLog.action == "chat.stream", AuditLog.object_id == query.id))
+    ).scalar_one()
+    assert audit.outcome == "failed"
+    assert audit.meta["reason"] == "persistence_error"
+
+
+@pytest.mark.asyncio
+async def test_chat_stream_cancellation_finalizes_failed_and_reraises(session_and_settings):
+    session, settings = session_and_settings
+    doctor = await session.get(User, DOCTOR_ID)
+    await create_indexed_document(
+        session,
+        patient_id=PATIENT_ALICE_ID,
+        uploaded_by=DOCTOR_ID,
+        title="Cancellation source",
+        content="Patient status is stable.",
+    )
+
+    async def _cancelled_stream(self, messages, **kw):
+        if False:
+            yield ""
+        raise asyncio.CancelledError()
+
+    stream_session_factory = async_sessionmaker(session.bind, expire_on_commit=False)
+    with (
+        patch.object(StubLLM, "stream", _cancelled_stream),
+        patch(
+            "hospital_ai.api.routes.chat_stream.get_session_factory",
+            return_value=stream_session_factory,
+        ),
+    ):
+        response = await chat_stream(
+            payload=ChatRequest(patient_id=PATIENT_ALICE_ID, question="What is the patient status?"),
+            request=_request(),
+            session=session,
+            current_user=doctor,
+            settings=settings,
+        )
+        with pytest.raises(asyncio.CancelledError):
+            async for _chunk in response.body_iterator:
+                pass
+
+    query = (await session.execute(select(AiQuery).order_by(AiQuery.created_at.desc()))).scalars().first()
+    assert query is not None
+    await session.refresh(query)
+    assert query.status == "failed"
+    audit = (
+        await session.execute(select(AuditLog).where(AuditLog.action == "chat.stream", AuditLog.object_id == query.id))
+    ).scalar_one()
+    assert audit.outcome == "failed"
+    assert audit.meta["reason"] == "cancelled"

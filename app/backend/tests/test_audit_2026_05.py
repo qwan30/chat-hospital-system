@@ -17,6 +17,7 @@ import pytest
 
 from hospital_ai.api.routes.chat_stream import _generate_sse_events
 from hospital_ai.core.config import Settings
+from hospital_ai.core.errors import ExternalServiceError
 from hospital_ai.services.chat import SAFE_PHI_LEAK_BLOCKED_ANSWER
 from hospital_ai.services.chat_utils import meets_evidence_threshold
 from hospital_ai.services.guardrails import GuardrailResult
@@ -614,6 +615,72 @@ async def test_streaming_error_event_does_not_leak_exception_string(monkeypatch)
     assert "secret_path" not in json.dumps(err)
     assert "private.txt" not in json.dumps(err)
     assert err["message"] == "Stream failed due to an internal error."
+
+
+@pytest.mark.asyncio
+async def test_streaming_external_service_error_uses_fixed_safe_message(monkeypatch):
+    class ExternalFailureLlm(_FakeLLM):
+        async def stream(self, messages, *, temperature=0.0, max_tokens=None):
+            if False:
+                yield ""
+            raise ExternalServiceError("secret provider detail")
+
+    monkeypatch.setattr(
+        "hospital_ai.api.routes.chat_stream.LLMManager",
+        lambda settings: type("M", (), {"get": lambda self: ExternalFailureLlm(answer="")})(),
+    )
+
+    events = await _collect(
+        _generate_sse_events(
+            settings=_settings(),
+            question="Q?",
+            evidence=_make_evidence(["E1"]),
+            conversation_history=[],
+            query_id=uuid.uuid4(),
+            pipeline_name="simple_qa",
+        )
+    )
+
+    assert events == [
+        {
+            "type": "error",
+            "code": "EXTERNAL_SERVICE_ERROR",
+            "message": "Stream failed because an external service was unavailable.",
+        }
+    ]
+    assert "secret provider detail" not in json.dumps(events)
+
+
+@pytest.mark.asyncio
+async def test_streaming_completion_failure_emits_error_without_done(monkeypatch):
+    fake = _FakeLLM(answer="Grounded answer [E1].")
+
+    async def failing_completion(_completion):
+        raise RuntimeError("database unavailable")
+
+    monkeypatch.setattr(
+        "hospital_ai.api.routes.chat_stream.LLMManager",
+        lambda settings: type("M", (), {"get": lambda self: fake})(),
+    )
+
+    events = await _collect(
+        _generate_sse_events(
+            settings=_settings(),
+            question="Q?",
+            evidence=_make_evidence(["E1"]),
+            conversation_history=[],
+            query_id=uuid.uuid4(),
+            pipeline_name="simple_qa",
+            on_complete=failing_completion,
+        )
+    )
+
+    assert not [event for event in events if event["type"] == "done"]
+    assert events[-1] == {
+        "type": "error",
+        "code": "INTERNAL_ERROR",
+        "message": "Stream failed due to an internal error.",
+    }
 
 
 # ── F-RAG-003: graph-RAG patient isolation ───────────────────────────────

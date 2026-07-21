@@ -254,6 +254,101 @@ describe("apiFetch", () => {
       question: "Compare p-001 with the literal text ar-002",
     });
   });
+
+  it("maps exact graph and generic identifier keys in responses", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () =>
+          Promise.resolve({
+            id: "20000000-0000-0000-0000-000000000003",
+            from_node: "90000000-0000-0000-0000-000000000004",
+            to_node: "20000000-0000-0000-0000-000000000005",
+          }),
+      }),
+    );
+
+    await expect(apiFetch("/test", {}, { baseUrl: "http://base" })).resolves.toEqual({
+      id: "p-003",
+      from_node: "ar-004",
+      to_node: "p-005",
+    });
+  });
+
+  it("retains the parent identifier key when mapping response arrays", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () =>
+          Promise.resolve({
+            patient_id: [
+              "20000000-0000-0000-0000-000000000006",
+              "20000000-0000-0000-0000-000000000007",
+            ],
+          }),
+      }),
+    );
+
+    await expect(apiFetch("/test", {}, { baseUrl: "http://base" })).resolves.toEqual({
+      patient_id: ["p-006", "p-007"],
+    });
+  });
+
+  it("maps identifiers nested in response array elements", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () =>
+          Promise.resolve({
+            evidence: [
+              { document_id: "90000000-0000-0000-0000-000000000008" },
+              { patient_id: "20000000-0000-0000-0000-000000000009" },
+            ],
+          }),
+      }),
+    );
+
+    await expect(apiFetch("/test", {}, { baseUrl: "http://base" })).resolves.toEqual({
+      evidence: [{ document_id: "ar-008" }, { patient_id: "p-009" }],
+    });
+  });
+
+  it("preserves invalid JSON request bodies byte-for-byte", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: () => Promise.resolve({}),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    const body = "not-json p-001 with literal ar-002";
+
+    await apiFetch("/test", { method: "POST", body }, { baseUrl: "http://base" });
+
+    const [, init] = fetchMock.mock.calls[0];
+    expect(init.body).toBe(body);
+  });
+
+  it("keeps demo-ID translation in request paths unchanged", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: () => Promise.resolve({}),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    await apiFetch("/patients/p-010/documents/ar-011", {}, { baseUrl: "http://base" });
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "http://base/patients/20000000-0000-0000-0000-000000000010/documents/90000000-0000-0000-0000-000000000011",
+      expect.anything(),
+    );
+  });
 });
 
 // ---------------------------------------------------------------------------

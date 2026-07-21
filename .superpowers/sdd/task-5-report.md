@@ -39,7 +39,7 @@ bun run lint
 # 0 errors; 3 pre-existing warnings remain in GraphCanvas.tsx, routeTree.gen.ts, and _app.chat.index.tsx
 ```
 
-`app/frontend/src/lib/api/graph.ts` received parent-approved CRLF/prettier normalization only to clear its pre-existing lint errors; `git diff --ignore-space-at-eol` shows no semantic content change.
+`app/frontend/src/lib/api/graph.ts` normalization produced no semantic Git diff and was reverted/not delivered.
 
 ## Self-review
 
@@ -53,3 +53,15 @@ bun run lint
 
 - The three remaining lint warnings are outside Task 5 scope and unchanged by this work.
 - The test runner emits an existing Vite `vite-tsconfig-paths` deprecation warning.
+
+## Coverage follow-up
+
+The reviewer requested post-fix regression/characterization coverage for the CRITICAL `apiFetch` adapter. These cases passed the already-implemented mapper; they are not represented as a new RED cycle.
+
+- Exact `id`, `from_node`, and `to_node` response keys translate correctly.
+- Identifier arrays retain their parent key while translating each entry.
+- Identifier fields nested inside response array elements translate correctly.
+- Invalid JSON request bodies are forwarded byte-for-byte.
+- Existing demo-ID path translation remains unchanged.
+
+Focused and full frontend unit runs passed 80 tests. Typecheck passed. Lint completed with zero errors and the same three pre-existing warnings.

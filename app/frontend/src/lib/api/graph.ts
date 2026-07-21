@@ -5,6 +5,8 @@ export interface GraphNode {
   type: string;
   label: string;
   sublabel?: string | null;
+  source_document_id?: string | null;
+  source_chunk_id?: string | null;
   x: number;
   y: number;
 }
@@ -14,6 +16,8 @@ export interface GraphEdge {
   from_node: string;
   to_node: string;
   label: string;
+  source_document_id?: string | null;
+  source_chunk_id?: string | null;
 }
 
 export interface GraphPathStep {
@@ -21,6 +25,8 @@ export interface GraphPathStep {
   to_node: string;
   relation: string;
   evidence: string;
+  source_document_id?: string | null;
+  source_chunk_id?: string | null;
 }
 
 export interface GraphPath {

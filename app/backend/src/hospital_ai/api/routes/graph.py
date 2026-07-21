@@ -1,5 +1,6 @@
 import logging
 import math
+import re
 import uuid
 from datetime import UTC, datetime
 from typing import Optional
@@ -12,7 +13,7 @@ from hospital_ai.api.deps import get_current_user, get_request_ip, get_session
 from hospital_ai.core.security import new_trace_id
 from hospital_ai.db.models import DocumentChunk, Patient, User
 from hospital_ai.schemas.graph import GraphDataResponse, GraphEdge, GraphMetadata, GraphNode, GraphPath, GraphPathStep
-from hospital_ai.services.graph_rag import GraphEntity, GraphRelation, find_related_entities
+from hospital_ai.services.graph_rag import GraphEntity, GraphRelation
 from hospital_ai.services.permissions import PermissionService
 
 logger = logging.getLogger(__name__)
@@ -29,6 +30,10 @@ _ENTITY_TYPE_SECTORS: dict[str, float] = {
     "condition": 3.0,
     "lab": 4.8,
 }
+
+
+def _contains_token(value: str, token: str) -> bool:
+    return re.search(rf"(?<!\w){re.escape(token)}(?!\w)", value) is not None
 
 
 def _canonical_entity_info(name: str, entity_type: str) -> tuple[str, str, Optional[str]]:
@@ -73,33 +78,33 @@ def _canonical_entity_info(name: str, entity_type: str) -> tuple[str, str, Optio
         return "Furosemide", "medication", None
 
     # labs
-    if "hba1c" in n:
-        val = name if "%" in name else None
+    if _contains_token(n, "hba1c"):
+        val = name.strip() if "%" in name else None
         return "HbA1c", "lab", val
     if "potassium" in n or "kali" in n:
-        val = name if any(c.isdigit() for c in name) else None
+        val = name.strip() if any(c.isdigit() for c in name) else None
         return "Potassium", "lab", val
-    if "hemoglobin" in n or "hgb" in n:
-        val = name if any(c.isdigit() for c in name) else None
+    if "hemoglobin" in n or _contains_token(n, "hgb"):
+        val = name.strip() if any(c.isdigit() for c in name) else None
         return "Hemoglobin", "lab", val
-    if "bnp" in n:
-        val = name if any(c.isdigit() for c in name) else None
+    if _contains_token(n, "bnp"):
+        val = name.strip() if any(c.isdigit() for c in name) else None
         return "BNP", "lab", val
     if "creatinine" in n:
-        val = name if any(c.isdigit() for c in name) else None
+        val = name.strip() if any(c.isdigit() for c in name) else None
         return "Creatinine", "lab", val
     if "glucose" in n:
-        val = name if any(c.isdigit() for c in name) else None
+        val = name.strip() if any(c.isdigit() for c in name) else None
         return "Glucose", "lab", val
-    if "ast" in n:
+    if _contains_token(n, "ast"):
         return "AST", "lab", None
-    if "alt" in n:
+    if _contains_token(n, "alt"):
         return "ALT", "lab", None
     if "sodium" in n or "natri" in n:
-        val = name if any(c.isdigit() for c in name) else None
+        val = name.strip() if any(c.isdigit() for c in name) else None
         return "Sodium", "lab", val
-    if "egfr" in n:
-        val = name if any(c.isdigit() for c in name) else None
+    if _contains_token(n, "egfr"):
+        val = name.strip() if any(c.isdigit() for c in name) else None
         return "eGFR", "lab", val
 
     # encounters / procedures
@@ -191,23 +196,25 @@ async def get_patient_graph(
     )
 
     # Consolidate entities to map duplicates
-    db_id_to_node_id = {}
-    consolidated_nodes = {}
+    db_id_to_node_id: dict[uuid.UUID, str] = {}
+    consolidated_nodes: dict[tuple[str, ...], dict] = {}
 
     for ent in entities:
         c_name, c_type, sublabel = _canonical_entity_info(ent.name, ent.entity_type)
-        node_key = (c_name, c_type)
-        node_id = f"node-{c_type}-{c_name.lower().replace(' ', '-')}"
-        db_id_to_node_id[ent.id] = node_id
+        node_key = (c_name, c_type, sublabel) if c_type == "lab" else (c_name, c_type)
 
         if node_key not in consolidated_nodes:
+            node_id = f"node-{ent.id}"
             sub = sublabel or c_type
             consolidated_nodes[node_key] = {
                 "id": node_id,
                 "type": c_type,
                 "label": c_name,
                 "sublabel": sub,
+                "source_document_id": ent.source_document_id,
+                "source_chunk_id": ent.source_chunk_id,
             }
+        db_id_to_node_id[ent.id] = consolidated_nodes[node_key]["id"]
 
     # Position consolidated nodes in concentric sectors by type
     typed_consolidated: dict[str, list[dict]] = {}
@@ -229,6 +236,8 @@ async def get_patient_graph(
                     type=node_data["type"],
                     label=node_data["label"],
                     sublabel=node_data["sublabel"],
+                    source_document_id=node_data["source_document_id"],
+                    source_chunk_id=node_data["source_chunk_id"],
                     x=x,
                     y=y,
                 )
@@ -237,96 +246,70 @@ async def get_patient_graph(
 
     # ── Build edges ───────────────────────────────────────────────────
     edges: list[GraphEdge] = []
+    relation_provenance: dict[uuid.UUID, tuple[uuid.UUID, uuid.UUID]] = {}
+    entity_by_id = {entity.id: entity for entity in entities}
     for rel in relations:
         from_id = db_id_to_node_id.get(rel.source_entity_id)
         to_id = db_id_to_node_id.get(rel.target_entity_id)
         if from_id and to_id:
-            if from_id != to_id:
-                edges.append(
-                    GraphEdge(
-                        id=f"edge-{rel.id}",
-                        from_node=from_id,
-                        to_node=to_id,
-                        label=rel.relation_type,
-                    )
-                )
-
-    # Automatically connect all visible medical entities to the patient node
-    for key, val in consolidated_nodes.items():
-        c_name, c_type = key
-        node_id = val["id"]
-
-        # Determine clinical relationship label to patient
-        if c_type == "diagnosis":
-            rel_label = "diagnosed_with"
-        elif c_type == "medication":
-            rel_label = "prescribed"
-        elif c_type == "lab":
-            rel_label = "has_lab"
-        elif c_type == "encounter":
-            rel_label = "attended"
-        elif c_type == "allergy":
-            rel_label = "allergic_to"
-        else:
-            rel_label = "has"
-
-        edges.append(
-            GraphEdge(
-                id=f"edge-pt-{node_id}",
-                from_node="pt",
-                to_node=node_id,
-                label=rel_label,
+            source_entity = entity_by_id[rel.source_entity_id]
+            target_entity = entity_by_id[rel.target_entity_id]
+            evidence_entity = next(
+                (entity for entity in (source_entity, target_entity) if entity.source_chunk_id == rel.source_chunk_id),
+                source_entity,
             )
-        )
+            relation_provenance[rel.id] = (evidence_entity.source_document_id, rel.source_chunk_id)
+            edges.append(
+                GraphEdge(
+                    id=f"edge-{rel.id}",
+                    from_node=from_id,
+                    to_node=to_id,
+                    label=rel.relation_type,
+                    source_document_id=evidence_entity.source_document_id,
+                    source_chunk_id=rel.source_chunk_id,
+                )
+            )
 
     # ── Build reasoning paths ─────────────────────────────────────────
     reasoning_path: list[GraphPath] = []
-    if entities:
-        # Use find_related_entities for a sample traversal
-        sample_names = [e.name for e in entities[:3]]
-        try:
-            ctx = await find_related_entities(db, sample_names, max_hops=1, patient_id=patient_id)
-            if ctx.relations:
-                steps = []
-                for rel in ctx.relations[:5]:
-                    steps.append(
-                        GraphPathStep(
-                            from_node=_canonical_name(rel.source_name),
-                            to_node=_canonical_name(rel.target_name),
-                            relation=rel.relation_type,
-                            evidence="Indexed document chunk",
-                        )
-                    )
-                reasoning_path.append(
-                    GraphPath(
-                        id="path-dynamic-001",
-                        rationale=ctx.summary,
-                        steps=steps,
+    if relations:
+        steps = []
+        for rel in relations[:5]:
+            from_id = db_id_to_node_id.get(rel.source_entity_id)
+            to_id = db_id_to_node_id.get(rel.target_entity_id)
+            provenance = relation_provenance.get(rel.id)
+            if from_id and to_id and provenance:
+                source_document_id, source_chunk_id = provenance
+                steps.append(
+                    GraphPathStep(
+                        from_node=from_id,
+                        to_node=to_id,
+                        relation=rel.relation_type,
+                        evidence=f"document:{source_document_id};chunk:{source_chunk_id}",
+                        source_document_id=source_document_id,
+                        source_chunk_id=source_chunk_id,
                     )
                 )
-        except Exception:
-            logger.warning("Graph reasoning path generation failed (trace_id=%s)", trace_id, exc_info=True)
-
-    # ── Deduplicate edges ─────────────────────────────────────────────
-    seen_edge_keys: set[tuple[str, str, str]] = set()
-    deduped_edges: list[GraphEdge] = []
-    for edge in edges:
-        key = (edge.from_node, edge.to_node, edge.label)
-        if key not in seen_edge_keys:
-            seen_edge_keys.add(key)
-            deduped_edges.append(edge)
+        if steps:
+            reasoning_path.append(
+                GraphPath(
+                    id="path-dynamic-001",
+                    rationale="Persisted patient-scoped graph relations.",
+                    steps=steps,
+                )
+            )
 
     metadata = GraphMetadata(
         patient_id=patient_id,
         updated_at=datetime.now(UTC).isoformat(),
         node_count=len(nodes),
-        edge_count=len(deduped_edges),
+        edge_count=len(edges),
     )
 
     return GraphDataResponse(
         patient_id=patient_id,
         nodes=nodes,
-        edges=deduped_edges,
+        edges=edges,
         reasoning_path=reasoning_path,
         metadata=metadata,
     )

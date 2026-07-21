@@ -117,7 +117,9 @@ describe("streamChat", () => {
     controller.abort();
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(mockOkResponse([])));
 
-    await expect(streamChat("http://api", "token123", { question: "Hi" }, undefined, controller.signal)).rejects.toMatchObject({
+    await expect(
+      streamChat("http://api", "token123", { question: "Hi" }, undefined, controller.signal),
+    ).rejects.toMatchObject({
       name: "AbortError",
     });
   });

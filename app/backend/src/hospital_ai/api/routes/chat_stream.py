@@ -204,6 +204,9 @@ async def _generate_sse_events(
         data: {"type": "error", "message": "..."}
     """
     completion_callback_active = False
+    # This transport currently executes one grounded generation path.  Do not
+    # claim a requested reasoning pipeline that was not actually run.
+    actual_pipeline = "chitchat" if pipeline_name == "chitchat" else "simple_qa"
 
     async def complete_terminal(completion: StreamCompletion) -> None:
         nonlocal completion_callback_active
@@ -420,7 +423,7 @@ async def _generate_sse_events(
             {
                 "type": "metadata",
                 "confidence": confidence,
-                "pipeline": pipeline_name,
+                "pipeline": actual_pipeline,
                 "model": llm.model_name(),
             }
         )

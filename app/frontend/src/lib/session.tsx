@@ -159,9 +159,11 @@ export function useSession(): SessionContextValue {
   return ctx;
 }
 
-function mapBackendRole(backendRole: string): Role {
+export function mapBackendRole(backendRole: string): Role {
   const lower = backendRole.toLowerCase();
   if (lower.includes("admin")) return "admin";
+  if (lower.includes("security")) return "security";
+  if (lower.includes("records")) return "front_desk";
   if (lower.includes("pharmac")) return "pharmacist";
   if (lower.includes("nurse") || lower === "rn") return "rn";
   if (lower.includes("hospital")) return "hospitalist";

@@ -112,6 +112,16 @@ describe("streamChat", () => {
     });
   });
 
+  it("stops reading when the caller aborts", async () => {
+    const controller = new AbortController();
+    controller.abort();
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(mockOkResponse([])));
+
+    await expect(streamChat("http://api", "token123", { question: "Hi" }, undefined, controller.signal)).rejects.toMatchObject({
+      name: "AbortError",
+    });
+  });
+
   it("throws on non-ok HTTP response", async () => {
     vi.stubGlobal(
       "fetch",

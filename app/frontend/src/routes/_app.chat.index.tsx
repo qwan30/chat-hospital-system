@@ -698,7 +698,7 @@ function GlobalChat() {
       abortControllerRef.current?.abort();
       abortControllerRef.current = null;
     };
-  }, []);
+  }, [patientId, thread]);
 
   if (messages.length === 0 && !thread && !patientId) {
     return (

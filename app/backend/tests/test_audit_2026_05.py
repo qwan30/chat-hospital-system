@@ -652,6 +652,26 @@ async def test_streaming_external_service_error_uses_fixed_safe_message(monkeypa
 
 
 @pytest.mark.asyncio
+async def test_streaming_reports_simple_pipeline_when_it_does_not_execute_requested_pipeline(monkeypatch):
+    fake = _FakeLLM(answer="Grounded answer [E1].")
+    monkeypatch.setattr(
+        "hospital_ai.api.routes.chat_stream.LLMManager",
+        lambda settings: type("M", (), {"get": lambda self: fake})(),
+    )
+    events = await _collect(
+        _generate_sse_events(
+            settings=_settings(),
+            question="Q?",
+            evidence=_make_evidence(["E1"]),
+            conversation_history=[],
+            query_id=uuid.uuid4(),
+            pipeline_name="decompose",
+        )
+    )
+    assert next(event for event in events if event["type"] == "metadata")["pipeline"] == "simple_qa"
+
+
+@pytest.mark.asyncio
 async def test_streaming_completion_failure_emits_error_without_done(monkeypatch):
     fake = _FakeLLM(answer="Grounded answer [E1].")
 

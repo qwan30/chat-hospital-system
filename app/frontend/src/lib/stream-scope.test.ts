@@ -34,4 +34,13 @@ describe("hasStreamScopeChanged", () => {
     expect(isCurrentStreamRequest(newRequest, oldRequest)).toBe(false);
     expect(isCurrentStreamRequest(newRequest, newRequest)).toBe(true);
   });
+
+  it("invalidates a request while its attachment upload is still pending", () => {
+    const uploadRequest = new AbortController();
+    let activeRequest: AbortController | null = uploadRequest;
+
+    activeRequest = null;
+
+    expect(isCurrentStreamRequest(activeRequest, uploadRequest)).toBe(false);
+  });
 });

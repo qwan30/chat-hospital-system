@@ -543,17 +543,39 @@ function GlobalChat() {
     setLastQuestion(text);
     setStreamError(null);
     let uploadedDocId: string | undefined;
+    const uploadPatientId = file ? patientId : undefined;
+    const token = session?.token;
+    const apiUrl = getStoredApiUrl();
+
+    if (!token) {
+      setStreamError("Authentication required. Please log in.");
+      return;
+    }
 
     if (file) {
-      if (!patientId) {
+      if (!uploadPatientId) {
         setStreamError("A patient context is required to upload a document.");
         return;
       }
+    }
+
+    const requestController = new AbortController();
+    abortControllerRef.current = requestController;
+    activeStreamScopeRef.current = { patientId, threadId: thread };
+    const isActiveRequest = () =>
+      isCurrentStreamRequest(abortControllerRef.current, requestController);
+
+    if (file && uploadPatientId) {
       try {
-        const doc = await uploadDocument(patientId, file.name, "Chat Attachment", file);
+        const doc = await uploadDocument(uploadPatientId, file.name, "Chat Attachment", file);
+        if (!isActiveRequest()) return;
         uploadedDocId = doc.id;
       } catch (err) {
-        setStreamError("Failed to upload the document. Please try again.");
+        if (isActiveRequest()) {
+          setStreamError("Failed to upload the document. Please try again.");
+          abortControllerRef.current = null;
+          activeStreamScopeRef.current = null;
+        }
         return;
       }
     }
@@ -567,26 +589,12 @@ function GlobalChat() {
     setMessages((m) => [...m, userMsg]);
     setComposerText("");
 
-    const token = session?.token;
-    const apiUrl = getStoredApiUrl();
-
-    if (!token) {
-      setStreamError("Authentication required. Please log in.");
-      return;
-    }
-
     const replyId = `a-${seed}`;
     let fullText = "";
-    let requestController: AbortController | null = null;
 
     try {
       setStreamingId(replyId);
       setStreamingText("");
-      requestController = new AbortController();
-      abortControllerRef.current = requestController;
-      activeStreamScopeRef.current = { patientId, threadId: thread };
-      const isActiveRequest = () =>
-        isCurrentStreamRequest(abortControllerRef.current, requestController);
 
       const payloadContext = uploadedDocId ? { document_ids: [uploadedDocId] } : undefined;
 
@@ -611,6 +619,8 @@ function GlobalChat() {
           console.error("Failed to create chat thread:", err);
         }
       }
+
+      if (!isActiveRequest()) return;
 
       const streamResult = await streamChat(
         apiUrl,

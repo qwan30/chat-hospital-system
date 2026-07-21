@@ -270,7 +270,7 @@ async def main() -> None:
                 ),
             ),
             trace_id=new_trace_id(),
-            ip_address="seed_dev",
+            ip_address="127.0.0.1",
         )
 
         # 3. Alice — Prescription & Labs ──────────────────────────────────────

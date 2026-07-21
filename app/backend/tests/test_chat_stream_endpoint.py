@@ -17,7 +17,7 @@ from starlette.requests import Request
 
 from hospital_ai.api.routes.chat_stream import chat_stream
 from hospital_ai.db.migrations import DOCTOR_ID, PATIENT_ALICE_ID, PATIENT_BOB_ID
-from hospital_ai.db.models import AiQuery, AuditLog, User
+from hospital_ai.db.models import AiQuery, AuditLog, ChatMessage, ChatThread, User
 from hospital_ai.schemas.chat import ChatRequest
 from hospital_ai.services.chat import SAFE_INJECTION_DETECTED_ANSWER, SAFE_NO_EVIDENCE_ANSWER
 from hospital_ai.services.guardrails import GuardrailResult
@@ -440,3 +440,66 @@ async def test_chat_stream_cancellation_finalizes_failed_and_reraises(session_an
     ).scalar_one()
     assert audit.outcome == "failed"
     assert audit.meta["reason"] == "cancelled"
+
+
+@pytest.mark.asyncio
+async def test_chat_stream_persistence_cancellation_finalizes_exactly_once(session_and_settings):
+    session, settings = session_and_settings
+    doctor = await session.get(User, DOCTOR_ID)
+    await create_indexed_document(
+        session,
+        patient_id=PATIENT_ALICE_ID,
+        uploaded_by=DOCTOR_ID,
+        title="Persistence cancellation source",
+        content="Patient status is stable.",
+    )
+    thread = ChatThread(
+        title="Persistence cancellation",
+        scope="patient-linked",
+        visibility="private",
+        status="active",
+        owner_user_id=doctor.id,
+        patient_id=PATIENT_ALICE_ID,
+        created_trace_id="trace-persistence-cancel",
+    )
+    session.add(thread)
+    await session.commit()
+
+    with patch(
+        "hospital_ai.api.routes.chat_stream._persist_stream_completion",
+        new=AsyncMock(side_effect=asyncio.CancelledError()),
+    ):
+        response = await chat_stream(
+            payload=ChatRequest(
+                patient_id=PATIENT_ALICE_ID,
+                thread_id=thread.id,
+                question="What is the patient status?",
+            ),
+            request=_request(),
+            session=session,
+            current_user=doctor,
+            settings=settings,
+        )
+        with pytest.raises(asyncio.CancelledError):
+            async for _chunk in response.body_iterator:
+                pass
+
+    query = (await session.execute(select(AiQuery).order_by(AiQuery.created_at.desc()))).scalars().first()
+    assert query is not None
+    await session.refresh(query)
+    assert query.status == "failed"
+
+    audits = (
+        (
+            await session.execute(
+                select(AuditLog).where(AuditLog.action == "chat.stream", AuditLog.object_id == query.id)
+            )
+        )
+        .scalars()
+        .all()
+    )
+    assert len(audits) == 1
+    assert audits[0].meta["reason"] == "cancelled"
+
+    messages = (await session.execute(select(ChatMessage).where(ChatMessage.thread_id == thread.id))).scalars().all()
+    assert [message.role for message in messages] == ["user", "assistant"]

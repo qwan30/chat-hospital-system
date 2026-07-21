@@ -203,6 +203,14 @@ async def _generate_sse_events(
         data: {"type": "done", "query_id": "..."}
         data: {"type": "error", "message": "..."}
     """
+    completion_callback_active = False
+
+    async def complete_terminal(completion: StreamCompletion) -> None:
+        nonlocal completion_callback_active
+        completion_callback_active = True
+        await _complete_stream(on_complete, completion)
+        completion_callback_active = False
+
     try:
         # Get LLM with streaming
         llm_manager = LLMManager(settings)
@@ -237,8 +245,7 @@ async def _generate_sse_events(
             if output_result.blocked:
                 refusal_event = json.dumps({"type": "token", "content": SAFE_PHI_LEAK_BLOCKED_ANSWER})
                 yield f"data: {refusal_event}\n\n"
-                await _complete_stream(
-                    on_complete,
+                await complete_terminal(
                     StreamCompletion(
                         validation_status="failed",
                         answer=SAFE_PHI_LEAK_BLOCKED_ANSWER,
@@ -270,8 +277,7 @@ async def _generate_sse_events(
                 }
             )
             yield f"data: {meta_event}\n\n"
-            await _complete_stream(
-                on_complete,
+            await complete_terminal(
                 StreamCompletion(
                     validation_status="passed",
                     answer=full_text,
@@ -321,8 +327,7 @@ async def _generate_sse_events(
             )
             refusal_event = json.dumps({"type": "token", "content": SAFE_PHI_LEAK_BLOCKED_ANSWER})
             yield f"data: {refusal_event}\n\n"
-            await _complete_stream(
-                on_complete,
+            await complete_terminal(
                 StreamCompletion(
                     validation_status="failed",
                     answer=SAFE_PHI_LEAK_BLOCKED_ANSWER,
@@ -358,8 +363,7 @@ async def _generate_sse_events(
             )
             refusal_event = json.dumps({"type": "token", "content": SAFE_NO_EVIDENCE_ANSWER})
             yield f"data: {refusal_event}\n\n"
-            await _complete_stream(
-                on_complete,
+            await complete_terminal(
                 StreamCompletion(
                     validation_status="failed",
                     answer=SAFE_NO_EVIDENCE_ANSWER,
@@ -422,8 +426,7 @@ async def _generate_sse_events(
         )
         yield f"data: {meta_event}\n\n"
 
-        await _complete_stream(
-            on_complete,
+        await complete_terminal(
             StreamCompletion(
                 validation_status="passed",
                 answer=full_text,
@@ -452,7 +455,8 @@ async def _generate_sse_events(
         )
         yield f"data: {error_event}\n\n"
     except asyncio.CancelledError:
-        await _best_effort_failed_completion(on_complete, failure_reason="cancelled")
+        if not completion_callback_active:
+            await _best_effort_failed_completion(on_complete, failure_reason="cancelled")
         raise
     except AppError as exc:
         await _best_effort_failed_completion(on_complete, failure_reason="app_error")

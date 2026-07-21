@@ -8,21 +8,32 @@ All clinical content is synthetic. It is not medical advice and must not be used
 ## Normalization Applied
 The uploaded `patients_100.xlsx` starts at MRN-0006 and ends at MRN-0105. The generated dataset normalizes the MVP scope to MRN-0001 through MRN-0100. MRN-0001 to MRN-0003 use the migration seed identities. MRN-0004 and MRN-0005 are synthetic filler records. MRN-0006 to MRN-0100 come from the uploaded patient workbook. MRN-0101 to MRN-0105 are intentionally excluded.
 
-## Contents
-- `app/backend/data/patients_documents/`: 100 patient PDF documents.
-- `app/backend/data/patients_labs/`: 100 per-patient CSV lab trend files.
-- `app/backend/data/drugs/drug_interaction_matrix.csv`: 500 medication safety rows.
-- `app/backend/data/guidelines/nursing/`: 5 nursing guideline Markdown files.
-- `app/backend/data/security/audit_logs.jsonl`: 10,000 synthetic audit logs.
-- `app/backend/data/metadata/ingestion_metadata.jsonl`: patient-file metadata payloads.
-- `app/backend/data/metadata/generated_patients_seed.csv`: normalized patient seed records and deterministic UUIDs.
+## Canonical Corpus Contract
+The canonical raw corpus lives in the repository at `app/backend/data/`; this
+directory retains its immutable manifest and provenance notes only. The former
+nested `app/backend/data` copy was removed after a complete SHA-256 pairing
+against the canonical files.
 
-## Suggested Project Copy Command
-From the extracted package root, copy the `app/backend/data` directory into your project root:
+- `patients_documents/`: 100 patient PDF records.
+- `patients_labs/`: 100 per-patient CSV lab trend records.
+- `metadata/generated_patients_seed.csv`: deterministic MRN-to-patient UUID ownership.
+- `drugs/` and `guidelines/nursing/`: synthetic public knowledge, quarantined from
+  runtime retrieval as `excluded_pending_review` until provenance and licensing
+  review is complete.
+- `security/` and remaining `metadata/` files: synthetic audit and metadata fixtures.
+
+`MANIFEST.json` is generated from these canonical paths. Regenerate and validate
+it from `app/backend` with:
 
 ```bash
-cp -R app/backend/data /path/to/chatbot-hospital-system/app/backend/
+python scripts/validate_rag_corpus.py \
+  --data-root data \
+  --write-manifest data/hosp_ai_synthetic_dataset/MANIFEST.json
 ```
+
+The validator streams SHA-256 digests, rejects path escapes and unsupported MIME
+types, enforces deterministic patient ownership, and returns all detected
+validation errors in one result.
 
 ## Notes
 The lab trend files are CSV instead of XLSX because the instruction allows `.xlsx` or `.csv` for lab trend sheets. CSV keeps ingestion simple and parser-friendly while preserving the required lab columns.

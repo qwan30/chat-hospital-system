@@ -1,0 +1,1056 @@
+{
+  "mismatch_count": 0,
+  "pair_count": 210,
+  "pairs": [
+    {
+      "canonical_path": "drugs/drug_interaction_matrix.csv",
+      "duplicate_path": "drugs/drug_interaction_matrix.csv",
+      "sha256": "283d139cb939a4990aab5e5e42c68caea24a5a943f50abbd8cacbeb1191409fa"
+    },
+    {
+      "canonical_path": "guidelines/nursing/fall_risk_and_daily_care_plan.md",
+      "duplicate_path": "guidelines/nursing/fall_risk_and_daily_care_plan.md",
+      "sha256": "c81e6b9fd0d80830854b347a3b08d09dd990ecbe2cd2a27cdb53ba04c4626533"
+    },
+    {
+      "canonical_path": "guidelines/nursing/medication_administration_safety.md",
+      "duplicate_path": "guidelines/nursing/medication_administration_safety.md",
+      "sha256": "704f859ece76b5c1986c17b674b5584d7558939e2903a6da1980da49b3552bbf"
+    },
+    {
+      "canonical_path": "guidelines/nursing/sbar_communication_guideline.md",
+      "duplicate_path": "guidelines/nursing/sbar_communication_guideline.md",
+      "sha256": "5fd878ae26e835092a5fda2c91cd519ef8e108eccff0a6341f613f0150bc92bf"
+    },
+    {
+      "canonical_path": "guidelines/nursing/vital_signs_tracking_protocol.md",
+      "duplicate_path": "guidelines/nursing/vital_signs_tracking_protocol.md",
+      "sha256": "10204b038601cffcb32ffe6037046bef563037c72e846e1a022b34583b5ca68f"
+    },
+    {
+      "canonical_path": "guidelines/nursing/wound_care_protocol.md",
+      "duplicate_path": "guidelines/nursing/wound_care_protocol.md",
+      "sha256": "44e222769b3d37d012b94c5ad76c7785b945a270fe168b05ffa08f039680dd51"
+    },
+    {
+      "canonical_path": "metadata/generated_patients_seed.csv",
+      "duplicate_path": "metadata/generated_patients_seed.csv",
+      "sha256": "020a2adb964b35d0121b8fc603abf46d8d37bac6a85abdedab04d36c79540aa0"
+    },
+    {
+      "canonical_path": "metadata/global_ingestion_metadata.jsonl",
+      "duplicate_path": "metadata/global_ingestion_metadata.jsonl",
+      "sha256": "19d517528e9d986be91200ee19968831dad3e5c528d0d15cac0a520756a4d0cb"
+    },
+    {
+      "canonical_path": "metadata/ingestion_metadata.jsonl",
+      "duplicate_path": "metadata/ingestion_metadata.jsonl",
+      "sha256": "a0c17b84098263ce68e7dafa5d79e65970c64c12e725da68664007531677046d"
+    },
+    {
+      "canonical_path": "patients_documents/patient_MRN0001_lab_result.pdf",
+      "duplicate_path": "patients_documents/patient_MRN0001_lab_result.pdf",
+      "sha256": "b0e4cb9626a8e56f7657af2bf3c4274f7c6d695fa9b6c96b44b98f7d9a108bc1"
+    },
+    {
+      "canonical_path": "patients_documents/patient_MRN0002_lab_result.pdf",
+      "duplicate_path": "patients_documents/patient_MRN0002_lab_result.pdf",
+      "sha256": "acd95fa0f59b0f56b2387963045c1419aee79dfa99ee8b8af901fb107fb9e363"
+    },
+    {
+      "canonical_path": "patients_documents/patient_MRN0003_lab_result.pdf",
+      "duplicate_path": "patients_documents/patient_MRN0003_lab_result.pdf",
+      "sha256": "f1c0c0d0fa8f4570810ac2c402928af60252b4fae02e5c6a968f05365159a776"
+    },
+    {
+      "canonical_path": "patients_documents/patient_MRN0004_lab_result.pdf",
+      "duplicate_path": "patients_documents/patient_MRN0004_lab_result.pdf",
+      "sha256": "c6822b39fcf953974ba24d618e3666353ce15b07dc6857557aedf8df22546df4"
+    },
+    {
+      "canonical_path": "patients_documents/patient_MRN0005_lab_result.pdf",
+      "duplicate_path": "patients_documents/patient_MRN0005_lab_result.pdf",
+      "sha256": "047fcd18f5731cd253099cadc52ba6a6ae667ebd2c57908b7cc3baabe52fcd05"
+    },
+    {
+      "canonical_path": "patients_documents/patient_MRN0006_lab_result.pdf",
+      "duplicate_path": "patients_documents/patient_MRN0006_lab_result.pdf",
+      "sha256": "786025742df752c0cf0a539db1ca4e93140b694d34b4f21dcad181228112700a"
+    },
+    {
+      "canonical_path": "patients_documents/patient_MRN0007_lab_result.pdf",
+      "duplicate_path": "patients_documents/patient_MRN0007_lab_result.pdf",
+      "sha256": "62448606dc8f8fc133d2b6b2b96000bbf07d48ea7e1c70e7ad2146da4c5825d1"
+    },
+    {
+      "canonical_path": "patients_documents/patient_MRN0008_lab_result.pdf",
+      "duplicate_path": "patients_documents/patient_MRN0008_lab_result.pdf",
+      "sha256": "72f6de622ae33c177a7302de00f6909a7180ae4e3fb922a57b287ce6fd700d1f"
+    },
+    {
+      "canonical_path": "patients_documents/patient_MRN0009_lab_result.pdf",
+      "duplicate_path": "patients_documents/patient_MRN0009_lab_result.pdf",
+      "sha256": "63e80b0c2cffd555e7365a7bf0cb5122cdbfa011254d7ec7d4465bbc99f5ea3d"
+    },
+    {
+      "canonical_path": "patients_documents/patient_MRN0010_lab_result.pdf",
+      "duplicate_path": "patients_documents/patient_MRN0010_lab_result.pdf",
+      "sha256": "e32254f725fc62ace8ec7af74b728cacb2857004cfc4787f81c0657e944e3845"
+    },
+    {
+      "canonical_path": "patients_documents/patient_MRN0011_lab_result.pdf",
+      "duplicate_path": "patients_documents/patient_MRN0011_lab_result.pdf",
+      "sha256": "1dbf0bb81c563b44cf8d5b4b9450ffac78fb0bb206ff285bcfa6f90184e46cb9"
+    },
+    {
+      "canonical_path": "patients_documents/patient_MRN0012_lab_result.pdf",
+      "duplicate_path": "patients_documents/patient_MRN0012_lab_result.pdf",
+      "sha256": "d3eba373ac7ecdeef4a3de5b68d533c05ce7bf993f4d3550df0167190dcefb09"
+    },
+    {
+      "canonical_path": "patients_documents/patient_MRN0013_lab_result.pdf",
+      "duplicate_path": "patients_documents/patient_MRN0013_lab_result.pdf",
+      "sha256": "26e547d795b9e241772452af502b2bdea379fca62b7d9c9a71a6887805b57d8f"
+    },
+    {
+      "canonical_path": "patients_documents/patient_MRN0014_lab_result.pdf",
+      "duplicate_path": "patients_documents/patient_MRN0014_lab_result.pdf",
+      "sha256": "5bb039e1c9351671196799604e152a0a03b326bb7ebcf8b8d17a9cdb3d33c64b"
+    },
+    {
+      "canonical_path": "patients_documents/patient_MRN0015_lab_result.pdf",
+      "duplicate_path": "patients_documents/patient_MRN0015_lab_result.pdf",
+      "sha256": "3eef56bfd5c6c772a57666d9a35e890a41010860e828bc8e384d98c8b7f8124a"
+    },
+    {
+      "canonical_path": "patients_documents/patient_MRN0016_lab_result.pdf",
+      "duplicate_path": "patients_documents/patient_MRN0016_lab_result.pdf",
+      "sha256": "7636819e301bab56cbae3b0bd76a0ffded518e90dbb8ab9e10421f03dc270c2f"
+    },
+    {
+      "canonical_path": "patients_documents/patient_MRN0017_lab_result.pdf",
+      "duplicate_path": "patients_documents/patient_MRN0017_lab_result.pdf",
+      "sha256": "1acb48d6ca9359a2b84d6a2760b68d27781a6af71a9c725dbb8611987ad2a1c5"
+    },
+    {
+      "canonical_path": "patients_documents/patient_MRN0018_lab_result.pdf",
+      "duplicate_path": "patients_documents/patient_MRN0018_lab_result.pdf",
+      "sha256": "c9a63fd92f1a1a842eb1449c2f3f901af7e93b12b1b1889a3c405619570c787f"
+    },
+    {
+      "canonical_path": "patients_documents/patient_MRN0019_lab_result.pdf",
+      "duplicate_path": "patients_documents/patient_MRN0019_lab_result.pdf",
+      "sha256": "66fc349b27becb18b6b20d809dc851fc53fbd034504c60abf8ac88792aa4bb54"
+    },
+    {
+      "canonical_path": "patients_documents/patient_MRN0020_lab_result.pdf",
+      "duplicate_path": "patients_documents/patient_MRN0020_lab_result.pdf",
+      "sha256": "fe8508bfde7636face3fa0a4fa5c594c41bf31a61bed0719f7752bb802760f30"
+    },
+    {
+      "canonical_path": "patients_documents/patient_MRN0021_lab_result.pdf",
+      "duplicate_path": "patients_documents/patient_MRN0021_lab_result.pdf",
+      "sha256": "4ddf3883c321294976bd9ad15137259f82ba73fe72a4032af88601941ed26502"
+    },
+    {
+      "canonical_path": "patients_documents/patient_MRN0022_lab_result.pdf",
+      "duplicate_path": "patients_documents/patient_MRN0022_lab_result.pdf",
+      "sha256": "e4a26799616a485feff942aba77cc4f054fd82fb35017896b3c70aab2e37ea7b"
+    },
+    {
+      "canonical_path": "patients_documents/patient_MRN0023_lab_result.pdf",
+      "duplicate_path": "patients_documents/patient_MRN0023_lab_result.pdf",
+      "sha256": "5911599fc58a80ead5e7a5b957851d9da20a4a1d6fa7e8c32fbbe0588a0a72bd"
+    },
+    {
+      "canonical_path": "patients_documents/patient_MRN0024_lab_result.pdf",
+      "duplicate_path": "patients_documents/patient_MRN0024_lab_result.pdf",
+      "sha256": "6c9aa3193e9d44507b6fe1b3584c8056572c5277d2195876274f27ef126b73b2"
+    },
+    {
+      "canonical_path": "patients_documents/patient_MRN0025_lab_result.pdf",
+      "duplicate_path": "patients_documents/patient_MRN0025_lab_result.pdf",
+      "sha256": "45dbb6433b52b6de9d55db64b1fa8fdbf755fc8de11cb590d5bc3d5bd2168709"
+    },
+    {
+      "canonical_path": "patients_documents/patient_MRN0026_clinical_note.pdf",
+      "duplicate_path": "patients_documents/patient_MRN0026_clinical_note.pdf",
+      "sha256": "3809989b2029a446570ea51cb9149de1b27fbe5f7fa17b56aa3d73bc2bd037ba"
+    },
+    {
+      "canonical_path": "patients_documents/patient_MRN0027_clinical_note.pdf",
+      "duplicate_path": "patients_documents/patient_MRN0027_clinical_note.pdf",
+      "sha256": "e5c5a845c2b815a18d1b8af3f7fb0bf433f962cbf2d658499179ec4439f5de1e"
+    },
+    {
+      "canonical_path": "patients_documents/patient_MRN0028_clinical_note.pdf",
+      "duplicate_path": "patients_documents/patient_MRN0028_clinical_note.pdf",
+      "sha256": "e32418a38bb16e4111d45519f8602675f322a2936dbe15d03600f7a747e90924"
+    },
+    {
+      "canonical_path": "patients_documents/patient_MRN0029_clinical_note.pdf",
+      "duplicate_path": "patients_documents/patient_MRN0029_clinical_note.pdf",
+      "sha256": "1ef9c859829a0278a952d4a9deea8b91d0244e1537ee8da6dab3ca5554d86b8a"
+    },
+    {
+      "canonical_path": "patients_documents/patient_MRN0030_clinical_note.pdf",
+      "duplicate_path": "patients_documents/patient_MRN0030_clinical_note.pdf",
+      "sha256": "828c2c1fcd7a7b6f24d1cab79d8c8c33245387d1dbfbed37601c6c70e7bd1e2a"
+    },
+    {
+      "canonical_path": "patients_documents/patient_MRN0031_clinical_note.pdf",
+      "duplicate_path": "patients_documents/patient_MRN0031_clinical_note.pdf",
+      "sha256": "d138138d76fa80c6d85654c53e56b6fc14343f182ed2a02d8d63578fdea8b152"
+    },
+    {
+      "canonical_path": "patients_documents/patient_MRN0032_clinical_note.pdf",
+      "duplicate_path": "patients_documents/patient_MRN0032_clinical_note.pdf",
+      "sha256": "4992502493036671f69a954b1034ca87c565e8d445210d28b759174afb7cc8cb"
+    },
+    {
+      "canonical_path": "patients_documents/patient_MRN0033_clinical_note.pdf",
+      "duplicate_path": "patients_documents/patient_MRN0033_clinical_note.pdf",
+      "sha256": "758b3015ee2c9f3ab46b52d3daaeac3c9996828fd7679613de28d3cba1ed943c"
+    },
+    {
+      "canonical_path": "patients_documents/patient_MRN0034_clinical_note.pdf",
+      "duplicate_path": "patients_documents/patient_MRN0034_clinical_note.pdf",
+      "sha256": "2ba7bed03d4f0e478422dc656e78c9ce726a66ec29e2591726021fa14e4f2325"
+    },
+    {
+      "canonical_path": "patients_documents/patient_MRN0035_clinical_note.pdf",
+      "duplicate_path": "patients_documents/patient_MRN0035_clinical_note.pdf",
+      "sha256": "90b2cc5ee2485eb0478006cf576d7fc5cf53e915c708549fd4d804e579b611f3"
+    },
+    {
+      "canonical_path": "patients_documents/patient_MRN0036_clinical_note.pdf",
+      "duplicate_path": "patients_documents/patient_MRN0036_clinical_note.pdf",
+      "sha256": "4d55fb540aba451f3165c599cec2e879ad982349a0a3c749408daa6f680d1eed"
+    },
+    {
+      "canonical_path": "patients_documents/patient_MRN0037_clinical_note.pdf",
+      "duplicate_path": "patients_documents/patient_MRN0037_clinical_note.pdf",
+      "sha256": "4f2a9e7e80ec5e0ada13731df50cfefffb231228bbc1c9f28c8faf3553bb3332"
+    },
+    {
+      "canonical_path": "patients_documents/patient_MRN0038_clinical_note.pdf",
+      "duplicate_path": "patients_documents/patient_MRN0038_clinical_note.pdf",
+      "sha256": "0050d5b7c7ffe5a70f5052581d8306f7c6bf6f230cb24e97c77f7c0dc6d5f8dd"
+    },
+    {
+      "canonical_path": "patients_documents/patient_MRN0039_clinical_note.pdf",
+      "duplicate_path": "patients_documents/patient_MRN0039_clinical_note.pdf",
+      "sha256": "a536b9aced9d9f3839875a7a0efa22ffd192edc4f8557774bb2f2c6f0df6c23c"
+    },
+    {
+      "canonical_path": "patients_documents/patient_MRN0040_clinical_note.pdf",
+      "duplicate_path": "patients_documents/patient_MRN0040_clinical_note.pdf",
+      "sha256": "5837597855ba06854bf05c1b50a6f9bb9a2866026d2ce891e0eeebfdc2924902"
+    },
+    {
+      "canonical_path": "patients_documents/patient_MRN0041_clinical_note.pdf",
+      "duplicate_path": "patients_documents/patient_MRN0041_clinical_note.pdf",
+      "sha256": "c2926f432fd3ef9ed995ac8b29d49a5ae8f1a6d9b639bf15b705e6b067a4187b"
+    },
+    {
+      "canonical_path": "patients_documents/patient_MRN0042_clinical_note.pdf",
+      "duplicate_path": "patients_documents/patient_MRN0042_clinical_note.pdf",
+      "sha256": "5743a87265e0ab8b7fcbf63f652fede515096366d67fd4386aa3600f8feadbde"
+    },
+    {
+      "canonical_path": "patients_documents/patient_MRN0043_clinical_note.pdf",
+      "duplicate_path": "patients_documents/patient_MRN0043_clinical_note.pdf",
+      "sha256": "d35acac4d0b063f5ad90448e823bc606f54a1b8d766e507051542573e37e362c"
+    },
+    {
+      "canonical_path": "patients_documents/patient_MRN0044_clinical_note.pdf",
+      "duplicate_path": "patients_documents/patient_MRN0044_clinical_note.pdf",
+      "sha256": "60beb969e5c2be254a92f095e1ab9454bd1f6ba6f6e5840e1cb0b1c4fbd035bd"
+    },
+    {
+      "canonical_path": "patients_documents/patient_MRN0045_clinical_note.pdf",
+      "duplicate_path": "patients_documents/patient_MRN0045_clinical_note.pdf",
+      "sha256": "2062c21b5224359f612088514bc26630088114a17480c86749198398a75f7bbe"
+    },
+    {
+      "canonical_path": "patients_documents/patient_MRN0046_discharge_summary.pdf",
+      "duplicate_path": "patients_documents/patient_MRN0046_discharge_summary.pdf",
+      "sha256": "14157bfe9c1e6cc9e732a1046cbe17425e24fd5f02fe397874643736fd91ec1b"
+    },
+    {
+      "canonical_path": "patients_documents/patient_MRN0047_discharge_summary.pdf",
+      "duplicate_path": "patients_documents/patient_MRN0047_discharge_summary.pdf",
+      "sha256": "f9839faae0e3101e805a473d2745d61e834019124c18cbde76548c0e35c12b7e"
+    },
+    {
+      "canonical_path": "patients_documents/patient_MRN0048_discharge_summary.pdf",
+      "duplicate_path": "patients_documents/patient_MRN0048_discharge_summary.pdf",
+      "sha256": "4e950e2c0c28a490d71551d3066682e6181807c33657661770e1d357bdbdcce9"
+    },
+    {
+      "canonical_path": "patients_documents/patient_MRN0049_discharge_summary.pdf",
+      "duplicate_path": "patients_documents/patient_MRN0049_discharge_summary.pdf",
+      "sha256": "f8b71e5608abf40b5709b68c8d0b53105e1bf6c0527e4652535868eab1baa460"
+    },
+    {
+      "canonical_path": "patients_documents/patient_MRN0050_discharge_summary.pdf",
+      "duplicate_path": "patients_documents/patient_MRN0050_discharge_summary.pdf",
+      "sha256": "ba6e33ab94ac1e6098b813fbfc14c1d8cd62b6956fe9b7825acc1933ea3628de"
+    },
+    {
+      "canonical_path": "patients_documents/patient_MRN0051_discharge_summary.pdf",
+      "duplicate_path": "patients_documents/patient_MRN0051_discharge_summary.pdf",
+      "sha256": "c759202e55cf039248ad47b41b53adbb0083c5ca4050934ac8c9db715887071f"
+    },
+    {
+      "canonical_path": "patients_documents/patient_MRN0052_discharge_summary.pdf",
+      "duplicate_path": "patients_documents/patient_MRN0052_discharge_summary.pdf",
+      "sha256": "cd6ea9dbf3e1d92bc0e0664a645c21c6662a459e1fdb4fa056f15d74a68fa706"
+    },
+    {
+      "canonical_path": "patients_documents/patient_MRN0053_discharge_summary.pdf",
+      "duplicate_path": "patients_documents/patient_MRN0053_discharge_summary.pdf",
+      "sha256": "ae71f4561eb908dcc28b02cbdb274dc9295803b2a88d7cfbb1161532b1ee06fa"
+    },
+    {
+      "canonical_path": "patients_documents/patient_MRN0054_discharge_summary.pdf",
+      "duplicate_path": "patients_documents/patient_MRN0054_discharge_summary.pdf",
+      "sha256": "e59dc3faba95bed629346e6eb4a4b9471d84767d2afbe6388f0c156ad3bef377"
+    },
+    {
+      "canonical_path": "patients_documents/patient_MRN0055_discharge_summary.pdf",
+      "duplicate_path": "patients_documents/patient_MRN0055_discharge_summary.pdf",
+      "sha256": "d0fc3407c622a0856aea79881e92f5a0b62e8021f854683a925b0bc504a77cbb"
+    },
+    {
+      "canonical_path": "patients_documents/patient_MRN0056_imaging_report.pdf",
+      "duplicate_path": "patients_documents/patient_MRN0056_imaging_report.pdf",
+      "sha256": "089bc346e59f1afa54245f41bd2febbf297092652a085cf89393b89df44e6de7"
+    },
+    {
+      "canonical_path": "patients_documents/patient_MRN0057_imaging_report.pdf",
+      "duplicate_path": "patients_documents/patient_MRN0057_imaging_report.pdf",
+      "sha256": "711797aba1006a75f2f07cb6790061f000a6c40c4b2b8de28e33d088221a66af"
+    },
+    {
+      "canonical_path": "patients_documents/patient_MRN0058_imaging_report.pdf",
+      "duplicate_path": "patients_documents/patient_MRN0058_imaging_report.pdf",
+      "sha256": "7161ae8da5746a5d7772b05920e0a9df432369c339cc822386792be649fc775f"
+    },
+    {
+      "canonical_path": "patients_documents/patient_MRN0059_imaging_report.pdf",
+      "duplicate_path": "patients_documents/patient_MRN0059_imaging_report.pdf",
+      "sha256": "12bc258131916651a0dd81fff022f892cbfa7a1f1b2b22f240ad38855fe4f88a"
+    },
+    {
+      "canonical_path": "patients_documents/patient_MRN0060_imaging_report.pdf",
+      "duplicate_path": "patients_documents/patient_MRN0060_imaging_report.pdf",
+      "sha256": "7ec9f1c6cb5f217faf65a6c56e6bfbfa378a954b704db8cebe39acece93d85d2"
+    },
+    {
+      "canonical_path": "patients_documents/patient_MRN0061_imaging_report.pdf",
+      "duplicate_path": "patients_documents/patient_MRN0061_imaging_report.pdf",
+      "sha256": "762df70187617105a281365fff7a7030a856db696ce8feba1d51cdd5fb56c576"
+    },
+    {
+      "canonical_path": "patients_documents/patient_MRN0062_imaging_report.pdf",
+      "duplicate_path": "patients_documents/patient_MRN0062_imaging_report.pdf",
+      "sha256": "124638b273946ff5e8e835e3d21909b45d7c69b684fc96416e671c11782ba548"
+    },
+    {
+      "canonical_path": "patients_documents/patient_MRN0063_imaging_report.pdf",
+      "duplicate_path": "patients_documents/patient_MRN0063_imaging_report.pdf",
+      "sha256": "cda55a78ae6f243056e785c49d33d2518cbd61ff74d18cef0e5a4e1806abd0f1"
+    },
+    {
+      "canonical_path": "patients_documents/patient_MRN0064_imaging_report.pdf",
+      "duplicate_path": "patients_documents/patient_MRN0064_imaging_report.pdf",
+      "sha256": "86d0258eedb0db55d75322c77a9518fee8add71a5906c4b517f75c1ab2d9a732"
+    },
+    {
+      "canonical_path": "patients_documents/patient_MRN0065_imaging_report.pdf",
+      "duplicate_path": "patients_documents/patient_MRN0065_imaging_report.pdf",
+      "sha256": "7045c22bb4c9ddb32f4496694246710b04d9baa7152a2e9e18a8293fe5128914"
+    },
+    {
+      "canonical_path": "patients_documents/patient_MRN0066_imaging_report.pdf",
+      "duplicate_path": "patients_documents/patient_MRN0066_imaging_report.pdf",
+      "sha256": "475cbdf2fa3720c0440e8230cc1708652a2695aa0f80532531d7a71de4712fc1"
+    },
+    {
+      "canonical_path": "patients_documents/patient_MRN0067_imaging_report.pdf",
+      "duplicate_path": "patients_documents/patient_MRN0067_imaging_report.pdf",
+      "sha256": "3b92feb5c3b496728ba88916759dd6b7204f6798103825a5c31a25f2cd23542f"
+    },
+    {
+      "canonical_path": "patients_documents/patient_MRN0068_imaging_report.pdf",
+      "duplicate_path": "patients_documents/patient_MRN0068_imaging_report.pdf",
+      "sha256": "296971aeca5e934e97dcb557200cdf55b9325962d939cd82dd82f4f66a2ec307"
+    },
+    {
+      "canonical_path": "patients_documents/patient_MRN0069_imaging_report.pdf",
+      "duplicate_path": "patients_documents/patient_MRN0069_imaging_report.pdf",
+      "sha256": "679f3d9c0bec0f0c112d34497ed5e6191c0d51a0d7d0157845256214f06a71a7"
+    },
+    {
+      "canonical_path": "patients_documents/patient_MRN0070_imaging_report.pdf",
+      "duplicate_path": "patients_documents/patient_MRN0070_imaging_report.pdf",
+      "sha256": "005383398cfbe165009c5c5284c874fb3cc6acfaed079fcdc004822b37f0d936"
+    },
+    {
+      "canonical_path": "patients_documents/patient_MRN0071_prescription.pdf",
+      "duplicate_path": "patients_documents/patient_MRN0071_prescription.pdf",
+      "sha256": "f8f45e118ffa90b2cb7f397bad3020ffcaea568a161d7bad9a02183a11829b60"
+    },
+    {
+      "canonical_path": "patients_documents/patient_MRN0072_prescription.pdf",
+      "duplicate_path": "patients_documents/patient_MRN0072_prescription.pdf",
+      "sha256": "6aca349cd502783774788c3b213f12c65901ffee298d30d2cdc2fb04510dae3a"
+    },
+    {
+      "canonical_path": "patients_documents/patient_MRN0073_prescription.pdf",
+      "duplicate_path": "patients_documents/patient_MRN0073_prescription.pdf",
+      "sha256": "dd2fa8c10859723540b3646f5c1e066729feb372769e09a754a0d76a818652f8"
+    },
+    {
+      "canonical_path": "patients_documents/patient_MRN0074_prescription.pdf",
+      "duplicate_path": "patients_documents/patient_MRN0074_prescription.pdf",
+      "sha256": "b99956130a6a273a75cc0065b24758581bae89dcff801d4c878c469c0979e316"
+    },
+    {
+      "canonical_path": "patients_documents/patient_MRN0075_prescription.pdf",
+      "duplicate_path": "patients_documents/patient_MRN0075_prescription.pdf",
+      "sha256": "1d5e47544c82760220d3eca36854170dd201d8fa0a0f35a2132887bc04aa1920"
+    },
+    {
+      "canonical_path": "patients_documents/patient_MRN0076_prescription.pdf",
+      "duplicate_path": "patients_documents/patient_MRN0076_prescription.pdf",
+      "sha256": "93299985c27869dfac138c292d4de5b5e67120beb525e0c17a77d92679a814f2"
+    },
+    {
+      "canonical_path": "patients_documents/patient_MRN0077_prescription.pdf",
+      "duplicate_path": "patients_documents/patient_MRN0077_prescription.pdf",
+      "sha256": "e1688aa4c4053f16c43eb74b6f1c76743c3a48f347278e1946b26a2d54d00959"
+    },
+    {
+      "canonical_path": "patients_documents/patient_MRN0078_prescription.pdf",
+      "duplicate_path": "patients_documents/patient_MRN0078_prescription.pdf",
+      "sha256": "5ea870548ca45f0a3c60eb1ae6a8e0da739920a5ba3b188bf48ab39b4b0d3cd9"
+    },
+    {
+      "canonical_path": "patients_documents/patient_MRN0079_prescription.pdf",
+      "duplicate_path": "patients_documents/patient_MRN0079_prescription.pdf",
+      "sha256": "ec27906d7637b7aaf094207f9db521b25e3a612f44510eaf0b4966c92c90c2f3"
+    },
+    {
+      "canonical_path": "patients_documents/patient_MRN0080_prescription.pdf",
+      "duplicate_path": "patients_documents/patient_MRN0080_prescription.pdf",
+      "sha256": "1eabef970f22ccc1c35d8763aa467d72ddd2968aea90f559cf1df570aa6c49ba"
+    },
+    {
+      "canonical_path": "patients_documents/patient_MRN0081_prescription.pdf",
+      "duplicate_path": "patients_documents/patient_MRN0081_prescription.pdf",
+      "sha256": "dac42d31a8f152baf88146847c128d3b6f2776aaffe555f8b43b0b6269ac7e99"
+    },
+    {
+      "canonical_path": "patients_documents/patient_MRN0082_prescription.pdf",
+      "duplicate_path": "patients_documents/patient_MRN0082_prescription.pdf",
+      "sha256": "e4b39460c67e53a6efe353b619abcb3b22c9c31dc74ea92e9ec22a92b67ff1ad"
+    },
+    {
+      "canonical_path": "patients_documents/patient_MRN0083_prescription.pdf",
+      "duplicate_path": "patients_documents/patient_MRN0083_prescription.pdf",
+      "sha256": "60a73377af2aa238b01b63416f0338c1792ec7f91eaf4a372e3a5ee7dc7f1ac8"
+    },
+    {
+      "canonical_path": "patients_documents/patient_MRN0084_prescription.pdf",
+      "duplicate_path": "patients_documents/patient_MRN0084_prescription.pdf",
+      "sha256": "15a0c2631cb90760c1cadec5d628bf37cfa5eedb24fd71ad0203f516bd2e835f"
+    },
+    {
+      "canonical_path": "patients_documents/patient_MRN0085_prescription.pdf",
+      "duplicate_path": "patients_documents/patient_MRN0085_prescription.pdf",
+      "sha256": "a632cf06513b5ef00d75d09f23f7f3e12ede1534c8282436ba78d736975e3304"
+    },
+    {
+      "canonical_path": "patients_documents/patient_MRN0086_prescription.pdf",
+      "duplicate_path": "patients_documents/patient_MRN0086_prescription.pdf",
+      "sha256": "1268bec9f30a7e00d2b20f8e41a287ec29613e5e570f447d0098211eb57a30a5"
+    },
+    {
+      "canonical_path": "patients_documents/patient_MRN0087_prescription.pdf",
+      "duplicate_path": "patients_documents/patient_MRN0087_prescription.pdf",
+      "sha256": "db93230d4b7b0aca7c178fb9ff9c8fc5c7bc9db9ef4e86330a7779f4a06e8464"
+    },
+    {
+      "canonical_path": "patients_documents/patient_MRN0088_prescription.pdf",
+      "duplicate_path": "patients_documents/patient_MRN0088_prescription.pdf",
+      "sha256": "59b3e677afc249d7178aa44a532e9272238418b85fbc993cd56c32b16e74fd5c"
+    },
+    {
+      "canonical_path": "patients_documents/patient_MRN0089_prescription.pdf",
+      "duplicate_path": "patients_documents/patient_MRN0089_prescription.pdf",
+      "sha256": "fb912d50ce5c622c1586f25c753bdfc2c0bb7096a19f7abb51c2cf4bb09d9522"
+    },
+    {
+      "canonical_path": "patients_documents/patient_MRN0090_prescription.pdf",
+      "duplicate_path": "patients_documents/patient_MRN0090_prescription.pdf",
+      "sha256": "25416441ccc3c798ee9d23e1693a0fe242b6ffbac51516e4bb0a3a19c37ef79c"
+    },
+    {
+      "canonical_path": "patients_documents/patient_MRN0091_encounter_note.pdf",
+      "duplicate_path": "patients_documents/patient_MRN0091_encounter_note.pdf",
+      "sha256": "a164781b5d6cbc87fa54d5dbee8c5c91fe0d596b0e38dc3112ada971518028cf"
+    },
+    {
+      "canonical_path": "patients_documents/patient_MRN0092_encounter_note.pdf",
+      "duplicate_path": "patients_documents/patient_MRN0092_encounter_note.pdf",
+      "sha256": "aca8adbcb4f7a3022368749b9aba582c99f4dd055772e788cd3b8f3edb0c0393"
+    },
+    {
+      "canonical_path": "patients_documents/patient_MRN0093_encounter_note.pdf",
+      "duplicate_path": "patients_documents/patient_MRN0093_encounter_note.pdf",
+      "sha256": "e45e961d0828f97d75a8ab7464dd440ccf66709716768fc11eb5c25346b14abe"
+    },
+    {
+      "canonical_path": "patients_documents/patient_MRN0094_encounter_note.pdf",
+      "duplicate_path": "patients_documents/patient_MRN0094_encounter_note.pdf",
+      "sha256": "bb4a37a0a42a18e9b3a4b75d486fb5e5143981cce1bcbd2b28dabe231b2439ce"
+    },
+    {
+      "canonical_path": "patients_documents/patient_MRN0095_encounter_note.pdf",
+      "duplicate_path": "patients_documents/patient_MRN0095_encounter_note.pdf",
+      "sha256": "ffbf34dd222e2e23dcb0972a83146b5f3d1f88fd56d5cb8d0b1aeb0489d37644"
+    },
+    {
+      "canonical_path": "patients_documents/patient_MRN0096_encounter_note.pdf",
+      "duplicate_path": "patients_documents/patient_MRN0096_encounter_note.pdf",
+      "sha256": "025c40f03b2927f6eb8ab9a9cf0119e4019a0e8942579c8e46391c323f480b60"
+    },
+    {
+      "canonical_path": "patients_documents/patient_MRN0097_encounter_note.pdf",
+      "duplicate_path": "patients_documents/patient_MRN0097_encounter_note.pdf",
+      "sha256": "1ad7f951f197d7ea7ca922e8ac80d79084b2fabdd7f15b56f6f4d8bc5778c36a"
+    },
+    {
+      "canonical_path": "patients_documents/patient_MRN0098_encounter_note.pdf",
+      "duplicate_path": "patients_documents/patient_MRN0098_encounter_note.pdf",
+      "sha256": "4225b535cd1f43541654743d888ce357a1c18a98adeb10cbbf86e58125db1a42"
+    },
+    {
+      "canonical_path": "patients_documents/patient_MRN0099_encounter_note.pdf",
+      "duplicate_path": "patients_documents/patient_MRN0099_encounter_note.pdf",
+      "sha256": "19a199945d740f2ed6f3e0d65e97564dbad9d6d213e406671480fa5ba9473cfb"
+    },
+    {
+      "canonical_path": "patients_documents/patient_MRN0100_encounter_note.pdf",
+      "duplicate_path": "patients_documents/patient_MRN0100_encounter_note.pdf",
+      "sha256": "1ea09fac64421791b514509147a34a12253cb2aac9a0f19fcb425cae375f1a05"
+    },
+    {
+      "canonical_path": "patients_labs/patient_MRN0001_labs.csv",
+      "duplicate_path": "patients_labs/patient_MRN0001_labs.csv",
+      "sha256": "25c155ae42b07dceb2815e895de47a96e8d54e616d5f12d99b0b4e8437a5a556"
+    },
+    {
+      "canonical_path": "patients_labs/patient_MRN0002_labs.csv",
+      "duplicate_path": "patients_labs/patient_MRN0002_labs.csv",
+      "sha256": "bff15eb5d84dfc32e5cf742d979816d14cde01d8dc4e40aef88439844d91b8a7"
+    },
+    {
+      "canonical_path": "patients_labs/patient_MRN0003_labs.csv",
+      "duplicate_path": "patients_labs/patient_MRN0003_labs.csv",
+      "sha256": "1f94149511458c284ea8a346b086e480a29e9c60a9a623f0e092ef77f74979cd"
+    },
+    {
+      "canonical_path": "patients_labs/patient_MRN0004_labs.csv",
+      "duplicate_path": "patients_labs/patient_MRN0004_labs.csv",
+      "sha256": "c00a54d9a82fb94943b8419348d58a3035e5d0ace36991db61ea4c5de09bb853"
+    },
+    {
+      "canonical_path": "patients_labs/patient_MRN0005_labs.csv",
+      "duplicate_path": "patients_labs/patient_MRN0005_labs.csv",
+      "sha256": "282ca18cf6557bfb1a3ae409da3c9946e0b35a162eae39698e1dd6044e9ddd26"
+    },
+    {
+      "canonical_path": "patients_labs/patient_MRN0006_labs.csv",
+      "duplicate_path": "patients_labs/patient_MRN0006_labs.csv",
+      "sha256": "02419c1ed9311c2b1a98e07f9dc125481fd9556cbdf26b66b48c8a8904b8f80a"
+    },
+    {
+      "canonical_path": "patients_labs/patient_MRN0007_labs.csv",
+      "duplicate_path": "patients_labs/patient_MRN0007_labs.csv",
+      "sha256": "7382c779c98eb341661322a9f83d522eb78b43076e136efbabe93d1764c5def3"
+    },
+    {
+      "canonical_path": "patients_labs/patient_MRN0008_labs.csv",
+      "duplicate_path": "patients_labs/patient_MRN0008_labs.csv",
+      "sha256": "d8fbbf4c3460c7aa84f922dd42f2b7cb67e9ac3da2445896e10480c2d5f8a546"
+    },
+    {
+      "canonical_path": "patients_labs/patient_MRN0009_labs.csv",
+      "duplicate_path": "patients_labs/patient_MRN0009_labs.csv",
+      "sha256": "8e7aacd05b67a45f73334929625412c05a0fe2aa917fd22b4bf988c767cac08f"
+    },
+    {
+      "canonical_path": "patients_labs/patient_MRN0010_labs.csv",
+      "duplicate_path": "patients_labs/patient_MRN0010_labs.csv",
+      "sha256": "b1d9b001cc39973d8028cf5b1f956c165d810c851be12ac0ffc8007ea9ceff69"
+    },
+    {
+      "canonical_path": "patients_labs/patient_MRN0011_labs.csv",
+      "duplicate_path": "patients_labs/patient_MRN0011_labs.csv",
+      "sha256": "098ea55c30e653cf9366d09525214916b9d59d5b5a4baad26ba681b9a139c853"
+    },
+    {
+      "canonical_path": "patients_labs/patient_MRN0012_labs.csv",
+      "duplicate_path": "patients_labs/patient_MRN0012_labs.csv",
+      "sha256": "4bcfd5f44cc7fb1ae49cb73874096444314f76055fbaad65fc778bf6421370c3"
+    },
+    {
+      "canonical_path": "patients_labs/patient_MRN0013_labs.csv",
+      "duplicate_path": "patients_labs/patient_MRN0013_labs.csv",
+      "sha256": "b3e71c661979ca272401b8732183d81b197353bfc37c46697dc9e4cc10799d48"
+    },
+    {
+      "canonical_path": "patients_labs/patient_MRN0014_labs.csv",
+      "duplicate_path": "patients_labs/patient_MRN0014_labs.csv",
+      "sha256": "0737e1b4e35e86b06d690cebfd8a626331ae02c4b83cddb368687379f771e45c"
+    },
+    {
+      "canonical_path": "patients_labs/patient_MRN0015_labs.csv",
+      "duplicate_path": "patients_labs/patient_MRN0015_labs.csv",
+      "sha256": "0aca82a9c39558dc06482aa1e5967a2a7d9b50277c917e961b29f26f0f4b1f82"
+    },
+    {
+      "canonical_path": "patients_labs/patient_MRN0016_labs.csv",
+      "duplicate_path": "patients_labs/patient_MRN0016_labs.csv",
+      "sha256": "cff4b62ee7a5fc236722b5c2daa1f74c7bcb5eacbe40ed3c602767212e010368"
+    },
+    {
+      "canonical_path": "patients_labs/patient_MRN0017_labs.csv",
+      "duplicate_path": "patients_labs/patient_MRN0017_labs.csv",
+      "sha256": "c6988c22d9754c29d747a1c5a540ef3776148bb09eec15e8d0753f3b2a648c0d"
+    },
+    {
+      "canonical_path": "patients_labs/patient_MRN0018_labs.csv",
+      "duplicate_path": "patients_labs/patient_MRN0018_labs.csv",
+      "sha256": "b50881844f60c8b676362e4d7cf7a0cb39e722592b997196f24a785a592e2eb1"
+    },
+    {
+      "canonical_path": "patients_labs/patient_MRN0019_labs.csv",
+      "duplicate_path": "patients_labs/patient_MRN0019_labs.csv",
+      "sha256": "74ecf9c3d795522636f783851324564f317ed941e19ef2b4386725f91b24b89d"
+    },
+    {
+      "canonical_path": "patients_labs/patient_MRN0020_labs.csv",
+      "duplicate_path": "patients_labs/patient_MRN0020_labs.csv",
+      "sha256": "b0027b95d070fca6892e621f70abb939fccc4328f9bdaf2f2ee4fd30ac5402a1"
+    },
+    {
+      "canonical_path": "patients_labs/patient_MRN0021_labs.csv",
+      "duplicate_path": "patients_labs/patient_MRN0021_labs.csv",
+      "sha256": "7ae75c42cf51ef643a9d450cfc835db5fbcdc003c5c10160f9b5d383240aa83f"
+    },
+    {
+      "canonical_path": "patients_labs/patient_MRN0022_labs.csv",
+      "duplicate_path": "patients_labs/patient_MRN0022_labs.csv",
+      "sha256": "b27bbd71776b202210b048bfd28c5797ee85e4e0a9ad95706a948e5210ad3eae"
+    },
+    {
+      "canonical_path": "patients_labs/patient_MRN0023_labs.csv",
+      "duplicate_path": "patients_labs/patient_MRN0023_labs.csv",
+      "sha256": "19da9775d1020b254b39beb18a0dd50b265efcc27332f9bc306ddaa900f7f20d"
+    },
+    {
+      "canonical_path": "patients_labs/patient_MRN0024_labs.csv",
+      "duplicate_path": "patients_labs/patient_MRN0024_labs.csv",
+      "sha256": "a7cbc8adc89924d124dc21e7bd9d5095342dd103cd10355e23419315baf2d52e"
+    },
+    {
+      "canonical_path": "patients_labs/patient_MRN0025_labs.csv",
+      "duplicate_path": "patients_labs/patient_MRN0025_labs.csv",
+      "sha256": "e121e8b963114dad7063d1bb8402521e1526966eabe6dc260c833faaed3c45a8"
+    },
+    {
+      "canonical_path": "patients_labs/patient_MRN0026_labs.csv",
+      "duplicate_path": "patients_labs/patient_MRN0026_labs.csv",
+      "sha256": "e34bc74a2cf938ab97dfbe18567e6603637985ef089fa1e1e5e851efc49c1c3a"
+    },
+    {
+      "canonical_path": "patients_labs/patient_MRN0027_labs.csv",
+      "duplicate_path": "patients_labs/patient_MRN0027_labs.csv",
+      "sha256": "d3cef64020aa44f8e67c11b22f4f8e1b7dd0c9a5303f4994fea8c127d452272a"
+    },
+    {
+      "canonical_path": "patients_labs/patient_MRN0028_labs.csv",
+      "duplicate_path": "patients_labs/patient_MRN0028_labs.csv",
+      "sha256": "f39a42651b0596ecae75aeb718e3a324a2a7bb87a590fbbbee56925740aac03c"
+    },
+    {
+      "canonical_path": "patients_labs/patient_MRN0029_labs.csv",
+      "duplicate_path": "patients_labs/patient_MRN0029_labs.csv",
+      "sha256": "7b222e593e8b3f3874d4d7610cec966b425967464337bfbc519b5fbce53599b8"
+    },
+    {
+      "canonical_path": "patients_labs/patient_MRN0030_labs.csv",
+      "duplicate_path": "patients_labs/patient_MRN0030_labs.csv",
+      "sha256": "e33398fa8c500c80cb1967575e25c003e4c08f1f8ddbfa4b243d76359cecd8c7"
+    },
+    {
+      "canonical_path": "patients_labs/patient_MRN0031_labs.csv",
+      "duplicate_path": "patients_labs/patient_MRN0031_labs.csv",
+      "sha256": "f8def42de6455b90f2f8f3b666bb09ac0c9c707620a76b93d8e009d0e664ad81"
+    },
+    {
+      "canonical_path": "patients_labs/patient_MRN0032_labs.csv",
+      "duplicate_path": "patients_labs/patient_MRN0032_labs.csv",
+      "sha256": "041a0d429cdbc0f3d0c01b0345e62eba55347e2a9d450e258642e016a220944e"
+    },
+    {
+      "canonical_path": "patients_labs/patient_MRN0033_labs.csv",
+      "duplicate_path": "patients_labs/patient_MRN0033_labs.csv",
+      "sha256": "1a8c1d605a571f21745df5190b6f07e1a83c06a9bcadea2d12c4c82b6247bf6d"
+    },
+    {
+      "canonical_path": "patients_labs/patient_MRN0034_labs.csv",
+      "duplicate_path": "patients_labs/patient_MRN0034_labs.csv",
+      "sha256": "0ae983f9d30655a623df670505a8b2ff340a3ace6ab61cbcc8fb7ec46e7b8bdd"
+    },
+    {
+      "canonical_path": "patients_labs/patient_MRN0035_labs.csv",
+      "duplicate_path": "patients_labs/patient_MRN0035_labs.csv",
+      "sha256": "2c2257b6051cf73ce02ce5861ae72663e785e5dac7293934fbfbc78988e025a0"
+    },
+    {
+      "canonical_path": "patients_labs/patient_MRN0036_labs.csv",
+      "duplicate_path": "patients_labs/patient_MRN0036_labs.csv",
+      "sha256": "09dd2f37491376e9ef9b876fe4a18cbaf0a8b701f07adeb41ddb1c1b0325a226"
+    },
+    {
+      "canonical_path": "patients_labs/patient_MRN0037_labs.csv",
+      "duplicate_path": "patients_labs/patient_MRN0037_labs.csv",
+      "sha256": "4049b577c7679fbd3a12dceb0b340081a121b01b526f3cf8f159cce6acfef99a"
+    },
+    {
+      "canonical_path": "patients_labs/patient_MRN0038_labs.csv",
+      "duplicate_path": "patients_labs/patient_MRN0038_labs.csv",
+      "sha256": "6ea159e60f65d7be5dde4c120f91081decd705856963032caf4dd65a6bff6885"
+    },
+    {
+      "canonical_path": "patients_labs/patient_MRN0039_labs.csv",
+      "duplicate_path": "patients_labs/patient_MRN0039_labs.csv",
+      "sha256": "8283fe0f3ffb4ebc08c7fe03da2180e878f5df63366bd8fc1ff22e0cc3a42dad"
+    },
+    {
+      "canonical_path": "patients_labs/patient_MRN0040_labs.csv",
+      "duplicate_path": "patients_labs/patient_MRN0040_labs.csv",
+      "sha256": "eae6d6b0c349341aa72c76fce2640692bcb863270041fc3fef376cabf82d264e"
+    },
+    {
+      "canonical_path": "patients_labs/patient_MRN0041_labs.csv",
+      "duplicate_path": "patients_labs/patient_MRN0041_labs.csv",
+      "sha256": "1006049f359b99c3895ab6fad3772c042a971f05cd2b8f6ac0055932a0c70a63"
+    },
+    {
+      "canonical_path": "patients_labs/patient_MRN0042_labs.csv",
+      "duplicate_path": "patients_labs/patient_MRN0042_labs.csv",
+      "sha256": "51e9b1dc9a7fac966f6b982c41e8f77649c7d77e5e2da0188f3f6e47b3d6a970"
+    },
+    {
+      "canonical_path": "patients_labs/patient_MRN0043_labs.csv",
+      "duplicate_path": "patients_labs/patient_MRN0043_labs.csv",
+      "sha256": "660219902f94efc5b28a66e6c6236f073f6161a97582f138c19de2d9bded9a14"
+    },
+    {
+      "canonical_path": "patients_labs/patient_MRN0044_labs.csv",
+      "duplicate_path": "patients_labs/patient_MRN0044_labs.csv",
+      "sha256": "6769ad017c4f089a2a2853b6eb29cc0279c75c168198c6b284ad2a0fbca2887c"
+    },
+    {
+      "canonical_path": "patients_labs/patient_MRN0045_labs.csv",
+      "duplicate_path": "patients_labs/patient_MRN0045_labs.csv",
+      "sha256": "f0d8f784d0ec5d24277e61f6aa4408e58dc330b6316469c9ae57a70ce7b35343"
+    },
+    {
+      "canonical_path": "patients_labs/patient_MRN0046_labs.csv",
+      "duplicate_path": "patients_labs/patient_MRN0046_labs.csv",
+      "sha256": "a1259212f7f2f4606d870567ab8476b4cc14e271dc48cfb6e1ef80e02060d2bd"
+    },
+    {
+      "canonical_path": "patients_labs/patient_MRN0047_labs.csv",
+      "duplicate_path": "patients_labs/patient_MRN0047_labs.csv",
+      "sha256": "aeb263c8cc65f75811a200fe94efc5b284250feedd42c5f046cbacdf28aa67d0"
+    },
+    {
+      "canonical_path": "patients_labs/patient_MRN0048_labs.csv",
+      "duplicate_path": "patients_labs/patient_MRN0048_labs.csv",
+      "sha256": "3b46d00888bc8d7aadb7d13871d1d9bdc7e3d182871baaf02f8945ee0bc9483c"
+    },
+    {
+      "canonical_path": "patients_labs/patient_MRN0049_labs.csv",
+      "duplicate_path": "patients_labs/patient_MRN0049_labs.csv",
+      "sha256": "cf17591660735d37cd01fa3a8a840bfd48e6443bc8b16cae1d77b129de7266d6"
+    },
+    {
+      "canonical_path": "patients_labs/patient_MRN0050_labs.csv",
+      "duplicate_path": "patients_labs/patient_MRN0050_labs.csv",
+      "sha256": "6d1bbce02804c62f1fa01cbed33cd64f1d0f7d51481dab1779f0a511f9400c95"
+    },
+    {
+      "canonical_path": "patients_labs/patient_MRN0051_labs.csv",
+      "duplicate_path": "patients_labs/patient_MRN0051_labs.csv",
+      "sha256": "6f885fb7985695ffd76fa64d038730e01af268d37df57c86b2a4e9ae6992d9da"
+    },
+    {
+      "canonical_path": "patients_labs/patient_MRN0052_labs.csv",
+      "duplicate_path": "patients_labs/patient_MRN0052_labs.csv",
+      "sha256": "e2ff603f1186c1d65dca811794b75d0432db54543bdc47b54edd6294ff54e383"
+    },
+    {
+      "canonical_path": "patients_labs/patient_MRN0053_labs.csv",
+      "duplicate_path": "patients_labs/patient_MRN0053_labs.csv",
+      "sha256": "540458c639d5a5380ec5bf8fa261d116c76fe42b67b7c2972883a6ecd89a4ef5"
+    },
+    {
+      "canonical_path": "patients_labs/patient_MRN0054_labs.csv",
+      "duplicate_path": "patients_labs/patient_MRN0054_labs.csv",
+      "sha256": "3153bd526b45fc0eb82990a5f52abb02b6340bd8d87d2f03e8ed1ec1af4b7fdc"
+    },
+    {
+      "canonical_path": "patients_labs/patient_MRN0055_labs.csv",
+      "duplicate_path": "patients_labs/patient_MRN0055_labs.csv",
+      "sha256": "500119d9925d0e15e91911cc861b11ca6c6d504ba47f83fecb7bdcbdc57b5635"
+    },
+    {
+      "canonical_path": "patients_labs/patient_MRN0056_labs.csv",
+      "duplicate_path": "patients_labs/patient_MRN0056_labs.csv",
+      "sha256": "d2d38017772e3f706e86d6132d774a5314a21be4d67c541d56e6755657e3305e"
+    },
+    {
+      "canonical_path": "patients_labs/patient_MRN0057_labs.csv",
+      "duplicate_path": "patients_labs/patient_MRN0057_labs.csv",
+      "sha256": "10fd738377eef66e0a7f95e53b070c6bb7136ffb4edc1767baefb463e649e1a6"
+    },
+    {
+      "canonical_path": "patients_labs/patient_MRN0058_labs.csv",
+      "duplicate_path": "patients_labs/patient_MRN0058_labs.csv",
+      "sha256": "c766cdc5f5a2e5debe3e04e9922b44c216a580823a3fece64e5da8c86863e5a8"
+    },
+    {
+      "canonical_path": "patients_labs/patient_MRN0059_labs.csv",
+      "duplicate_path": "patients_labs/patient_MRN0059_labs.csv",
+      "sha256": "6dcedb9b19342e59338d64b73c8c152a2d8fd1703969bf2f4e4165f8c6189eef"
+    },
+    {
+      "canonical_path": "patients_labs/patient_MRN0060_labs.csv",
+      "duplicate_path": "patients_labs/patient_MRN0060_labs.csv",
+      "sha256": "96b8a8b6e4d61e3e47e7a1ff1656f2db8f0997039d7d3c8f14acebdca7cdfa30"
+    },
+    {
+      "canonical_path": "patients_labs/patient_MRN0061_labs.csv",
+      "duplicate_path": "patients_labs/patient_MRN0061_labs.csv",
+      "sha256": "ad7463bf936353143e8e668e554d1c685d1ab197713163ce87d884d3b0486e17"
+    },
+    {
+      "canonical_path": "patients_labs/patient_MRN0062_labs.csv",
+      "duplicate_path": "patients_labs/patient_MRN0062_labs.csv",
+      "sha256": "800ece601ead4ad1279de1f6b337c69f05cd1dd701a91da40759e28d17ce820d"
+    },
+    {
+      "canonical_path": "patients_labs/patient_MRN0063_labs.csv",
+      "duplicate_path": "patients_labs/patient_MRN0063_labs.csv",
+      "sha256": "00d2c555a525168f333b5a588fd49d98f7f0d4862c1b2db3b3b3e4e0d453141d"
+    },
+    {
+      "canonical_path": "patients_labs/patient_MRN0064_labs.csv",
+      "duplicate_path": "patients_labs/patient_MRN0064_labs.csv",
+      "sha256": "d4ef54c2e9f1002de16d8611a8544fb8d1c9d4bea27c0c1a0e266ee3fc754e09"
+    },
+    {
+      "canonical_path": "patients_labs/patient_MRN0065_labs.csv",
+      "duplicate_path": "patients_labs/patient_MRN0065_labs.csv",
+      "sha256": "bff85b254945559a43f75f8749a1c5c82239bd0dfab6842169b4632605367ef3"
+    },
+    {
+      "canonical_path": "patients_labs/patient_MRN0066_labs.csv",
+      "duplicate_path": "patients_labs/patient_MRN0066_labs.csv",
+      "sha256": "6dbf62a5b1d4408b9bf8899bfeb90d55480b3681ef99d1c60986a628fa49fc02"
+    },
+    {
+      "canonical_path": "patients_labs/patient_MRN0067_labs.csv",
+      "duplicate_path": "patients_labs/patient_MRN0067_labs.csv",
+      "sha256": "9832a5497953d383cf1d974734b2f0755e9906a835b8cf9aaff21efca74c70c3"
+    },
+    {
+      "canonical_path": "patients_labs/patient_MRN0068_labs.csv",
+      "duplicate_path": "patients_labs/patient_MRN0068_labs.csv",
+      "sha256": "f563bd79083308da930b799fb130da9490e0ef8c29d0d19ed6956b36b6bfd6f4"
+    },
+    {
+      "canonical_path": "patients_labs/patient_MRN0069_labs.csv",
+      "duplicate_path": "patients_labs/patient_MRN0069_labs.csv",
+      "sha256": "84e5133f389a6ec54413b11d218c09a1830ca0ef483ebbd4f654551860a6da95"
+    },
+    {
+      "canonical_path": "patients_labs/patient_MRN0070_labs.csv",
+      "duplicate_path": "patients_labs/patient_MRN0070_labs.csv",
+      "sha256": "68e76ef6c4f378a5897283572a39a00a86688574bbe9d72bda570020b97a3911"
+    },
+    {
+      "canonical_path": "patients_labs/patient_MRN0071_labs.csv",
+      "duplicate_path": "patients_labs/patient_MRN0071_labs.csv",
+      "sha256": "b05c752d4c1541cb0d5f921275a56391e12d9d1ccdd5dc222df1b8bf20575b59"
+    },
+    {
+      "canonical_path": "patients_labs/patient_MRN0072_labs.csv",
+      "duplicate_path": "patients_labs/patient_MRN0072_labs.csv",
+      "sha256": "a877b8430dba2078e865b903b861d52be98d8151ef02680f9228cef977bc1f0f"
+    },
+    {
+      "canonical_path": "patients_labs/patient_MRN0073_labs.csv",
+      "duplicate_path": "patients_labs/patient_MRN0073_labs.csv",
+      "sha256": "932e3f1c060faffd98a63b204db5e37bb6b424584dd8551af65af0ac643a3298"
+    },
+    {
+      "canonical_path": "patients_labs/patient_MRN0074_labs.csv",
+      "duplicate_path": "patients_labs/patient_MRN0074_labs.csv",
+      "sha256": "b88348e28a42a55b437e5fba3a7b25f7911a5986057f0b26226671606a976028"
+    },
+    {
+      "canonical_path": "patients_labs/patient_MRN0075_labs.csv",
+      "duplicate_path": "patients_labs/patient_MRN0075_labs.csv",
+      "sha256": "e5dbda98212071dcb5f3938c3b672dd1649691c78fec54864e708605b8291a95"
+    },
+    {
+      "canonical_path": "patients_labs/patient_MRN0076_labs.csv",
+      "duplicate_path": "patients_labs/patient_MRN0076_labs.csv",
+      "sha256": "d1aaaeb983e74f62921e444a04ee0be59c96ef2a3c2bd2fc78921e87d0578a42"
+    },
+    {
+      "canonical_path": "patients_labs/patient_MRN0077_labs.csv",
+      "duplicate_path": "patients_labs/patient_MRN0077_labs.csv",
+      "sha256": "25677aeff3e087edb0b81a5dad6b7b25258ad131af7a1b852c725d2c53d2353f"
+    },
+    {
+      "canonical_path": "patients_labs/patient_MRN0078_labs.csv",
+      "duplicate_path": "patients_labs/patient_MRN0078_labs.csv",
+      "sha256": "e2ceed3ea22907dac51899c6cb32024c655e13d24140262729fc65798f8910c5"
+    },
+    {
+      "canonical_path": "patients_labs/patient_MRN0079_labs.csv",
+      "duplicate_path": "patients_labs/patient_MRN0079_labs.csv",
+      "sha256": "57692ab73683a23fb3c0092c185a8571d97ba22b8bccc9cba1c3e7e5c0d02aed"
+    },
+    {
+      "canonical_path": "patients_labs/patient_MRN0080_labs.csv",
+      "duplicate_path": "patients_labs/patient_MRN0080_labs.csv",
+      "sha256": "0847daa5a9500af515d4611859a61712ba5b45f5fabec3c2fb460ad3f0883819"
+    },
+    {
+      "canonical_path": "patients_labs/patient_MRN0081_labs.csv",
+      "duplicate_path": "patients_labs/patient_MRN0081_labs.csv",
+      "sha256": "ba938556c7edb4c177dab3e99d18d34b659e3ec806e6f7e247d79818951fa3ba"
+    },
+    {
+      "canonical_path": "patients_labs/patient_MRN0082_labs.csv",
+      "duplicate_path": "patients_labs/patient_MRN0082_labs.csv",
+      "sha256": "497fc1732064168def6aa539984faf3d1e107d7b4a2fd8e208ff5ae7b2e41a8a"
+    },
+    {
+      "canonical_path": "patients_labs/patient_MRN0083_labs.csv",
+      "duplicate_path": "patients_labs/patient_MRN0083_labs.csv",
+      "sha256": "95dca552989042413deb4f91ffaea60e235d0223b66240dabfbf080fac945ce0"
+    },
+    {
+      "canonical_path": "patients_labs/patient_MRN0084_labs.csv",
+      "duplicate_path": "patients_labs/patient_MRN0084_labs.csv",
+      "sha256": "8c54b0de13b8b4be01908e0e009af2ac1237c7f784c17ff2ce88e90f79f35719"
+    },
+    {
+      "canonical_path": "patients_labs/patient_MRN0085_labs.csv",
+      "duplicate_path": "patients_labs/patient_MRN0085_labs.csv",
+      "sha256": "8e9a10db7f185a964ff0c4de65629dd98e693e293e36c06f7f010b2cb5bdb7f3"
+    },
+    {
+      "canonical_path": "patients_labs/patient_MRN0086_labs.csv",
+      "duplicate_path": "patients_labs/patient_MRN0086_labs.csv",
+      "sha256": "237440e0847857e23c4fb12c83f3311b65e65b3c028deb4bdd6d2bc61a5ae703"
+    },
+    {
+      "canonical_path": "patients_labs/patient_MRN0087_labs.csv",
+      "duplicate_path": "patients_labs/patient_MRN0087_labs.csv",
+      "sha256": "becb902f94ae2aa1f846b144100544fea36f97a3cf5e6db30ac1ff2410a272c1"
+    },
+    {
+      "canonical_path": "patients_labs/patient_MRN0088_labs.csv",
+      "duplicate_path": "patients_labs/patient_MRN0088_labs.csv",
+      "sha256": "923679ceb45cd87d04e8059f33c94f2c999d417af3ec2ea07eafbcb91f6bad5c"
+    },
+    {
+      "canonical_path": "patients_labs/patient_MRN0089_labs.csv",
+      "duplicate_path": "patients_labs/patient_MRN0089_labs.csv",
+      "sha256": "533ffad4c6dc88ca9b4a0314f6ecd7d08089f48fcf4710d86739adc36021b1e9"
+    },
+    {
+      "canonical_path": "patients_labs/patient_MRN0090_labs.csv",
+      "duplicate_path": "patients_labs/patient_MRN0090_labs.csv",
+      "sha256": "19fa08e5b33ae992489d8cdd77781cc7b4fe3a84817e436137ccce1dab7e8e65"
+    },
+    {
+      "canonical_path": "patients_labs/patient_MRN0091_labs.csv",
+      "duplicate_path": "patients_labs/patient_MRN0091_labs.csv",
+      "sha256": "a3953182afe0d8731e0bf54a08ed93f24eb5694475dbce8b961dd24b69744f8f"
+    },
+    {
+      "canonical_path": "patients_labs/patient_MRN0092_labs.csv",
+      "duplicate_path": "patients_labs/patient_MRN0092_labs.csv",
+      "sha256": "7caf0078f78cb24bb9bab811b182ee60ce60ed7beac372c2c735c4ab5cb37a31"
+    },
+    {
+      "canonical_path": "patients_labs/patient_MRN0093_labs.csv",
+      "duplicate_path": "patients_labs/patient_MRN0093_labs.csv",
+      "sha256": "c156e3007fec20b4032bcddf1deded0450bea5685f604c4a6b11b69f81af7919"
+    },
+    {
+      "canonical_path": "patients_labs/patient_MRN0094_labs.csv",
+      "duplicate_path": "patients_labs/patient_MRN0094_labs.csv",
+      "sha256": "9dac65355cb78ef8a508bb793a658ce486e290454571713ef0b63ee7154e268a"
+    },
+    {
+      "canonical_path": "patients_labs/patient_MRN0095_labs.csv",
+      "duplicate_path": "patients_labs/patient_MRN0095_labs.csv",
+      "sha256": "0d40c7e23744bf31589c0bbbcd81c20d403ca1123e01c98511210c9e2093b2ab"
+    },
+    {
+      "canonical_path": "patients_labs/patient_MRN0096_labs.csv",
+      "duplicate_path": "patients_labs/patient_MRN0096_labs.csv",
+      "sha256": "7a6013dbf8c516cf55f60614f0af2f918308df69dbfa5b74ef1987a49a530b51"
+    },
+    {
+      "canonical_path": "patients_labs/patient_MRN0097_labs.csv",
+      "duplicate_path": "patients_labs/patient_MRN0097_labs.csv",
+      "sha256": "4585ae244f4bc1bd30b888b988bdc27870b414b6de2428f6dc4e4255320fe7ca"
+    },
+    {
+      "canonical_path": "patients_labs/patient_MRN0098_labs.csv",
+      "duplicate_path": "patients_labs/patient_MRN0098_labs.csv",
+      "sha256": "7e4a507c833a3cb3bba35b1a11e0ce4372808afc4f0d17324e47a4f1706adbbc"
+    },
+    {
+      "canonical_path": "patients_labs/patient_MRN0099_labs.csv",
+      "duplicate_path": "patients_labs/patient_MRN0099_labs.csv",
+      "sha256": "c3975fcb4391311495dd3b6dd4ccf2b4b3eb2216a5470775dbc4dd3095582f8e"
+    },
+    {
+      "canonical_path": "patients_labs/patient_MRN0100_labs.csv",
+      "duplicate_path": "patients_labs/patient_MRN0100_labs.csv",
+      "sha256": "965c47f7be39efb4ab4eec36a771565e27ccb63e8b9f96c36ef9caf86652e376"
+    },
+    {
+      "canonical_path": "security/audit_logs.jsonl",
+      "duplicate_path": "security/audit_logs.jsonl",
+      "sha256": "dfd74ecdd0cfc673881b7b5b2d5e51cd04f27f62aac0a385f399f7ba73d046bd"
+    }
+  ]
+}

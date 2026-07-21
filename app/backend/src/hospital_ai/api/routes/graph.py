@@ -6,12 +6,12 @@ from datetime import UTC, datetime
 from typing import Optional
 
 from fastapi import APIRouter, Depends, Path, Request
-from sqlalchemy import select
+from sqlalchemy import and_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from hospital_ai.api.deps import get_current_user, get_request_ip, get_session
 from hospital_ai.core.security import new_trace_id
-from hospital_ai.db.models import DocumentChunk, Patient, User
+from hospital_ai.db.models import Document, DocumentChunk, DocumentPage, Patient, User
 from hospital_ai.schemas.graph import GraphDataResponse, GraphEdge, GraphMetadata, GraphNode, GraphPath, GraphPathStep
 from hospital_ai.services.graph_rag import GraphEntity, GraphRelation
 from hospital_ai.services.permissions import PermissionService
@@ -41,6 +41,7 @@ def _canonical_entity_info(name: str, entity_type: str) -> tuple[str, str, Optio
     # Lower case and strip to clean
     n = name.strip().lower()
     t = _map_entity_type_to_graph_type(entity_type)
+    lab_value_label = name.strip() if re.search(r"(?<![A-Za-z])\d", name) else None
 
     # Common normalization mapping
     # conditions
@@ -79,33 +80,25 @@ def _canonical_entity_info(name: str, entity_type: str) -> tuple[str, str, Optio
 
     # labs
     if _contains_token(n, "hba1c"):
-        val = name.strip() if "%" in name else None
-        return "HbA1c", "lab", val
+        return "HbA1c", "lab", lab_value_label
     if "potassium" in n or "kali" in n:
-        val = name.strip() if any(c.isdigit() for c in name) else None
-        return "Potassium", "lab", val
+        return "Potassium", "lab", lab_value_label
     if "hemoglobin" in n or _contains_token(n, "hgb"):
-        val = name.strip() if any(c.isdigit() for c in name) else None
-        return "Hemoglobin", "lab", val
+        return "Hemoglobin", "lab", lab_value_label
     if _contains_token(n, "bnp"):
-        val = name.strip() if any(c.isdigit() for c in name) else None
-        return "BNP", "lab", val
+        return "BNP", "lab", lab_value_label
     if "creatinine" in n:
-        val = name.strip() if any(c.isdigit() for c in name) else None
-        return "Creatinine", "lab", val
+        return "Creatinine", "lab", lab_value_label
     if "glucose" in n:
-        val = name.strip() if any(c.isdigit() for c in name) else None
-        return "Glucose", "lab", val
+        return "Glucose", "lab", lab_value_label
     if _contains_token(n, "ast"):
-        return "AST", "lab", None
+        return "AST", "lab", lab_value_label
     if _contains_token(n, "alt"):
-        return "ALT", "lab", None
+        return "ALT", "lab", lab_value_label
     if "sodium" in n or "natri" in n:
-        val = name.strip() if any(c.isdigit() for c in name) else None
-        return "Sodium", "lab", val
+        return "Sodium", "lab", lab_value_label
     if _contains_token(n, "egfr"):
-        val = name.strip() if any(c.isdigit() for c in name) else None
-        return "eGFR", "lab", val
+        return "eGFR", "lab", lab_value_label
 
     # encounters / procedures
     if "cabg" in n or "coronary artery bypass" in n:
@@ -142,10 +135,41 @@ async def get_patient_graph(
 
         raise NotFoundError("Patient not found.")
 
-    # Query graph entities scoped to this patient's document chunks
-    patient_chunk_ids = select(DocumentChunk.id).where(DocumentChunk.patient_id == patient_id).scalar_subquery()
+    # Only active, internally consistent patient evidence may back graph data.
+    active_patient_sources = (
+        select(
+            DocumentChunk.id.label("chunk_id"),
+            DocumentChunk.document_id.label("document_id"),
+        )
+        .join(
+            DocumentPage,
+            and_(
+                DocumentPage.id == DocumentChunk.page_id,
+                DocumentPage.document_id == DocumentChunk.document_id,
+            ),
+        )
+        .join(Document, Document.id == DocumentChunk.document_id)
+        .where(
+            DocumentChunk.patient_id == patient_id,
+            Document.patient_id == patient_id,
+            Document.status == "indexed",
+            DocumentChunk.deleted_at.is_(None),
+            DocumentPage.deleted_at.is_(None),
+            Document.deleted_at.is_(None),
+        )
+        .subquery()
+    )
     entity_result = await db.execute(
-        select(GraphEntity).where(GraphEntity.source_chunk_id.in_(patient_chunk_ids)).limit(200)
+        select(GraphEntity)
+        .join(
+            active_patient_sources,
+            and_(
+                GraphEntity.source_chunk_id == active_patient_sources.c.chunk_id,
+                GraphEntity.source_document_id == active_patient_sources.c.document_id,
+            ),
+        )
+        .order_by(GraphEntity.id)
+        .limit(200)
     )
     entities = list(entity_result.scalars().all())
 
@@ -172,14 +196,20 @@ async def get_patient_graph(
 
     # Query relations between these entities
     relation_result = await db.execute(
-        select(GraphRelation)
+        select(GraphRelation, active_patient_sources.c.document_id)
+        .join(active_patient_sources, GraphRelation.source_chunk_id == active_patient_sources.c.chunk_id)
         .where(
             GraphRelation.source_entity_id.in_(entity_id_set),
             GraphRelation.target_entity_id.in_(entity_id_set),
         )
+        .order_by(GraphRelation.id)
         .limit(500)
     )
-    relations = list(relation_result.scalars().all())
+    relation_rows = list(relation_result.all())
+    relations = [relation for relation, _ in relation_rows]
+    relation_provenance = {
+        relation.id: (source_document_id, relation.source_chunk_id) for relation, source_document_id in relation_rows
+    }
 
     # ── Build nodes ───────────────────────────────────────────────────
     nodes: list[GraphNode] = []
@@ -246,27 +276,19 @@ async def get_patient_graph(
 
     # ── Build edges ───────────────────────────────────────────────────
     edges: list[GraphEdge] = []
-    relation_provenance: dict[uuid.UUID, tuple[uuid.UUID, uuid.UUID]] = {}
-    entity_by_id = {entity.id: entity for entity in entities}
     for rel in relations:
         from_id = db_id_to_node_id.get(rel.source_entity_id)
         to_id = db_id_to_node_id.get(rel.target_entity_id)
         if from_id and to_id:
-            source_entity = entity_by_id[rel.source_entity_id]
-            target_entity = entity_by_id[rel.target_entity_id]
-            evidence_entity = next(
-                (entity for entity in (source_entity, target_entity) if entity.source_chunk_id == rel.source_chunk_id),
-                source_entity,
-            )
-            relation_provenance[rel.id] = (evidence_entity.source_document_id, rel.source_chunk_id)
+            source_document_id, source_chunk_id = relation_provenance[rel.id]
             edges.append(
                 GraphEdge(
                     id=f"edge-{rel.id}",
                     from_node=from_id,
                     to_node=to_id,
                     label=rel.relation_type,
-                    source_document_id=evidence_entity.source_document_id,
-                    source_chunk_id=rel.source_chunk_id,
+                    source_document_id=source_document_id,
+                    source_chunk_id=source_chunk_id,
                 )
             )
 

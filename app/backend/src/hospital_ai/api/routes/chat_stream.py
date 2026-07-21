@@ -4,6 +4,7 @@ Provides token-by-token streaming responses using the LLM provider
 abstraction layer, inspired by kotaemon's generator-based streaming.
 """
 
+import asyncio
 import json
 import logging
 import time
@@ -16,6 +17,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
+from starlette.background import BackgroundTask
 
 from hospital_ai.api.deps import get_current_user, get_request_ip, get_session
 from hospital_ai.api.limiter import limiter
@@ -28,7 +30,9 @@ from hospital_ai.schemas.chat import ChatRequest
 from hospital_ai.services.audit import AuditService
 from hospital_ai.services.chat import (
     PERMISSION_DENIED_CHAT_ANSWER,
+    SAFE_INJECTION_DETECTED_ANSWER,
     SAFE_NO_EVIDENCE_ANSWER,
+    SAFE_PHI_LEAK_BLOCKED_ANSWER,
     _select_pipeline,
     elapsed_ms,
 )
@@ -40,6 +44,7 @@ from hospital_ai.services.chat_utils import (
     meets_evidence_threshold,
 )
 from hospital_ai.services.embeddings import EmbeddingService
+from hospital_ai.services.guardrails import get_input_guardrail, get_output_guardrail
 from hospital_ai.services.llm import LLMManager
 from hospital_ai.services.llm.base import LLMMessage
 from hospital_ai.services.memory import MemoryService
@@ -70,6 +75,115 @@ class StreamCompletion:
 
 
 OnCompleteCallback = Callable[[StreamCompletion], Awaitable[None]]
+SAFE_EXTERNAL_SERVICE_ERROR_MESSAGE = "Stream failed because an external service was unavailable."
+
+
+class _StreamPersistenceError(Exception):
+    """Raised when a terminal stream outcome cannot be persisted."""
+
+
+_REFUSAL_REASONS = {
+    "input_guardrail_blocked",
+    "output_guardrail_blocked",
+    "missing_patient_read_scope",
+    "permission_denied",
+    "no_evidence",
+}
+_DENIED_REASONS = {
+    "input_guardrail_blocked",
+    "output_guardrail_blocked",
+    "missing_patient_read_scope",
+    "permission_denied",
+}
+
+
+def _stream_terminal_status(completion: StreamCompletion) -> str:
+    if completion.failure_reason in _REFUSAL_REASONS:
+        return "refused"
+    if completion.validation_status == "passed":
+        return "completed"
+    return "failed"
+
+
+def _stream_audit_outcome(completion: StreamCompletion) -> str:
+    if completion.failure_reason in _DENIED_REASONS:
+        return "denied"
+    if _stream_terminal_status(completion) == "failed":
+        return "failed"
+    return "allowed"
+
+
+async def _finalize_stream_outcome(
+    session: AsyncSession,
+    *,
+    ai_query: AiQuery,
+    completion: StreamCompletion,
+    user_id: UUID,
+    patient_id: Optional[UUID],
+    trace_id: str,
+    ip_address: Optional[str],
+    started: float,
+    evidence_count: int,
+    metadata: Optional[dict[str, Any]] = None,
+) -> None:
+    """Persist the terminal query and matching audit outcome exactly once."""
+    ai_query.answer = completion.answer
+    ai_query.status = _stream_terminal_status(completion)
+    ai_query.latency_ms = elapsed_ms(started)
+    audit_metadata = {
+        "result": ai_query.status,
+        "evidence_count": evidence_count,
+        "validation": completion.validation_status,
+        "reason": completion.failure_reason,
+    }
+    audit_metadata.update(metadata or {})
+    await AuditService(session).record(
+        actor_user_id=user_id,
+        action="chat.stream",
+        object_type="ai_query",
+        object_id=ai_query.id,
+        patient_id=patient_id,
+        outcome=_stream_audit_outcome(completion),
+        trace_id=trace_id,
+        ip_address=ip_address,
+        metadata=audit_metadata,
+    )
+
+
+async def _complete_stream(
+    on_complete: Optional[OnCompleteCallback],
+    completion: StreamCompletion,
+) -> None:
+    if on_complete is None:
+        return
+    try:
+        await on_complete(completion)
+    except asyncio.CancelledError:
+        raise
+    except Exception as exc:
+        raise _StreamPersistenceError from exc
+
+
+async def _best_effort_failed_completion(
+    on_complete: Optional[OnCompleteCallback],
+    *,
+    failure_reason: str,
+) -> None:
+    if on_complete is None:
+        return
+    try:
+        await on_complete(
+            StreamCompletion(
+                validation_status="failed",
+                answer="",
+                cited_evidence=[],
+                citations_payload=[],
+                confidence="low",
+                failure_reason=failure_reason,
+            )
+        )
+    except BaseException:
+        logger.exception("Failed to persist terminal stream state reason=%s", failure_reason)
 
 
 async def _generate_sse_events(
@@ -90,12 +204,24 @@ async def _generate_sse_events(
         data: {"type": "done", "query_id": "..."}
         data: {"type": "error", "message": "..."}
     """
+    completion_callback_active = False
+    # This transport currently executes one grounded generation path.  Do not
+    # claim a requested reasoning pipeline that was not actually run.
+    actual_pipeline = "chitchat" if pipeline_name == "chitchat" else "simple_qa"
+
+    async def complete_terminal(completion: StreamCompletion) -> None:
+        nonlocal completion_callback_active
+        completion_callback_active = True
+        await _complete_stream(on_complete, completion)
+        completion_callback_active = False
+
     try:
         # Get LLM with streaming
         llm_manager = LLMManager(settings)
         llm = llm_manager.get()
 
         if pipeline_name == "chitchat":
+            full_text = ""
             messages = [
                 LLMMessage(
                     role="system",
@@ -115,16 +241,35 @@ async def _generate_sse_events(
                     full_text = "Không có gì! Nếu bạn cần thêm thông tin gì khác, cứ hỏi tôi nhé."
                 else:
                     full_text = "Tôi là HMS AI Copilot, trợ lý thông tin bệnh viện của bạn. Tôi có thể giúp gì cho bạn?"
-                event = json.dumps({"type": "token", "content": full_text})
-                yield f"data: {event}\n\n"
             else:
-                try:
-                    async for token in llm.stream(messages):
-                        full_text += token
-                        event = json.dumps({"type": "token", "content": token})
-                        yield f"data: {event}\n\n"
-                except Exception:
-                    raise
+                async for token in llm.stream(messages):
+                    full_text += token
+
+            output_result = await get_output_guardrail().scan(question, full_text)
+            if output_result.blocked:
+                refusal_event = json.dumps({"type": "token", "content": SAFE_PHI_LEAK_BLOCKED_ANSWER})
+                yield f"data: {refusal_event}\n\n"
+                await complete_terminal(
+                    StreamCompletion(
+                        validation_status="failed",
+                        answer=SAFE_PHI_LEAK_BLOCKED_ANSWER,
+                        failure_reason="output_guardrail_blocked",
+                    ),
+                )
+                done_event = json.dumps(
+                    {
+                        "type": "done",
+                        "query_id": str(query_id),
+                        "validation": "failed",
+                        "reason": "output_guardrail_blocked",
+                        "confidence": "low",
+                    }
+                )
+                yield f"data: {done_event}\n\n"
+                return
+
+            event = json.dumps({"type": "token", "content": full_text})
+            yield f"data: {event}\n\n"
 
             # Emit metadata, done, and run on_complete
             meta_event = json.dumps(
@@ -136,6 +281,15 @@ async def _generate_sse_events(
                 }
             )
             yield f"data: {meta_event}\n\n"
+            await complete_terminal(
+                StreamCompletion(
+                    validation_status="passed",
+                    answer=full_text,
+                    cited_evidence=[],
+                    citations_payload=[],
+                    confidence="high",
+                ),
+            )
             done_event = json.dumps(
                 {
                     "type": "done",
@@ -144,23 +298,6 @@ async def _generate_sse_events(
                 }
             )
             yield f"data: {done_event}\n\n"
-
-            if on_complete is not None:
-                try:
-                    await on_complete(
-                        StreamCompletion(
-                            validation_status="passed",
-                            answer=full_text,
-                            cited_evidence=[],
-                            citations_payload=[],
-                            confidence="high",
-                        )
-                    )
-                except Exception:
-                    logger.exception(
-                        "Failed to persist chitchat stream query_id=%s",
-                        query_id,
-                    )
             return
 
         # Build prompt
@@ -185,6 +322,37 @@ async def _generate_sse_events(
         async for token in llm.stream(messages):
             full_text += token
 
+        output_result = await get_output_guardrail().scan(question, full_text)
+        if output_result.blocked:
+            logger.warning(
+                "Streaming answer blocked by output guardrail query_id=%s reason=%s",
+                query_id,
+                output_result.reason,
+            )
+            refusal_event = json.dumps({"type": "token", "content": SAFE_PHI_LEAK_BLOCKED_ANSWER})
+            yield f"data: {refusal_event}\n\n"
+            await complete_terminal(
+                StreamCompletion(
+                    validation_status="failed",
+                    answer=SAFE_PHI_LEAK_BLOCKED_ANSWER,
+                    cited_evidence=[],
+                    citations_payload=[],
+                    confidence="low",
+                    failure_reason="output_guardrail_blocked",
+                ),
+            )
+            done_event = json.dumps(
+                {
+                    "type": "done",
+                    "query_id": str(query_id),
+                    "validation": "failed",
+                    "reason": "output_guardrail_blocked",
+                    "confidence": "low",
+                }
+            )
+            yield f"data: {done_event}\n\n"
+            return
+
         citation_ids = extract_citation_ids(full_text)
         allowed_ids = {item.evidence_id for item in evidence}
 
@@ -199,6 +367,16 @@ async def _generate_sse_events(
             )
             refusal_event = json.dumps({"type": "token", "content": SAFE_NO_EVIDENCE_ANSWER})
             yield f"data: {refusal_event}\n\n"
+            await complete_terminal(
+                StreamCompletion(
+                    validation_status="failed",
+                    answer=SAFE_NO_EVIDENCE_ANSWER,
+                    cited_evidence=[],
+                    citations_payload=[],
+                    confidence="low",
+                    failure_reason="invalid_citation",
+                ),
+            )
             done_event = json.dumps(
                 {
                     "type": "done",
@@ -209,23 +387,6 @@ async def _generate_sse_events(
                 }
             )
             yield f"data: {done_event}\n\n"
-            if on_complete is not None:
-                try:
-                    await on_complete(
-                        StreamCompletion(
-                            validation_status="failed",
-                            answer=SAFE_NO_EVIDENCE_ANSWER,
-                            cited_evidence=[],
-                            citations_payload=[],
-                            confidence="low",
-                            failure_reason="invalid_citation",
-                        )
-                    )
-                except Exception:
-                    logger.exception(
-                        "Failed to persist failed-validation stream query_id=%s",
-                        query_id,
-                    )
             return
 
         # Validated — emit the full answer as token events so existing
@@ -263,13 +424,21 @@ async def _generate_sse_events(
             {
                 "type": "metadata",
                 "confidence": confidence,
-                "pipeline": pipeline_name,
+                "pipeline": actual_pipeline,
                 "model": llm.model_name(),
             }
         )
         yield f"data: {meta_event}\n\n"
 
-        # Done
+        await complete_terminal(
+            StreamCompletion(
+                validation_status="passed",
+                answer=full_text,
+                cited_evidence=cited_evidence,
+                citations_payload=citations,
+                confidence=confidence,
+            ),
+        )
         done_event = json.dumps(
             {
                 "type": "done",
@@ -279,31 +448,27 @@ async def _generate_sse_events(
         )
         yield f"data: {done_event}\n\n"
 
-        # Persist after successful streaming so the answer survives a reload.
-        if on_complete is not None:
-            try:
-                await on_complete(
-                    StreamCompletion(
-                        validation_status="passed",
-                        answer=full_text,
-                        cited_evidence=cited_evidence,
-                        citations_payload=citations,
-                        confidence=confidence,
-                    )
-                )
-            except Exception:
-                logger.exception(
-                    "Failed to persist completed stream query_id=%s",
-                    query_id,
-                )
-
+    except _StreamPersistenceError:
+        logger.exception("SSE chat completion persistence failed query_id=%s", query_id)
+        error_event = json.dumps(
+            {
+                "type": "error",
+                "code": "INTERNAL_ERROR",
+                "message": "Stream failed due to an internal error.",
+            }
+        )
+        yield f"data: {error_event}\n\n"
+    except asyncio.CancelledError:
+        if not completion_callback_active:
+            await _best_effort_failed_completion(on_complete, failure_reason="cancelled")
+        raise
     except AppError as exc:
-        # Sanitized client-facing error (preserves AppError contract).
+        await _best_effort_failed_completion(on_complete, failure_reason="app_error")
         error_event = json.dumps(
             {
                 "type": "error",
                 "code": exc.code,
-                "message": exc.message,
+                "message": SAFE_EXTERNAL_SERVICE_ERROR_MESSAGE,
             }
         )
         yield f"data: {error_event}\n\n"
@@ -311,6 +476,7 @@ async def _generate_sse_events(
         # F-SEC-004: Never leak internal exception strings to the client.
         # Log the full trace server-side, return a generic message.
         logger.exception("SSE chat stream failed unexpectedly query_id=%s", query_id)
+        await _best_effort_failed_completion(on_complete, failure_reason="internal_error")
         error_event = json.dumps(
             {
                 "type": "error",
@@ -354,11 +520,20 @@ async def _apply_stream_completion(
         logger.warning("AiQuery missing during stream persistence id=%s", ai_query_id)
         return
 
-    ai_query.answer = completion.answer
-    ai_query.status = "completed" if completion.validation_status == "passed" else "failed"
-    ai_query.latency_ms = elapsed_ms(started)
+    await _finalize_stream_outcome(
+        session,
+        ai_query=ai_query,
+        completion=completion,
+        user_id=user_id,
+        patient_id=patient_id,
+        trace_id=trace_id,
+        ip_address=ip_address,
+        started=started,
+        evidence_count=len(completion.cited_evidence),
+        metadata={"thread_id": str(thread_id) if thread_id else None},
+    )
 
-    for index, item in enumerate(evidence, start=1):
+    for index, item in enumerate(completion.cited_evidence, start=1):
         method = (item.metadata or {}).get("retrieval_method", retrieval_mode)
         session.add(
             RetrievedEvidence(
@@ -412,28 +587,11 @@ async def _apply_stream_completion(
         if thread is not None:
             thread.last_message_at = assistant_message.created_at
 
-    await AuditService(session).record(
-        actor_user_id=user_id,
-        action="chat.stream",
-        object_type="ai_query",
-        object_id=ai_query.id,
-        patient_id=patient_id,
-        outcome="allowed" if completion.validation_status == "passed" else "failed",
-        trace_id=trace_id,
-        ip_address=ip_address,
-        metadata={
-            "result": ai_query.status,
-            "evidence_count": len(evidence),
-            "validation": completion.validation_status,
-            "thread_id": str(thread_id) if thread_id else None,
-        },
-    )
-
     if thread_id is not None and completion.validation_status == "passed":
         from hospital_ai.core.config import get_settings
 
         settings = get_settings()
-        source_ids = [str(item.document_id) for item in evidence]
+        source_ids = [str(item.document_id) for item in completion.cited_evidence]
         await MemoryService(session, settings).update_session_memory(
             thread_id=thread_id,
             patient_id=patient_id,
@@ -455,6 +613,28 @@ async def _persist_stream_completion(
     async with session_factory() as session:
         await _apply_stream_completion(session, **kwargs)
         await session.commit()
+
+
+async def _ensure_stream_terminal(
+    completion_state: dict[str, bool],
+    on_complete: OnCompleteCallback,
+) -> None:
+    """Finalize a stream whose body never reached its completion callback."""
+    if completion_state["finished"]:
+        return
+    try:
+        await on_complete(
+            StreamCompletion(
+                validation_status="failed",
+                answer="",
+                cited_evidence=[],
+                citations_payload=[],
+                confidence="low",
+                failure_reason="disconnected",
+            )
+        )
+    except BaseException:
+        logger.exception("Unable to finalize an interrupted chat stream")
 
 
 def _log_telemetry(
@@ -523,17 +703,20 @@ async def chat_stream(
         has_scope = True
 
     if not has_scope:
-        ai_query.status = "denied"
-        await AuditService(session).record(
-            actor_user_id=current_user.id,
-            action="chat.stream",
-            object_type="ai_query",
-            object_id=ai_query.id,
+        await _finalize_stream_outcome(
+            session,
+            ai_query=ai_query,
+            completion=StreamCompletion(
+                validation_status="failed",
+                answer=PERMISSION_DENIED_CHAT_ANSWER,
+                failure_reason="missing_patient_read_scope",
+            ),
+            user_id=current_user.id,
             patient_id=effective_patient_id,
-            outcome="denied",
             trace_id=trace_id,
             ip_address=get_request_ip(request),
-            metadata={"reason": "missing_patient_read_scope"},
+            started=started,
+            evidence_count=0,
         )
         await session.commit()
 
@@ -544,6 +727,40 @@ async def chat_stream(
             yield f"data: {event}\n\n"
 
         return StreamingResponse(denied_stream(), media_type="text/event-stream")
+
+    input_result = await get_input_guardrail().scan(payload.question)
+    if input_result.blocked:
+        await _finalize_stream_outcome(
+            session,
+            ai_query=ai_query,
+            completion=StreamCompletion(
+                validation_status="failed",
+                answer=SAFE_INJECTION_DETECTED_ANSWER,
+                failure_reason="input_guardrail_blocked",
+            ),
+            user_id=current_user.id,
+            patient_id=effective_patient_id,
+            trace_id=trace_id,
+            ip_address=get_request_ip(request),
+            started=started,
+            evidence_count=0,
+            metadata={"details": input_result.reason},
+        )
+        await session.commit()
+
+        async def input_refusal_stream() -> AsyncIterator[str]:
+            token = json.dumps({"type": "token", "content": SAFE_INJECTION_DETECTED_ANSWER})
+            yield f"data: {token}\n\n"
+            done = json.dumps(
+                {
+                    "type": "done",
+                    "query_id": str(ai_query.id),
+                    "confidence": "low",
+                }
+            )
+            yield f"data: {done}\n\n"
+
+        return StreamingResponse(input_refusal_stream(), media_type="text/event-stream")
 
     # Gather conversation history
     conversation_history: list = []
@@ -568,28 +785,20 @@ async def chat_stream(
         retrieval_svc = RetrievalService(session)
         retrieval_mode = settings.retrieval_mode
         if retrieval_mode in ("bm25", "hybrid"):
-            evidence = (
-                await retrieval_svc.hybrid_search(
-                    user_id=current_user.id,
-                    patient_id=effective_patient_id,
-                    query_embedding=query_embedding,
-                    query_text=payload.question,
-                    top_k=payload.top_k,
-                    retrieval_mode=retrieval_mode,
-                )
-                if effective_patient_id
-                else []
+            evidence = await retrieval_svc.hybrid_search(
+                user_id=current_user.id,
+                patient_id=effective_patient_id,
+                query_embedding=query_embedding,
+                query_text=payload.question,
+                top_k=payload.top_k,
+                retrieval_mode=retrieval_mode,
             )
         else:
-            evidence = (
-                await retrieval_svc.search(
-                    user_id=current_user.id,
-                    patient_id=effective_patient_id,
-                    query_embedding=query_embedding,
-                    top_k=payload.top_k,
-                )
-                if effective_patient_id
-                else []
+            evidence = await retrieval_svc.search(
+                user_id=current_user.id,
+                patient_id=effective_patient_id,
+                query_embedding=query_embedding,
+                top_k=payload.top_k,
             )
 
         # ── Graph RAG Enrichment ─────────────────────────────────────────────
@@ -625,12 +834,24 @@ async def chat_stream(
         if not evidence or not meets_evidence_threshold(evidence[0], retrieval_mode, settings.evidence_threshold):
             is_blocked = blocked_chunk_count > 0
             answer_text = PERMISSION_DENIED_CHAT_ANSWER if is_blocked else SAFE_NO_EVIDENCE_ANSWER
-            result_status = "denied" if is_blocked else "no_evidence"
-            outcome = "denied" if is_blocked else "allowed"
-
-            ai_query.status = result_status
-            ai_query.answer = answer_text
-            ai_query.latency_ms = elapsed_ms(started)
+            failure_reason = "permission_denied" if is_blocked else "no_evidence"
+            completion = StreamCompletion(
+                validation_status="failed",
+                answer=answer_text,
+                failure_reason=failure_reason,
+            )
+            await _finalize_stream_outcome(
+                session,
+                ai_query=ai_query,
+                completion=completion,
+                user_id=current_user.id,
+                patient_id=effective_patient_id,
+                trace_id=trace_id,
+                ip_address=get_request_ip(request),
+                started=started,
+                evidence_count=0,
+            )
+            result_status = ai_query.status
 
             # Persist a thread message pair for the no-evidence outcome too,
             # otherwise the user sees an answer in the UI that vanishes on
@@ -673,17 +894,6 @@ async def chat_stream(
                 if thread is not None:
                     thread.last_message_at = datetime.now(UTC)
 
-            await AuditService(session).record(
-                actor_user_id=current_user.id,
-                action="chat.stream",
-                object_type="ai_query",
-                object_id=ai_query.id,
-                patient_id=effective_patient_id,
-                outcome=outcome,
-                trace_id=trace_id,
-                ip_address=get_request_ip(request),
-                metadata={"result": result_status, "evidence_count": 0},
-            )
             await session.commit()
 
             _log_telemetry(
@@ -709,31 +919,53 @@ async def chat_stream(
     await session.commit()
 
     # Capture state for the post-stream persistence callback. The callback
-    # uses a fresh session opened from the global factory because the
-    # request-bound `session` may be closed by the time streaming finishes.
-    session_factory = get_session_factory()
+    # uses a fresh session bound to the same engine because the request-bound
+    # `session` may be closed by the time streaming finishes.
+    session_factory = (
+        async_sessionmaker(session.bind, expire_on_commit=False) if session.bind is not None else get_session_factory()
+    )
     captured_user_id = current_user.id
     captured_patient_id = effective_patient_id
     captured_thread_id = payload.thread_id
     captured_query_id = ai_query.id
     captured_question = payload.question
     captured_ip = get_request_ip(request)
+    completion_state = {"finished": False}
 
     async def _on_complete(completion: StreamCompletion) -> None:
-        await _persist_stream_completion(
-            session_factory,
-            ai_query_id=captured_query_id,
-            user_id=captured_user_id,
-            patient_id=captured_patient_id,
-            thread_id=captured_thread_id,
-            question=captured_question,
-            evidence=evidence,
-            retrieval_mode=retrieval_mode,
-            trace_id=trace_id,
-            ip_address=captured_ip,
-            started=started,
-            completion=completion,
-        )
+        persistence_kwargs = {
+            "ai_query_id": captured_query_id,
+            "user_id": captured_user_id,
+            "patient_id": captured_patient_id,
+            "thread_id": captured_thread_id,
+            "question": captured_question,
+            "evidence": evidence,
+            "retrieval_mode": retrieval_mode,
+            "trace_id": trace_id,
+            "ip_address": captured_ip,
+            "started": started,
+            "completion": completion,
+        }
+        try:
+            await _persist_stream_completion(session_factory, **persistence_kwargs)
+        except BaseException as exc:
+            fallback_completion = StreamCompletion(
+                validation_status="failed",
+                answer="",
+                cited_evidence=[],
+                citations_payload=[],
+                confidence="low",
+                failure_reason="cancelled" if isinstance(exc, asyncio.CancelledError) else "persistence_error",
+            )
+            await _apply_stream_completion(
+                session,
+                **{
+                    **persistence_kwargs,
+                    "completion": fallback_completion,
+                },
+            )
+            await session.commit()
+            raise
 
         _log_telemetry(
             settings=settings,
@@ -742,6 +974,7 @@ async def chat_stream(
             blocked_count=blocked_chunk_count,
             failure_reason=completion.failure_reason,
         )
+        completion_state["finished"] = True
 
     return StreamingResponse(
         _generate_sse_events(
@@ -759,4 +992,5 @@ async def chat_stream(
             "Connection": "keep-alive",
             "X-Accel-Buffering": "no",
         },
+        background=BackgroundTask(_ensure_stream_terminal, completion_state, _on_complete),
     )

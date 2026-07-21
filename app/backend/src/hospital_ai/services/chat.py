@@ -183,6 +183,32 @@ class ChatService:
                     raise
             t_gen_ms = int((time.perf_counter() - t_gen_start) * 1000)
 
+            output_result = await get_output_guardrail().scan(question, ans_text)
+            if output_result.blocked:
+                ai_query.status = "denied"
+                ai_query.answer = SAFE_PHI_LEAK_BLOCKED_ANSWER
+                ai_query.latency_ms = elapsed_ms(started)
+                await AuditService(self.session).record(
+                    actor_user_id=user.id,
+                    action="chat.ask",
+                    object_type="ai_query",
+                    object_id=ai_query.id,
+                    patient_id=patient_id,
+                    outcome="denied",
+                    trace_id=trace_id,
+                    ip_address=ip_address,
+                    metadata={"reason": "output_guardrail_blocked", "details": output_result.reason},
+                )
+                await self.session.commit()
+                return ChatResponse(
+                    query_id=ai_query.id,
+                    answer=SAFE_PHI_LEAK_BLOCKED_ANSWER,
+                    citations=[],
+                    confidence="low",
+                    thread_id=thread_id,
+                    pipeline="blocked",
+                )
+
             ai_query.status = "completed"
             ai_query.answer = ans_text
             ai_query.latency_ms = elapsed_ms(started)
@@ -283,23 +309,22 @@ class ChatService:
             retrieval_mode = "hybrid" if random.random() > 0.5 else "vector"
 
         evidence = []
-        if patient_id:
-            if retrieval_mode in ("bm25", "hybrid"):
-                evidence = await retrieval_svc.hybrid_search(
-                    user_id=user.id,
-                    patient_id=patient_id,
-                    query_embedding=query_embedding,
-                    query_text=question,
-                    top_k=top_k,
-                    retrieval_mode=retrieval_mode,
-                )
-            else:
-                evidence = await retrieval_svc.search(
-                    user_id=user.id,
-                    patient_id=patient_id,
-                    query_embedding=query_embedding,
-                    top_k=top_k,
-                )
+        if retrieval_mode in ("bm25", "hybrid"):
+            evidence = await retrieval_svc.hybrid_search(
+                user_id=user.id,
+                patient_id=patient_id,
+                query_embedding=query_embedding,
+                query_text=question,
+                top_k=top_k,
+                retrieval_mode=retrieval_mode,
+            )
+        else:
+            evidence = await retrieval_svc.search(
+                user_id=user.id,
+                patient_id=patient_id,
+                query_embedding=query_embedding,
+                top_k=top_k,
+            )
 
         # ── Graph RAG: boost evidence with entity relationships ──────
         try:
@@ -432,7 +457,8 @@ class ChatService:
             raise ExternalServiceError("Generated answer contains citations not in the retrieved evidence.")
 
         # Store retrieved evidence records with trace data
-        for index, item in enumerate(evidence, start=1):
+        cited_evidence = [item for item in evidence if item.evidence_id in answer_citation_ids]
+        for index, item in enumerate(cited_evidence, start=1):
             retrieval_method = item.metadata.get("retrieval_method", retrieval_mode)
             rerank_method = item.metadata.get("rerank_method", "")
             rerank_score_val = item.metadata.get("rerank_original_score")

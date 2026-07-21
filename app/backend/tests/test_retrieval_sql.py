@@ -14,17 +14,40 @@ from tests.conftest import create_indexed_document
 
 def test_retrieval_sql_does_not_repeat_patient_permission_filter():
     sql = PERMISSION_FILTERED_RETRIEVAL_SQL.lower()
-    assert ACTIVE_PATIENT_PERMISSION_SQL.lower() not in sql
-    assert "from patient_permissions" not in sql
-    assert "pp.user_id = :user_id" not in sql
-    assert "where exists (select 1 from allowed)" not in sql
+    assert ACTIVE_PATIENT_PERMISSION_SQL.lower() in sql
+    assert "from patient_permissions" in sql
+    assert "pp.user_id = :user_id" in sql
+    assert "where exists (select 1 from allowed)" in sql
     assert "c.patient_id = :patient_id" in sql
     assert "d.patient_id = :patient_id" in sql
     assert "p.id = c.page_id and p.document_id = c.document_id" in sql
+    assert "or c.patient_id is null" not in sql
+    assert "or d.patient_id is null" not in sql
     assert "c.embedding is not null" in sql
     assert "c.deleted_at is null" in sql
     assert "d.deleted_at is null" in sql
     assert "p.deleted_at is null" in sql
+
+
+def test_forward_bm25_migration_creates_tsvector_and_gin_index():
+    from pathlib import Path
+
+    migrations = Path(__file__).parents[1] / "alembic" / "versions"
+    forward_migrations = [
+        path.read_text(encoding="utf-8").lower()
+        for path in migrations.glob("*.py")
+        if "search_vector" in path.read_text(encoding="utf-8").lower() and path.name != "0006_add_phase4_tables.py"
+    ]
+    assert any("tsvector" in migration and "gin" in migration for migration in forward_migrations)
+
+
+def test_bm25_migration_downgrade_restores_parent_text_schema_contract():
+    from pathlib import Path
+
+    migration = (Path(__file__).parents[1] / "alembic" / "versions" / "0009_repair_search_vector_gin.py").read_text()
+    assert "def downgrade" in migration
+    assert "ALTER COLUMN search_vector TYPE text" in migration
+    assert "DROP TRIGGER" in migration
 
 
 def test_role_scope_matching_is_exact_after_normalization():
@@ -277,6 +300,67 @@ async def test_authorized_patient_chunks_are_retrieved(session_and_settings):
     assert len(results) == 1
     assert results[0].evidence_id == "E1"
     assert results[0].document_title == "Alice discharge"
+
+
+@pytest.mark.asyncio
+async def test_global_knowledge_is_runtime_quarantined(session_and_settings):
+    session, _ = session_and_settings
+    await create_indexed_document(
+        session,
+        patient_id=None,
+        uploaded_by=DOCTOR_ID,
+        title="Unreviewed Guideline",
+        content="Unreviewed public guidance.",
+    )
+
+    service = RetrievalService(session)
+    assert (
+        await service.search(
+            user_id=DOCTOR_ID,
+            patient_id=None,
+            query_embedding=deterministic_embedding("guidance"),
+            top_k=5,
+        )
+        == []
+    )
+    assert (
+        await service.hybrid_search(
+            user_id=DOCTOR_ID,
+            patient_id=None,
+            query_embedding=deterministic_embedding("guidance"),
+            query_text="guidance",
+            top_k=5,
+        )
+        == []
+    )
+
+
+@pytest.mark.asyncio
+async def test_patient_linked_excludes_global_knowledge(session_and_settings):
+    session, _ = session_and_settings
+    await create_indexed_document(
+        session,
+        patient_id=None,
+        uploaded_by=DOCTOR_ID,
+        title="Unreviewed Guideline",
+        content="Shared discharge guidance must stay quarantined.",
+    )
+    await create_indexed_document(
+        session,
+        patient_id=PATIENT_ALICE_ID,
+        uploaded_by=DOCTOR_ID,
+        title="Alice Discharge Note",
+        content="Alice-specific discharge guidance.",
+    )
+
+    results = await RetrievalService(session).search(
+        user_id=DOCTOR_ID,
+        patient_id=PATIENT_ALICE_ID,
+        query_embedding=deterministic_embedding("discharge guidance"),
+        top_k=5,
+    )
+
+    assert [result.document_title for result in results] == ["Alice Discharge Note"]
 
 
 @pytest.mark.asyncio

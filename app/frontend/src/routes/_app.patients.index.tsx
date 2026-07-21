@@ -16,11 +16,22 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { StatusBadge } from "@/components/hms/StatusBadge";
 import { AccessRequestDialog } from "@/components/hms/AccessRequestDialog";
+import { AddPatientDialog } from "@/components/hms/AddPatientDialog";
 import { Bell, Bookmark, Filter, Lock, MessageSquare, Search } from "lucide-react";
 import { searchPatients } from "@/lib/api/patients";
 import { useState, useEffect } from "react";
 import { useSession } from "@/lib/session";
+import { canCreatePatient } from "@/lib/rbac";
 import { useQuery, keepPreviousData } from "@tanstack/react-query";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Label } from "@/components/ui/label";
 
 export const Route = createFileRoute("/_app/patients/")({
   head: () => ({
@@ -50,6 +61,8 @@ function calculateAge(dob: string | null): number | string {
 
 function PatientsPage() {
   const [q, setQ] = useState("");
+  const [selectedStatus, setSelectedStatus] = useState<string>("all");
+  const [selectedDept, setSelectedDept] = useState<string>("all");
   const [debouncedQ, setDebouncedQ] = useState("");
   const { session } = useSession();
 
@@ -68,7 +81,13 @@ function PatientsPage() {
     placeholderData: keepPreviousData,
   });
 
-  const filtered = searchResponse?.items || [];
+  let filtered = searchResponse?.items || [];
+  if (selectedStatus !== "all") {
+    filtered = filtered.filter((p) => p.status.toLowerCase() === selectedStatus.toLowerCase());
+  }
+  if (selectedDept !== "all") {
+    filtered = filtered.filter((p) => p.department?.toLowerCase() === selectedDept.toLowerCase());
+  }
 
   return (
     <AppShell
@@ -80,13 +99,26 @@ function PatientsPage() {
             </div>
             <ul className="space-y-1 text-sm">
               {[
-                "My cardiology panel",
-                "ICU watch list",
-                "Pending access requests",
-                "Discharged this week",
+                { name: "My cardiology panel", dept: "Cardiology", status: "all" },
+                { name: "ICU watch list", dept: "ICU", status: "watch" },
+                { name: "Pending access requests", dept: "all", status: "all", query: "Pending" },
+                { name: "Discharged this week", dept: "all", status: "stable" },
               ].map((f) => (
-                <li key={f}>
-                  <button className="w-full rounded-md p-2 text-left hover:bg-muted">{f}</button>
+                <li key={f.name}>
+                  <button
+                    onClick={() => {
+                      setSelectedDept(f.dept);
+                      setSelectedStatus(f.status);
+                      if (f.query !== undefined) {
+                        setQ(f.query);
+                      } else {
+                        setQ("");
+                      }
+                    }}
+                    className="w-full rounded-md p-2 text-left hover:bg-muted font-medium"
+                  >
+                    {f.name}
+                  </button>
                 </li>
               ))}
             </ul>
@@ -96,18 +128,24 @@ function PatientsPage() {
               <Bell className="h-4 w-4 text-warning" /> Alerts
             </div>
             <ul className="space-y-2 text-sm">
-              <li className="rounded-md border border-destructive/20 bg-destructive/5 p-2">
-                <p className="font-medium text-destructive">Raman, P. — BP 162/98</p>
-                <p className="text-xs text-muted-foreground">3 min ago · Cardiology · 4N</p>
-              </li>
-              <li className="rounded-md border border-warning/20 bg-warning/5 p-2">
-                <p className="font-medium">Petersen, N. — Lactate 4.1</p>
-                <p className="text-xs text-muted-foreground">22 min ago · ICU · 2W</p>
-              </li>
-              <li className="rounded-md border p-2">
-                <p className="font-medium">3 pending access requests</p>
-                <p className="text-xs text-muted-foreground">Awaiting your review</p>
-              </li>
+              <Link to="/patients/$patientId" params={{ patientId: "p-004" }} className="block">
+                <li className="rounded-md border border-destructive/20 bg-destructive/5 p-2 hover:bg-destructive/10 transition-colors cursor-pointer">
+                  <p className="font-medium text-destructive">Raman, P. — BP 162/98</p>
+                  <p className="text-xs text-muted-foreground">3 min ago · Cardiology · 4N</p>
+                </li>
+              </Link>
+              <Link to="/patients/$patientId" params={{ patientId: "p-011" }} className="block">
+                <li className="rounded-md border border-warning/20 bg-warning/5 p-2 hover:bg-warning/10 transition-colors cursor-pointer">
+                  <p className="font-medium">Petersen, N. — Lactate 4.1</p>
+                  <p className="text-xs text-muted-foreground">22 min ago · ICU · 2W</p>
+                </li>
+              </Link>
+              <Link to="/access-requests" className="block">
+                <li className="rounded-md border p-2 hover:bg-muted transition-colors cursor-pointer">
+                  <p className="font-medium">3 pending access requests</p>
+                  <p className="text-xs text-muted-foreground">Awaiting your review</p>
+                </li>
+              </Link>
             </ul>
           </Card>
         </div>
@@ -128,10 +166,74 @@ function PatientsPage() {
         }
         actions={
           <>
-            <Button variant="outline" size="sm">
-              <Filter className="mr-1 h-4 w-4" /> Filter
-            </Button>
-            <Button size="sm">Add patient</Button>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  variant={
+                    selectedStatus !== "all" || selectedDept !== "all" ? "default" : "outline"
+                  }
+                  size="sm"
+                >
+                  <Filter className="mr-1 h-4 w-4" /> Filter{" "}
+                  {(selectedStatus !== "all" || selectedDept !== "all") && "•"}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-80 space-y-4">
+                <div className="space-y-2">
+                  <h4 className="font-medium leading-none">Filter Patients</h4>
+                  <p className="text-xs text-muted-foreground">Narrow down the patient roster.</p>
+                </div>
+                <div className="grid gap-2">
+                  <div className="grid grid-cols-3 items-center gap-4">
+                    <Label htmlFor="status-filter">Status</Label>
+                    <Select value={selectedStatus} onValueChange={setSelectedStatus}>
+                      <SelectTrigger id="status-filter" className="col-span-2 h-8">
+                        <SelectValue placeholder="All" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All</SelectItem>
+                        <SelectItem value="stable">Stable</SelectItem>
+                        <SelectItem value="active">Active</SelectItem>
+                        <SelectItem value="watch">Watch</SelectItem>
+                        <SelectItem value="critical">Critical</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="grid grid-cols-3 items-center gap-4">
+                    <Label htmlFor="dept-filter">Department</Label>
+                    <Select value={selectedDept} onValueChange={setSelectedDept}>
+                      <SelectTrigger id="dept-filter" className="col-span-2 h-8">
+                        <SelectValue placeholder="All" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All</SelectItem>
+                        <SelectItem value="Cardiology">Cardiology</SelectItem>
+                        <SelectItem value="ICU">ICU</SelectItem>
+                        <SelectItem value="Internal Medicine">Internal Medicine</SelectItem>
+                        <SelectItem value="Emergency">Emergency</SelectItem>
+                        <SelectItem value="Pharmacy">Pharmacy</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                {(selectedStatus !== "all" || selectedDept !== "all") && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="w-full text-xs h-8"
+                    onClick={() => {
+                      setSelectedStatus("all");
+                      setSelectedDept("all");
+                    }}
+                  >
+                    Clear Filters
+                  </Button>
+                )}
+              </PopoverContent>
+            </Popover>
+            {session && canCreatePatient(session.role) && (
+              <AddPatientDialog trigger={<Button size="sm">Add patient</Button>} />
+            )}
           </>
         }
       />
@@ -177,7 +279,13 @@ function PatientsPage() {
               filtered.map((p) => (
                 <TableRow key={p.id}>
                   <TableCell>
-                    <div className="font-medium">{p.full_name}</div>
+                    <Link
+                      to="/patients/$patientId"
+                      params={{ patientId: p.id }}
+                      className="font-medium hover:underline text-primary block"
+                    >
+                      {p.full_name}
+                    </Link>
                     <div className="text-xs text-muted-foreground">{calculateAge(p.dob)}</div>
                   </TableCell>
                   <TableCell className="font-mono text-xs">{p.mrn}</TableCell>

@@ -3,10 +3,12 @@ import type { Role } from "./rbac";
 import {
   canAccess,
   canAccessPatientTab,
+  canCreatePatient,
   firstAllowedPatientTab,
   forbiddenReason,
   landingFor,
   PATIENT_TABS,
+  ROLES,
 } from "./rbac";
 
 describe("canAccess", () => {
@@ -109,6 +111,15 @@ describe("canAccessPatientTab", () => {
   it("returns false for tabs not included in the role's PATIENT_TABS", () => {
     expect(canAccessPatientTab("front_desk", "medications")).toBe(false);
     expect(canAccessPatientTab("rn", "labs")).toBe(false);
+  });
+});
+
+describe("canCreatePatient", () => {
+  it("allows only front desk to register patients", () => {
+    expect(canCreatePatient("front_desk")).toBe(true);
+    for (const role of ROLES.map((entry) => entry.id).filter((role) => role !== "front_desk")) {
+      expect(canCreatePatient(role)).toBe(false);
+    }
   });
 });
 

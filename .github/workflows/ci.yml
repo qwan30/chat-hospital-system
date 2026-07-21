@@ -179,7 +179,7 @@ jobs:
         id: venv-cache
         with:
           path: app/backend/.venv
-          key: venv-${{ runner.os }}-${{ hashFiles('app/backend/pyproject.toml') }}
+          key: venv-backend-test-${{ runner.os }}-${{ hashFiles('app/backend/pyproject.toml') }}
 
       - name: Install dependencies
         if: steps.venv-cache.outputs.cache-hit != 'true'
@@ -265,7 +265,7 @@ jobs:
         id: venv-cache
         with:
           path: app/backend/.venv
-          key: venv-${{ runner.os }}-${{ hashFiles('app/backend/pyproject.toml') }}
+          key: venv-backend-migration-${{ runner.os }}-${{ hashFiles('app/backend/pyproject.toml') }}
 
       - name: Install dependencies
         if: steps.venv-cache.outputs.cache-hit != 'true'
@@ -333,7 +333,7 @@ jobs:
         id: venv-cache
         with:
           path: app/backend/.venv
-          key: venv-${{ runner.os }}-${{ hashFiles('app/backend/pyproject.toml') }}
+          key: venv-rag-eval-${{ runner.os }}-${{ hashFiles('app/backend/pyproject.toml') }}
 
       - name: Install dependencies
         if: steps.venv-cache.outputs.cache-hit != 'true'
@@ -446,12 +446,8 @@ jobs:
       # E2E tests need a running backend (not yet in CI infra).
       # Run them as advisory — they don't block merge.
       # TODO: Add backend service container to this job (gh#123).
-      - name: E2E tests (Playwright, Chromium — advisory)
-        continue-on-error: true
-        env:
-          VITE_API_URL: http://localhost:8000/api/v1
-        run: |
-          bunx playwright test --project=chromium || true
+      - name: E2E tests deferred (backend unavailable)
+        run: echo "Playwright E2E is deferred until the CI job provides a backend service (gh#123)."
 
       # ── Artifacts ──
       - name: Upload Playwright reports

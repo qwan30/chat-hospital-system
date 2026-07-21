@@ -3,8 +3,8 @@ from sqlalchemy import select
 
 from hospital_ai.core.errors import PermissionDeniedError
 from hospital_ai.db.migrations import DOCTOR_ID, PATIENT_ALICE_ID, PATIENT_BOB_ID
-from hospital_ai.db.models import AiQuery, DocumentChunk, User
-from hospital_ai.services.chat import ChatService, citations_are_valid
+from hospital_ai.db.models import AiQuery, DocumentChunk, RetrievedEvidence, User
+from hospital_ai.services.chat import SAFE_PHI_LEAK_BLOCKED_ANSWER, ChatService, citations_are_valid
 from hospital_ai.services.chat_utils import parse_prompt_evidence
 from hospital_ai.services.graph_rag import index_chunk_entities
 from tests.conftest import create_indexed_document
@@ -144,6 +144,62 @@ async def test_chat_chitchat_bypass_rag(session_and_settings):
     assert response.pipeline == "chitchat"
     assert "Xin chào" in response.answer or "hello" in response.answer.lower()
     assert response.citations == []
+
+
+@pytest.mark.asyncio
+async def test_chat_chitchat_applies_output_guardrail(session_and_settings, monkeypatch):
+    class Blocked:
+        async def scan(self, *_args):
+            from hospital_ai.services.guardrails import GuardrailResult
+
+            return GuardrailResult(blocked=True, reason="test")
+
+    monkeypatch.setattr("hospital_ai.services.chat.get_output_guardrail", lambda: Blocked())
+    session, settings = session_and_settings
+    doctor = await session.get(User, DOCTOR_ID)
+    response = await ChatService(session, settings).answer(
+        user=doctor, patient_id=PATIENT_ALICE_ID, question="Hello!", top_k=1, trace_id="guard", ip_address="127.0.0.1"
+    )
+    assert response.answer == SAFE_PHI_LEAK_BLOCKED_ANSWER
+    assert response.pipeline == "blocked"
+
+
+@pytest.mark.asyncio
+async def test_chat_persists_only_cited_retrieved_evidence(session_and_settings, monkeypatch):
+    from hospital_ai.services.reasoning import DISCLAIMER, ReasoningResult
+
+    session, settings = session_and_settings
+    doctor = await session.get(User, DOCTOR_ID)
+    await create_indexed_document(
+        session, patient_id=PATIENT_ALICE_ID, uploaded_by=DOCTOR_ID, title="Cited", content="Cited evidence."
+    )
+    await create_indexed_document(
+        session, patient_id=PATIENT_ALICE_ID, uploaded_by=DOCTOR_ID, title="Uncited", content="Uncited evidence."
+    )
+
+    async def only_first(self, _pipeline, _question, evidence, _history):
+        return ReasoningResult(
+            answer="Only the first item is used [E1].",
+            citations=[],
+            confidence="high",
+            disclaimer=DISCLAIMER,
+            pipeline="simple_qa",
+        )
+
+    monkeypatch.setattr(ChatService, "_run_pipeline", only_first)
+    response = await ChatService(session, settings).answer(
+        user=doctor,
+        patient_id=PATIENT_ALICE_ID,
+        question="What evidence is available?",
+        top_k=2,
+        trace_id="cited-only",
+        ip_address="127.0.0.1",
+    )
+    rows = (
+        await session.scalars(select(RetrievedEvidence).where(RetrievedEvidence.ai_query_id == response.query_id))
+    ).all()
+    assert len(rows) == 1
+    assert rows[0].citation_label == "E1"
 
 
 @pytest.mark.asyncio

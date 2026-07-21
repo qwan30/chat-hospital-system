@@ -9,6 +9,8 @@ class GraphNode(BaseModel):
     type: str
     label: str
     sublabel: Optional[str] = None
+    source_document_id: Optional[UUID] = None
+    source_chunk_id: Optional[UUID] = None
     x: int = 0
     y: int = 0
 
@@ -18,6 +20,8 @@ class GraphEdge(BaseModel):
     from_node: str
     to_node: str
     label: str
+    source_document_id: Optional[UUID] = None
+    source_chunk_id: Optional[UUID] = None
 
 
 class GraphPathStep(BaseModel):
@@ -25,6 +29,8 @@ class GraphPathStep(BaseModel):
     to_node: str
     relation: str
     evidence: str
+    source_document_id: Optional[UUID] = None
+    source_chunk_id: Optional[UUID] = None
 
 
 class GraphPath(BaseModel):

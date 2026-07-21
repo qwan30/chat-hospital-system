@@ -15,7 +15,7 @@ from hospital_ai.api.routes.access_requests import (
 from hospital_ai.api.routes.patients import get_patient_overview
 from hospital_ai.core.errors import PermissionDeniedError
 from hospital_ai.db.migrations import ADMIN_ID, DOCTOR_ID, PATIENT_BOB_ID
-from hospital_ai.db.models import AuditLog, User
+from hospital_ai.db.models import AccessRequest, AuditLog, User
 
 
 def _request(method: str = "POST", path: str = "/") -> Request:
@@ -113,6 +113,30 @@ async def test_access_request_validation():
 
 
 @pytest.mark.asyncio
+async def test_access_request_unknown_patient_is_a_not_found_without_persisting_request(session_and_settings):
+    """Reject a nonexistent patient before any approval workflow side effect."""
+    session, settings = session_and_settings
+    doctor = await session.get(User, DOCTOR_ID)
+    settings.hms_sync_enabled = False
+    unknown_patient = __import__("uuid").uuid4()
+
+    with pytest.raises(HTTPException) as exc_info:
+        await create_access_request(
+            payload=AccessRequestCreate(
+                patient_id=unknown_patient,
+                justification="Clinical review requires the patient chart for a consult.",
+            ),
+            request=_request(path="/api/v1/access-requests"),
+            session=session,
+            current_user=doctor,
+            settings=settings,
+        )
+
+    assert exc_info.value.status_code == 404
+    assert (await session.scalars(select(AccessRequest).where(AccessRequest.patient_id == unknown_patient))).all() == []
+
+
+@pytest.mark.asyncio
 async def test_get_and_list_access_requests(session_and_settings):
     session, settings = session_and_settings
     doctor = await session.get(User, DOCTOR_ID)
@@ -129,9 +153,10 @@ async def test_get_and_list_access_requests(session_and_settings):
         settings=settings,
     )
 
-    # List endpoints
-    with pytest.raises(HTTPException):
-        await list_access_requests(session=session, current_user=doctor)
+    # List endpoints - non-admin can list and sees their own request
+    requests_list_doctor = await list_access_requests(session=session, current_user=doctor)
+    assert len(requests_list_doctor) == 1
+    assert requests_list_doctor[0].id == res.id
 
     requests_list = await list_access_requests(session=session, current_user=admin)
     assert len(requests_list) >= 1

@@ -1,4 +1,5 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
+import { useState } from "react";
 import { AppShell } from "@/components/shell/AppShell";
 import { PageHeader } from "@/components/hms/PageHeader";
 import { Card } from "@/components/ui/card";
@@ -98,6 +99,7 @@ const toneColor: Record<Event["tone"], string> = {
 };
 
 function TimelinePage() {
+  const [expandedIndex, setExpandedIndex] = useState<number | null>(null);
   return (
     <AppShell>
       <PageHeader
@@ -108,9 +110,13 @@ function TimelinePage() {
       <Card className="p-6">
         <ol className="relative space-y-6 border-l border-border pl-6">
           {events.map((e, i) => (
-            <li key={i} className="relative">
+            <li
+              key={i}
+              className="relative cursor-pointer hover:bg-muted/30 p-2 rounded-lg transition-colors"
+              onClick={() => setExpandedIndex(expandedIndex === i ? null : i)}
+            >
               <span
-                className={`absolute -left-[34px] flex h-7 w-7 items-center justify-center rounded-full border-2 border-background ${toneColor[e.tone]}`}
+                className={`absolute -left-[34px] top-3 flex h-7 w-7 items-center justify-center rounded-full border-2 border-background ${toneColor[e.tone]}`}
               >
                 <e.icon className="h-3.5 w-3.5" />
               </span>
@@ -119,6 +125,38 @@ function TimelinePage() {
                 <h3 className="text-sm font-semibold">{e.title}</h3>
               </div>
               <p className="mt-1 text-sm text-muted-foreground">{e.body}</p>
+              {expandedIndex === i && (
+                <div className="mt-2 text-xs border-t pt-2 space-y-1 text-muted-foreground">
+                  <div>
+                    <strong>Event ID:</strong> ev-00{i + 1}
+                  </div>
+                  <div>
+                    <strong>Outcome:</strong> success
+                  </div>
+                  <div>
+                    <strong>Trace ID:</strong> tr-99{i + 1}
+                  </div>
+                  {e.body.includes("Vance, E.") || e.body.includes("Eleanor Vance") ? (
+                    <Link
+                      to="/patients/$patientId"
+                      params={{ patientId: "p-001" }}
+                      className="inline-block mt-1 font-semibold text-primary hover:underline"
+                      onClick={(ev) => ev.stopPropagation()}
+                    >
+                      View Patient Eleanor Vance →
+                    </Link>
+                  ) : e.body.includes("Raman, P.") ? (
+                    <Link
+                      to="/patients/$patientId"
+                      params={{ patientId: "p-004" }}
+                      className="inline-block mt-1 font-semibold text-primary hover:underline"
+                      onClick={(ev) => ev.stopPropagation()}
+                    >
+                      View Patient Priya Raman →
+                    </Link>
+                  ) : null}
+                </div>
+              )}
             </li>
           ))}
         </ol>

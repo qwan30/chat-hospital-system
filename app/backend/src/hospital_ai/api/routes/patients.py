@@ -1,14 +1,16 @@
 import logging
 import uuid
 from datetime import UTC, date, datetime
-from typing import Optional
+from typing import Literal, Optional
 
 from fastapi import APIRouter, Depends, Query, Request
+from pydantic import BaseModel, Field, validator
 from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from hospital_ai.api.deps import get_current_user, get_request_ip, get_session
 from hospital_ai.core.config import Settings, get_settings
+from hospital_ai.core.errors import PermissionDeniedError
 from hospital_ai.core.security import PATIENT_READ_SCOPES, new_trace_id, sanitize_audit_query
 from hospital_ai.db.models import Document, DocumentChunk, DocumentPage, Patient, User
 from hospital_ai.schemas.documents import DocumentRead
@@ -62,6 +64,57 @@ async def search_patients(
     )
     await session.commit()
     return PatientSearchResponse(items=patients)
+
+
+class PatientCreate(BaseModel):
+    mrn: str = Field(min_length=5, max_length=64, regex=r"^[A-Z0-9-]+$")
+    full_name: str = Field(min_length=1, max_length=255)
+    dob: Optional[date] = None
+    department: Optional[str] = Field(default=None, max_length=128)
+    status: Literal["active", "stable", "watch", "critical"] = "active"
+
+    @validator("full_name", pre=True)
+    def strip_full_name(cls, value: object) -> object:
+        if isinstance(value, str):
+            stripped = value.strip()
+            if not stripped:
+                raise ValueError("full_name must not be blank")
+            return stripped
+        return value
+
+
+@router.post("", response_model=PatientRead)
+async def create_patient(
+    payload: PatientCreate,
+    request: Request,
+    session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(get_current_user),
+) -> Patient:
+    if current_user.role not in {"records_staff", "admin"}:
+        raise PermissionDeniedError("Only records staff or admins can register patients.")
+
+    patient = Patient(
+        mrn=payload.mrn,
+        full_name=payload.full_name,
+        dob=payload.dob,
+        department=payload.department,
+        status=payload.status,
+    )
+    session.add(patient)
+    await session.flush()
+
+    await AuditService(session).record(
+        actor_user_id=current_user.id,
+        action="patient.create",
+        object_type="patient",
+        object_id=patient.id,
+        outcome="allowed",
+        trace_id=new_trace_id(),
+        ip_address=get_request_ip(request),
+        metadata={"source": "patient_registration"},
+    )
+    await session.commit()
+    return patient
 
 
 @router.get("/{patient_id}", response_model=PatientRead)
@@ -399,6 +452,10 @@ async def get_patient_medications(
     stmt = (
         select(DocumentChunk, Document)
         .join(Document, Document.id == DocumentChunk.document_id)
+        .join(
+            DocumentPage,
+            (DocumentPage.id == DocumentChunk.page_id) & (DocumentPage.document_id == DocumentChunk.document_id),
+        )
         .where(
             DocumentChunk.patient_id == patient_id,
             Document.patient_id == patient_id,
@@ -406,6 +463,7 @@ async def get_patient_medications(
             Document.status == "indexed",
             DocumentChunk.deleted_at.is_(None),
             Document.deleted_at.is_(None),
+            DocumentPage.deleted_at.is_(None),
         )
         .order_by(Document.created_at.desc())
         .limit(50)
@@ -508,6 +566,10 @@ async def get_patient_labs(
     stmt = (
         select(DocumentChunk, Document)
         .join(Document, Document.id == DocumentChunk.document_id)
+        .join(
+            DocumentPage,
+            (DocumentPage.id == DocumentChunk.page_id) & (DocumentPage.document_id == DocumentChunk.document_id),
+        )
         .where(
             DocumentChunk.patient_id == patient_id,
             Document.patient_id == patient_id,
@@ -515,6 +577,7 @@ async def get_patient_labs(
             Document.status == "indexed",
             DocumentChunk.deleted_at.is_(None),
             Document.deleted_at.is_(None),
+            DocumentPage.deleted_at.is_(None),
         )
         .order_by(Document.created_at.desc())
         .limit(50)
@@ -564,7 +627,16 @@ async def get_patient_labs(
     seen_analytes: set[str] = set()
     deduped_labs: list[PatientLabItem] = []
     for lab in labs:
-        key = lab.analyte.lower()
+        # Do not collapse clinically opposing observations (e.g. high then
+        # low glucose) merely because they share an analyte name.
+        key = "|".join(
+            [
+                lab.analyte.strip().casefold(),
+                (lab.value or "").strip().casefold(),
+                (lab.flag or "").strip().casefold(),
+                (lab.collected or "").strip(),
+            ]
+        )
         if key not in seen_analytes:
             seen_analytes.add(key)
             deduped_labs.append(lab)

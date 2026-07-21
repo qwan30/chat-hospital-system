@@ -13,34 +13,34 @@ except ImportError:
     print("Install openpyxl: pip install openpyxl")
     raise
 
-# ── Realistic Vietnamese name components ────────────────────────
+# ── English/Unsigned Vietnamese name components ────────────────────────
 SURNAMES = [
-    "Nguyễn", "Trần", "Lê", "Phạm", "Hoàng", "Huỳnh", "Phan", "Vũ", "Võ",
-    "Đặng", "Bùi", "Đỗ", "Hồ", "Ngô", "Dương", "Lý", "Trịnh", "Đinh",
-    "Mai", "Cao", "Tô", "Đoàn", "Trương", "Lâm", "Hà", "Thái", "Tạ",
+    "Nguyen", "Tran", "Le", "Pham", "Hoang", "Huynh", "Phan", "Vu", "Vo",
+    "Dang", "Bui", "Do", "Ho", "Ngo", "Duong", "Ly", "Trinh", "Dinh",
+    "Mai", "Cao", "To", "Doan", "Truong", "Lam", "Ha", "Thai", "Ta",
 ]
 
-MALE_MIDDLES = ["Văn", "Đức", "Minh", "Quang", "Thanh", "Hữu", "Xuân", "Đình", "Quốc", "Tuấn"]
-FEMALE_MIDDLES = ["Thị", "Thanh", "Minh", "Ngọc", "Mỹ", "Hồng", "Thu", "Diệu", "Kim", "Phương"]
+MALE_MIDDLES = ["Van", "Duc", "Minh", "Quang", "Thanh", "Huu", "Xuan", "Dinh", "Quoc", "Tuan"]
+FEMALE_MIDDLES = ["Thi", "Thanh", "Minh", "Ngoc", "My", "Hong", "Thu", "Dieu", "Kim", "Phuong"]
 
 MALE_NAMES = [
-    "An", "Bình", "Cường", "Dũng", "Đạt", "Hải", "Hiếu", "Hùng", "Khang",
-    "Khánh", "Long", "Lợi", "Mạnh", "Nam", "Nghĩa", "Phong", "Phú",
-    "Quân", "Quý", "Sơn", "Tài", "Thành", "Thắng", "Thiện", "Thọ",
-    "Tiến", "Toàn", "Trí", "Trung", "Tuấn", "Vinh",
+    "An", "Binh", "Cuong", "Dung", "Dat", "Hai", "Hieu", "Hung", "Khang",
+    "Khanh", "Long", "Loi", "Manh", "Nam", "Nghia", "Phong", "Phu",
+    "Quan", "Quy", "Son", "Tai", "Thanh", "Thang", "Thien", "Tho",
+    "Tien", "Toan", "Tri", "Trung", "Tuan", "Vinh",
 ]
 
 FEMALE_NAMES = [
-    "Anh", "Bích", "Chi", "Diệp", "Dung", "Giang", "Hà", "Hạnh", "Hoa",
-    "Hương", "Lan", "Linh", "Loan", "Ly", "Mai", "Nga", "Ngân", "Nhung",
-    "Phượng", "Quỳnh", "Tâm", "Thảo", "Thúy", "Thương", "Trang", "Tuyết",
-    "Uyên", "Vân", "Yến", "Xuân",
+    "Anh", "Bich", "Chi", "Diep", "Dung", "Giang", "Ha", "Hanh", "Hoa",
+    "Huong", "Lan", "Linh", "Loan", "Ly", "Mai", "Nga", "Ngan", "Nhung",
+    "Phuong", "Quynh", "Tam", "Thao", "Thuy", "Thuong", "Trang", "Tuyet",
+    "Uyen", "Van", "Yen", "Xuan",
 ]
 
 DEPARTMENTS = [
-    "Nội Tim Mạch", "Nội Tổng Quát", "Ngoại Thần Kinh",
-    "Sản", "Nhi", "Hồi Sức Cấp Cứu", "Ung Bướu",
-    "Chấn Thương Chỉnh Hình",
+    "Cardiology", "Internal Medicine", "Neurology",
+    "Obstetrics & Gynecology", "Pediatrics", "Emergency Medicine", "Oncology",
+    "Orthopedics",
 ]
 
 STATUS_WEIGHTS = [("active", 85), ("discharged", 10), ("deceased", 5)]

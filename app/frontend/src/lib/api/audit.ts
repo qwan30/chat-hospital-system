@@ -2,13 +2,15 @@ import { apiFetch } from "../api-client";
 
 export interface AuditLog {
   id: string;
-  user_id: string;
+  actor_user_id: string | null;
   action: string;
-  resource_type: string;
-  resource_id: string;
+  object_type: string;
+  object_id: string | null;
   patient_id?: string | null;
   outcome: string;
-  reason?: string | null;
+  trace_id?: string | null;
+  ip_address?: string | null;
+  metadata?: Record<string, unknown> | null;
   created_at: string;
 }
 

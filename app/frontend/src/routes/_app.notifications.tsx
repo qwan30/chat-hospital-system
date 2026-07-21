@@ -4,7 +4,10 @@ import { PageHeader } from "@/components/hms/PageHeader";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Loader2 } from "lucide-react";
 import { formatRelative } from "@/lib/format";
+import { useQuery } from "@tanstack/react-query";
+import { listAccessRequests } from "@/lib/api/access-requests";
 export interface AppNotification {
   id: string;
   kind: "access" | "ocr" | "sync" | "ai" | "system";
@@ -13,9 +16,12 @@ export interface AppNotification {
   ts: string;
   read: boolean;
   href?: string;
+  /** If set, resolve href from the nth real access request returned by the API */
+  accessRequestIndex?: number;
 }
 
-export const notifications: AppNotification[] = [
+// Static notification list — access-request hrefs are resolved dynamically from the API
+export const staticNotifications: AppNotification[] = [
   {
     id: "n-001",
     kind: "access",
@@ -23,7 +29,9 @@ export const notifications: AppNotification[] = [
     body: "Amelia Brooks (MRN-48994) — granted by Admin J. Kim",
     ts: "2026-06-12T13:24:00Z",
     read: false,
-    href: "/access-requests/ar-002",
+    // href resolved at runtime from real access-request IDs (index 1)
+    href: undefined,
+    accessRequestIndex: 1,
   },
   {
     id: "n-002",
@@ -32,7 +40,7 @@ export const notifications: AppNotification[] = [
     body: "Echo-Report-2026-06-11.pdf indexed (12 chunks)",
     ts: "2026-06-12T13:02:00Z",
     read: false,
-    href: "/documents/d-04",
+    href: "/documents",
   },
   {
     id: "n-003",
@@ -59,7 +67,9 @@ export const notifications: AppNotification[] = [
     body: "Yuki Tanaka (MRN-48577) — your justification under review",
     ts: "2026-06-12T10:20:00Z",
     read: true,
-    href: "/access-requests/ar-001",
+    // href resolved at runtime from real access-request IDs (index 0)
+    href: undefined,
+    accessRequestIndex: 0,
   },
   {
     id: "n-006",
@@ -69,15 +79,6 @@ export const notifications: AppNotification[] = [
     ts: "2026-06-12T03:14:00Z",
     read: true,
     href: "/integrations/vector-index",
-  },
-  {
-    id: "n-007",
-    kind: "ai",
-    title: "High Risk Clinical Alert",
-    body: "CDSS detected severe Bleeding Risk due to new Aspirin prescription. Cross-referenced with patient history.",
-    ts: "2026-07-12T02:15:00Z",
-    read: false,
-    href: "/patients/11111111-1111-1111-1111-111111111111",
   },
 ];
 import { KeyRound, ScanText, RotateCw, Sparkles, Cog } from "lucide-react";
@@ -105,22 +106,46 @@ const toneFor: Record<string, string> = {
 
 function NotificationsPage() {
   const [filter, setFilter] = useState<"all" | "unread">("all");
-  const list = filter === "unread" ? notifications.filter((n) => !n.read) : notifications;
+  const [items, setItems] = useState<AppNotification[]>(staticNotifications);
+
+  // Fetch real access-request IDs from the backend to resolve notification hrefs
+  const { data: accessRequests, isLoading: arLoading } = useQuery({
+    queryKey: ["access-requests"],
+    queryFn: listAccessRequests,
+    staleTime: 60_000,
+  });
+
+  // Build resolved notifications: replace accessRequestIndex with a real href
+  const resolvedItems = items.map((n) => {
+    if (n.accessRequestIndex !== undefined && accessRequests) {
+      const ar = accessRequests[n.accessRequestIndex];
+      return ar && ar.id
+        ? { ...n, href: `/access-requests/${ar.id}` }
+        : { ...n, href: "/access-requests" };
+    }
+    return n;
+  });
+
+  const markAllAsRead = () => {
+    setItems((prev) => prev.map((n) => ({ ...n, read: true })));
+  };
+
+  const list = filter === "unread" ? resolvedItems.filter((n) => !n.read) : resolvedItems;
   return (
     <AppShell>
       <PageHeader
         title="Notifications"
         description="Access requests, OCR jobs, sync events, and AI safety signals."
         actions={
-          <Button variant="outline" size="sm">
+          <Button variant="outline" size="sm" onClick={markAllAsRead}>
             Mark all as read
           </Button>
         }
         chips={
           <>
-            <Badge variant="secondary">{notifications.length} total</Badge>
+            <Badge variant="secondary">{items.length} total</Badge>
             <Badge variant="secondary" className="bg-destructive/10 text-destructive">
-              {notifications.filter((n) => !n.read).length} unread
+              {items.filter((n) => !n.read).length} unread
             </Badge>
           </>
         }
@@ -165,10 +190,12 @@ function NotificationsPage() {
               {n.href ? (
                 <Link
                   to={n.href as any}
-                  className="text-xs font-semibold text-primary hover:underline"
+                  className="shrink-0 text-xs font-semibold text-primary hover:underline"
                 >
                   Open →
                 </Link>
+              ) : n.accessRequestIndex !== undefined && arLoading ? (
+                <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin text-muted-foreground" />
               ) : null}
             </div>
           );

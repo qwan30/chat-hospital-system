@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { AppShell } from "@/components/shell/AppShell";
 import { PageHeader } from "@/components/hms/PageHeader";
 import { Card } from "@/components/ui/card";
@@ -401,8 +401,8 @@ function ScreensIndex() {
             <ul className="divide-y">
               {g.items.map((it) => (
                 <li key={it.id}>
-                  <a
-                    href={it.href}
+                  <Link
+                    to={it.href}
                     className="flex items-center justify-between gap-3 px-4 py-2.5 text-sm hover:bg-accent"
                   >
                     <span className="flex items-center gap-3 min-w-0">
@@ -414,7 +414,7 @@ function ScreensIndex() {
                     >
                       {it.priority}
                     </span>
-                  </a>
+                  </Link>
                 </li>
               ))}
             </ul>

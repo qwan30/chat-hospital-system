@@ -25,7 +25,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { useSession } from "@/lib/session";
-import { ROLE_LABEL, ROLE_TONE, landingFor, type Role } from "@/lib/rbac";
+import { ROLE_LABEL, ROLE_TONE, landingFor, canAccess, type Role } from "@/lib/rbac";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -263,9 +263,11 @@ export function Topbar() {
             <DropdownMenuItem asChild>
               <Link to="/settings/security">Security</Link>
             </DropdownMenuItem>
-            <DropdownMenuItem asChild>
-              <Link to="/audit">My audit trail</Link>
-            </DropdownMenuItem>
+            {canAccess(role, "/audit") && (
+              <DropdownMenuItem asChild>
+                <Link to="/audit">My audit trail</Link>
+              </DropdownMenuItem>
+            )}
             <DropdownMenuItem asChild>
               <Link to="/help/shortcuts">
                 <Keyboard className="mr-2 h-3.5 w-3.5" />

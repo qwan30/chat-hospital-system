@@ -14,7 +14,7 @@ from hospital_ai.api.limiter import limiter
 from hospital_ai.core.config import Settings, get_settings
 from hospital_ai.core.errors import ExternalServiceError
 from hospital_ai.core.security import new_trace_id
-from hospital_ai.db.models import AccessRequest, PatientPermission, User
+from hospital_ai.db.models import AccessRequest, Patient, PatientPermission, User
 from hospital_ai.services.audit import AuditService
 from hospital_ai.services.hms_connector import HmsApiClient
 
@@ -69,6 +69,13 @@ async def create_access_request(
     settings: Settings = Depends(get_settings),
 ) -> AccessRequestResponse:
     trace_id = new_trace_id()
+
+    # Resolve the target before handing the request to an external approval
+    # system or creating audit/workflow rows. This prevents unknown identifiers
+    # from becoming an identity oracle through downstream failures.
+    patient = await session.get(Patient, payload.patient_id)
+    if patient is None or patient.deleted_at is not None:
+        raise HTTPException(status_code=404, detail="Patient not found")
 
     # P1-2: When HMS sync is enabled, route the access request through
     # the HMS for audit and approval BEFORE granting local permission.
@@ -127,14 +134,16 @@ async def list_access_requests(
     session: AsyncSession = Depends(get_session),
     current_user: User = Depends(get_current_user),
 ) -> list[AccessRequestListItem]:
-    if current_user.role not in ("admin", "security"):
-        raise HTTPException(status_code=403, detail="Not authorized to list requests")
-
     stmt = (
         select(AccessRequest)
         .options(joinedload(AccessRequest.patient), joinedload(AccessRequest.user))
         .order_by(desc(AccessRequest.created_at))
     )
+
+    # Admin and security see all requests; other roles see only their own.
+    if current_user.role not in ("admin", "security"):
+        stmt = stmt.where(AccessRequest.user_id == current_user.id)
+
     result = await session.execute(stmt)
     requests = result.scalars().all()
 
@@ -161,8 +170,6 @@ async def get_access_request(
     session: AsyncSession = Depends(get_session),
     current_user: User = Depends(get_current_user),
 ) -> AccessRequestDetail:
-    if current_user.role not in ("admin", "security"):
-        raise HTTPException(status_code=403, detail="Not authorized to view requests")
 
     stmt = (
         select(AccessRequest)
@@ -176,6 +183,10 @@ async def get_access_request(
 
     if not req:
         raise HTTPException(status_code=404, detail="Request not found")
+
+    # Non-admin/security users may only view their own requests.
+    if current_user.role not in ("admin", "security") and req.user_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Not authorized to view this request")
 
     return AccessRequestDetail(
         id=req.id,

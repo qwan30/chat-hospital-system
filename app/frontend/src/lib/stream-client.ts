@@ -40,6 +40,18 @@ export type StreamCallback = (event: {
   message?: string;
 }) => void;
 
+/**
+ * Map p-001..p-012 shorthand slugs to their backend UUIDs.
+ * Mirrors the same mapping used in apiFetch() (api-client.ts).
+ */
+function mapSlugToUuid(value: string | undefined): string | undefined {
+  if (!value) return value;
+  return value.replace(/\b(p-0(0[1-9]|1[0-2]))\b/g, (match) => {
+    const num = parseInt(match.substring(2), 10);
+    return "20000000-0000-0000-0000-" + num.toString().padStart(12, "0");
+  });
+}
+
 export async function streamChat(
   apiUrl: string,
   token: string | null,
@@ -71,6 +83,15 @@ export async function streamChat(
     headers["Authorization"] = `Bearer ${token}`;
   }
 
+  // Resolve any p-001..p-012 slugs to backend UUIDs (same as apiFetch does)
+  const resolvedPatientId = mapSlugToUuid(body.patient_id);
+  const resolvedContextPatientId = mapSlugToUuid(body.context?.patient_id);
+
+  // Build the resolved context object
+  const resolvedContext = body.context
+    ? { ...body.context, patient_id: resolvedContextPatientId }
+    : undefined;
+
   const internalController = new AbortController();
   const onExternalAbort = () => internalController.abort();
   if (abortSignal) {
@@ -97,8 +118,8 @@ export async function streamChat(
       signal: internalController.signal,
       body: JSON.stringify({
         message: body.message || body.question,
-        context: body.context || undefined,
-        patient_id: body.patient_id || undefined,
+        context: resolvedContext,
+        patient_id: resolvedPatientId || undefined,
         thread_id: body.thread_id || undefined,
         top_k: body.top_k ?? 5,
         pipeline: body.pipeline || "default",
@@ -126,6 +147,9 @@ export async function streamChat(
     };
 
     while (true) {
+      if (abortSignal?.aborted) {
+        throw new DOMException("The user aborted a request.", "AbortError");
+      }
       const { done, value } = await reader.read();
       if (done) break;
 

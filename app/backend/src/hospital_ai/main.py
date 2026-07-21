@@ -82,7 +82,7 @@ def create_app(settings: Optional[Settings] = None) -> FastAPI:
         Configured FastAPI application instance.
     """
     active_settings = settings or get_settings()
-    configure_logging()
+    configure_logging(log_format=active_settings.log_format)
     setup_metrics(active_settings)
     setup_telemetry()
 
@@ -93,6 +93,28 @@ def create_app(settings: Optional[Settings] = None) -> FastAPI:
     )
     app.state.limiter = limiter
     app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
+    # Instrument FastAPI with OpenTelemetry if enabled
+    if active_settings.otel_enabled:
+        try:
+            from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
+
+            FastAPIInstrumentor().instrument_app(app)
+        except Exception as e:
+            import logging
+
+            logging.getLogger(__name__).warning("Failed to instrument FastAPI with OpenTelemetry: %s", e)
+
+    # Instrument FastAPI with Prometheus if enabled
+    if active_settings.prometheus_enabled:
+        try:
+            from prometheus_fastapi_instrumentator import Instrumentator
+
+            Instrumentator().instrument(app).expose(app, endpoint="/metrics")
+        except Exception as e:
+            import logging
+
+            logging.getLogger(__name__).warning("Failed to initialize Prometheus metrics: %s", e)
 
     if active_settings.cors_origin_list:
         app.add_middleware(

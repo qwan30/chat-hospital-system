@@ -130,28 +130,42 @@ graph TB
 
 <div align="center">
 
-### Dashboard & Patient Management
+### 🔐 Login & Authentication
+
+![Login](screen-demo/login-demo.png)
+
+### 🏠 Dashboard & Navigation
 
 | | |
 |:---:|:---:|
-| **Dashboard** — KPI metrics, recent patients, charts | **Patients Roster** — RBAC-filtered, searchable |
-| ![Dashboard](screen-demo/02-dashboard.png) | ![Patients](screen-demo/05-patients-list.png) |
-| **Patient Overview** — Clinical summary, tabs | **Patient Timeline** — Chronological events |
-| ![Patient Overview](screen-demo/06-patient-overview.png) | ![Timeline](screen-demo/07-patient-timeline.png) |
+| **Dashboard** — KPI metrics, recent patients, clinical overview | **Screen Index** — Navigation hub |
+| ![Dashboard](screen-demo/dashboard.png) | ![Screen Index](screen-demo/screen-index.png) |
 
-### AI Chat & Knowledge
+### 👤 Patient Management
 
 | | |
 |:---:|:---:|
-| **Chat Landing** — AI copilot with suggestions | **Documents** — OCR-indexed, searchable |
-| ![Chat](screen-demo/12-chat-landing.png) | ![Documents](screen-demo/17-documents-list.png) |
+| **Patient Records** — RBAC-filtered patient roster | **Patient Timeline** — Chronological clinical events |
+| ![Patients](screen-demo/patient.png) | ![Timeline](screen-demo/time-line.png) |
 
-### Compliance & Audit
+### 🤖 AI Chat & Knowledge Graph
+
+| | |
+|:---:|:---:|
+| **AI Chat** — Evidence-cited clinical Q&A with streaming SSE | **Graph RAG** — Knowledge graph explainability view |
+| ![Chat](screen-demo/chat.png) | ![Graph RAG](screen-demo/graph-rag.png) |
 
 | |
 |:---:|
-| **Audit Log** — Full event trail with filtering |
-| ![Audit](screen-demo/21-audit-log.png) |
+| **Graph RAG Detail** — Node relationships, evidence, and citations |
+| ![Graph RAG Detail](screen-demo/graph-rag-detail.png) |
+
+### 📋 Audit & Compliance
+
+| | |
+|:---:|:---:|
+| **Audit Log** — Full event trail with filtering | **Notifications** — Real-time clinical alerts |
+| ![Audit](screen-demo/audit-screen-new.png) | ![Notifications](screen-demo/notification.png) |
 
 </div>
 

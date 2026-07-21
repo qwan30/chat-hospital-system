@@ -72,4 +72,13 @@ export const mockUsers: Record<Role, MockUser> = {
       "ws-er-front",
     ],
   },
+  security: {
+    role: "security",
+    name: "Sam Security",
+    email: "security@example.test",
+    initials: "SS",
+    title: "Security Auditor",
+    defaultWorkspaceId: "ws-hospital",
+    availableWorkspaceIds: ["ws-hospital"],
+  },
 };

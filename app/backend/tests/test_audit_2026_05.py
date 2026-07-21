@@ -15,11 +15,42 @@ from typing import Optional
 
 import pytest
 
-from hospital_ai.api.routes.chat_stream import _generate_sse_events
+from hospital_ai.api.routes.chat_stream import StreamCompletion, _ensure_stream_terminal, _generate_sse_events
 from hospital_ai.core.config import Settings
+from hospital_ai.core.errors import ExternalServiceError
+from hospital_ai.services.chat import SAFE_PHI_LEAK_BLOCKED_ANSWER
 from hospital_ai.services.chat_utils import meets_evidence_threshold
+from hospital_ai.services.guardrails import GuardrailResult
 from hospital_ai.services.llm.base import BaseLLM, LLMMessage, LLMResponse
 from hospital_ai.services.retrieval import RetrievedChunk
+
+
+@pytest.mark.asyncio
+async def test_stream_background_finalizes_disconnect_before_first_token():
+    completions: list[StreamCompletion] = []
+
+    async def capture(completion: StreamCompletion) -> None:
+        completions.append(completion)
+
+    state = {"finished": False}
+    await _ensure_stream_terminal(state, capture)
+
+    assert len(completions) == 1
+    assert completions[0].validation_status == "failed"
+    assert completions[0].failure_reason == "disconnected"
+
+
+@pytest.mark.asyncio
+async def test_stream_background_does_not_finalize_completed_stream_twice():
+    completions: list[StreamCompletion] = []
+
+    async def capture(completion: StreamCompletion) -> None:
+        completions.append(completion)
+
+    await _ensure_stream_terminal({"finished": True}, capture)
+
+    assert completions == []
+
 
 # ── F-SEC-001: dev bearer tokens guarded by environment ─────────────────
 
@@ -265,6 +296,87 @@ async def test_streaming_emits_only_cited_evidence_when_validated(monkeypatch):
     assert done_events and done_events[-1]["validation"] == "passed"
 
 
+@pytest.mark.asyncio
+async def test_streaming_output_guardrail_replaces_unsafe_buffer_before_emission(monkeypatch):
+    unsafe_answer = "Secret patient detail must not leave the server [E1]."
+    fake = _FakeLLM(answer=unsafe_answer)
+    completed = []
+
+    class BlockingOutputGuardrail:
+        async def scan(self, prompt, output):
+            assert prompt == "What is the dose?"
+            assert output == unsafe_answer + " "
+            return GuardrailResult(blocked=True, reason="detected PHI")
+
+    monkeypatch.setattr(
+        "hospital_ai.api.routes.chat_stream.LLMManager",
+        lambda settings: type("M", (), {"get": lambda self: fake})(),
+    )
+    monkeypatch.setattr(
+        "hospital_ai.api.routes.chat_stream.get_output_guardrail",
+        lambda: BlockingOutputGuardrail(),
+    )
+
+    async def capture_completion(completion):
+        completed.append(completion)
+
+    events = await _collect(
+        _generate_sse_events(
+            settings=_settings(),
+            question="What is the dose?",
+            evidence=_make_evidence(["E1"]),
+            conversation_history=[],
+            query_id=uuid.uuid4(),
+            pipeline_name="simple_qa",
+            on_complete=capture_completion,
+        )
+    )
+
+    assert [event["type"] for event in events] == ["token", "done"]
+    assert events[0]["content"] == SAFE_PHI_LEAK_BLOCKED_ANSWER
+    assert unsafe_answer not in json.dumps(events)
+    assert events[1]["validation"] == "failed"
+    assert events[1]["reason"] == "output_guardrail_blocked"
+    assert len(completed) == 1
+    assert completed[0].answer == SAFE_PHI_LEAK_BLOCKED_ANSWER
+    assert completed[0].failure_reason == "output_guardrail_blocked"
+
+
+@pytest.mark.asyncio
+async def test_streaming_output_guardrail_also_blocks_chitchat_before_emission(monkeypatch):
+    unsafe_answer = "Secret patient detail from casual chat."
+    fake = _FakeLLM(answer=unsafe_answer)
+
+    class BlockingOutputGuardrail:
+        async def scan(self, _prompt, output):
+            assert unsafe_answer in output
+            return GuardrailResult(blocked=True, reason="detected PHI")
+
+    monkeypatch.setattr(
+        "hospital_ai.api.routes.chat_stream.LLMManager",
+        lambda settings: type("M", (), {"get": lambda self: fake})(),
+    )
+    monkeypatch.setattr(
+        "hospital_ai.api.routes.chat_stream.get_output_guardrail",
+        lambda: BlockingOutputGuardrail(),
+    )
+
+    events = await _collect(
+        _generate_sse_events(
+            settings=_settings().copy(update={"chat_provider": "ollama"}),
+            question="Hello",
+            evidence=[],
+            conversation_history=[],
+            query_id=uuid.uuid4(),
+            pipeline_name="chitchat",
+        )
+    )
+
+    assert [event["type"] for event in events] == ["token", "done"]
+    assert events[0]["content"] == SAFE_PHI_LEAK_BLOCKED_ANSWER
+    assert unsafe_answer not in json.dumps(events)
+
+
 # ── F-RAG-004 / demo-readiness: stream completion persists thread state ─
 
 
@@ -300,7 +412,17 @@ async def test_apply_stream_completion_persists_thread_messages_on_success(sessi
         title="Stream-persist Test Doc",
         content="The protocol is to monitor vitals every 4 hours.",
     )
+    uncited_doc = await create_indexed_document(
+        session,
+        patient_id=PATIENT_ALICE_ID,
+        uploaded_by=DOCTOR_ID,
+        title="Uncited Stream-persist Test Doc",
+        content="This retrieved chunk is not cited by the answer.",
+    )
     chunk = (await session.execute(select(DocumentChunk).where(DocumentChunk.document_id == doc.id))).scalar_one()
+    uncited_chunk = (
+        await session.execute(select(DocumentChunk).where(DocumentChunk.document_id == uncited_doc.id))
+    ).scalar_one()
 
     thread = ChatThread(
         title="Stream-persist test thread",
@@ -334,7 +456,17 @@ async def test_apply_stream_completion_persists_thread_messages_on_success(sessi
             score=0.9,
             content=chunk.content,
             metadata={"retrieval_method": "vector"},
-        )
+        ),
+        RetrievedChunk(
+            evidence_id="E2",
+            document_id=uncited_doc.id,
+            document_title=uncited_doc.title,
+            page=1,
+            chunk_id=uncited_chunk.id,
+            score=0.8,
+            content=uncited_chunk.content,
+            metadata={"retrieval_method": "vector"},
+        ),
     ]
 
     await _apply_stream_completion(
@@ -352,7 +484,7 @@ async def test_apply_stream_completion_persists_thread_messages_on_success(sessi
         completion=StreamCompletion(
             validation_status="passed",
             answer="Monitor vitals every 4 hours [E1].",
-            cited_evidence=evidence,
+            cited_evidence=[evidence[0]],
             citations_payload=[
                 {
                     "evidence_id": "E1",
@@ -379,8 +511,7 @@ async def test_apply_stream_completion_persists_thread_messages_on_success(sessi
         .scalars()
         .all()
     )
-    assert len(rev_rows) == 1
-    assert rev_rows[0].citation_label == "E1"
+    assert [row.citation_label for row in rev_rows] == ["E1"]
     assert rev_rows[0].retrieval_method == "vector"
 
     # ChatMessage user + assistant rows present so reload preserves the thread.
@@ -512,6 +643,92 @@ async def test_streaming_error_event_does_not_leak_exception_string(monkeypatch)
     assert "secret_path" not in json.dumps(err)
     assert "private.txt" not in json.dumps(err)
     assert err["message"] == "Stream failed due to an internal error."
+
+
+@pytest.mark.asyncio
+async def test_streaming_external_service_error_uses_fixed_safe_message(monkeypatch):
+    class ExternalFailureLlm(_FakeLLM):
+        async def stream(self, messages, *, temperature=0.0, max_tokens=None):
+            if False:
+                yield ""
+            raise ExternalServiceError("secret provider detail")
+
+    monkeypatch.setattr(
+        "hospital_ai.api.routes.chat_stream.LLMManager",
+        lambda settings: type("M", (), {"get": lambda self: ExternalFailureLlm(answer="")})(),
+    )
+
+    events = await _collect(
+        _generate_sse_events(
+            settings=_settings(),
+            question="Q?",
+            evidence=_make_evidence(["E1"]),
+            conversation_history=[],
+            query_id=uuid.uuid4(),
+            pipeline_name="simple_qa",
+        )
+    )
+
+    assert events == [
+        {
+            "type": "error",
+            "code": "EXTERNAL_SERVICE_ERROR",
+            "message": "Stream failed because an external service was unavailable.",
+        }
+    ]
+    assert "secret provider detail" not in json.dumps(events)
+
+
+@pytest.mark.asyncio
+async def test_streaming_reports_simple_pipeline_when_it_does_not_execute_requested_pipeline(monkeypatch):
+    fake = _FakeLLM(answer="Grounded answer [E1].")
+    monkeypatch.setattr(
+        "hospital_ai.api.routes.chat_stream.LLMManager",
+        lambda settings: type("M", (), {"get": lambda self: fake})(),
+    )
+    events = await _collect(
+        _generate_sse_events(
+            settings=_settings(),
+            question="Q?",
+            evidence=_make_evidence(["E1"]),
+            conversation_history=[],
+            query_id=uuid.uuid4(),
+            pipeline_name="decompose",
+        )
+    )
+    assert next(event for event in events if event["type"] == "metadata")["pipeline"] == "simple_qa"
+
+
+@pytest.mark.asyncio
+async def test_streaming_completion_failure_emits_error_without_done(monkeypatch):
+    fake = _FakeLLM(answer="Grounded answer [E1].")
+
+    async def failing_completion(_completion):
+        raise RuntimeError("database unavailable")
+
+    monkeypatch.setattr(
+        "hospital_ai.api.routes.chat_stream.LLMManager",
+        lambda settings: type("M", (), {"get": lambda self: fake})(),
+    )
+
+    events = await _collect(
+        _generate_sse_events(
+            settings=_settings(),
+            question="Q?",
+            evidence=_make_evidence(["E1"]),
+            conversation_history=[],
+            query_id=uuid.uuid4(),
+            pipeline_name="simple_qa",
+            on_complete=failing_completion,
+        )
+    )
+
+    assert not [event for event in events if event["type"] == "done"]
+    assert events[-1] == {
+        "type": "error",
+        "code": "INTERNAL_ERROR",
+        "message": "Stream failed due to an internal error.",
+    }
 
 
 # ── F-RAG-003: graph-RAG patient isolation ───────────────────────────────

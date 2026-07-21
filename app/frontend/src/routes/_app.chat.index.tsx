@@ -24,6 +24,7 @@ import { cn } from "@/lib/utils";
 import { searchPatients, getPatient } from "@/lib/api/patients";
 import { useSession } from "@/lib/session";
 import { streamChat } from "@/lib/stream-client";
+import { hasStreamScopeChanged, type StreamScope } from "@/lib/stream-scope";
 import { getStoredApiUrl } from "@/lib/api-client";
 import { uploadDocument } from "@/lib/api/documents";
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
@@ -100,6 +101,7 @@ function GlobalChat() {
   const [streamingText, setStreamingText] = useState("");
   const [streamError, setStreamError] = useState<string | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
+  const activeStreamScopeRef = useRef<StreamScope | null>(null);
   const scrollContainerRef = useRef<HTMLDivElement | null>(null);
   const createdThreadIdRef = useRef<string | null>(null);
 
@@ -571,11 +573,14 @@ function GlobalChat() {
 
     const replyId = `a-${seed}`;
     let fullText = "";
+    let requestController: AbortController | null = null;
 
     try {
       setStreamingId(replyId);
       setStreamingText("");
-      abortControllerRef.current = new AbortController();
+      requestController = new AbortController();
+      abortControllerRef.current = requestController;
+      activeStreamScopeRef.current = { patientId, threadId: thread };
 
       const payloadContext = uploadedDocId ? { document_ids: [uploadedDocId] } : undefined;
 
@@ -589,6 +594,7 @@ function GlobalChat() {
           });
           activeThreadId = newThread.id;
           createdThreadIdRef.current = newThread.id;
+          activeStreamScopeRef.current = { patientId, threadId: newThread.id };
           navigate({
             search: (prev) => ({ ...prev, thread: newThread.id }),
             replace: true,
@@ -613,11 +619,11 @@ function GlobalChat() {
             fullText += event.content || "";
             setStreamingText(fullText);
             if (simulate === "stream-fail" && fullText.length > 30) {
-              abortControllerRef.current?.abort();
+              requestController?.abort();
             }
           }
         },
-        abortControllerRef.current.signal,
+        requestController.signal,
       );
 
       if (streamResult.error) {
@@ -681,7 +687,10 @@ function GlobalChat() {
       setStreamingId(null);
       setStreamingText("");
     } finally {
-      abortControllerRef.current = null;
+      if (abortControllerRef.current === requestController) {
+        abortControllerRef.current = null;
+        activeStreamScopeRef.current = null;
+      }
     }
   };
 
@@ -694,11 +703,17 @@ function GlobalChat() {
   }, [initialQ]);
 
   useEffect(() => {
-    return () => {
+    const activeScope = activeStreamScopeRef.current;
+    if (activeScope && hasStreamScopeChanged(activeScope, { patientId, threadId: thread })) {
       abortControllerRef.current?.abort();
       abortControllerRef.current = null;
-    };
+      activeStreamScopeRef.current = null;
+    }
   }, [patientId, thread]);
+
+  useEffect(() => {
+    return () => abortControllerRef.current?.abort();
+  }, []);
 
   if (messages.length === 0 && !thread && !patientId) {
     return (

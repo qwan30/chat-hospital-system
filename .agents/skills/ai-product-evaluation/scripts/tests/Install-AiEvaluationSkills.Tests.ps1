@@ -84,4 +84,41 @@ Describe 'Install-AiEvaluationSkills' {
             & $installer -SourceRoot $sourceRoot -TargetRoots @('relative-target')
         } -MessagePattern 'absolute path'
     }
+
+    It 'rejects a target root nested under the protected Codex skills directory' {
+        Invoke-ExpectFailure -Operation {
+            & $installer -SourceRoot $sourceRoot -TargetRoots @('C:\Users\NITRO\.codex\skills\nested-target')
+        } -MessagePattern 'protected Codex skills directory'
+    }
+
+    It 'rejects the protected Codex skills directory as a target root' {
+        Invoke-ExpectFailure -Operation {
+            & $installer -SourceRoot $sourceRoot -TargetRoots @('C:\Users\NITRO\.codex\skills')
+        } -MessagePattern 'protected Codex skills directory'
+    }
+
+    It 'rejects a Windows root-relative target root before changing the filesystem' {
+        Invoke-ExpectFailure -Operation {
+            & $installer -SourceRoot $sourceRoot -TargetRoots @('\rooted-but-not-fully-qualified')
+        } -MessagePattern 'fully qualified.*path'
+    }
+
+    It 'does not create earlier junctions when a later target path collides' {
+        $laterCollision = Join-Path $targetRoot 'healthcare-rag-graph-ocr-evaluation'
+        New-Item -ItemType Directory -Path $laterCollision -Force | Out-Null
+
+        Invoke-ExpectFailure -Operation {
+            & $installer -SourceRoot $sourceRoot -TargetRoots @($targetRoot)
+        } -MessagePattern 'non-junction directory'
+
+        (Test-Path -LiteralPath (Join-Path $targetRoot 'ai-product-evaluation')) | Should Be $false
+        (Test-Path -LiteralPath (Join-Path $targetRoot 'ai-eval-dataset-governance')) | Should Be $false
+    }
+
+    It 'derives default target roots from the current user profile API' {
+        $installerContent = Get-Content -LiteralPath $installer -Raw
+
+        $installerContent | Should Match 'GetFolderPath\(\[System\.Environment\+SpecialFolder\]::UserProfile\)'
+        $installerContent | Should Not Match 'C:\\Users\\NITRO\\\.(agents|claude|gemini)'
+    }
 }

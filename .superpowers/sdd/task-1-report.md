@@ -54,3 +54,32 @@ exit 0
 ## Scope and concerns
 
 No global junctions were created during validation; Pester used an isolated temporary target root. The installed Pester version is 3.4.0, so tests use its compatible assertion syntax. Existing user-dirty files remain outside this task’s staged set.
+
+## Review remediation — 2026-07-22
+
+Resolved the two Important Task 1 installer findings with Pester coverage written before the implementation change:
+
+1. `-TargetRoots` now rejects `C:\Users\NITRO\.codex\skills` itself and every descendant. This preserves Codex's protected discovery root even when a caller overrides the default targets.
+2. Absolute-path validation now uses `.NET` `IsPathFullyQualified`, so Windows root-relative inputs such as `\rooted-but-not-fully-qualified` are rejected before any filesystem operation.
+
+### Evidence
+
+Initial RED run after adding the two regression cases: `Passed: 4 Failed: 2`; both new cases failed because the installer accepted the protected nested root and the root-relative path.
+
+Final verification:
+
+```text
+Invoke-Pester -Path .agents\skills\ai-product-evaluation\scripts\tests\Install-AiEvaluationSkills.Tests.ps1 -PassThru
+Passed: 7  Failed: 0  Skipped: 0
+
+git diff --check -- .agents/skills/ai-product-evaluation/scripts/Install-AiEvaluationSkills.ps1 .agents/skills/ai-product-evaluation/scripts/tests/Install-AiEvaluationSkills.Tests.ps1
+exit 0
+```
+
+## Additional review remediation — 2026-07-22
+
+The installer now completes a full preflight before it creates a target root or junction: every source package and every destination is inspected first, and compatible existing junctions are skipped. Any non-junction directory, incompatible junction, or discoverable dangling reparse point is refused during this preflight. This prevents a later collision from leaving partial earlier installs.
+
+Default roots are now derived from `.NET`'s current-user profile API rather than a hard-coded `C:\Users\NITRO` path.
+
+Pester regression coverage adds a late-collision case that verifies both earlier targets remain absent, and a guard against reintroducing hard-coded default user roots.

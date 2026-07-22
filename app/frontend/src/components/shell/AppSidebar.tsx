@@ -64,7 +64,7 @@ const groups: {
       { title: "Citations", url: "/citations/c-001", icon: Quote },
       {
         title: "Graph RAG",
-        url: "/graph/patients/11111111-1111-1111-1111-111111111111",
+        url: "/graph/patients/20000000-0000-0000-0000-000000000003",
         icon: Network,
       },
     ],

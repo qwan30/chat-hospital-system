@@ -18,7 +18,7 @@ export const Route = createFileRoute("/_app/documents/upload")({
 function Page() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const [patientId, setPatientId] = useState("20000000-0000-0000-0000-000000000001");
+  const [patientId, setPatientId] = useState("20000000-0000-0000-0000-000000000003");
   const [title, setTitle] = useState("");
   const [documentType, setDocumentType] = useState("clinical_note");
   const [file, setFile] = useState<File | null>(null);

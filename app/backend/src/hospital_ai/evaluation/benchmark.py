@@ -303,8 +303,18 @@ def build_patient_graph_facts(manifest: CorpusManifest, data_root: Path) -> tupl
     return tuple(rows)
 
 
+def assert_graph_facts_current(manifest: CorpusManifest, data_root: Path, artifact_path: Path) -> None:
+    """Fail closed when the committed graph artifact differs from deterministic derivation."""
+    expected = "".join(value.json(sort_keys=True) + "\n" for value in build_patient_graph_facts(manifest, data_root))
+    if not artifact_path.is_file() or artifact_path.read_text(encoding="utf-8") != expected:
+        raise ValueError("Graph facts artifact drift detected; rerun with --write to regenerate explicitly")
+
+
 def _validate_sources(manifest: CorpusManifest, data_root: Path) -> tuple[tuple[str, ...], int, int]:
-    root = data_root.resolve(strict=True)
+    try:
+        root = data_root.resolve(strict=True)
+    except OSError as error:
+        return (str(error),), len(manifest.files), 0
     errors: list[str] = []
     total_bytes = 0
     for item in manifest.files:
@@ -534,6 +544,8 @@ def _case_errors(cases: tuple[BenchmarkCase, ...]) -> list[str]:
             errors.append(f"{case.case_id}: graph case lacks a two-hop path")
         if case.category == "permission_adversarial" and case.patient_id in case.actor.allowed_patient_ids:
             errors.append(f"{case.case_id}: adversarial actor is authorized")
+        if case.category not in {"overlapping_patient", "permission_adversarial"} and case.forbidden_evidence_ids:
+            errors.append(f"{case.case_id}: category must not contain forbidden evidence")
     return errors
 
 
@@ -560,8 +572,13 @@ def _evidence_binding_errors(cases: tuple[BenchmarkCase, ...], catalog: dict[UUI
             if entry is not None and entry.patient_id != case.patient_id:
                 errors.append(f"{case.case_id}: allowed evidence belongs to another patient")
         for evidence_id in case.forbidden_evidence_ids:
-            if evidence_id not in catalog:
+            entry = catalog.get(evidence_id)
+            if entry is None:
                 errors.append(f"{case.case_id}: forbidden evidence is not canonical")
+            elif case.category == "overlapping_patient" and entry.patient_id == case.patient_id:
+                errors.append(f"{case.case_id}: overlap forbidden evidence belongs to the authorized patient")
+            elif case.category != "overlapping_patient" and entry.patient_id != case.patient_id:
+                errors.append(f"{case.case_id}: forbidden evidence belongs to another patient")
         if case.graph is None:
             continue
         for relation in case.graph.required_relations:

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import shutil
 from collections import Counter
 from pathlib import Path
 
@@ -13,11 +14,13 @@ from hospital_ai.evaluation.benchmark import (
     ExpectedFact,
     GraphExpectation,
     GraphRelation,
+    assert_graph_facts_current,
     generate_benchmark,
     load_manifest,
     select_sentinel,
     validate_benchmark,
 )
+from hospital_ai.evaluation.corpus import build_manifest
 
 DATA_ROOT = Path(__file__).parents[2] / "data" / "hosp_ai_synthetic_dataset"
 MANIFEST_PATH = DATA_ROOT / "MANIFEST.json"
@@ -43,6 +46,19 @@ def test_generation_fails_closed_when_a_source_is_missing(tmp_path: Path) -> Non
 
     with pytest.raises(ValueError, match="Missing governed source"):
         generate_benchmark(manifest, tmp_path, seed=20260722)
+
+    assert list(tmp_path.iterdir()) == []
+
+
+def test_validation_of_missing_root_is_side_effect_free(tmp_path: Path) -> None:
+    manifest = load_manifest(MANIFEST_PATH)
+    missing_root = tmp_path / "does-not-exist"
+
+    result = validate_benchmark((), manifest=manifest, data_root=missing_root)
+
+    assert not result.is_valid
+    assert any("does-not-exist" in error for error in result.source_errors)
+    assert not missing_root.exists()
 
 
 def test_benchmark_has_required_category_minima(benchmark_cases: tuple[BenchmarkCase, ...]) -> None:
@@ -132,6 +148,73 @@ def test_validation_rejects_graph_relation_misbinding(benchmark_cases: tuple[Ben
 
     assert not result.is_valid
     assert any("graph relation is misbound" in error for error in result.errors)
+
+
+def test_graph_artifact_matches_deterministic_derivation() -> None:
+    assert_graph_facts_current(
+        load_manifest(MANIFEST_PATH),
+        DATA_ROOT,
+        DATA_ROOT / "metadata" / "patient_graph_facts.jsonl",
+    )
+
+
+def test_graph_artifact_drift_fails_even_when_manifest_digest_is_updated(tmp_path: Path) -> None:
+    copied_root = tmp_path / "corpus"
+    shutil.copytree(DATA_ROOT, copied_root)
+    graph_path = copied_root / "metadata" / "patient_graph_facts.jsonl"
+    graph_path.write_text(graph_path.read_text(encoding="utf-8") + "{}\n", encoding="utf-8", newline="\n")
+    refreshed_manifest = build_manifest(copied_root, duplicate_root=None)
+
+    with pytest.raises(ValueError, match="Graph facts artifact drift"):
+        assert_graph_facts_current(refreshed_manifest, copied_root, graph_path)
+
+
+def test_validation_rejects_wrong_patient_forbidden_evidence(benchmark_cases: tuple[BenchmarkCase, ...]) -> None:
+    index, original = next(
+        (index, case) for index, case in enumerate(benchmark_cases) if case.category == "permission_adversarial"
+    )
+    other = next(
+        case for case in benchmark_cases if case.category == "single_hop" and case.patient_id != original.patient_id
+    )
+    bad_case = BenchmarkCase.parse_obj({**original.dict(), "forbidden_evidence_ids": [other.allowed_evidence_ids[0]]})
+    cases = (*benchmark_cases[:index], bad_case, *benchmark_cases[index + 1 :])
+    result = validate_benchmark(cases, manifest=load_manifest(MANIFEST_PATH), data_root=DATA_ROOT)
+
+    assert not result.is_valid
+    assert any("forbidden evidence belongs to another patient" in error for error in result.errors)
+
+
+def test_validation_rejects_authorized_patient_as_overlap_forbidden_evidence(
+    benchmark_cases: tuple[BenchmarkCase, ...],
+) -> None:
+    index, original = next(
+        (index, case) for index, case in enumerate(benchmark_cases) if case.category == "overlapping_patient"
+    )
+    bad_case = BenchmarkCase.parse_obj(
+        {**original.dict(), "forbidden_evidence_ids": [original.allowed_evidence_ids[0]]}
+    )
+    cases = (*benchmark_cases[:index], bad_case, *benchmark_cases[index + 1 :])
+    result = validate_benchmark(cases, manifest=load_manifest(MANIFEST_PATH), data_root=DATA_ROOT)
+
+    assert not result.is_valid
+    assert any("overlap forbidden evidence belongs to the authorized patient" in error for error in result.errors)
+
+
+def test_validation_rejects_forbidden_evidence_on_non_adversarial_category(
+    benchmark_cases: tuple[BenchmarkCase, ...],
+) -> None:
+    original = benchmark_cases[0]
+    bad_case = BenchmarkCase.parse_obj(
+        {**original.dict(), "forbidden_evidence_ids": [original.allowed_evidence_ids[0]]}
+    )
+    result = validate_benchmark(
+        (bad_case, *benchmark_cases[1:]),
+        manifest=load_manifest(MANIFEST_PATH),
+        data_root=DATA_ROOT,
+    )
+
+    assert not result.is_valid
+    assert any("category must not contain forbidden evidence" in error for error in result.errors)
 
 
 def test_sentinel_is_stratified_and_pending(benchmark_cases: tuple[BenchmarkCase, ...]) -> None:

@@ -7,6 +7,7 @@ import json
 from pathlib import Path
 
 from hospital_ai.evaluation.benchmark import (
+    assert_graph_facts_current,
     build_patient_graph_facts,
     generate_benchmark,
     load_manifest,
@@ -40,11 +41,10 @@ def _refresh_graph_facts() -> None:
 
 
 def _assert_graph_facts_current(manifest) -> None:
-    expected = build_patient_graph_facts(manifest, DATA_ROOT)
-    actual = GRAPH_FACTS_PATH.read_text(encoding="utf-8")
-    rendered = "".join(value.json(sort_keys=True) + "\n" for value in expected)
-    if actual != rendered:
-        raise SystemExit("Graph facts artifact drift detected; rerun with --write to regenerate explicitly")
+    try:
+        assert_graph_facts_current(manifest, DATA_ROOT, GRAPH_FACTS_PATH)
+    except ValueError as error:
+        raise SystemExit(str(error)) from error
 
 
 def main() -> int:

@@ -16,7 +16,7 @@ from hospital_ai.services.hms_appointments import (
     HmsAppointmentEvidenceImporter,
 )
 from hospital_ai.services.hms_sync import HmsSyncService
-from hospital_ai.services.permissions import HMS_WRITE_ROLES, PermissionService
+from hospital_ai.services.permissions import PermissionService
 
 router = APIRouter()
 
@@ -292,5 +292,4 @@ async def _require_hms_sync_write(
         object_type="hms_sync",
         object_id=patient_id,
         ip_address=get_request_ip(request),
-        allowed_roles=HMS_WRITE_ROLES,
     )

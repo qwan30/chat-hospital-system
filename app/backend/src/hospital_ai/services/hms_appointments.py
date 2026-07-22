@@ -12,7 +12,7 @@ from hospital_ai.db.models import Document, DocumentChunk, DocumentPage, Patient
 from hospital_ai.schemas.hms import HmsAppointmentSummaryImport
 from hospital_ai.services.audit import AuditService
 from hospital_ai.services.embeddings import EmbeddingService
-from hospital_ai.services.permissions import HMS_WRITE_ROLES, PermissionService
+from hospital_ai.services.permissions import PermissionService
 
 HMS_APPOINTMENT_DOCUMENT_TYPE = "hms_appointment_summary"
 HMS_APPOINTMENT_SOURCE_FAMILY = "appointments"
@@ -48,7 +48,6 @@ class HmsAppointmentEvidenceImporter:
             object_type="hms_appointment",
             object_id=payload.source_appointment_id,
             ip_address=ip_address,
-            allowed_roles=HMS_WRITE_ROLES,
         )
 
         content = render_appointment_summary(payload)

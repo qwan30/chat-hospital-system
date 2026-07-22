@@ -196,6 +196,21 @@ def validate_benchmark(
     if manifest is not None and data_root is not None:
         source_errors, source_file_count, source_byte_count = _validate_sources(manifest, data_root)
         errors.extend(source_errors)
+        if not source_errors and cases:
+            known_evidence = _known_evidence_ids(manifest, data_root)
+            referenced_evidence = {
+                evidence_id
+                for case in cases
+                for evidence_id in (
+                    *case.allowed_evidence_ids,
+                    *case.forbidden_evidence_ids,
+                    *(fact.evidence_id for fact in case.expected_facts),
+                    *(citation.evidence_id for citation in case.expected_citations),
+                )
+            }
+            unknown = referenced_evidence - known_evidence
+            if unknown:
+                errors.append(f"Evidence IDs not present in canonical source catalog: {len(unknown)}")
 
     if cases:
         counts = Counter(case.category for case in cases)
@@ -221,6 +236,13 @@ def validate_benchmark(
         source_byte_count=source_byte_count,
         unresolved_evidence_count=unresolved,
     )
+
+
+def _known_evidence_ids(manifest: CorpusManifest, data_root: Path) -> set[UUID]:
+    csv_by_patient, pdf_by_patient = _build_catalog(manifest, data_root)
+    return {
+        entry.fact.evidence_id for entries in (*csv_by_patient.values(), *pdf_by_patient.values()) for entry in entries
+    }
 
 
 def build_patient_graph_facts(manifest: CorpusManifest, data_root: Path) -> tuple[dict[str, object], ...]:

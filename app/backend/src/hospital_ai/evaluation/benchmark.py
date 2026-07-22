@@ -72,6 +72,9 @@ class GraphRelation(_StrictFrozenModel):
     predicate: Literal["HAS_LAB_OBSERVATION", "MEASURED_ON"]
     object: str
     evidence_id: UUID
+    source_path: str
+    source_sha256: str = Field(regex=r"^[0-9a-f]{64}$")
+    source_locator: str
 
 
 class GraphExpectation(_StrictFrozenModel):
@@ -118,6 +121,15 @@ class BenchmarkValidationResult(_StrictFrozenModel):
     source_file_count: int
     source_byte_count: int
     unresolved_evidence_count: int
+
+
+class PatientGraphFact(_StrictFrozenModel):
+    patient_id: UUID
+    source_evidence_id: UUID
+    source_path: str
+    source_sha256: str = Field(regex=r"^[0-9a-f]{64}$")
+    source_locator: str
+    relations: tuple[GraphRelation, ...]
 
 
 class _CatalogEntry(_StrictFrozenModel):
@@ -197,7 +209,7 @@ def validate_benchmark(
         source_errors, source_file_count, source_byte_count = _validate_sources(manifest, data_root)
         errors.extend(source_errors)
         if not source_errors and cases:
-            known_evidence = _known_evidence_ids(manifest, data_root)
+            evidence_catalog = _evidence_catalog(manifest, data_root)
             referenced_evidence = {
                 evidence_id
                 for case in cases
@@ -208,9 +220,10 @@ def validate_benchmark(
                     *(citation.evidence_id for citation in case.expected_citations),
                 )
             }
-            unknown = referenced_evidence - known_evidence
+            unknown = referenced_evidence - set(evidence_catalog)
             if unknown:
                 errors.append(f"Evidence IDs not present in canonical source catalog: {len(unknown)}")
+            errors.extend(_evidence_binding_errors(cases, evidence_catalog))
 
     if cases:
         counts = Counter(case.category for case in cases)
@@ -238,35 +251,54 @@ def validate_benchmark(
     )
 
 
-def _known_evidence_ids(manifest: CorpusManifest, data_root: Path) -> set[UUID]:
+def _evidence_catalog(manifest: CorpusManifest, data_root: Path) -> dict[UUID, _CatalogEntry]:
     csv_by_patient, pdf_by_patient = _build_catalog(manifest, data_root)
     return {
-        entry.fact.evidence_id for entries in (*csv_by_patient.values(), *pdf_by_patient.values()) for entry in entries
+        entry.fact.evidence_id: entry
+        for entries in (*csv_by_patient.values(), *pdf_by_patient.values())
+        for entry in entries
     }
 
 
-def build_patient_graph_facts(manifest: CorpusManifest, data_root: Path) -> tuple[dict[str, object], ...]:
+def build_patient_graph_facts(manifest: CorpusManifest, data_root: Path) -> tuple[PatientGraphFact, ...]:
     """Derive patient-scoped graph edges from canonical lab rows."""
     source_errors, _, _ = _validate_sources(manifest, data_root)
     if source_errors:
         raise ValueError("; ".join(source_errors))
     csv_by_patient, _ = _build_catalog(manifest, data_root)
-    rows: list[dict[str, object]] = []
+    rows: list[PatientGraphFact] = []
     for patient_id in sorted(csv_by_patient, key=str):
         for entry in csv_by_patient[patient_id]:
             fact = entry.fact
             observation = f"observation:{fact.evidence_id}"
+            relation_source = {
+                "evidence_id": fact.evidence_id,
+                "source_path": fact.source_path,
+                "source_sha256": fact.source_sha256,
+                "source_locator": fact.source_locator,
+            }
             rows.append(
-                {
-                    "patient_id": str(patient_id),
-                    "source_evidence_id": str(fact.evidence_id),
-                    "source_sha256": fact.source_sha256,
-                    "source_locator": fact.source_locator,
-                    "relations": [
-                        [f"patient:{patient_id}", "HAS_LAB_OBSERVATION", observation],
-                        [observation, "MEASURED_ON", f"date:{fact.observed_at}"],
-                    ],
-                }
+                PatientGraphFact(
+                    patient_id=patient_id,
+                    source_evidence_id=fact.evidence_id,
+                    source_path=fact.source_path,
+                    source_sha256=fact.source_sha256,
+                    source_locator=fact.source_locator,
+                    relations=(
+                        GraphRelation(
+                            subject=f"patient:{patient_id}",
+                            predicate="HAS_LAB_OBSERVATION",
+                            object=observation,
+                            **relation_source,
+                        ),
+                        GraphRelation(
+                            subject=observation,
+                            predicate="MEASURED_ON",
+                            object=f"date:{fact.observed_at}",
+                            **relation_source,
+                        ),
+                    ),
+                )
             )
     return tuple(rows)
 
@@ -407,12 +439,18 @@ def _make_case(
                     predicate="HAS_LAB_OBSERVATION",
                     object=observation,
                     evidence_id=primary.evidence_id,
+                    source_path=primary.source_path,
+                    source_sha256=primary.source_sha256,
+                    source_locator=primary.source_locator,
                 ),
                 GraphRelation(
                     subject=observation,
                     predicate="MEASURED_ON",
                     object=f"date:{primary.observed_at}",
                     evidence_id=primary.evidence_id,
+                    source_path=primary.source_path,
+                    source_sha256=primary.source_sha256,
+                    source_locator=primary.source_locator,
                 ),
             )
         )
@@ -494,6 +532,44 @@ def _case_errors(cases: tuple[BenchmarkCase, ...]) -> list[str]:
             errors.append(f"{case.case_id}: graph case lacks a two-hop path")
         if case.category == "permission_adversarial" and case.patient_id in case.actor.allowed_patient_ids:
             errors.append(f"{case.case_id}: adversarial actor is authorized")
+    return errors
+
+
+def _evidence_binding_errors(cases: tuple[BenchmarkCase, ...], catalog: dict[UUID, _CatalogEntry]) -> list[str]:
+    errors: list[str] = []
+    for case in cases:
+        for fact in case.expected_facts:
+            entry = catalog.get(fact.evidence_id)
+            if entry is not None and (entry.patient_id != case.patient_id or entry.fact != fact):
+                errors.append(f"{case.case_id}: expected fact is misbound to canonical evidence")
+        for citation in case.expected_citations:
+            entry = catalog.get(citation.evidence_id)
+            if entry is None:
+                continue
+            canonical = entry.fact
+            if entry.patient_id != case.patient_id or (
+                citation.source_path,
+                citation.source_sha256,
+                citation.source_locator,
+            ) != (canonical.source_path, canonical.source_sha256, canonical.source_locator):
+                errors.append(f"{case.case_id}: citation is misbound to canonical evidence")
+        for evidence_id in case.allowed_evidence_ids:
+            entry = catalog.get(evidence_id)
+            if entry is not None and entry.patient_id != case.patient_id:
+                errors.append(f"{case.case_id}: allowed evidence belongs to another patient")
+        if case.graph is None:
+            continue
+        for relation in case.graph.required_relations:
+            entry = catalog.get(relation.evidence_id)
+            if entry is None:
+                continue
+            canonical = entry.fact
+            if entry.patient_id != case.patient_id or (
+                relation.source_path,
+                relation.source_sha256,
+                relation.source_locator,
+            ) != (canonical.source_path, canonical.source_sha256, canonical.source_locator):
+                errors.append(f"{case.case_id}: graph relation is misbound to canonical evidence")
     return errors
 
 

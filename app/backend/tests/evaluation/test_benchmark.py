@@ -11,6 +11,8 @@ from hospital_ai.evaluation.benchmark import (
     ActorFixture,
     BenchmarkCase,
     ExpectedFact,
+    GraphExpectation,
+    GraphRelation,
     generate_benchmark,
     load_manifest,
     select_sentinel,
@@ -32,7 +34,7 @@ def test_manifest_requires_all_governed_source_bytes() -> None:
 
     # 210 canonical source files plus one governed, source-derived graph artifact.
     assert result.source_file_count == 211
-    assert result.source_byte_count == 9_503_158
+    assert result.source_byte_count == 12_649_758
     assert result.source_errors == ()
 
 
@@ -93,6 +95,45 @@ def test_source_cases_are_not_falsely_certification_ready(benchmark_cases: tuple
     assert result.unresolved_evidence_count > 0
 
 
+def test_validation_rejects_fact_and_citation_misbinding(benchmark_cases: tuple[BenchmarkCase, ...]) -> None:
+    original = benchmark_cases[0]
+    fact = original.expected_facts[0]
+    bad_fact = ExpectedFact.parse_obj({**fact.dict(), "source_locator": "csv-row:999999"})
+    bad_case = BenchmarkCase.parse_obj(
+        {
+            **original.dict(),
+            "expected_facts": [bad_fact.dict()],
+            "expected_citations": [{**original.expected_citations[0].dict(), "source_sha256": "0" * 64}],
+        }
+    )
+    result = validate_benchmark(
+        (bad_case, *benchmark_cases[1:]),
+        manifest=load_manifest(MANIFEST_PATH),
+        data_root=DATA_ROOT,
+    )
+
+    assert not result.is_valid
+    assert any("expected fact is misbound" in error for error in result.errors)
+    assert any("citation is misbound" in error for error in result.errors)
+
+
+def test_validation_rejects_graph_relation_misbinding(benchmark_cases: tuple[BenchmarkCase, ...]) -> None:
+    index, original = next((index, case) for index, case in enumerate(benchmark_cases) if case.category == "graph_only")
+    relation = original.graph.required_relations[0]  # type: ignore[union-attr]
+    bad_relation = GraphRelation.parse_obj({**relation.dict(), "source_locator": "csv-row:999999"})
+    bad_graph = GraphExpectation(required_relations=(bad_relation, *original.graph.required_relations[1:]))  # type: ignore[union-attr]
+    bad_case = BenchmarkCase.parse_obj({**original.dict(), "graph": bad_graph.dict()})
+    cases = (*benchmark_cases[:index], bad_case, *benchmark_cases[index + 1 :])
+    result = validate_benchmark(
+        cases,
+        manifest=load_manifest(MANIFEST_PATH),
+        data_root=DATA_ROOT,
+    )
+
+    assert not result.is_valid
+    assert any("graph relation is misbound" in error for error in result.errors)
+
+
 def test_sentinel_is_stratified_and_pending(benchmark_cases: tuple[BenchmarkCase, ...]) -> None:
     sentinel = select_sentinel(benchmark_cases, count=50)
 
@@ -116,6 +157,14 @@ def test_nested_models_are_frozen_and_forbid_extras() -> None:
             evidence_id="00000000-0000-0000-0000-000000000001",
             invented=True,
         )
+
+
+def test_manifest_models_forbid_unknown_fields() -> None:
+    raw = json.loads(MANIFEST_PATH.read_text(encoding="utf-8"))
+    raw["unexpected"] = True
+
+    with pytest.raises(ValidationError):
+        type(load_manifest(MANIFEST_PATH)).parse_obj(raw)
 
 
 def test_generation_is_byte_stable(benchmark_cases: tuple[BenchmarkCase, ...]) -> None:

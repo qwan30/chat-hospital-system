@@ -13,6 +13,7 @@ class _FrozenModel(BaseModel):
 
     class Config:
         allow_mutation = False
+        extra = "forbid"
 
 
 class CorpusFile(_FrozenModel):

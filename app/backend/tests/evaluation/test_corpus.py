@@ -14,7 +14,7 @@ from hospital_ai.evaluation.corpus import (
 
 @pytest.fixture
 def corpus_root() -> Path:
-    return Path(__file__).resolve().parents[2] / "data"
+    return Path(__file__).resolve().parents[2] / "data" / "hosp_ai_synthetic_dataset"
 
 
 def test_manifest_requires_one_hashed_record_per_patient_file(corpus_root: Path) -> None:

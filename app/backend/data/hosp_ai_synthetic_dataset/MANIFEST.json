@@ -3572,7 +3572,7 @@
       "synthetic": true
     },
     {
-      "byte_size": 2494000,
+      "byte_size": 5640600,
       "classification": "metadata",
       "document_id": "patient_graph_facts",
       "document_type": "metadata",
@@ -3584,7 +3584,7 @@
       "quarantine_state": "active",
       "relative_path": "metadata/patient_graph_facts.jsonl",
       "runtime_approved": true,
-      "sha256": "a8398e5d7cd1d44d0fe30eeb1dc00cf56199776c554c566438c4ef8d1eaf2521",
+      "sha256": "fcc5df31ce4f4af1f26b8a52e85e6df39546a3f0a09e154b918b33d044af8bf7",
       "source": "dataset_generation_instruction.md",
       "synthetic": true
     }

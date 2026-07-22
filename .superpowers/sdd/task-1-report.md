@@ -86,4 +86,10 @@ Pester regression coverage adds a late-collision case that verifies both earlier
 
 ## Final status
 
-**DONE** — Task 1 Important review remediation is committed in `ab92cd33fad9f977295554e27a27542b3b931fa8` (`fix: harden AI evaluation skill installer`). Focused Pester verification passed `9/9`; no global junctions were created by the test suite.
+**DONE** — Task 1 Important review remediation began in `ab92cd33fad9f977295554e27a27542b3b931fa8` (`fix: harden AI evaluation skill installer`). Focused Pester verification passed `9/9`; no global junctions were created by the test suite.
+
+### Post-commit review correction
+
+Independent review identified two further preflight bypasses: a target-root junction could alias the protected Codex directory, and duplicate target roots could collide during the mutation pass. The final guard now rejects target roots that use a reparse point (including any existing reparse-point ancestor) and rejects duplicate normalized target roots before creating anything.
+
+The final focused Pester suite passed **11/11** after adding regression cases for both bypasses. The original delivery section's literal default paths describe the then-current environment; final defaults are the current user profile joined with the four documented skill subpaths.

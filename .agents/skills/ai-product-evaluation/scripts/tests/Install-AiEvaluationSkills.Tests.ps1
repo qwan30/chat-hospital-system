@@ -97,6 +97,15 @@ Describe 'Install-AiEvaluationSkills' {
         } -MessagePattern 'protected Codex skills directory'
     }
 
+    It 'rejects a junction target root that aliases the protected Codex skills directory' {
+        $protectedAlias = Join-Path $testRoot 'protected-alias'
+        New-Item -ItemType Junction -Path $protectedAlias -Target 'C:\Users\NITRO\.codex\skills' | Out-Null
+
+        Invoke-ExpectFailure -Operation {
+            & $installer -SourceRoot $sourceRoot -TargetRoots @($protectedAlias) -DryRun
+        } -MessagePattern 'reparse point'
+    }
+
     It 'rejects a Windows root-relative target root before changing the filesystem' {
         Invoke-ExpectFailure -Operation {
             & $installer -SourceRoot $sourceRoot -TargetRoots @('\rooted-but-not-fully-qualified')
@@ -113,6 +122,14 @@ Describe 'Install-AiEvaluationSkills' {
 
         (Test-Path -LiteralPath (Join-Path $targetRoot 'ai-product-evaluation')) | Should Be $false
         (Test-Path -LiteralPath (Join-Path $targetRoot 'ai-eval-dataset-governance')) | Should Be $false
+    }
+
+    It 'rejects duplicate target roots before creating any junctions' {
+        Invoke-ExpectFailure -Operation {
+            & $installer -SourceRoot $sourceRoot -TargetRoots @($targetRoot, $targetRoot)
+        } -MessagePattern 'duplicate target root'
+
+        (Test-Path -LiteralPath (Join-Path $targetRoot 'ai-product-evaluation')) | Should Be $false
     }
 
     It 'derives default target roots from the current user profile API' {

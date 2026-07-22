@@ -47,6 +47,26 @@ function Assert-SafeTargetRoot {
     ) {
         throw "TargetRoot must not equal or be nested under the protected Codex skills directory: $Path"
     }
+
+    $existingAncestorPath = $Path
+    $existingAncestor = $null
+    while ($null -eq $existingAncestor) {
+        $existingAncestor = Get-Item -LiteralPath $existingAncestorPath -Force -ErrorAction SilentlyContinue
+        if ($null -ne $existingAncestor) {
+            break
+        }
+
+        $parentPath = Split-Path -Path $existingAncestorPath -Parent
+        if ([string]::Equals($parentPath, $existingAncestorPath, [System.StringComparison]::OrdinalIgnoreCase)) {
+            break
+        }
+
+        $existingAncestorPath = $parentPath
+    }
+
+    if ($null -ne $existingAncestor -and -not [string]::IsNullOrWhiteSpace($existingAncestor.LinkType)) {
+        throw "TargetRoot must not use a reparse point: $Path"
+    }
 }
 
 function Resolve-ExistingPath {
@@ -103,8 +123,17 @@ if ($TargetRoots.Count -eq 0) {
     $TargetRoots = Get-DefaultTargetRoots
 }
 
+$normalizedTargetRoots = @{}
 foreach ($targetRoot in $TargetRoots) {
     Assert-SafeTargetRoot -Path $targetRoot
+
+    $normalizedTargetRoot = [System.IO.Path]::GetFullPath($targetRoot).TrimEnd('\', '/')
+    $targetRootKey = $normalizedTargetRoot.ToUpperInvariant()
+    if ($normalizedTargetRoots.ContainsKey($targetRootKey)) {
+        throw "TargetRoots contains duplicate target root: $targetRoot"
+    }
+
+    $normalizedTargetRoots[$targetRootKey] = $true
 }
 
 $installPlans = @()

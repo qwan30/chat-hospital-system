@@ -14,7 +14,7 @@ from uuid import NAMESPACE_URL, UUID, uuid5
 import fitz
 from pydantic import BaseModel, Field
 
-from hospital_ai.evaluation.corpus import sha256_file
+from hospital_ai.evaluation.corpus import sha256_file, validate_manifest
 from hospital_ai.evaluation.models import CorpusFile, CorpusManifest
 
 CaseCategory = Literal[
@@ -323,6 +323,8 @@ def _validate_sources(manifest: CorpusManifest, data_root: Path) -> tuple[tuple[
         if candidate.stat().st_size != item.byte_size:
             errors.append(f"Source byte-size mismatch: {item.relative_path}")
         total_bytes += candidate.stat().st_size
+    manifest_result = validate_manifest(manifest, root)
+    errors.extend(manifest_result.errors)
     return tuple(errors), len(manifest.files), total_bytes
 
 
@@ -557,6 +559,9 @@ def _evidence_binding_errors(cases: tuple[BenchmarkCase, ...], catalog: dict[UUI
             entry = catalog.get(evidence_id)
             if entry is not None and entry.patient_id != case.patient_id:
                 errors.append(f"{case.case_id}: allowed evidence belongs to another patient")
+        for evidence_id in case.forbidden_evidence_ids:
+            if evidence_id not in catalog:
+                errors.append(f"{case.case_id}: forbidden evidence is not canonical")
         if case.graph is None:
             continue
         for relation in case.graph.required_relations:

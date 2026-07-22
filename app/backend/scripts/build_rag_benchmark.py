@@ -39,14 +39,25 @@ def _refresh_graph_facts() -> None:
     MANIFEST_PATH.write_text(refreshed.json(indent=2, sort_keys=True) + "\n", encoding="utf-8", newline="\n")
 
 
+def _assert_graph_facts_current(manifest) -> None:
+    expected = build_patient_graph_facts(manifest, DATA_ROOT)
+    actual = GRAPH_FACTS_PATH.read_text(encoding="utf-8")
+    rendered = "".join(value.json(sort_keys=True) + "\n" for value in expected)
+    if actual != rendered:
+        raise SystemExit("Graph facts artifact drift detected; rerun with --write to regenerate explicitly")
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--seed", type=int, default=20260722)
     parser.add_argument("--write", action="store_true")
     args = parser.parse_args()
 
-    _refresh_graph_facts()
+    if args.write:
+        _refresh_graph_facts()
     manifest = load_manifest(MANIFEST_PATH)
+    if not args.write:
+        _assert_graph_facts_current(manifest)
     cases = generate_benchmark(manifest, DATA_ROOT, seed=args.seed)
     sentinel = select_sentinel(cases)
     result = validate_benchmark(cases, manifest=manifest, data_root=DATA_ROOT)

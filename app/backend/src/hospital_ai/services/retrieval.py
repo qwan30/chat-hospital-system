@@ -12,6 +12,7 @@ from hospital_ai.core.errors import ExternalServiceError
 from hospital_ai.core.security import PATIENT_READ_SCOPES, ROLE_PERMISSIONS
 from hospital_ai.core.telemetry import RAG_EVIDENCE_COUNT, RAG_RETRIEVAL_DURATION
 from hospital_ai.db.models import Document, DocumentChunk, DocumentPage, User
+from hospital_ai.evaluation.observer import EvaluationObserver
 from hospital_ai.services.permissions import (
     ACTIVE_PATIENT_PERMISSION_SQL,
     active_patient_permission_exists,
@@ -67,9 +68,10 @@ def _scope_matches(scope: str, value: str) -> bool:
 
 
 class RetrievalService:
-    def __init__(self, session: AsyncSession) -> None:
+    def __init__(self, session: AsyncSession, evaluation_observer: EvaluationObserver | None = None) -> None:
         self.session = session
         self.blocked_chunk_count = 0
+        self.evaluation_observer = evaluation_observer
 
     async def _apply_role_filters(self, chunks: list[RetrievedChunk], user_id: uuid.UUID) -> list[RetrievedChunk]:
         if not chunks:
@@ -136,7 +138,11 @@ class RetrievalService:
                 query_embedding=query_embedding,
                 top_k=top_k,
             )
+        if self.evaluation_observer is not None:
+            self.evaluation_observer.record_candidates(chunks)
         results = await self._apply_role_filters(chunks, user_id)
+        if self.evaluation_observer is not None:
+            self.evaluation_observer.record_authorized_candidates(results)
 
         duration = time.perf_counter() - start_time
         RAG_RETRIEVAL_DURATION.labels(mode="vector").observe(duration)
@@ -189,7 +195,11 @@ class RetrievalService:
                 query_text=query_text,
                 top_k=top_k,
             )
+            if self.evaluation_observer is not None:
+                self.evaluation_observer.record_candidates(results)
             results = await self._apply_role_filters(results, user_id)
+            if self.evaluation_observer is not None:
+                self.evaluation_observer.record_authorized_candidates(results)
 
             duration = time.perf_counter() - start_time
             RAG_RETRIEVAL_DURATION.labels(mode="bm25").observe(duration)
@@ -216,6 +226,11 @@ class RetrievalService:
             query_text=query_text,
             top_k=fetch_k,
         )
+        if self.evaluation_observer is not None:
+            self.evaluation_observer.record_candidates(bm25_results)
+        bm25_results = await self._apply_role_filters(bm25_results, user_id)
+        if self.evaluation_observer is not None:
+            self.evaluation_observer.record_authorized_candidates(bm25_results)
 
         fused = reciprocal_rank_fusion(
             vector_results,

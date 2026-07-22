@@ -162,6 +162,13 @@ def test_unexpected_claim_is_a_severe_hallucination(case: BenchmarkCase) -> None
     assert score.unsupported_claim_count == 1
 
 
+def test_uncited_claim_is_not_in_citation_precision_denominator(case: BenchmarkCase) -> None:
+    score = score_case(case, _trace(case, answer="Sodium is critically low."))
+
+    assert score.citation_precision.denominator == 0
+    assert score.citation_precision.exclusion_reason == "no_citations_produced"
+
+
 def test_safe_refusal_scores_without_invalid_citation_denominator(case: BenchmarkCase) -> None:
     refusal = case.copy(
         update={
@@ -328,6 +335,35 @@ def test_graph_credit_requires_supported_graph_claim(case: BenchmarkCase) -> Non
     )
 
     assert score.graph_value_credit is False
+
+
+def test_graph_credit_requires_graph_evidence_in_selected_context(case: BenchmarkCase) -> None:
+    evidence_id = case.expected_facts[0].evidence_id
+    score = score_case(
+        case,
+        _trace(
+            case,
+            graph_ran=True,
+            graph_selected_evidence_ids=(evidence_id,),
+            selected_evidence_ids=(),
+        ),
+    )
+
+    assert score.graph_value_credit is False
+
+
+def test_all_excluded_aggregate_records_every_exclusion(case: BenchmarkCase) -> None:
+    refusal_a = case.copy(update={"expected_facts": (), "expected_citations": (), "allowed_evidence_ids": ()})
+    refusal_b = refusal_a.copy(update={"case_id": uuid4()})
+    scores = (
+        score_case(refusal_a, _trace(refusal_a, answer="No evidence", cited_chunks=())),
+        score_case(refusal_b, _trace(refusal_b, answer="No evidence", cited_chunks=())),
+    )
+
+    metrics = aggregate_scores(scores)
+
+    assert metrics.citation_precision.excluded_count == 2
+    assert metrics.fact_f1.excluded_count == 2
 
 
 def test_scoring_contracts_are_immutable(case: BenchmarkCase) -> None:

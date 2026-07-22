@@ -65,7 +65,7 @@ def extract_atomic_claims(answer: str) -> tuple[AtomicClaim, ...]:
 
 
 def _segments(text: str) -> tuple[str, ...]:
-    boundary = r"(?<!\d)\.(?!\d)|[;\r\n]+|\band\s+(?=[A-Z][A-Za-z0-9 _/-]{0,40}(?:\s+(?:is|was)|\s*:))"
+    boundary = r"(?<!\d)\.(?!\d)|[;\r\n]+|\band\s+(?=[A-Za-z][A-Za-z0-9 _/-]{0,40}(?:\s+(?:is|was)|\s*:))"
     return tuple(item.strip() for item in re.split(boundary, text) if item.strip())
 
 

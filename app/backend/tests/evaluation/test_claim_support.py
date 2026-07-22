@@ -78,3 +78,10 @@ def test_extracts_uncited_and_colon_claims() -> None:
     assert extract_atomic_claims("HbA1c: 7.2 % [E1].") == (
         AtomicClaim(field="HbA1c", value="7.2", unit="%", citation_labels=("E1",)),
     )
+
+
+def test_factual_looking_unparsed_segment_fails_closed() -> None:
+    claims = extract_atomic_claims("Patient stable and sodium: critically low.")
+
+    assert len(claims) == 1
+    assert claims[0].field.casefold() == "sodium"

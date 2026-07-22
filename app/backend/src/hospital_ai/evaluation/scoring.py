@@ -241,6 +241,9 @@ def _build_case_score(
     expected_refusal = case.answer_policy != "answer"
     critical = tuple(claim for claim in expected if claim.critical)
     supported_critical = tuple(claim for claim in supported_expected if claim.critical)
+    cited_support = tuple(
+        support for claim, support in zip(answer, supported_answer, strict=True) if claim.citation_labels
+    )
     return CaseScore(
         case_id=case.case_id,
         category=case.category,
@@ -257,7 +260,7 @@ def _build_case_score(
         fact_recall=recall,
         fact_f1=_f1(precision, recall),
         citation_precision=_ratio_or_excluded(
-            sum(supported_answer), len(answer), "citation_precision", "no_citations_produced"
+            sum(cited_support), len(cited_support), "citation_precision", "no_citations_produced"
         ),
         citation_recall=_ratio_or_excluded(
             len(supported_expected), len(expected), "citation_recall", "no_expected_citations"
@@ -356,7 +359,7 @@ def _aggregate_ratio(scores: Sequence[CaseScore], field: str) -> MetricValue:
     values = tuple(getattr(score, field) for score in scores)
     included = tuple(value for value in values if value.value is not None)
     if not included:
-        return _excluded("no_expected_facts")
+        return _excluded("no_expected_facts").copy(update={"excluded_count": len(values)})
     result = safe_ratio(sum(item.numerator for item in included), sum(item.denominator for item in included), field)
     return result.copy(update={"excluded_count": len(values) - len(included)})
 
@@ -365,7 +368,13 @@ def _mean_metric(scores: Sequence[CaseScore], field: str) -> AggregateValue:
     all_values = tuple(getattr(score, field) for score in scores)
     values = tuple(value.value for value in all_values if value.value is not None)
     if not values:
-        return AggregateValue(numerator=0.0, denominator=0, value=None, exclusion_reason="no_cases")
+        return AggregateValue(
+            numerator=0.0,
+            denominator=0,
+            value=None,
+            excluded_count=len(all_values),
+            exclusion_reason="no_cases",
+        )
     return AggregateValue(
         numerator=sum(values),
         denominator=len(values),
@@ -426,7 +435,8 @@ def _p95_latency(scores: Sequence[CaseScore]) -> AggregateValue:
 
 
 def _graph_credit(trace: EvaluationTrace, supported_ids: set[UUID]) -> bool:
-    return trace.graph_ran and bool(supported_ids.intersection(trace.graph_selected_evidence_ids))
+    eligible = supported_ids.intersection(trace.graph_selected_evidence_ids, trace.selected_evidence_ids)
+    return trace.graph_ran and bool(eligible)
 
 
 def _minimum_gate(name: str, metric: MetricValue | AggregateValue, threshold: float) -> GateResult:

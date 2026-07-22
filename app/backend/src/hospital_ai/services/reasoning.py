@@ -12,6 +12,7 @@ from dataclasses import dataclass
 from typing import Optional
 
 from hospital_ai.core.config import Settings
+from hospital_ai.evaluation.observer import EvaluationObserver
 from hospital_ai.schemas.documents import EvidenceRead
 from hospital_ai.services.chat_utils import (
     ChatGenerator,
@@ -67,6 +68,7 @@ class SimpleQAPipeline:
         question: str,
         evidence: list[RetrievedChunk],
         conversation_history: Optional[list[dict[str, str]]] = None,
+        evaluation_observer: EvaluationObserver | None = None,
     ) -> ReasoningResult:
         reranked = self.reranker.rerank(question, evidence, top_k=self.settings.retrieval_top_k)
 
@@ -79,6 +81,9 @@ class SimpleQAPipeline:
                 pipeline="simple_qa",
             )
 
+        if evaluation_observer is not None:
+            evaluation_observer.record_selected_context(reranked)
+            evaluation_observer.record_generator_context(reranked)
         prompt = build_grounded_prompt(question, reranked, conversation_history)
         answer = await ChatGenerator(self.settings).generate(prompt)
         citation_ids = extract_citation_ids(answer)
@@ -114,6 +119,7 @@ class DecomposeQAPipeline:
         question: str,
         evidence: list[RetrievedChunk],
         conversation_history: Optional[list[dict[str, str]]] = None,
+        evaluation_observer: EvaluationObserver | None = None,
     ) -> ReasoningResult:
         sub_questions = _decompose_question(question)
 
@@ -122,6 +128,7 @@ class DecomposeQAPipeline:
                 question=question,
                 evidence=evidence,
                 conversation_history=conversation_history,
+                evaluation_observer=evaluation_observer,
             )
             return ReasoningResult(
                 answer=result.answer,
@@ -160,6 +167,9 @@ class DecomposeQAPipeline:
                 sub_questions=sub_questions,
             )
 
+        if evaluation_observer is not None:
+            evaluation_observer.record_selected_context(top_evidence)
+            evaluation_observer.record_generator_context(top_evidence)
         prompt = build_grounded_prompt(question, top_evidence, conversation_history)
         answer = await ChatGenerator(self.settings).generate(prompt)
         citation_ids = extract_citation_ids(answer)
@@ -188,6 +198,7 @@ class PatientSummaryPipeline:
         *,
         patient_name: str,
         evidence: list[RetrievedChunk],
+        evaluation_observer: EvaluationObserver | None = None,
     ) -> ReasoningResult:
         reranked = self.reranker.rerank(f"patient summary for {patient_name}", evidence, top_k=10)
 
@@ -200,6 +211,9 @@ class PatientSummaryPipeline:
                 pipeline="patient_summary",
             )
 
+        if evaluation_observer is not None:
+            evaluation_observer.record_selected_context(reranked)
+            evaluation_observer.record_generator_context(reranked)
         context_lines = []
         for chunk in reranked:
             context_lines.append(

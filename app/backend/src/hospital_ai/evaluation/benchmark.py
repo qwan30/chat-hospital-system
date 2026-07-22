@@ -92,10 +92,15 @@ def generate_benchmark(manifest: CorpusManifest | None = None, seed: int = 20260
 def validate_benchmark(cases: Iterable[BenchmarkCase]) -> BenchmarkValidationResult:
     cases = tuple(cases); errors = []
     counts = Counter(c.category for c in cases)
+    if len(cases) != 300: errors.append(f"expected exactly 300 cases, got {len(cases)}")
     for category, minimum in CATEGORY_MINIMA.items():
         if counts[category] != minimum: errors.append(f"{category}: expected {minimum}, got {counts[category]}")
     for case in cases:
         if case.expected_answer_text is not None: errors.append(f"{case.case_id}: prose answer is forbidden")
         if set(case.allowed_chunk_ids) & set(case.forbidden_chunk_ids): errors.append(f"{case.case_id}: evidence overlap")
         if not case.expected_facts: errors.append(f"{case.case_id}: no ground truth facts")
+        if case.category == "permission_adversarial" and (case.permission is None or case.permission.permitted or case.answer_policy != "scoped_refusal"): errors.append(f"{case.case_id}: invalid permission fixture")
+        if case.category == "safe_refusal" and case.answer_policy != "safe_no_evidence": errors.append(f"{case.case_id}: invalid refusal policy")
+        if case.category == "graph_only" and not case.graph or (case.graph and not case.graph.required_edges): errors.append(f"{case.case_id}: missing graph path")
+    if len({c.case_id for c in cases}) != len(cases): errors.append("duplicate case IDs")
     return BenchmarkValidationResult(not errors, tuple(errors))

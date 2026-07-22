@@ -21,6 +21,7 @@ from hospital_ai.evaluation.benchmark import (
     validate_benchmark,
 )
 from hospital_ai.evaluation.corpus import build_manifest
+from scripts import build_rag_benchmark
 
 DATA_ROOT = Path(__file__).parents[2] / "data" / "hosp_ai_synthetic_dataset"
 MANIFEST_PATH = DATA_ROOT / "MANIFEST.json"
@@ -169,6 +170,41 @@ def test_graph_artifact_drift_fails_even_when_manifest_digest_is_updated(tmp_pat
         assert_graph_facts_current(refreshed_manifest, copied_root, graph_path)
 
 
+def test_write_recovers_stale_graph_after_validating_other_sources(tmp_path: Path, monkeypatch) -> None:
+    copied_root = tmp_path / "corpus"
+    shutil.copytree(DATA_ROOT, copied_root)
+    manifest_path = copied_root / "MANIFEST.json"
+    graph_path = copied_root / "metadata" / "patient_graph_facts.jsonl"
+    graph_path.write_text("{}\n", encoding="utf-8", newline="\n")
+    monkeypatch.setattr(build_rag_benchmark, "DATA_ROOT", copied_root)
+    monkeypatch.setattr(build_rag_benchmark, "MANIFEST_PATH", manifest_path)
+    monkeypatch.setattr(build_rag_benchmark, "GRAPH_FACTS_PATH", graph_path)
+
+    build_rag_benchmark._refresh_graph_facts()
+
+    refreshed_manifest = load_manifest(manifest_path)
+    assert_graph_facts_current(refreshed_manifest, copied_root, graph_path)
+
+
+def test_write_recovery_rejects_canonical_input_drift_before_writing(tmp_path: Path, monkeypatch) -> None:
+    copied_root = tmp_path / "corpus"
+    shutil.copytree(DATA_ROOT, copied_root)
+    manifest_path = copied_root / "MANIFEST.json"
+    graph_path = copied_root / "metadata" / "patient_graph_facts.jsonl"
+    stale_graph = "{}\n"
+    graph_path.write_text(stale_graph, encoding="utf-8", newline="\n")
+    lab_path = next((copied_root / "patients_labs").glob("*.csv"))
+    lab_path.write_text(lab_path.read_text(encoding="utf-8") + "drift", encoding="utf-8", newline="\n")
+    monkeypatch.setattr(build_rag_benchmark, "DATA_ROOT", copied_root)
+    monkeypatch.setattr(build_rag_benchmark, "MANIFEST_PATH", manifest_path)
+    monkeypatch.setattr(build_rag_benchmark, "GRAPH_FACTS_PATH", graph_path)
+
+    with pytest.raises(ValueError, match="Source SHA-256 mismatch"):
+        build_rag_benchmark._refresh_graph_facts()
+
+    assert graph_path.read_text(encoding="utf-8") == stale_graph
+
+
 def test_validation_rejects_wrong_patient_forbidden_evidence(benchmark_cases: tuple[BenchmarkCase, ...]) -> None:
     index, original = next(
         (index, case) for index, case in enumerate(benchmark_cases) if case.category == "permission_adversarial"
@@ -182,6 +218,20 @@ def test_validation_rejects_wrong_patient_forbidden_evidence(benchmark_cases: tu
 
     assert not result.is_valid
     assert any("forbidden evidence belongs to another patient" in error for error in result.errors)
+
+
+def test_validation_rejects_fabricated_graph_relation_triple(benchmark_cases: tuple[BenchmarkCase, ...]) -> None:
+    index, original = next((index, case) for index, case in enumerate(benchmark_cases) if case.category == "graph_only")
+    relation = original.graph.required_relations[0]  # type: ignore[union-attr]
+    fabricated = GraphRelation.parse_obj({**relation.dict(), "subject": "patient:fabricated"})
+    graph = GraphExpectation(required_relations=(fabricated, *original.graph.required_relations[1:]))  # type: ignore[union-attr]
+    bad_case = BenchmarkCase.parse_obj({**original.dict(), "graph": graph.dict()})
+    cases = (*benchmark_cases[:index], bad_case, *benchmark_cases[index + 1 :])
+
+    result = validate_benchmark(cases, manifest=load_manifest(MANIFEST_PATH), data_root=DATA_ROOT)
+
+    assert not result.is_valid
+    assert any("graph relation triple is not canonical" in error for error in result.errors)
 
 
 def test_validation_rejects_authorized_patient_as_overlap_forbidden_evidence(

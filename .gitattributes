@@ -1,0 +1,8 @@
+# Governed corpus and evaluation artifacts must retain deterministic bytes on Windows.
+app/backend/data/hosp_ai_synthetic_dataset/MANIFEST.json text eol=lf
+app/backend/data/hosp_ai_synthetic_dataset/**/*.csv text eol=lf
+app/backend/data/hosp_ai_synthetic_dataset/**/*.jsonl text eol=lf
+app/backend/data/hosp_ai_synthetic_dataset/**/*.md text eol=lf
+app/backend/data/hosp_ai_synthetic_dataset/**/*.pdf -text
+app/backend/data/rag_value_benchmark_v1.jsonl text eol=lf
+app/backend/data/rag_value_sentinel_v1.jsonl text eol=lf

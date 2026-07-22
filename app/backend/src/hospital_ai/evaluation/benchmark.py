@@ -36,6 +36,7 @@ _CATEGORY_COUNTS: tuple[tuple[CaseCategory, int], ...] = (
     ("permission_adversarial", 45),
     ("safe_refusal", 25),
 )
+_GRAPH_FACTS_RELATIVE_PATH = "metadata/patient_graph_facts.jsonl"
 
 
 class _StrictFrozenModel(BaseModel):
@@ -260,9 +261,15 @@ def _evidence_catalog(manifest: CorpusManifest, data_root: Path) -> dict[UUID, _
     }
 
 
-def build_patient_graph_facts(manifest: CorpusManifest, data_root: Path) -> tuple[PatientGraphFact, ...]:
+def build_patient_graph_facts(
+    manifest: CorpusManifest,
+    data_root: Path,
+    *,
+    allow_stale_graph_artifact: bool = False,
+) -> tuple[PatientGraphFact, ...]:
     """Derive patient-scoped graph edges from canonical lab rows."""
-    source_errors, _, _ = _validate_sources(manifest, data_root)
+    ignored_paths = frozenset({_GRAPH_FACTS_RELATIVE_PATH}) if allow_stale_graph_artifact else frozenset()
+    source_errors, _, _ = _validate_sources(manifest, data_root, ignored_paths=ignored_paths)
     if source_errors:
         raise ValueError("; ".join(source_errors))
     csv_by_patient, _ = _build_catalog(manifest, data_root)
@@ -310,7 +317,12 @@ def assert_graph_facts_current(manifest: CorpusManifest, data_root: Path, artifa
         raise ValueError("Graph facts artifact drift detected; rerun with --write to regenerate explicitly")
 
 
-def _validate_sources(manifest: CorpusManifest, data_root: Path) -> tuple[tuple[str, ...], int, int]:
+def _validate_sources(
+    manifest: CorpusManifest,
+    data_root: Path,
+    *,
+    ignored_paths: frozenset[str] = frozenset(),
+) -> tuple[tuple[str, ...], int, int]:
     try:
         root = data_root.resolve(strict=True)
     except OSError as error:
@@ -318,6 +330,8 @@ def _validate_sources(manifest: CorpusManifest, data_root: Path) -> tuple[tuple[
     errors: list[str] = []
     total_bytes = 0
     for item in manifest.files:
+        if item.relative_path in ignored_paths:
+            continue
         candidate = (root / item.relative_path).resolve(strict=False)
         try:
             candidate.relative_to(root)
@@ -334,7 +348,7 @@ def _validate_sources(manifest: CorpusManifest, data_root: Path) -> tuple[tuple[
             errors.append(f"Source byte-size mismatch: {item.relative_path}")
         total_bytes += candidate.stat().st_size
     manifest_result = validate_manifest(manifest, root)
-    errors.extend(manifest_result.errors)
+    errors.extend(error for error in manifest_result.errors if not any(path in error for path in ignored_paths))
     return tuple(errors), len(manifest.files), total_bytes
 
 
@@ -592,6 +606,16 @@ def _evidence_binding_errors(cases: tuple[BenchmarkCase, ...], catalog: dict[UUI
                 relation.source_locator,
             ) != (canonical.source_path, canonical.source_sha256, canonical.source_locator):
                 errors.append(f"{case.case_id}: graph relation is misbound to canonical evidence")
+            observation = f"observation:{canonical.evidence_id}"
+            canonical_triples = (
+                (f"patient:{entry.patient_id}", "HAS_LAB_OBSERVATION", observation),
+                (observation, "MEASURED_ON", f"date:{canonical.observed_at}"),
+            )
+            if (
+                canonical.observed_at is None
+                or (relation.subject, relation.predicate, relation.object) not in canonical_triples
+            ):
+                errors.append(f"{case.case_id}: graph relation triple is not canonical")
     return errors
 
 

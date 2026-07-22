@@ -34,7 +34,7 @@ def _write_jsonl(path: Path, values: tuple[object, ...]) -> None:
 
 def _refresh_graph_facts() -> None:
     manifest = load_manifest(MANIFEST_PATH)
-    graph_facts = build_patient_graph_facts(manifest, DATA_ROOT)
+    graph_facts = build_patient_graph_facts(manifest, DATA_ROOT, allow_stale_graph_artifact=True)
     _write_jsonl(GRAPH_FACTS_PATH, graph_facts)
     refreshed = build_manifest(DATA_ROOT, duplicate_root=None)
     MANIFEST_PATH.write_text(refreshed.json(indent=2, sort_keys=True) + "\n", encoding="utf-8", newline="\n")

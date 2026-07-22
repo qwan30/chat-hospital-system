@@ -3570,6 +3570,23 @@
       "sha256": "a0c17b84098263ce68e7dafa5d79e65970c64c12e725da68664007531677046d",
       "source": "dataset_generation_instruction.md",
       "synthetic": true
+    },
+    {
+      "byte_size": 2494000,
+      "classification": "metadata",
+      "document_id": "patient_graph_facts",
+      "document_type": "metadata",
+      "generator": "HOSP-AI-001 synthetic dataset generator",
+      "generator_version": "1.0",
+      "license_state": "synthetic-approved",
+      "mime_type": "application/x-ndjson",
+      "patient_id": null,
+      "quarantine_state": "active",
+      "relative_path": "metadata/patient_graph_facts.jsonl",
+      "runtime_approved": true,
+      "sha256": "a8398e5d7cd1d44d0fe30eeb1dc00cf56199776c554c566438c4ef8d1eaf2521",
+      "source": "dataset_generation_instruction.md",
+      "synthetic": true
     }
   ],
   "patient_count": 100,

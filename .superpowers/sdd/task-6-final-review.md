@@ -51,7 +51,7 @@ The heavy Paddle packages were not installed during this review. The release run
 
 ### Source-backed evaluation runs
 
-The deterministic runs used dataset `synthetic-100-v2` at Git SHA `db8077f3760a5e808b353e796727860141b29cb1` and wrote all four required artifacts (`run.json`, `cases.jsonl`, `junit.xml`, `summary.md`) under isolated temporary directories.
+The final deterministic replays used dataset `synthetic-100-v2` at Git SHA `2ab2b6c7e940f19cb9ee1e5c1a018f69b33c305c` and wrote all four required artifacts (`run.json`, `cases.jsonl`, `junit.xml`, `summary.md`) under isolated temporary directories.
 
 | Run | Exit | Results | Blocking gates |
 | --- | ---: | --- | --- |

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Healthcare RAG Evaluation"
+  short_description: "Gate healthcare RAG, Graph RAG, and OCR safety"
+  default_prompt: "Use $healthcare-rag-graph-ocr-evaluation to evaluate this healthcare RAG release."

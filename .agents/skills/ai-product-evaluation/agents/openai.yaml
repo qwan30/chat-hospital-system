@@ -1,0 +1,6 @@
+interface:
+  display_name: "AI Product Evaluation"
+  short_description: "Run baseline-first AI quality and safety gates"
+  default_prompt: "Use $ai-product-evaluation to evaluate this AI product release with reproducible gates."
+policy:
+  allow_implicit_invocation: true

@@ -1,0 +1,4 @@
+interface:
+  display_name: "AI Evaluation Dataset Governance"
+  short_description: "Govern evidence, provenance, and ground truth"
+  default_prompt: "Use $ai-eval-dataset-governance to audit this evaluation corpus before running it."

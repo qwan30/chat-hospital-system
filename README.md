@@ -12,13 +12,13 @@
 [![Docker](https://img.shields.io/badge/Docker-✓-2496ED?style=for-the-badge&logo=docker&logoColor=white)](https://www.docker.com/)
 [![CI/CD](https://img.shields.io/badge/CI%2FCD-Active-2088FF?style=for-the-badge&logo=githubactions&logoColor=white)](https://github.com/qwan30/chat-hospital-system/actions)
 [![Tests](https://img.shields.io/badge/Tests-260%2B_Passing-22C55E?style=for-the-badge)](https://github.com/qwan30/chat-hospital-system/actions)
-[![RAG Eval](https://img.shields.io/badge/RAG_Eval-6%2F6_Passed-22C55E?style=for-the-badge)](https://github.com/qwan30/chat-hospital-system)
-[![Release](https://img.shields.io/badge/Release-v5.0-0d7c4b?style=for-the-badge)](https://github.com/qwan30/chat-hospital-system)
+[![AI Eval](https://img.shields.io/badge/AI_Eval-Review_Pending-F59E0B?style=for-the-badge)](app/backend/data/evaluation/rag_sentinel_v2.jsonl)
+[![Release Gate](https://img.shields.io/badge/Release_Gate-Conditional-F59E0B?style=for-the-badge)](app/backend/scripts/run_ai_evaluation.py)
 
 **An AI-powered clinical decision support system** integrating RAG (Retrieval-Augmented Generation) with permission-aware vector search, citation hallucination detection, and HMS (Hospital Management System) data synchronization. Built with a **hybrid Clean/Pipeline architecture** — framework-free domain core, abstract provider interfaces, centralized prompt registry, and domain-driven exceptions. Designed to demonstrate production-grade AI engineering with strict PHI (Protected Health Information) compliance considerations.
 
-> **🟢 Production Status: v5.0 — July 12, 2026**
-> 260+ Pytest tests passing. 6/6 RAG synthetic evaluation scenarios passed. 5 CI/CD workflows active with CodeQL, Trivy, and TruffleHog scanning. Full Grafana observability stack. **New:** Autonomous CDSS Agent with Knowledge Graph context and real-time clinical alerts.
+> **🟠 AI evaluation status: CONDITIONAL**
+> The versioned corpus and 300 source-backed cases are available, but the 50-case sentinel is still `draft`. It requires two independent reviewer approvals with no unresolved issues and therefore blocks release. Retrieval, Graph RAG, chat, and controlled-scan OCR are not represented as passing until their real adapters execute and produce run artifacts.
 >
 > 📚 **[Interactive Documentation Portal →](docs/documentation-portal.html)** | 📂 **[Documentation Index →](docs/README.md)** | 📋 **[API Contract →](docs/05-api/api-contract.md)**
 
@@ -46,7 +46,7 @@
 
 | Dimension | Demonstrated Skills |
 |-----------|-------------------|
-| **AI/ML Engineering** | RAG pipeline with citation validation, permission-aware vector search, multi-provider LLM/embedding abstraction (Ollama/OpenAI/Cohere), synthetic RAG evaluation suite, centralized prompt registry |
+| **AI/ML Engineering** | RAG pipeline with citation validation, permission-aware vector search, multi-provider LLM/embedding abstraction (Ollama/OpenAI/Cohere), source-backed AI evaluation contracts, centralized prompt registry |
 | **Backend Engineering** | FastAPI async, SQLAlchemy 2.0+asyncpg, pgvector HNSW, Redis/RQ workers, Alembic migrations, API contract verification, structured JSON logging |
 | **Frontend Engineering** | TanStack Start (Vite 8), React 19, shadcn/ui, Tailwind CSS v4, SSE streaming, Playwright E2E, 90+ routes with RBAC-gated navigation |
 | **DevOps / SRE** | 5 GitHub Actions workflows (CI/CD/Security/Rollback/Dependabot), Docker multi-stage, Trivy+CodeQL scanning, Grafana+Prometheus+Loki+Tempo observability |
@@ -393,16 +393,17 @@ graph TB
 
 ```mermaid
 xychart-beta
-    title "Quality Gates — HOSP-AI-001 v4.0"
-    x-axis ["Backend Tests", "RAG Eval Passed", "API Endpoints", "DB Tables", "Frontend Components", "CI Jobs"]
-    y-axis "Count" 0 --> 260
-    bar [250, 6, 28, 13, 60, 8]
+    title "Source-Backed Evaluation Inputs"
+    x-axis ["PDF Docs", "Lab CSV", "Benchmark Cases", "Sentinel Cases"]
+    y-axis "Count" 0 --> 300
+    bar [100, 100, 300, 50]
 ```
 
 | Metric | Value | Status |
 |--------|-------|--------|
-| **Backend Pytest Tests** | 260+ (Unit + Integration + CDSS) | ✅ All Passing |
-| **RAG Synthetic Eval** | 6/6 scenarios passed | ✅ 100% Pass Rate |
+| **Canonical patient corpus** | 100 PDF documents + 100 lab CSV files | ✅ Manifest validated |
+| **Source-backed AI benchmark** | 300 cases; 50-case sentinel | 🟠 Sentinel review blocks release |
+| **Evaluation evidence** | `run.json`, `cases.jsonl`, `junit.xml`, `summary.md` | ✅ Emitted on every runner invocation |
 | **REST API Endpoints** | 35+ route decorators, 28 OpenAPI paths | ✅ Verified |
 | **Database Schema** | 14 tables, 7 Alembic migrations | ✅ Migrated |
 | **Frontend Components** | 60+ React components (shadcn/ui) | ✅ Built |
@@ -579,8 +580,11 @@ docker compose -f infra/docker-compose.yml -f infra/docker-compose.observability
 # Backend — 250+ Pytest tests
 cd app/backend && python -m pytest tests/ -v --tb=short
 
-# Backend — RAG synthetic evaluation (6 scenarios)
-cd app/backend && python scripts/run_rag_eval.py
+# Backend — deterministic source-backed sentinel evaluation
+cd app/backend && python scripts/run_ai_evaluation.py --suite smoke --lane deterministic --components corpus,retrieval,graph,chat --output-dir evaluation-artifacts/deterministic
+
+# Backend — full 300-case deterministic evaluation
+cd app/backend && python scripts/run_ai_evaluation.py --suite release --lane deterministic --components corpus,ocr,retrieval,graph,chat --output-dir evaluation-artifacts/release
 
 # Backend — API contract verification
 cd app/backend && python scripts/verify_contracts.py
@@ -706,7 +710,7 @@ This project is a **portfolio demonstration**, not a certified medical device. T
 - **Session-Only Chat Attachments** — Temporary file scope that doesn't persist to the hospital knowledge base
 - **PDF Graph Reports** — Formatted clinical reasoning reports generated from Knowledge Graph data
 - **Multi-Role Users** — Role-switching workflow with many-to-many user-role mapping
-- **Advanced RAG Evaluation** — Expanded synthetic evaluation suite with more clinical scenarios and automated regression tracking
+- **Live AI Evaluation Adapters** — Execute retrieval, Graph RAG, chat, and controlled-scan OCR against the source-backed benchmark and publish comparable regression artifacts
 - **Real-Time HMS Integration** — WebSocket-based live sync with Hospital Management System for appointment updates, lab results, and medication orders
 - **Mobile-Responsive UI** — Optimized touch-friendly layout for tablet/mobile clinical use
 

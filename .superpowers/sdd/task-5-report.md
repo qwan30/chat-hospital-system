@@ -1,67 +1,48 @@
-# Task 5: Restrict Demo-ID Translation to Identifier Fields
+# Task 5 report — CI evaluation integration
 
-## Delivered
+## Outcome
 
-- Replaced unconditional recursive string mapping with `mapApiIds`, a pure mapper that carries the current property key.
-- Demo ID translations now apply only to `id`, keys ending in `_id`, and graph keys `from_node` and `to_node`.
-- JSON request bodies are parsed, identifier fields are translated, and the resulting JSON is serialized again. Non-JSON string bodies are preserved unchanged.
-- URL/path mapping remains unchanged.
+Replaced the pass-by-construction RAG CI check with the source-backed AI evaluation runner. The deterministic lane is now blocking, produces the four required artifacts on every invocation, and runs the 50-case sentinel for pull requests or the 300-case suite for main, scheduled, and manual runs.
+
+The optional live lane is available only through an explicit `workflow_dispatch` boolean and runs only after the deterministic job passes. Missing provider configuration remains visible in the runner artifact as `skipped`; no synthetic `1.0` score is emitted.
+
+## Delivered files
+
+- `.github/workflows/ci.yml`
+- `app/backend/tests/test_ci_workflow.py`
+- `app/backend/tests/test_rag_eval.py` (removed)
+- `README.md`
+
+## CI behavior
+
+- Pull requests run `smoke` with `corpus,retrieval,graph,chat` against the source-backed 50-case sentinel.
+- Main pushes, nightly schedule, and manual runs run `release` against all 300 cases.
+- The old `continue-on-error: true` and `pytest tests/test_rag_eval.py` path are removed.
+- `run.json`, `cases.jsonl`, `junit.xml`, and `summary.md` are uploaded with `if: always()` and `if-no-files-found: error`.
+- The live lane is manual, credential-scoped, and depends on a successful deterministic gate.
+- CI summary includes deterministic and live evaluation results.
 
 ## TDD evidence
 
 ### RED
 
-Command:
+`py -3.12 -m pytest tests\\test_ci_workflow.py -q` produced two failures before implementation: the deterministic job lacked the direct `changes` dependency/source-backed runner, and `live-ai-evaluation` did not exist.
 
-```powershell
-bun run test -- src/lib/api-client.test.ts --run
-```
-
-Result: 2 failures of 75 tests before implementation.
-
-- A UUID-only `citation_text` response field was incorrectly converted to `ar-002`.
-- The request `question` prose incorrectly converted embedded `p-001` and `ar-002` values to UUIDs.
+A README regression test then failed on the obsolete `6/6 RAG synthetic evaluation` claim.
 
 ### GREEN
 
-The same focused command passed after the minimal mapper change: 9 test files and 75 tests passed.
+- `py -3.12 -m pytest tests\\test_ci_workflow.py -q` -> `4 passed`.
+- `py -3.12 -m pytest tests\\evaluation tests\\test_ci_workflow.py tests\\test_golden_dataset.py -q` -> `50 passed, 1 skipped`.
+- Ruff check passed for the evaluation sources, tests, workflow contract test, and runner CLI.
+- Ruff format check passed for 14 files.
 
-## Verification
+## Real runner evidence
 
-```powershell
-bun run test
-# 9 test files, 75 tests passed
+The checked-in corpus smoke command returned exit `1` and emitted exactly `cases.jsonl`, `junit.xml`, `run.json`, and `summary.md`. This is the expected honest result: the 50-case sentinel remains draft and blocks release until two independent reviewers approve it with no unresolved issues.
 
-bun run typecheck
-# passed
+## Impact and integrity review
 
-bun run lint
-# 0 errors; 3 pre-existing warnings remain in GraphCanvas.tsx, routeTree.gen.ts, and _app.chat.index.tsx
-```
+GitNexus reported LOW risk for `test_rag_eval`, `evaluate_with_llm`, and `test_ci_workflow_parsing_and_structure`, with no affected product process. No product chat, retrieval, Graph RAG, OCR, or authorization symbol was modified.
 
-`app/frontend/src/lib/api/graph.ts` normalization produced no semantic Git diff and was reverted/not delivered.
-
-## Self-review
-
-- The mapper creates new arrays/objects and does not mutate request or response data.
-- Array values retain their parent key, so arrays assigned to an identifier key map correctly.
-- Unknown/prose keys are never scanned heuristically for UUIDs.
-- Request parsing failure is intentionally swallowed only to retain the original raw body.
-- `git diff --check` completed with no whitespace errors.
-
-## Concerns
-
-- The three remaining lint warnings are outside Task 5 scope and unchanged by this work.
-- The test runner emits an existing Vite `vite-tsconfig-paths` deprecation warning.
-
-## Coverage follow-up
-
-The reviewer requested post-fix regression/characterization coverage for the CRITICAL `apiFetch` adapter. These cases passed the already-implemented mapper; they are not represented as a new RED cycle.
-
-- Exact `id`, `from_node`, and `to_node` response keys translate correctly.
-- Identifier arrays retain their parent key while translating each entry.
-- Identifier fields nested inside response array elements translate correctly.
-- Invalid JSON request bodies are forwarded byte-for-byte.
-- Existing demo-ID path translation remains unchanged.
-
-Focused and full frontend unit runs passed 80 tests. Typecheck passed. Lint completed with zero errors and the same three pre-existing warnings.
+README badges and metrics now identify the evaluation verdict as `CONDITIONAL`, link to the source-backed artifacts, and explicitly state that draft sentinel review blocks release.

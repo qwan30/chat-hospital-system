@@ -16,7 +16,15 @@ on:
       - "docs/**"
       - ".gitignore"
       - "LICENSE"
+  schedule:
+    - cron: "23 2 * * *"
   workflow_dispatch:
+    inputs:
+      run_live_ai_evaluation:
+        description: "Run the credentialed live-model evaluation after deterministic gates pass"
+        required: false
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -291,33 +299,16 @@ jobs:
   # Job 4b: Backend — RAG Evaluation
   # ═══════════════════════════════════════════════════════════════════
   rag-evaluation:
-    name: Backend RAG Evaluation
+    name: Source-backed AI evaluation
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    needs: [backend-test, backend-migration]
+    needs: [changes, backend-test, backend-migration]
     if: ${{ needs.changes.outputs.backend == 'true' || github.event_name != 'pull_request' }}
     defaults:
       run:
         working-directory: app/backend
     env:
-      HOSPITAL_AI_DATABASE_URL: "postgresql+asyncpg://hospital_ai:hospital_ai@localhost:5432/hospital_ai_test"
-      HOSPITAL_AI_CHAT_PROVIDER: "stub"
-      HOSPITAL_AI_EMBEDDING_PROVIDER: "deterministic"
-
-    services:
-      postgres:
-        image: pgvector/pgvector:pg16
-        env:
-          POSTGRES_DB: hospital_ai_test
-          POSTGRES_USER: hospital_ai
-          POSTGRES_PASSWORD: hospital_ai
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd "pg_isready -U hospital_ai -d hospital_ai_test"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
+      AI_EVAL_SUITE: ${{ github.event_name == 'pull_request' && 'smoke' || 'release' }}
 
     steps:
       - name: Checkout
@@ -340,29 +331,84 @@ jobs:
         run: |
           python -m venv .venv
           .venv/bin/pip install --upgrade pip
-          .venv/bin/pip install -e ".[dev,postgres]"
+          .venv/bin/pip install -e ".[dev]"
 
       - name: Expose virtualenv
         run: echo "${{ github.workspace }}/app/backend/.venv/bin" >> $GITHUB_PATH
 
-      - name: Initialize Database
-        run: |
-          alembic upgrade head
-          python scripts/seed_dev.py
+      - name: Run deterministic AI evaluation
+        run: >-
+          python scripts/run_ai_evaluation.py
+          --suite "$AI_EVAL_SUITE"
+          --lane deterministic
+          --components corpus,retrieval,graph,chat
+          --output-dir evaluation-artifacts/deterministic
 
-      - name: Run RAG Evaluation
-        continue-on-error: true
-        run: pytest tests/test_rag_eval.py
-
-
-      - name: Upload RAG Eval Report
+      - name: Upload deterministic AI evaluation artifacts
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: rag-evaluation-report
-          path: history/rag-eval/
-          if-no-files-found: ignore
-          retention-days: 7
+          name: deterministic-ai-evaluation-${{ github.run_id }}
+          path: app/backend/evaluation-artifacts/deterministic/
+          if-no-files-found: error
+          retention-days: 14
+
+  live-ai-evaluation:
+    name: Live-model AI evaluation
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    needs: [rag-evaluation]
+    if: ${{ always() && github.event_name == 'workflow_dispatch' && inputs.run_live_ai_evaluation == true && needs.rag-evaluation.result == 'success' }}
+    defaults:
+      run:
+        working-directory: app/backend
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Set up Python ${{ env.PYTHON_VERSION }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Cache Virtual Environment
+        uses: actions/cache@v4
+        id: live-eval-venv-cache
+        with:
+          path: app/backend/.venv
+          key: venv-live-ai-eval-${{ runner.os }}-${{ hashFiles('app/backend/pyproject.toml') }}
+
+      - name: Install dependencies
+        if: steps.live-eval-venv-cache.outputs.cache-hit != 'true'
+        run: |
+          python -m venv .venv
+          .venv/bin/pip install --upgrade pip
+          .venv/bin/pip install -e ".[dev]"
+
+      - name: Expose virtualenv
+        run: echo "${{ github.workspace }}/app/backend/.venv/bin" >> $GITHUB_PATH
+
+      - name: Run live AI evaluation
+        env:
+          AI_EVAL_PROVIDER: ${{ secrets.AI_EVAL_PROVIDER }}
+          AI_EVAL_MODEL: ${{ secrets.AI_EVAL_MODEL }}
+          AI_EVAL_API_KEY: ${{ secrets.AI_EVAL_API_KEY }}
+        run: >-
+          python scripts/run_ai_evaluation.py
+          --suite release
+          --lane live
+          --components retrieval,graph,chat
+          --output-dir evaluation-artifacts/live
+
+      - name: Upload live AI evaluation artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: live-ai-evaluation-${{ github.run_id }}
+          path: app/backend/evaluation-artifacts/live/
+          if-no-files-found: error
+          retention-days: 14
 
   # ═══════════════════════════════════════════════════════════════════
   # Job 5: Frontend — Lint, Test, Build & E2E
@@ -558,7 +604,7 @@ jobs:
     name: CI summary
     runs-on: ubuntu-latest
     timeout-minutes: 2
-    needs: [codeql-backend, codeql-frontend, backend-test, backend-migration, rag-evaluation, frontend-test, validate-observability, docker-push]
+    needs: [codeql-backend, codeql-frontend, backend-test, backend-migration, rag-evaluation, live-ai-evaluation, frontend-test, validate-observability, docker-push]
     if: always()
     steps:
       - name: Check results
@@ -573,6 +619,7 @@ jobs:
             ["backend-test"]="${{ needs.backend-test.result }}"
             ["backend-migration"]="${{ needs.backend-migration.result }}"
             ["rag-evaluation"]="${{ needs.rag-evaluation.result }}"
+            ["live-ai-evaluation"]="${{ needs.live-ai-evaluation.result }}"
             ["frontend-test"]="${{ needs.frontend-test.result }}"
             ["validate-observability"]="${{ needs.validate-observability.result }}"
             ["docker-push"]="${{ needs.docker-push.result }}"

@@ -29,8 +29,14 @@ export interface StreamResult {
   error?: string;
 }
 
+export type StreamStatusStage =
+  | "retrieving"
+  | "preparing_answer"
+  | "validating_citations"
+  | "complete";
+
 export type StreamCallback = (event: {
-  type: "token" | "citations" | "metadata" | "done" | "error";
+  type: "token" | "citations" | "metadata" | "status" | "done" | "error";
   content?: string;
   citations?: StreamCitation[];
   confidence?: string;
@@ -38,6 +44,7 @@ export type StreamCallback = (event: {
   validation?: string;
   model?: string;
   message?: string;
+  stage?: StreamStatusStage;
 }) => void;
 
 /**
@@ -179,6 +186,9 @@ export async function streamChat(
               result.confidence = data.confidence || "low";
               result.model = data.model;
               onEvent?.({ type: "metadata", confidence: data.confidence, model: data.model });
+              break;
+            case "status":
+              onEvent?.({ type: "status", stage: data.stage as StreamStatusStage });
               break;
             case "done":
               result.queryId = data.query_id || "";

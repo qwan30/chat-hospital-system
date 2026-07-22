@@ -8,6 +8,8 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { getDocument, getDocumentPage, retryIndex } from "@/lib/api/documents";
 import { Loader2 } from "lucide-react";
 import { ErrorState } from "@/components/hms/ErrorState";
+import { DocumentPreview } from "@/components/hms/DocumentPreview";
+import { DocumentProcessingTimeline } from "@/components/hms/DocumentProcessingTimeline";
 
 export const Route = createFileRoute("/_app/documents/$documentId")({
   head: () => ({ meta: [{ title: "Document — HMS AI Copilot" }] }),
@@ -95,6 +97,20 @@ function Page() {
       />
       <div className="grid gap-4 md:grid-cols-3">
         <Card className="md:col-span-2 p-5">
+          <h4 className="text-sm font-semibold mb-2">Original document</h4>
+          <DocumentPreview documentId={d.id} mimeType={d.mime_type} />
+        </Card>
+        <Card className="p-5 space-y-3 text-sm">
+          <Row k="Uploaded" v={new Date(d.created_at).toLocaleString()} />
+          <Row k="By" v={d.uploaded_by.substring(0, 8)} />
+          <Row k="Patient" v={d.patient_id.substring(0, 8)} />
+          <Row k="Type" v={d.mime_type} />
+          {d.ocr_error && <Row k="OCR Error" v={d.ocr_error} />}
+          {pageData?.ocr_confidence !== undefined && pageData?.ocr_confidence !== null && (
+            <Row k="OCR Confidence (Pg 1)" v={`${Math.round(pageData.ocr_confidence * 100)}%`} />
+          )}
+        </Card>
+        <Card className="md:col-span-2 p-5">
           <h4 className="text-sm font-semibold mb-2">Extracted text (preview Page 1)</h4>
           {pageLoading ? (
             <div className="flex justify-center p-4">
@@ -112,15 +128,9 @@ function Page() {
             <div className="text-xs text-muted-foreground">No page data available</div>
           )}
         </Card>
-        <Card className="p-5 space-y-3 text-sm">
-          <Row k="Uploaded" v={new Date(d.created_at).toLocaleString()} />
-          <Row k="By" v={d.uploaded_by.substring(0, 8)} />
-          <Row k="Patient" v={d.patient_id.substring(0, 8)} />
-          <Row k="Type" v={d.mime_type} />
-          {d.ocr_error && <Row k="OCR Error" v={d.ocr_error} />}
-          {pageData?.ocr_confidence !== undefined && pageData?.ocr_confidence !== null && (
-            <Row k="OCR Confidence (Pg 1)" v={`${Math.round(pageData.ocr_confidence * 100)}%`} />
-          )}
+        <Card className="p-5">
+          <h4 className="mb-3 text-sm font-semibold">Processing activity</h4>
+          <DocumentProcessingTimeline events={d.processing_events} />
         </Card>
       </div>
     </AppShell>

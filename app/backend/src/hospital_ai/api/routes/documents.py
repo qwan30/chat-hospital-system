@@ -1,7 +1,9 @@
 import uuid
+from pathlib import Path
 from typing import Optional
 
 from fastapi import APIRouter, Depends, File, Form, Query, Request, UploadFile
+from fastapi.responses import FileResponse
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -9,9 +11,10 @@ from hospital_ai.api.deps import get_current_user, get_request_ip, get_session
 from hospital_ai.core.config import Settings, get_settings
 from hospital_ai.core.errors import NotFoundError, ValidationAppError
 from hospital_ai.core.security import PATIENT_READ_SCOPES, PATIENT_UPLOAD_SCOPES, new_trace_id
-from hospital_ai.db.models import Document, DocumentPage, User
+from hospital_ai.db.models import Document, DocumentPage, DocumentProcessingEvent, User
 from hospital_ai.schemas.documents import (
     DocumentListResponse,
+    DocumentDetailRead,
     DocumentPageRead,
     DocumentRead,
     DocumentSearchRequest,
@@ -37,7 +40,14 @@ ALLOWED_MIME_TYPES = {
     "image/jpeg",
 }
 
-ALLOWED_DOCUMENT_TYPES = {"clinical_note", "lab_result", "prescription", "discharge_summary", "imaging_report"}
+ALLOWED_DOCUMENT_TYPES = {
+    "chat_attachment",
+    "clinical_note",
+    "lab_result",
+    "prescription",
+    "discharge_summary",
+    "imaging_report",
+}
 
 
 @router.post("", response_model=DocumentRead)
@@ -89,6 +99,15 @@ async def upload_document(
         patient_id=patient_id,
         document_id=document.id,
         file=file,
+    )
+    session.add(
+        DocumentProcessingEvent(
+            document_id=document.id,
+            attempt=0,
+            sequence=1,
+            stage="upload",
+            state="completed",
+        )
     )
     await AuditService(session).record(
         actor_user_id=current_user.id,
@@ -161,7 +180,7 @@ async def list_documents(
     return DocumentListResponse(items=documents)
 
 
-@router.get("/{document_id}", response_model=DocumentRead)
+@router.get("/{document_id}", response_model=DocumentDetailRead)
 async def get_document(
     document_id: uuid.UUID,
     request: Request,
@@ -190,7 +209,33 @@ async def get_document(
         ip_address=get_request_ip(request),
     )
     await session.commit()
+    await session.refresh(document, attribute_names=["processing_events"])
     return document
+
+
+@router.get("/{document_id}/content")
+async def get_document_content(
+    document_id: uuid.UUID,
+    request: Request,
+    session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(get_current_user),
+):
+    """Serve the original upload only after the normal document read check."""
+    document = await _get_document_or_404(session, document_id)
+    trace_id = new_trace_id()
+    await PermissionService(session).require_read(
+        user=current_user,
+        patient_id=document.patient_id,
+        action="document.content.read",
+        trace_id=trace_id,
+        object_type="document",
+        object_id=document.id,
+        ip_address=get_request_ip(request),
+    )
+    content_path = Path(document.storage_uri)
+    if not content_path.exists():
+        raise NotFoundError("Document content not found.")
+    return FileResponse(content_path, media_type=document.mime_type)
 
 
 @router.get("/{document_id}/pages/{page_number}", response_model=DocumentPageRead)

@@ -23,7 +23,7 @@ import { Badge, badgeVariants } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { searchPatients, getPatient } from "@/lib/api/patients";
 import { useSession } from "@/lib/session";
-import { streamChat } from "@/lib/stream-client";
+import { streamChat, type StreamStatusStage } from "@/lib/stream-client";
 import {
   hasStreamScopeChanged,
   isCurrentStreamRequest,
@@ -92,6 +92,13 @@ const suggestions = [
   "Initial assessment protocol for acute dyspnea",
 ];
 
+const streamStageLabel: Record<StreamStatusStage, string> = {
+  retrieving: "Retrieving relevant evidence…",
+  preparing_answer: "Preparing answer…",
+  validating_citations: "Validating citations…",
+  complete: "Answer ready",
+};
+
 function GlobalChat() {
   const { patient: patientId, thread, q: initialQ, simulate } = Route.useSearch();
   const navigate = useNavigate({ from: Route.fullPath });
@@ -104,6 +111,8 @@ function GlobalChat() {
   const [streamingId, setStreamingId] = useState<string | null>(null);
   const [streamingText, setStreamingText] = useState("");
   const [streamError, setStreamError] = useState<string | null>(null);
+  const [streamStage, setStreamStage] = useState<StreamStatusStage | null>(null);
+  const [attachmentStatus, setAttachmentStatus] = useState<string | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
   const activeStreamScopeRef = useRef<StreamScope | null>(null);
   const scrollContainerRef = useRef<HTMLDivElement | null>(null);
@@ -542,6 +551,8 @@ function GlobalChat() {
     lastQuestionRef.current = text;
     setLastQuestion(text);
     setStreamError(null);
+    setStreamStage(null);
+    setAttachmentStatus(null);
     let uploadedDocId: string | undefined;
     const uploadPatientId = file ? patientId : undefined;
     const token = session?.token;
@@ -567,9 +578,11 @@ function GlobalChat() {
 
     if (file && uploadPatientId) {
       try {
+        setAttachmentStatus(`Uploading ${file.name}…`);
         const doc = await uploadDocument(uploadPatientId, file.name, "Chat Attachment", file);
         if (!isActiveRequest()) return;
         uploadedDocId = doc.id;
+        setAttachmentStatus(`${file.name} attached for this answer.`);
       } catch (err) {
         if (isActiveRequest()) {
           setStreamError("Failed to upload the document. Please try again.");
@@ -633,6 +646,10 @@ function GlobalChat() {
         },
         (event) => {
           if (!isActiveRequest()) return;
+          if (event.type === "status" && event.stage) {
+            setStreamStage(event.stage);
+            return;
+          }
           if (event.type === "token") {
             fullText += event.content || "";
             setStreamingText(fullText);
@@ -669,6 +686,7 @@ function GlobalChat() {
       setMessages((m) => [...m, reply]);
       setStreamingId(null);
       setStreamingText("");
+      setStreamStage(null);
       if (activeThreadId) {
         queryClient.invalidateQueries({ queryKey: ["chat-thread", activeThreadId] });
         queryClient.invalidateQueries({ queryKey: ["chat-threads"] });
@@ -960,7 +978,8 @@ function GlobalChat() {
               </p>
               <div className="mt-3 flex items-center justify-between text-xs text-muted-foreground border-t pt-2">
                 <span className="flex items-center gap-1.5">
-                  <Loader2 className="h-3.5 w-3.5 animate-spin text-ai" /> Generating response...
+                  <Loader2 className="h-3.5 w-3.5 animate-spin text-ai" />{" "}
+                  {streamStage ? streamStageLabel[streamStage] : "Generating response..."}
                 </span>
                 <Button
                   variant="ghost"
@@ -988,6 +1007,7 @@ function GlobalChat() {
               streamingText ? "Receiving response from AI..." : "Waiting for current response…"
             }
             allowAttachment={!!patientId}
+            attachmentStatus={attachmentStatus}
           />
         </div>
       </div>

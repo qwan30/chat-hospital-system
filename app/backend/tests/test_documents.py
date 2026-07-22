@@ -5,10 +5,11 @@ import pytest
 from sqlalchemy import select, update
 
 from hospital_ai.db.migrations import DOCTOR_ID, NURSE_ID, PATIENT_ALICE_ID, PATIENT_ELEANOR_ID, RECORDS_ID
-from hospital_ai.db.models import Document, DocumentChunk, DocumentPage
+from hospital_ai.db.models import Document, DocumentChunk, DocumentPage, DocumentProcessingEvent
 from hospital_ai.services.embeddings import deterministic_embedding
 from hospital_ai.services.ocr import OcrPage
 from hospital_ai.services.retrieval import RetrievalService
+from hospital_ai.schemas.documents import DocumentDetailRead
 from hospital_ai.workers.jobs import process_document
 from tests.conftest import create_indexed_document
 
@@ -64,6 +65,106 @@ async def test_text_document_moves_to_indexed(session_and_settings, tmp_path: Pa
 
 
 @pytest.mark.asyncio
+async def test_chat_attachment_upload_records_initial_activity(session_and_settings):
+    from io import BytesIO
+
+    from fastapi import Request, UploadFile
+    from hospital_ai.api.routes.documents import upload_document
+    from hospital_ai.db.models import User
+    from starlette.datastructures import Headers
+
+    session, settings = session_and_settings
+    current_user = await session.get(User, RECORDS_ID)
+    upload = UploadFile(
+        filename="attached-note.txt",
+        file=BytesIO(b"Attachment content for a cited chat answer."),
+        headers=Headers({"content-type": "text/plain"}),
+    )
+    request = Request({"type": "http", "client": ("127.0.0.1", 8000)})
+
+    document = await upload_document(
+        request=request,
+        patient_id=PATIENT_ALICE_ID,
+        title="Attached note",
+        document_type="chat_attachment",
+        file=upload,
+        session=session,
+        current_user=current_user,
+        settings=settings,
+    )
+
+    events = list(
+        (
+            await session.execute(
+                select(DocumentProcessingEvent)
+                .where(DocumentProcessingEvent.document_id == document.id)
+                .order_by(DocumentProcessingEvent.attempt, DocumentProcessingEvent.sequence)
+            )
+        )
+        .scalars()
+        .all()
+    )
+    assert (events[0].attempt, events[0].sequence, events[0].stage, events[0].state) == (
+        0,
+        1,
+        "upload",
+        "completed",
+    )
+
+
+@pytest.mark.asyncio
+async def test_processing_records_safe_ordered_activity_events(session_and_settings):
+    session, settings = session_and_settings
+    storage_file = _storage_file(settings, "activity-note.txt")
+    storage_file.write_text("A short clinical note for processing activity.", encoding="utf-8")
+    document = Document(
+        patient_id=PATIENT_ALICE_ID,
+        uploaded_by=RECORDS_ID,
+        title="Activity note",
+        document_type="clinical_note",
+        storage_uri=str(storage_file),
+        mime_type="text/plain",
+        status="uploaded",
+    )
+    session.add(document)
+    await session.commit()
+
+    await process_document(session, document.id, settings)
+
+    events = list(
+        (
+            await session.execute(
+                select(DocumentProcessingEvent)
+                .where(DocumentProcessingEvent.document_id == document.id)
+                .order_by(DocumentProcessingEvent.attempt, DocumentProcessingEvent.sequence)
+            )
+        )
+        .scalars()
+        .all()
+    )
+    assert [(event.stage, event.state) for event in events] == [
+        ("ocr", "started"),
+        ("ocr", "completed"),
+        ("index", "started"),
+        ("index", "completed"),
+        ("ready", "completed"),
+    ]
+    assert {event.attempt for event in events} == {1}
+    assert [event.sequence for event in events] == [1, 2, 3, 4, 5]
+    assert all(event.error_code is None for event in events)
+
+    await session.refresh(document, attribute_names=["processing_events"])
+    detail = DocumentDetailRead.from_orm(document)
+    assert [(event.stage, event.sequence) for event in detail.processing_events] == [
+        ("ocr", 1),
+        ("ocr", 2),
+        ("index", 3),
+        ("index", 4),
+        ("ready", 5),
+    ]
+
+
+@pytest.mark.asyncio
 async def test_failed_ocr_creates_no_chunks(session_and_settings, tmp_path: Path, monkeypatch):
     session, settings = session_and_settings
     storage_file = _storage_file(settings, "scan.pdf")
@@ -88,8 +189,25 @@ async def test_failed_ocr_creates_no_chunks(session_and_settings, tmp_path: Path
 
     refreshed = await session.get(Document, document.id)
     assert refreshed.status == "ocr_failed"
+    assert refreshed.ocr_error == "OCR processing failed. Please retry the document."
     result = await session.execute(select(DocumentChunk).where(DocumentChunk.document_id == document.id))
     assert result.scalars().all() == []
+
+    events = list(
+        (
+            await session.execute(
+                select(DocumentProcessingEvent)
+                .where(DocumentProcessingEvent.document_id == document.id)
+                .order_by(DocumentProcessingEvent.attempt, DocumentProcessingEvent.sequence)
+            )
+        )
+        .scalars()
+        .all()
+    )
+    assert [(event.stage, event.state, event.error_code) for event in events] == [
+        ("ocr", "started", None),
+        ("ocr", "failed", "OCR_FAILED"),
+    ]
 
 
 @pytest.mark.asyncio
@@ -121,7 +239,7 @@ async def test_failed_reindex_preserves_existing_searchable_chunks(
 
     refreshed = await session.get(Document, document.id)
     assert refreshed.status == "indexed"
-    assert refreshed.ocr_error == "ocr failed"
+    assert refreshed.ocr_error == "OCR processing failed. Please retry the document."
     assert refreshed.index_generation == 0
 
     chunk_result = await session.execute(select(DocumentChunk).where(DocumentChunk.document_id == document.id))
@@ -169,7 +287,7 @@ async def test_failed_reindex_after_ocr_preserves_existing_chunks(
 
     refreshed = await session.get(Document, document.id)
     assert refreshed.status == "indexed"
-    assert refreshed.ocr_error == "embedding failed"
+    assert refreshed.ocr_error == "Indexing failed. Please retry the document."
     assert refreshed.index_generation == 0
 
     chunk_result = await session.execute(select(DocumentChunk).where(DocumentChunk.document_id == document.id))
@@ -212,7 +330,7 @@ async def test_failed_reindex_for_changed_source_marks_index_failed(
 
     refreshed = await session.get(Document, document.id)
     assert refreshed.status == "index_failed"
-    assert refreshed.ocr_error == "embedding failed"
+    assert refreshed.ocr_error == "Indexing failed. Please retry the document."
     assert refreshed.index_generation == 0
 
     chunk_result = await session.execute(select(DocumentChunk).where(DocumentChunk.document_id == document.id))
@@ -254,7 +372,7 @@ async def test_failed_reindex_with_unknown_source_hash_marks_index_failed(
 
     refreshed = await session.get(Document, document.id)
     assert refreshed.status == "ocr_failed"
-    assert refreshed.ocr_error == "ocr failed"
+    assert refreshed.ocr_error == "OCR processing failed. Please retry the document."
 
 
 @pytest.mark.asyncio
@@ -286,7 +404,7 @@ async def test_embedding_count_mismatch_marks_index_failed(session_and_settings,
 
     refreshed = await session.get(Document, document.id)
     assert refreshed.status == "index_failed"
-    assert "Embedding count mismatch" in refreshed.ocr_error
+    assert refreshed.ocr_error == "Indexing failed. Please retry the document."
 
     chunk_result = await session.execute(select(DocumentChunk).where(DocumentChunk.document_id == document.id))
     assert chunk_result.scalars().all() == []
@@ -502,3 +620,43 @@ async def test_audit_log_does_not_leak_phi(session_and_settings, tmp_path: Path)
     # Ensure has_title is present
     assert audit_log.meta.get("has_title") is True
     assert audit_log.meta.get("document_type") == "lab_result"
+
+
+@pytest.mark.asyncio
+async def test_document_content_is_served_after_read_authorization(session_and_settings):
+    from io import BytesIO
+
+    from fastapi import Request, UploadFile
+    from starlette.datastructures import Headers
+
+    from hospital_ai.api.routes.documents import get_document_content, upload_document
+    from hospital_ai.db.models import User
+
+    session, settings = session_and_settings
+    doctor = await session.get(User, DOCTOR_ID)
+    content = b"Preview content that is only available to authorized staff."
+    document = await upload_document(
+        request=Request({"type": "http", "client": ("127.0.0.1", 8000)}),
+        patient_id=PATIENT_ALICE_ID,
+        title="Preview note",
+        document_type="chat_attachment",
+        file=UploadFile(
+            filename="preview.txt",
+            file=BytesIO(content),
+            size=len(content),
+            headers=Headers({"content-type": "text/plain"}),
+        ),
+        session=session,
+        current_user=doctor,
+        settings=settings,
+    )
+
+    response = await get_document_content(
+        document_id=document.id,
+        request=Request({"type": "http", "client": ("127.0.0.1", 8000)}),
+        session=session,
+        current_user=doctor,
+    )
+
+    assert response.media_type == "text/plain"
+    assert response.path.read_bytes() == content

@@ -216,11 +216,16 @@ async def _generate_sse_events(
         completion_callback_active = False
 
     try:
+        retrieval_status = json.dumps({"type": "status", "stage": "retrieving"})
+        yield f"data: {retrieval_status}\n\n"
+
         # Get LLM with streaming
         llm_manager = LLMManager(settings)
         llm = llm_manager.get()
 
         if pipeline_name == "chitchat":
+            preparing_status = json.dumps({"type": "status", "stage": "preparing_answer"})
+            yield f"data: {preparing_status}\n\n"
             full_text = ""
             messages = [
                 LLMMessage(
@@ -245,6 +250,8 @@ async def _generate_sse_events(
                 async for token in llm.stream(messages):
                     full_text += token
 
+            validation_status = json.dumps({"type": "status", "stage": "validating_citations"})
+            yield f"data: {validation_status}\n\n"
             output_result = await get_output_guardrail().scan(question, full_text)
             if output_result.blocked:
                 refusal_event = json.dumps({"type": "token", "content": SAFE_PHI_LEAK_BLOCKED_ANSWER})
@@ -290,6 +297,8 @@ async def _generate_sse_events(
                     confidence="high",
                 ),
             )
+            complete_status = json.dumps({"type": "status", "stage": "complete"})
+            yield f"data: {complete_status}\n\n"
             done_event = json.dumps(
                 {
                     "type": "done",
@@ -299,6 +308,9 @@ async def _generate_sse_events(
             )
             yield f"data: {done_event}\n\n"
             return
+
+        preparing_status = json.dumps({"type": "status", "stage": "preparing_answer"})
+        yield f"data: {preparing_status}\n\n"
 
         # Build prompt
         prompt = build_grounded_prompt(question, evidence, conversation_history)
@@ -322,6 +334,8 @@ async def _generate_sse_events(
         async for token in llm.stream(messages):
             full_text += token
 
+        validation_status = json.dumps({"type": "status", "stage": "validating_citations"})
+        yield f"data: {validation_status}\n\n"
         output_result = await get_output_guardrail().scan(question, full_text)
         if output_result.blocked:
             logger.warning(
@@ -439,6 +453,8 @@ async def _generate_sse_events(
                 confidence=confidence,
             ),
         )
+        complete_status = json.dumps({"type": "status", "stage": "complete"})
+        yield f"data: {complete_status}\n\n"
         done_event = json.dumps(
             {
                 "type": "done",
@@ -576,6 +592,16 @@ async def _apply_stream_completion(
                 "streaming": True,
                 "confidence": completion.confidence,
                 "validation": completion.validation_status,
+                "activity": (
+                    [
+                        {"stage": "retrieving"},
+                        {"stage": "preparing_answer"},
+                        {"stage": "validating_citations"},
+                        {"stage": "complete"},
+                    ]
+                    if completion.validation_status == "passed"
+                    else []
+                ),
             },
             trace_id=trace_id,
             created_at=datetime.now(UTC),
@@ -828,6 +854,14 @@ async def chat_stream(
                             evidence = evidence[: payload.top_k]
         except Exception:
             logger.warning("Graph RAG enrichment skipped", exc_info=True)
+
+        # A chat attachment is an explicit evidence scope, not merely a UI
+        # hint.  Permission filtering still happens inside retrieval; this
+        # additional allow-list ensures only the requested document can reach
+        # prompt construction or the streamed citation payload.
+        requested_document_ids = set(payload.context.document_ids or []) if payload.context else set()
+        if requested_document_ids:
+            evidence = [item for item in evidence if item.document_id in requested_document_ids]
 
         blocked_chunk_count = retrieval_svc.blocked_chunk_count
 

@@ -4,11 +4,11 @@ import uuid
 from pathlib import Path
 from typing import Optional
 
-from sqlalchemy import delete, select
+from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from hospital_ai.core.config import Settings, get_settings
-from hospital_ai.db.models import Document, DocumentChunk, DocumentPage
+from hospital_ai.db.models import Document, DocumentChunk, DocumentPage, DocumentProcessingEvent
 from hospital_ai.db.session import get_session_factory
 from hospital_ai.services.chunking import ChunkingService
 from hospital_ai.services.embeddings import EmbeddingService
@@ -16,9 +16,11 @@ from hospital_ai.services.ocr import OcrService
 
 
 async def process_document(session: AsyncSession, document_id: uuid.UUID, settings: Settings) -> None:
-    document = await session.get(Document, document_id)
+    document = await _locked_current_document(session, document_id)
     if document is None:
         return
+
+    attempt = await _next_processing_attempt(session, document_id)
 
     previous_status = document.status
     start_generation = document.index_generation
@@ -29,6 +31,7 @@ async def process_document(session: AsyncSession, document_id: uuid.UUID, settin
     document.ocr_error = None
     if previous_status != "indexed":
         document.status = "ocr_processing"
+    await _record_processing_event(session, document_id, attempt, "ocr", "started")
     await session.commit()
 
     try:
@@ -55,9 +58,26 @@ async def process_document(session: AsyncSession, document_id: uuid.UUID, settin
             )
     except Exception as exc:
         await _mark_failed_if_current(
-            session, document_id, start_generation, preserve_existing_index, "ocr_failed", str(exc)
+            session,
+            document_id,
+            start_generation,
+            preserve_existing_index,
+            "ocr_failed",
+            attempt,
         )
         return
+
+    await _record_processing_event(
+        session,
+        document_id,
+        attempt,
+        "ocr",
+        "completed",
+        progress_current=len(pages),
+        progress_total=len(pages),
+    )
+    await _record_processing_event(session, document_id, attempt, "index", "started")
+    await session.commit()
 
     try:
         chunks = ChunkingService().chunk_pages(pages)
@@ -66,7 +86,12 @@ async def process_document(session: AsyncSession, document_id: uuid.UUID, settin
             raise RuntimeError(f"Embedding count mismatch: expected {len(chunks)}, received {len(embeddings)}.")
     except Exception as exc:
         await _mark_failed_if_current(
-            session, document_id, start_generation, preserve_existing_index, "index_failed", str(exc)
+            session,
+            document_id,
+            start_generation,
+            preserve_existing_index,
+            "index_failed",
+            attempt,
         )
         return
 
@@ -125,6 +150,8 @@ async def process_document(session: AsyncSession, document_id: uuid.UUID, settin
         document.ocr_error = None
         document.index_generation = start_generation + 1
         document.indexed_source_sha256 = source_sha256
+        await _record_processing_event(session, document_id, attempt, "index", "completed")
+        await _record_processing_event(session, document_id, attempt, "ready", "completed")
         await session.commit()
 
         # Enqueue CDSS analysis
@@ -138,7 +165,12 @@ async def process_document(session: AsyncSession, document_id: uuid.UUID, settin
     except Exception as exc:
         await session.rollback()
         await _mark_failed_if_current(
-            session, document_id, start_generation, preserve_existing_index, "index_failed", str(exc)
+            session,
+            document_id,
+            start_generation,
+            preserve_existing_index,
+            "index_failed",
+            attempt,
         )
 
 
@@ -232,13 +264,51 @@ async def _locked_current_document(session: AsyncSession, document_id: uuid.UUID
     return result.scalar_one_or_none()
 
 
+async def _next_processing_attempt(session: AsyncSession, document_id: uuid.UUID) -> int:
+    max_attempt = await session.scalar(
+        select(func.max(DocumentProcessingEvent.attempt)).where(DocumentProcessingEvent.document_id == document_id)
+    )
+    return int(max_attempt or 0) + 1
+
+
+async def _record_processing_event(
+    session: AsyncSession,
+    document_id: uuid.UUID,
+    attempt: int,
+    stage: str,
+    state: str,
+    *,
+    progress_current: Optional[int] = None,
+    progress_total: Optional[int] = None,
+    error_code: Optional[str] = None,
+) -> None:
+    max_sequence = await session.scalar(
+        select(func.max(DocumentProcessingEvent.sequence)).where(
+            DocumentProcessingEvent.document_id == document_id,
+            DocumentProcessingEvent.attempt == attempt,
+        )
+    )
+    session.add(
+        DocumentProcessingEvent(
+            document_id=document_id,
+            attempt=attempt,
+            sequence=int(max_sequence or 0) + 1,
+            stage=stage,
+            state=state,
+            progress_current=progress_current,
+            progress_total=progress_total,
+            error_code=error_code,
+        )
+    )
+
+
 async def _mark_failed_if_current(
     session: AsyncSession,
     document_id: uuid.UUID,
     start_generation: int,
     preserve_existing_index: bool,
     failed_status: str,
-    error: str,
+    attempt: int,
 ) -> None:
     document = await _locked_current_document(session, document_id)
     if document is None or document.index_generation != start_generation:
@@ -246,7 +316,20 @@ async def _mark_failed_if_current(
         return
 
     document.status = _failure_status(preserve_existing_index, failed_status)
-    document.ocr_error = error
+    error_code = "OCR_FAILED" if failed_status == "ocr_failed" else "INDEX_FAILED"
+    document.ocr_error = (
+        "OCR processing failed. Please retry the document."
+        if error_code == "OCR_FAILED"
+        else "Indexing failed. Please retry the document."
+    )
+    await _record_processing_event(
+        session,
+        document_id,
+        attempt,
+        "ocr" if error_code == "OCR_FAILED" else "index",
+        "failed",
+        error_code=error_code,
+    )
     await session.commit()
 
 

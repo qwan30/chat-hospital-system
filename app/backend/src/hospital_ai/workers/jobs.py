@@ -15,10 +15,16 @@ from hospital_ai.services.embeddings import EmbeddingService
 from hospital_ai.services.ocr import OcrService
 
 
-async def process_document(session: AsyncSession, document_id: uuid.UUID, settings: Settings) -> None:
+async def process_document(
+    session: AsyncSession,
+    document_id: uuid.UUID,
+    settings: Settings,
+    *,
+    expected_source_sha256: Optional[str] = None,
+) -> Optional[str]:
     document = await session.get(Document, document_id)
     if document is None:
-        return
+        return "document_missing"
 
     previous_status = document.status
     start_generation = document.index_generation
@@ -26,6 +32,17 @@ async def process_document(session: AsyncSession, document_id: uuid.UUID, settin
     preserve_existing_index = previous_status == "indexed" and (
         source_sha256 is not None and document.indexed_source_sha256 == source_sha256
     )
+    if expected_source_sha256 is not None and source_sha256 != expected_source_sha256:
+        error_code = "source_fingerprint_unknown" if source_sha256 is None else "source_fingerprint_mismatch"
+        marked = await _mark_failed_if_current(
+            session,
+            document_id,
+            start_generation,
+            preserve_existing_index,
+            "index_failed",
+            error_code,
+        )
+        return error_code if marked else "stale_generation"
     document.ocr_error = None
     if previous_status != "indexed":
         document.status = "ocr_processing"
@@ -54,10 +71,16 @@ async def process_document(session: AsyncSession, document_id: uuid.UUID, settin
                 storage_service=LocalStorageService(settings),
             )
     except Exception as exc:
-        await _mark_failed_if_current(
-            session, document_id, start_generation, preserve_existing_index, "ocr_failed", str(exc)
+        error_code = "ocr_failed"
+        marked = await _mark_failed_if_current(
+            session,
+            document_id,
+            start_generation,
+            preserve_existing_index,
+            "ocr_failed",
+            error_code if expected_source_sha256 is not None else str(exc),
         )
-        return
+        return error_code if marked else "stale_generation"
 
     try:
         chunks = ChunkingService().chunk_pages(pages)
@@ -65,17 +88,23 @@ async def process_document(session: AsyncSession, document_id: uuid.UUID, settin
         if len(embeddings) != len(chunks):
             raise RuntimeError(f"Embedding count mismatch: expected {len(chunks)}, received {len(embeddings)}.")
     except Exception as exc:
-        await _mark_failed_if_current(
-            session, document_id, start_generation, preserve_existing_index, "index_failed", str(exc)
+        error_code = _worker_error_code(exc, "index_failed")
+        marked = await _mark_failed_if_current(
+            session,
+            document_id,
+            start_generation,
+            preserve_existing_index,
+            "index_failed",
+            error_code if expected_source_sha256 is not None else str(exc),
         )
-        return
+        return error_code if marked else "stale_generation"
 
     page_rows: dict[int, DocumentPage] = {}
     try:
         document = await _locked_current_document(session, document_id)
         if document is None or document.index_generation != start_generation:
             await session.rollback()
-            return
+            return "stale_generation"
 
         document.status = "indexing"
         await session.execute(delete(DocumentChunk).where(DocumentChunk.document_id == document_id))
@@ -110,6 +139,7 @@ async def process_document(session: AsyncSession, document_id: uuid.UUID, settin
                         "start_offset": chunk.start_offset,
                         "end_offset": chunk.end_offset,
                         "chunk_type": chunk.chunk_type,
+                        "index_generation": start_generation + 1,
                     },
                 )
             )
@@ -137,9 +167,18 @@ async def process_document(session: AsyncSession, document_id: uuid.UUID, settin
 
     except Exception as exc:
         await session.rollback()
-        await _mark_failed_if_current(
-            session, document_id, start_generation, preserve_existing_index, "index_failed", str(exc)
+        error_code = _worker_error_code(exc, "index_failed")
+        marked = await _mark_failed_if_current(
+            session,
+            document_id,
+            start_generation,
+            preserve_existing_index,
+            "index_failed",
+            error_code if expected_source_sha256 is not None else str(exc),
         )
+        return error_code if marked else "stale_generation"
+
+    return None
 
 
 async def _populate_tsvectors(session: AsyncSession, document_id: uuid.UUID) -> None:
@@ -203,6 +242,17 @@ async def _index_graph_entities(session: AsyncSession, document: Document) -> No
         logger.debug("Graph entity indexing skipped for document %s", document.id, exc_info=True)
 
 
+def _worker_error_code(error: object, fallback: str) -> str:
+    message = str(error or "").lower()
+    if "embedding count mismatch" in message:
+        return "embedding_count_mismatch"
+    if "fingerprint" in message and "unknown" in message:
+        return "source_fingerprint_unknown"
+    if "fingerprint" in message or "sha-256" in message:
+        return "source_fingerprint_mismatch"
+    return fallback
+
+
 def _source_sha256(settings: Settings, storage_uri: str) -> Optional[str]:
     if storage_uri == "pending" or storage_uri.startswith("local://") or storage_uri.startswith("hms://"):
         return None
@@ -239,15 +289,16 @@ async def _mark_failed_if_current(
     preserve_existing_index: bool,
     failed_status: str,
     error: str,
-) -> None:
+) -> bool:
     document = await _locked_current_document(session, document_id)
     if document is None or document.index_generation != start_generation:
         await session.rollback()
-        return
+        return False
 
     document.status = _failure_status(preserve_existing_index, failed_status)
     document.ocr_error = error
     await session.commit()
+    return True
 
 
 def process_document_job(document_id: str) -> None:
@@ -266,7 +317,9 @@ def process_document_job(document_id: str) -> None:
         session_factory = get_session_factory()
         async with session_factory() as session:
             try:
-                await process_document(session, uuid.UUID(document_id), settings)
+                failure_code = await process_document(session, uuid.UUID(document_id), settings)
+                if failure_code is not None:
+                    raise RuntimeError(failure_code)
                 logger.info("Document %s processed successfully.", document_id)
             except Exception as exc:
                 logger.exception("Document %s processing failed: %s", document_id, exc)

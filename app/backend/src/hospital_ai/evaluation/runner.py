@@ -381,6 +381,16 @@ def run_evaluation(
         if config.lane == "live" and not live_configured:
             results.extend(_skip_results(selected, component, "live provider credentials/configuration are missing"))
         elif adapter is None:
+            gates.append(
+                _gate(
+                    "evaluation_adapter_configured",
+                    component,
+                    False,
+                    "absent",
+                    "real evaluation adapter configured",
+                    "Requested product component cannot be reported as evaluated without an adapter.",
+                )
+            )
             results.extend(
                 _skip_results(
                     selected,

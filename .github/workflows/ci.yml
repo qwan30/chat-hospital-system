@@ -309,6 +309,9 @@ jobs:
         working-directory: app/backend
     env:
       AI_EVAL_SUITE: ${{ github.event_name == 'pull_request' && 'smoke' || 'release' }}
+      # PR validates the source-backed sentinel contract only. Full release/nightly
+      # lanes request every component, which fails honestly until real adapters run.
+      AI_EVAL_COMPONENTS: ${{ github.event_name == 'pull_request' && 'corpus' || 'corpus,ocr,retrieval,graph,chat' }}
 
     steps:
       - name: Checkout
@@ -341,7 +344,7 @@ jobs:
           python scripts/run_ai_evaluation.py
           --suite "$AI_EVAL_SUITE"
           --lane deterministic
-          --components corpus,retrieval,graph,chat
+          --components "$AI_EVAL_COMPONENTS"
           --output-dir evaluation-artifacts/deterministic
 
       - name: Upload deterministic AI evaluation artifacts

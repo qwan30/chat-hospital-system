@@ -580,11 +580,14 @@ docker compose -f infra/docker-compose.yml -f infra/docker-compose.observability
 # Backend — 250+ Pytest tests
 cd app/backend && python -m pytest tests/ -v --tb=short
 
-# Backend — deterministic source-backed sentinel evaluation
-cd app/backend && python scripts/run_ai_evaluation.py --suite smoke --lane deterministic --components corpus,retrieval,graph,chat --output-dir evaluation-artifacts/deterministic
+# Backend — deterministic source-backed PR sentinel contract (not product scoring)
+cd app/backend && python scripts/run_ai_evaluation.py --suite smoke --lane deterministic --components corpus --output-dir evaluation-artifacts/deterministic
 
 # Backend — full 300-case deterministic evaluation
 cd app/backend && python scripts/run_ai_evaluation.py --suite release --lane deterministic --components corpus,ocr,retrieval,graph,chat --output-dir evaluation-artifacts/release
+
+# Note: retrieval, Graph RAG, chat, and controlled-scan OCR require real adapters.
+# If an adapter is unavailable, the requested component is a hard failing gate; it is never a pass by skip.
 
 # Backend — API contract verification
 cd app/backend && python scripts/verify_contracts.py

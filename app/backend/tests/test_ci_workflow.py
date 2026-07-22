@@ -62,7 +62,7 @@ def test_ai_evaluation_ci_uses_source_backed_runner_and_publishes_artifacts():
     assert "scripts/run_ai_evaluation.py" in command
     assert "--lane deterministic" in command
     assert '--suite "$AI_EVAL_SUITE"' in command
-    assert "--components corpus,retrieval,graph,chat" in command
+    assert '--components "$AI_EVAL_COMPONENTS"' in command
     assert "tests/test_rag_eval.py" not in command
     assert not run_step.get("continue-on-error", False)
 
@@ -70,6 +70,11 @@ def test_ai_evaluation_ci_uses_source_backed_runner_and_publishes_artifacts():
     assert upload["if"] == "always()"
     assert upload["with"]["if-no-files-found"] == "error"
     assert "app/backend/evaluation-artifacts/deterministic/" in upload["with"]["path"]
+
+    environment = evaluation["env"]
+    assert environment["AI_EVAL_COMPONENTS"] == (
+        "${{ github.event_name == 'pull_request' && 'corpus' || 'corpus,ocr,retrieval,graph,chat' }}"
+    )
 
 
 def test_live_ai_evaluation_is_manual_and_never_falls_back_to_mock_scores():
@@ -114,3 +119,5 @@ def test_readme_reports_the_current_source_backed_evaluation_gate():
     assert "50-case sentinel" in readme
     assert "blocks release" in readme
     assert "scripts/run_ai_evaluation.py" in readme
+    assert "--components corpus --output-dir" in readme
+    assert "--components corpus,retrieval,graph,chat" not in readme

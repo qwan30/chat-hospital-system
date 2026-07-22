@@ -94,7 +94,7 @@ def test_result_contracts_preserve_machine_readable_scalar_types() -> None:
 
 def test_deterministic_smoke_validates_reviewed_sentinel_and_writes_all_artifacts(tmp_path: Path) -> None:
     benchmark_dir = _approved_benchmark_dir(tmp_path)
-    config = _config(tmp_path, benchmark_dir)
+    config = _config(tmp_path, benchmark_dir, components=("corpus",))
 
     run = run_evaluation(config)
     write_run_artifacts(run, config.output_dir)
@@ -102,7 +102,6 @@ def test_deterministic_smoke_validates_reviewed_sentinel_and_writes_all_artifact
     assert run.exit_code == 0
     assert run.manifest.status == "passed"
     assert run.manifest.selected_case_count == 50
-    assert any(result.status == "skipped" for result in run.cases if result.component == "chat")
     for filename in ("run.json", "cases.jsonl", "junit.xml", "summary.md"):
         assert (config.output_dir / filename).is_file()
     run_json = json.loads((config.output_dir / "run.json").read_text(encoding="utf-8"))
@@ -112,6 +111,23 @@ def test_deterministic_smoke_validates_reviewed_sentinel_and_writes_all_artifact
     assert "token_usage" in run_json
     ElementTree.parse(config.output_dir / "junit.xml")
     assert "not product quality evidence" in (config.output_dir / "summary.md").read_text(encoding="utf-8")
+
+
+def test_requested_product_component_without_adapter_fails_required_component_gate(tmp_path: Path) -> None:
+    benchmark_dir = _approved_benchmark_dir(tmp_path)
+    config = _config(tmp_path, benchmark_dir, components=("retrieval",))
+
+    run = run_evaluation(config)
+
+    assert run.exit_code == 1
+    assert run.manifest.status == "failed"
+    assert any(
+        gate.name == "evaluation_adapter_configured" and gate.component == "retrieval" and gate.hard and not gate.passed
+        for gate in run.gates
+    )
+    retrieval_results = [result for result in run.cases if result.component == "retrieval"]
+    assert retrieval_results
+    assert all(result.status == "skipped" for result in retrieval_results)
 
 
 def test_unreviewed_real_sentinel_is_a_gate_failure_not_invalid_data(tmp_path: Path) -> None:

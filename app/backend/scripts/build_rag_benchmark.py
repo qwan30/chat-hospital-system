@@ -9,6 +9,10 @@ def main() -> None:
     if args.write:
         root = Path(__file__).parents[1] / "data"; root.mkdir(exist_ok=True)
         (root / "rag_value_benchmark_v1.jsonl").write_text("".join(c.json() + "\n" for c in cases), encoding="utf-8")
-        (root / "rag_value_sentinel_v1.jsonl").write_text("".join(c.json() + "\n" for c in cases[:50]), encoding="utf-8")
+        # Stratified sentinel: deterministic round-robin across all categories.
+        by = {}
+        for c in cases: by.setdefault(c.category, []).append(c)
+        sentinel = [by[k][i] for i in range(50) for k in sorted(by) for _ in [0] if i < len(by[k])][:50]
+        (root / "rag_value_sentinel_v1.jsonl").write_text("".join(c.json() + "\n" for c in sentinel), encoding="utf-8")
     print(f"{len(cases)} benchmark cases validated")
 if __name__ == "__main__": main()

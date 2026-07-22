@@ -164,6 +164,18 @@ Describe 'Install-AiEvaluationSkills' {
         (Test-Path -LiteralPath (Join-Path $targetInsideSource 'ai-product-evaluation')) | Should Be $false
     }
 
+    It 'rejects a target root that is an ancestor of SourceRoot before changing the filesystem' {
+        $sourceRoot = Join-Path $testRoot '.agents\skills'
+        $targetRoot = Join-Path $testRoot '.agents'
+        New-SkillSourceFixture -Root $sourceRoot
+
+        Invoke-ExpectFailure -Operation {
+            & $installer -SourceRoot $sourceRoot -TargetRoots @($targetRoot)
+        } -MessagePattern 'source'
+
+        (Test-Path -LiteralPath (Join-Path $targetRoot 'ai-product-evaluation')) | Should Be $false
+    }
+
     It 'normalizes a Windows device path before rejecting the protected Codex skills root' {
         $protectedDevicePath = '\\?\C:\Users\NITRO\.codex\skills\device-path-target'
 

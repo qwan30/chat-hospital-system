@@ -148,6 +148,17 @@ function Get-ExistingTargetItem {
 Assert-AbsolutePath -Path $SourceRoot -Label 'SourceRoot'
 $resolvedSourceRoot = Resolve-ExistingPath -Path $SourceRoot -Label 'SourceRoot'
 
+$resolvedSourcePackages = @{}
+foreach ($skill in $SkillNames) {
+    $sourcePath = Join-Path $resolvedSourceRoot $skill
+    $resolvedSourcePath = Resolve-ExistingPath -Path $sourcePath -Label "Source package '$skill'"
+    if (-not (Test-Path -LiteralPath (Join-Path $resolvedSourcePath 'SKILL.md') -PathType Leaf)) {
+        throw "Source package '$skill' is missing SKILL.md: $resolvedSourcePath"
+    }
+
+    $resolvedSourcePackages[$skill] = $resolvedSourcePath
+}
+
 if ($TargetRoots.Count -eq 0) {
     $TargetRoots = Get-DefaultTargetRoots
 }
@@ -156,6 +167,16 @@ $normalizedTargetRoots = @{}
 $validatedTargetRoots = @()
 foreach ($targetRoot in $TargetRoots) {
     $normalizedTargetRoot = Assert-SafeTargetRoot -Path $targetRoot
+
+    if (Test-PathOverlap -FirstPath $normalizedTargetRoot -SecondPath $resolvedSourceRoot) {
+        throw "TargetRoot must not overlap a source path: $targetRoot"
+    }
+
+    foreach ($resolvedSourcePath in $resolvedSourcePackages.Values) {
+        if (Test-PathOverlap -FirstPath $normalizedTargetRoot -SecondPath $resolvedSourcePath) {
+            throw "TargetRoot must not overlap a source path: $targetRoot"
+        }
+    }
 
     $targetRootKey = $normalizedTargetRoot.ToUpperInvariant()
     if ($normalizedTargetRoots.ContainsKey($targetRootKey)) {
@@ -175,11 +196,7 @@ $TargetRoots = $validatedTargetRoots
 
 $installPlans = @()
 foreach ($skill in $SkillNames) {
-    $sourcePath = Join-Path $resolvedSourceRoot $skill
-    $resolvedSourcePath = Resolve-ExistingPath -Path $sourcePath -Label "Source package '$skill'"
-    if (-not (Test-Path -LiteralPath (Join-Path $resolvedSourcePath 'SKILL.md') -PathType Leaf)) {
-        throw "Source package '$skill' is missing SKILL.md: $resolvedSourcePath"
-    }
+    $resolvedSourcePath = $resolvedSourcePackages[$skill]
 
     foreach ($targetRoot in $TargetRoots) {
         $targetPath = Join-Path $targetRoot $skill

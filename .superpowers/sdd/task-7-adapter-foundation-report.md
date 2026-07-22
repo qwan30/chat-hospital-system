@@ -22,3 +22,7 @@ All checks passed!
 ## Follow-up
 
 This foundation deliberately does not claim live product retrieval, Graph RAG, or chat coverage. Those adapters must use the isolated context and source resolver before a release suite may report product quality.
+
+## Review remediation
+
+Independent review found rank loss, adapter-asserted provenance, and database-alias isolation bypasses. The foundation now preserves retrieval rank, accepts only `RuntimeEvidenceChunk` observations resolved through registered canonical candidates, and normalizes PostgreSQL drivers plus loopback aliases while requiring an explicitly approved evaluation-database identity. The focused foundation/runner suite reports 32 passing tests.

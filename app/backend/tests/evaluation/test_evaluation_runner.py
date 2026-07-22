@@ -74,6 +74,7 @@ def _config(
 def _isolation() -> EvaluatorIsolationConfig:
     return EvaluatorIsolationConfig(
         evaluation_database_url="postgresql+asyncpg://hospital_ai:test@localhost:5432/hospital_ai_eval",
+        approved_evaluation_database_url="postgresql://hospital_ai:test@127.0.0.1/hospital_ai_eval",
         product_database_url="postgresql+asyncpg://hospital_ai:test@localhost:5432/hospital_ai",
         run_namespace="ai-eval/test-run",
     )

@@ -4,6 +4,7 @@ import json
 from uuid import UUID
 
 import pytest
+from pydantic import ValidationError
 
 from hospital_ai.evaluation.adapter_foundation import (
     EvaluatorIsolationConfig,
@@ -109,6 +110,33 @@ def test_resolver_revalidates_structured_observations_instead_of_trusting_their_
         resolver.validate_resolved(forged)
 
 
+def test_resolver_only_accepts_runtime_chunks_bound_to_registered_canonical_candidates() -> None:
+    manifest = build_corpus_manifest(DATA_ROOT)
+    registered = EvidenceLocator(
+        source_path="patients_documents/patient_MRN0001_lab_result.pdf",
+        page_number=1,
+    )
+    unregistered = EvidenceLocator(
+        source_path="patients_documents/patient_MRN0002_lab_result.pdf",
+        page_number=1,
+    )
+    scoped_resolver = SourceEvidenceResolver(manifest, candidate_locators=(registered,))
+
+    resolved = scoped_resolver.resolve_runtime(_runtime_chunk(scoped_resolver, registered))
+    assert resolved.evidence_id == scoped_resolver.evidence_id(registered)
+
+    with pytest.raises(EvidenceResolutionError, match="registered canonical candidate"):
+        scoped_resolver.resolve_runtime(_runtime_chunk(scoped_resolver, unregistered))
+
+
+def test_case_observation_rejects_adapter_supplied_resolved_evidence(resolver: SourceEvidenceResolver) -> None:
+    locator = EvidenceLocator(source_path="patients_documents/patient_MRN0001_lab_result.pdf", page_number=1)
+    resolved = resolver.resolve(locator, (_runtime_chunk(resolver, locator),))
+
+    with pytest.raises(ValidationError, match="RuntimeEvidenceChunk"):
+        CaseObservation(retrieved_evidence=(resolved,))
+
+
 def test_runner_does_not_accept_unstructured_ids_as_provenance(resolver: SourceEvidenceResolver) -> None:
     first_row = json.loads(
         (DATA_ROOT / "evaluation" / "rag_benchmark_v2.jsonl").read_text(encoding="utf-8").splitlines()[0]
@@ -127,19 +155,82 @@ def test_runner_does_not_accept_unstructured_ids_as_provenance(resolver: SourceE
     assert not provenance_gate.passed
 
 
+def test_runner_preserves_runtime_retrieval_rank_for_metrics() -> None:
+    rows = [
+        json.loads(line)
+        for line in (DATA_ROOT / "evaluation" / "rag_benchmark_v2.jsonl").read_text(encoding="utf-8").splitlines()
+    ]
+    case = EvalCaseV2.parse_obj(rows[0])
+    relevant = case.allowed_evidence[0]
+    noise = next(
+        locator for row in rows[1:] for locator in EvalCaseV2.parse_obj(row).allowed_evidence if locator != relevant
+    )
+    ranked_resolver = SourceEvidenceResolver(
+        build_corpus_manifest(DATA_ROOT),
+        candidate_locators=(relevant, noise),
+    )
+
+    result = _evaluate_observation(
+        case,
+        "retrieval",
+        CaseObservation(
+            retrieved_evidence=(
+                _runtime_chunk(ranked_resolver, noise, runtime_chunk_id="rank-1-noise"),
+                _runtime_chunk(ranked_resolver, relevant, runtime_chunk_id="rank-2-relevant"),
+            )
+        ),
+        ranked_resolver,
+    )
+
+    assert result.metrics["mrr"] == 0.5
+
+
 def test_isolation_config_rejects_product_or_unmarked_databases() -> None:
     product = "postgresql+asyncpg://hospital_ai:secret@localhost:5432/hospital_ai"
 
     with pytest.raises(ValueError, match="product database"):
         EvaluatorIsolationConfig(
             evaluation_database_url=product,
+            approved_evaluation_database_url=product,
             product_database_url=product,
             run_namespace="ai-eval/run-001",
         )
     with pytest.raises(ValueError, match="evaluation-specific"):
         EvaluatorIsolationConfig(
             evaluation_database_url="postgresql+asyncpg://hospital_ai:secret@localhost:5432/hospital_shadow",
+            approved_evaluation_database_url="postgresql+asyncpg://hospital_ai:secret@localhost:5432/hospital_shadow",
             product_database_url=product,
+            run_namespace="ai-eval/run-001",
+        )
+
+
+@pytest.mark.parametrize(
+    "evaluation_url",
+    [
+        "postgresql://hospital_ai:secret@127.0.0.1/hospital_ai",
+        "postgresql+psycopg://hospital_ai:secret@[::1]:5432/hospital_ai",
+    ],
+)
+def test_isolation_rejects_same_physical_product_database_across_driver_and_loopback_aliases(
+    evaluation_url: str,
+) -> None:
+    product = "postgresql+asyncpg://hospital_ai:secret@localhost:5432/hospital_ai"
+
+    with pytest.raises(ValueError, match="product database"):
+        EvaluatorIsolationConfig(
+            evaluation_database_url=evaluation_url,
+            approved_evaluation_database_url=evaluation_url,
+            product_database_url=product,
+            run_namespace="ai-eval/run-001",
+        )
+
+
+def test_isolation_requires_the_explicitly_approved_database_identity() -> None:
+    with pytest.raises(ValueError, match="explicitly approved"):
+        EvaluatorIsolationConfig(
+            evaluation_database_url="postgresql+asyncpg://hospital_ai:secret@localhost:5432/hospital_ai_eval",
+            approved_evaluation_database_url="postgresql://hospital_ai:secret@localhost:5432/different_eval",
+            product_database_url="postgresql://hospital_ai:secret@localhost:5432/hospital_ai",
             run_namespace="ai-eval/run-001",
         )
 
@@ -147,6 +238,7 @@ def test_isolation_config_rejects_product_or_unmarked_databases() -> None:
 def test_actor_materialization_is_deterministic_and_does_not_write_a_database() -> None:
     isolation = EvaluatorIsolationConfig(
         evaluation_database_url="postgresql+asyncpg://hospital_ai:secret@localhost:5432/hospital_ai_eval",
+        approved_evaluation_database_url="postgresql://hospital_ai:secret@127.0.0.1/hospital_ai_eval",
         product_database_url="postgresql+asyncpg://hospital_ai:secret@localhost:5432/hospital_ai",
         run_namespace="ai-eval/run-001",
     )

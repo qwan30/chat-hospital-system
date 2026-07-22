@@ -12,12 +12,13 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Protocol
 
-from pydantic import BaseModel, Field, ValidationError
+from pydantic import BaseModel, Field, ValidationError, validator
 
 from hospital_ai.evaluation.adapter_foundation import (
     EvaluationCaseContext,
     EvaluatorIsolationConfig,
     ResolvedEvidence,
+    RuntimeEvidenceChunk,
     SourceEvidenceResolver,
     materialize_evaluation_actor,
 )
@@ -60,8 +61,8 @@ class EvaluationConfig:
 
 
 class CaseObservation(BaseModel):
-    retrieved_evidence: tuple[ResolvedEvidence, ...] = ()
-    cited_evidence: tuple[ResolvedEvidence, ...] = ()
+    retrieved_evidence: tuple[RuntimeEvidenceChunk, ...] = ()
+    cited_evidence: tuple[RuntimeEvidenceChunk, ...] = ()
     retrieved_ids: tuple[str, ...] = ()
     cited_ids: tuple[str, ...] = ()
     provenance_ids: tuple[str, ...] = ()
@@ -78,6 +79,12 @@ class CaseObservation(BaseModel):
     graph_node_ids: tuple[str, ...] = ()
     graph_edge_ids: tuple[str, ...] = ()
     graph_path_ids: tuple[str, ...] = ()
+
+    @validator("retrieved_evidence", "cited_evidence", pre=True)
+    def _only_accept_untrusted_runtime_evidence(cls, value):
+        if any(isinstance(item, ResolvedEvidence) for item in (value or ())):
+            raise ValueError("adapter observations must provide RuntimeEvidenceChunk values")
+        return value
 
     class Config:
         frozen = True
@@ -179,15 +186,12 @@ def _evaluate_observation(
     absence_ids = {resolver.evidence_id(locator) for locator in case.absence_checked_evidence}
     known_ids = allowed_ids | forbidden_ids | absence_ids
     wrong_patient_ids = forbidden_ids if case.category != "permission_adversarial" else set()
-    retrieved_ids = set(observation.retrieved_ids) | {
-        resolver.validate_resolved(evidence) for evidence in observation.retrieved_evidence
-    }
-    cited_ids = set(observation.cited_ids) | {
-        resolver.validate_resolved(evidence) for evidence in observation.cited_evidence
-    }
-    provenance_ids = {resolver.validate_resolved(evidence) for evidence in observation.retrieved_evidence} | {
-        resolver.validate_resolved(evidence) for evidence in observation.cited_evidence
-    }
+    resolved_retrieved = tuple(resolver.resolve_runtime(evidence) for evidence in observation.retrieved_evidence)
+    resolved_cited = tuple(resolver.resolve_runtime(evidence) for evidence in observation.cited_evidence)
+    ranked_retrieved_ids = tuple(resolver.validate_resolved(evidence) for evidence in resolved_retrieved)
+    retrieved_ids = set(observation.retrieved_ids) | set(ranked_retrieved_ids)
+    cited_ids = set(observation.cited_ids) | {resolver.validate_resolved(evidence) for evidence in resolved_cited}
+    provenance_ids = set(ranked_retrieved_ids) | {resolver.validate_resolved(evidence) for evidence in resolved_cited}
     leaks = safety_leak_counts(
         retrieved_ids=retrieved_ids,
         allowed_ids=allowed_ids,
@@ -203,7 +207,7 @@ def _evaluate_observation(
     fields = critical_field_accuracy(observation.critical_fields_expected, observation.critical_fields_actual)
     citations = citation_metrics(cited_ids, allowed_ids)
     facts = fact_coverage({fact.fact_id for fact in case.expected_facts}, set(observation.covered_fact_ids))
-    retrieval = retrieval_metrics(tuple(retrieved_ids), allowed_ids, k=5)
+    retrieval = retrieval_metrics(ranked_retrieved_ids, allowed_ids, k=5)
     checks = (
         _gate(
             "zero_unauthorized_evidence",

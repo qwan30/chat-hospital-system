@@ -96,12 +96,24 @@ class ResolvedEvidence(BaseModel):
 class SourceEvidenceResolver:
     """Resolve source locators without trusting runtime UUIDs as ground truth."""
 
-    def __init__(self, manifest: CorpusManifestV2) -> None:
+    def __init__(
+        self,
+        manifest: CorpusManifestV2,
+        candidate_locators: tuple[EvidenceLocator, ...] | None = None,
+    ) -> None:
         artifacts = manifest.artifacts
         by_path = {artifact.canonical_relative_path: artifact for artifact in artifacts}
         if len(by_path) != len(artifacts):
             raise EvidenceResolutionError("canonical manifest contains ambiguous source paths")
         self._by_path = by_path
+        candidates = candidate_locators or tuple(
+            EvidenceLocator(source_path=artifact.canonical_relative_path) for artifact in artifacts
+        )
+        self._candidates = {self._locator_key(locator): locator for locator in candidates}
+
+    @staticmethod
+    def _locator_key(locator: EvidenceLocator) -> tuple[str, int | None, int | None, str | None]:
+        return (locator.source_path, locator.page_number, locator.row_number, locator.record_id)
 
     def artifact_for(self, locator: EvidenceLocator) -> SourceArtifact:
         artifact = self._by_path.get(locator.source_path)
@@ -161,6 +173,19 @@ class SourceEvidenceResolver:
             record_id=match.record_id,
         )
 
+    def resolve_runtime(self, runtime: RuntimeEvidenceChunk) -> ResolvedEvidence:
+        """Resolve only a runtime observation registered before adapter execution."""
+        locator = EvidenceLocator(
+            source_path=runtime.source_path,
+            page_number=runtime.page_number,
+            row_number=runtime.row_number,
+            record_id=runtime.record_id,
+        )
+        registered = self._candidates.get(self._locator_key(locator))
+        if registered is None:
+            raise EvidenceResolutionError("runtime evidence is not a registered canonical candidate")
+        return self.resolve(registered, (runtime,))
+
     def validate_resolved(self, evidence: ResolvedEvidence) -> str:
         """Re-check a structured observation; its claimed evidence ID is untrusted."""
 
@@ -175,6 +200,8 @@ class SourceEvidenceResolver:
             raise EvidenceResolutionError(f"stale source hash for resolved evidence: {evidence.source_path}")
         if evidence.patient_id != artifact.patient_id:
             raise EvidenceResolutionError(f"patient provenance mismatch for resolved evidence: {evidence.source_path}")
+        if self._candidates.get(self._locator_key(locator)) is None:
+            raise EvidenceResolutionError("resolved evidence is not a registered canonical candidate")
         expected_id = self.evidence_id(locator)
         if evidence.evidence_id != expected_id:
             raise EvidenceResolutionError(
@@ -189,18 +216,24 @@ def _database_identity(raw_url: str) -> tuple[str, str | None, int | None, str]:
     except ArgumentError as error:
         raise EvaluationIsolationError("evaluator database URL is invalid") from error
     database = url.database or ""
-    return url.drivername, url.host, url.port, database
+    driver = url.drivername.split("+", 1)[0]
+    host = (url.host or "").lower()
+    if host in {"localhost", "127.0.0.1", "::1"}:
+        host = "loopback"
+    port = url.port or (5432 if driver.startswith("postgresql") else None)
+    return driver, host, port, database
 
 
 class EvaluatorIsolationConfig(BaseModel):
     """Configuration proof that adapters cannot target the product database."""
 
     evaluation_database_url: str
+    approved_evaluation_database_url: str
     product_database_url: str
     run_namespace: str
     transaction_mode: Literal["rollback_only"] = "rollback_only"
 
-    @validator("evaluation_database_url", "product_database_url", "run_namespace")
+    @validator("evaluation_database_url", "approved_evaluation_database_url", "product_database_url", "run_namespace")
     def _non_empty_value(cls, value: str) -> str:
         if not value.strip():
             raise EvaluationIsolationError("isolation configuration values must not be blank")
@@ -215,13 +248,17 @@ class EvaluatorIsolationConfig(BaseModel):
     @root_validator
     def _database_is_isolated(cls, values: dict) -> dict:
         evaluation_url = values.get("evaluation_database_url")
+        approved_url = values.get("approved_evaluation_database_url")
         product_url = values.get("product_database_url")
-        if not evaluation_url or not product_url:
+        if not evaluation_url or not approved_url or not product_url:
             return values
         evaluation_identity = _database_identity(evaluation_url)
+        approved_identity = _database_identity(approved_url)
         product_identity = _database_identity(product_url)
         if evaluation_identity == product_identity:
             raise EvaluationIsolationError("isolated evaluator must not use the product database")
+        if evaluation_identity != approved_identity:
+            raise EvaluationIsolationError("evaluator database identity is not explicitly approved")
 
         driver, _host, _port, database = evaluation_identity
         is_memory_sqlite = driver.startswith("sqlite") and database == ":memory:"

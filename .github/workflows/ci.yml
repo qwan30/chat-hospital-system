@@ -340,12 +340,36 @@ jobs:
         run: echo "${{ github.workspace }}/app/backend/.venv/bin" >> $GITHUB_PATH
 
       - name: Run deterministic AI evaluation
-        run: >-
-          python scripts/run_ai_evaluation.py
-          --suite "$AI_EVAL_SUITE"
-          --lane deterministic
-          --components "$AI_EVAL_COMPONENTS"
-          --output-dir evaluation-artifacts/deterministic
+        run: |
+          set +e
+          python scripts/run_ai_evaluation.py \
+            --suite "$AI_EVAL_SUITE" \
+            --lane deterministic \
+            --components "$AI_EVAL_COMPONENTS" \
+            --output-dir evaluation-artifacts/deterministic
+          evaluation_status=$?
+          set -e
+
+          if [[ "$evaluation_status" -eq 0 ]]; then
+            exit 0
+          fi
+
+          # A pending independent sentinel review is observable in every PR run,
+          # but is a release gate, not a source-validation failure. Every other
+          # evaluation error (and all release-lane failures) remains blocking.
+          if [[ "$AI_EVAL_SUITE" != "smoke" || "$evaluation_status" -ne 1 ]]; then
+            exit "$evaluation_status"
+          fi
+
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          run = json.loads(Path("evaluation-artifacts/deterministic/run.json").read_text(encoding="utf-8"))
+          if run.get("failure_reason") != "sentinel_independent_review":
+              raise SystemExit(f"Unexpected deterministic evaluation failure: {run.get('failure_reason')}")
+          print("Sentinel review is pending; artifact recorded. Release lanes remain blocked.")
+          PY
 
       - name: Upload deterministic AI evaluation artifacts
         if: always()

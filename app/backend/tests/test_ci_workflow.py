@@ -65,6 +65,9 @@ def test_ai_evaluation_ci_uses_source_backed_runner_and_publishes_artifacts():
     assert '--components "$AI_EVAL_COMPONENTS"' in command
     assert "tests/test_rag_eval.py" not in command
     assert not run_step.get("continue-on-error", False)
+    assert "evaluation_status" in command
+    assert "sentinel_independent_review" in command
+    assert '"$AI_EVAL_SUITE" != "smoke"' in command
 
     upload = _step_by_name(evaluation, "Upload deterministic AI evaluation artifacts")
     assert upload["if"] == "always()"

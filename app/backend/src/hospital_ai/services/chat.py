@@ -10,6 +10,11 @@ from hospital_ai.core.config import Settings
 from hospital_ai.core.errors import PermissionDeniedError
 from hospital_ai.core.security import PATIENT_READ_SCOPES
 from hospital_ai.db.models import AiQuery, ChatMessage, ChatThread, RetrievedEvidence, User
+from hospital_ai.evaluation.observer import (
+    EvaluationControls,
+    EvaluationObserver,
+    GraphCertificationError,
+)
 from hospital_ai.schemas.chat import ChatResponse, DrugWarningSchema
 from hospital_ai.services.audit import AuditService
 
@@ -76,6 +81,8 @@ class ChatService:
         ip_address: str,
         thread_id: Optional[UUID] = None,
         pipeline: str = "auto",
+        evaluation_controls: EvaluationControls | None = None,
+        evaluation_observer: EvaluationObserver | None = None,
     ) -> ChatResponse:
         started = time.perf_counter()
         ai_query = AiQuery(
@@ -300,8 +307,12 @@ class ChatService:
 
         # ── Timing: retrieval ────────────────────────────────────────
         t_retrieval_start = time.perf_counter()
-        retrieval_svc = RetrievalService(self.session)
-        retrieval_mode = self.settings.retrieval_mode
+        retrieval_svc = RetrievalService(self.session, evaluation_observer)
+        retrieval_mode = (
+            "hybrid"
+            if evaluation_controls is not None and evaluation_controls.mode != "rag_off"
+            else self.settings.retrieval_mode
+        )
 
         if getattr(self.settings, "ab_test_retrieval", False):
             import random
@@ -309,7 +320,8 @@ class ChatService:
             retrieval_mode = "hybrid" if random.random() > 0.5 else "vector"
 
         evidence = []
-        if retrieval_mode in ("bm25", "hybrid"):
+        rag_enabled = evaluation_controls is None or evaluation_controls.mode != "rag_off"
+        if rag_enabled and retrieval_mode in ("bm25", "hybrid"):
             evidence = await retrieval_svc.hybrid_search(
                 user_id=user.id,
                 patient_id=patient_id,
@@ -318,7 +330,7 @@ class ChatService:
                 top_k=top_k,
                 retrieval_mode=retrieval_mode,
             )
-        else:
+        elif rag_enabled:
             evidence = await retrieval_svc.search(
                 user_id=user.id,
                 patient_id=patient_id,
@@ -327,8 +339,11 @@ class ChatService:
             )
 
         # ── Graph RAG: boost evidence with entity relationships ──────
+        graph_enabled = evaluation_controls is None or evaluation_controls.mode == "hybrid_graph_on"
         try:
-            if patient_id:
+            if graph_enabled and patient_id:
+                if evaluation_observer is not None:
+                    evaluation_observer.record_graph_execution()
                 query_entities, _ = await extract_entities_and_relations_nlp(question)
                 if query_entities:
                     entity_names = [e.name for e in query_entities]
@@ -345,11 +360,26 @@ class ChatService:
                                 user_id=user.id,
                                 patient_id=patient_id,
                             )
-                            for ge in graph_evidence:
-                                ge.metadata["retrieval_method"] = "graph"
+                            graph_evidence = [
+                                RetrievedChunk(
+                                    evidence_id=ge.evidence_id,
+                                    document_id=ge.document_id,
+                                    document_title=ge.document_title,
+                                    page=ge.page,
+                                    chunk_id=ge.chunk_id,
+                                    score=ge.score,
+                                    content=ge.content,
+                                    metadata={**ge.metadata, "retrieval_method": "graph"},
+                                )
+                                for ge in graph_evidence
+                            ]
+                            if evaluation_observer is not None:
+                                evaluation_observer.record_graph_expanded(graph_evidence)
                             evidence.extend(graph_evidence)
                             evidence = evidence[:top_k]
-        except Exception:
+        except Exception as error:
+            if evaluation_controls is not None and evaluation_controls.graph_required:
+                raise GraphCertificationError("Graph traversal failed during required certification") from error
             logger.warning("Graph RAG enrichment skipped", exc_info=True)
 
         t_retrieval_ms = int((time.perf_counter() - t_retrieval_start) * 1000)
@@ -398,7 +428,16 @@ class ChatService:
         selected_pipeline = _select_pipeline(pipeline, question)
         t_gen_start = time.perf_counter()
         try:
-            reasoning_result = await self._run_pipeline(selected_pipeline, question, evidence, conversation_history)
+            if evaluation_observer is None:
+                reasoning_result = await self._run_pipeline(selected_pipeline, question, evidence, conversation_history)
+            else:
+                reasoning_result = await self._run_pipeline(
+                    selected_pipeline,
+                    question,
+                    evidence,
+                    conversation_history,
+                    evaluation_observer=evaluation_observer,
+                )
         except Exception:
             ai_query.status = "failed"
             ai_query.latency_ms = elapsed_ms(started)
@@ -458,6 +497,8 @@ class ChatService:
 
         # Store retrieved evidence records with trace data
         cited_evidence = [item for item in evidence if item.evidence_id in answer_citation_ids]
+        if evaluation_observer is not None:
+            evaluation_observer.record_cited_chunks(cited_evidence)
         for index, item in enumerate(cited_evidence, start=1):
             retrieval_method = item.metadata.get("retrieval_method", retrieval_mode)
             rerank_method = item.metadata.get("rerank_method", "")
@@ -600,24 +641,28 @@ class ChatService:
         question: str,
         evidence: list[RetrievedChunk],
         conversation_history: list[dict[str, str]],
+        evaluation_observer: EvaluationObserver | None = None,
     ) -> ReasoningResult:
         """Run the selected reasoning pipeline."""
         if pipeline_name == "patient_summary":
             return await PatientSummaryPipeline(self.settings).run(
                 patient_name="Patient",
                 evidence=evidence,
+                evaluation_observer=evaluation_observer,
             )
         elif pipeline_name == "decompose":
             return await DecomposeQAPipeline(self.settings).run(
                 question=question,
                 evidence=evidence,
                 conversation_history=conversation_history,
+                evaluation_observer=evaluation_observer,
             )
         else:
             return await SimpleQAPipeline(self.settings).run(
                 question=question,
                 evidence=evidence,
                 conversation_history=conversation_history,
+                evaluation_observer=evaluation_observer,
             )
 
 

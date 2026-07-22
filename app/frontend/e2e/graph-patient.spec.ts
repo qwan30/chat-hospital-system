@@ -49,6 +49,15 @@ test.describe("/graph/patients/:patientId — reasoning stream controls", () => 
     });
   });
 
+  test("Graph RAG sidebar targets the seeded cardiology patient", async ({ page }) => {
+    await page.goto("/graph/patients/p-001");
+
+    await expect(page.getByRole("link", { name: "Graph RAG" })).toHaveAttribute(
+      "href",
+      "/graph/patients/20000000-0000-0000-0000-000000000003",
+    );
+  });
+
   test("forced failure shows interrupted banner with Resume + Retry", async ({ page }) => {
     await page.goto("/graph/patients/p-001?simulate=stream-fail");
 

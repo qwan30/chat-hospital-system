@@ -4,7 +4,7 @@ from pathlib import Path
 import pytest
 from sqlalchemy import select, update
 
-from hospital_ai.db.migrations import DOCTOR_ID, PATIENT_ALICE_ID, RECORDS_ID
+from hospital_ai.db.migrations import DOCTOR_ID, NURSE_ID, PATIENT_ALICE_ID, PATIENT_ELEANOR_ID, RECORDS_ID
 from hospital_ai.db.models import Document, DocumentChunk, DocumentPage
 from hospital_ai.services.embeddings import deterministic_embedding
 from hospital_ai.services.ocr import OcrPage
@@ -379,6 +379,78 @@ async def test_records_staff_can_upload(session_and_settings, tmp_path: Path):
     assert document.id is not None
     assert document.document_type == "clinical_note"
     assert document.uploaded_by == RECORDS_ID
+
+
+@pytest.mark.asyncio
+async def test_doctor_can_upload_for_patient_with_upload_scope(session_and_settings):
+    from io import BytesIO
+
+    from fastapi import Request, UploadFile
+    from starlette.datastructures import Headers
+
+    from hospital_ai.api.routes.documents import upload_document
+    from hospital_ai.db.models import User
+
+    session, settings = session_and_settings
+    file_content = b"Cardiology follow-up note."
+    file = UploadFile(
+        filename="cardiology-note.txt",
+        file=BytesIO(file_content),
+        size=len(file_content),
+        headers=Headers({"content-type": "text/plain"}),
+    )
+    request = Request({"type": "http", "client": ("127.0.0.1", 8000)})
+    current_user = await session.get(User, DOCTOR_ID)
+
+    document = await upload_document(
+        request=request,
+        patient_id=PATIENT_ALICE_ID,
+        title="Cardiology follow-up",
+        document_type="clinical_note",
+        file=file,
+        session=session,
+        current_user=current_user,
+        settings=settings,
+    )
+
+    assert document.id is not None
+    assert document.uploaded_by == DOCTOR_ID
+
+
+@pytest.mark.asyncio
+async def test_nurse_can_upload_for_patient_with_upload_scope(session_and_settings):
+    from io import BytesIO
+
+    from fastapi import Request, UploadFile
+    from starlette.datastructures import Headers
+
+    from hospital_ai.api.routes.documents import upload_document
+    from hospital_ai.db.models import User
+
+    session, settings = session_and_settings
+    file_content = b"Nursing handoff note."
+    file = UploadFile(
+        filename="nursing-handoff.txt",
+        file=BytesIO(file_content),
+        size=len(file_content),
+        headers=Headers({"content-type": "text/plain"}),
+    )
+    request = Request({"type": "http", "client": ("127.0.0.1", 8000)})
+    current_user = await session.get(User, NURSE_ID)
+
+    document = await upload_document(
+        request=request,
+        patient_id=PATIENT_ELEANOR_ID,
+        title="Nursing handoff",
+        document_type="clinical_note",
+        file=file,
+        session=session,
+        current_user=current_user,
+        settings=settings,
+    )
+
+    assert document.id is not None
+    assert document.uploaded_by == NURSE_ID
 
 
 @pytest.mark.asyncio

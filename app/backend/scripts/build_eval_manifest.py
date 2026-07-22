@@ -37,7 +37,7 @@ def main(argv: list[str] | None = None) -> int:
         args.output.write_text(rendered, encoding="utf-8")
         print(f"wrote {args.output}")
         return 0
-    except validation_error as error:
+    except (validation_error, OSError, KeyError, TypeError, ValueError) as error:
         print(f"invalid evaluation corpus: {error}", file=sys.stderr)
         return 2
 

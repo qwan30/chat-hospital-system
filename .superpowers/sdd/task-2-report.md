@@ -20,13 +20,14 @@ py -3.12 -m ruff format --check src/hospital_ai/evaluation/corpus_manifest.py te
 3 files already formatted
 
 py -3.12 -m pytest tests/evaluation -q
-9 passed
+10 passed
 
 py -3.12 scripts/build_eval_manifest.py --check
 evaluation corpus manifest is valid
 ```
 
 The CLI was also exercised with a temporary `--output` file followed by `--check --output`; both returned exit 0.
+The focused suite includes a regression assertion that malformed corpus data returns CLI exit code 2.
 
 ## Scope
 

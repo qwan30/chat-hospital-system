@@ -1,3 +1,4 @@
+import importlib.util
 from pathlib import Path
 
 import pytest
@@ -11,6 +12,7 @@ from hospital_ai.evaluation.corpus_manifest import (
 )
 
 DATA_ROOT = Path(__file__).parents[2] / "data"
+CLI_PATH = Path(__file__).parents[2] / "scripts" / "build_eval_manifest.py"
 
 
 def test_builds_canonical_patient_inventory_from_live_data():
@@ -93,3 +95,21 @@ def test_contracts_are_immutable_and_reject_noncanonical_hashes():
             license_status="internal-synthetic",
             locator=EvidenceLocator(source_path="patients_documents/patient_MRN0001_lab_result.pdf"),
         )
+
+
+def test_cli_returns_exit_two_for_invalid_corpus_data(monkeypatch, capsys):
+    spec = importlib.util.spec_from_file_location("build_eval_manifest", CLI_PATH)
+    assert spec is not None and spec.loader is not None
+    cli = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(cli)
+
+    class InvalidCorpusError(ValueError):
+        pass
+
+    def invalid_builder(_data_root):
+        raise KeyError("mime_type")
+
+    monkeypatch.setattr(cli, "_load_manifest_builder", lambda: (InvalidCorpusError, invalid_builder))
+
+    assert cli.main(["--check"]) == 2
+    assert "invalid evaluation corpus" in capsys.readouterr().err

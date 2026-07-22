@@ -1,5 +1,7 @@
+from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Any
 
 from hospital_ai.core.errors import ExternalServiceError
 
@@ -9,6 +11,33 @@ class OcrPage:
     page_number: int
     text: str
     confidence: float
+
+
+def _parse_paddle_v3_results(results: list[Any]) -> tuple[str, float]:
+    """Read the documented PaddleOCR 3.x ``Result.json['res']`` contract."""
+    text_lines: list[str] = []
+    scores: list[float] = []
+    for result in results:
+        payload = result if isinstance(result, Mapping) else getattr(result, "json", None)
+        if not isinstance(payload, Mapping):
+            continue
+        prediction = payload.get("res", payload)
+        if not isinstance(prediction, Mapping):
+            continue
+        raw_texts = prediction.get("rec_texts", [])
+        raw_scores = prediction.get("rec_scores", [])
+        if not isinstance(raw_texts, (list, tuple)):
+            continue
+        score_values = list(raw_scores) if hasattr(raw_scores, "__iter__") else []
+        for index, raw_text in enumerate(raw_texts):
+            text = str(raw_text).strip()
+            if not text:
+                continue
+            text_lines.append(text)
+            if index < len(score_values):
+                scores.append(float(score_values[index]))
+    confidence = sum(scores) / len(scores) if scores else 0.0
+    return "\n".join(text_lines), confidence
 
 
 class OcrService:
@@ -65,15 +94,13 @@ class OcrService:
                 np_arr = np.frombuffer(img_bytes, np.uint8)
                 img = cv2.imdecode(np_arr, cv2.IMREAD_COLOR)
                 result = ocr.predict(img)
-                text_lines = []
-                scores = []
-                if result and result[0]:
-                    for item in result[0]:
-                        if len(item) == 2 and isinstance(item[1], tuple):
-                            text_lines.append(str(item[1][0]))
-                            scores.append(float(item[1][1]))
-                confidence = sum(scores) / len(scores) if scores else 0.0
-                text_extracted = "\n".join(text_lines)
+                text_extracted, confidence = _parse_paddle_v3_results(list(result))
+                if not text_extracted:
+                    raise ExternalServiceError(f"OCR produced no text for page {page_number}.")
+            else:
+                raise ExternalServiceError(
+                    f"OCR engine is unavailable for image-only page {page_number}; install the 'ocr' dependency extra."
+                )
 
             pages.append(OcrPage(page_number=page_number, text=text_extracted, confidence=confidence))
 

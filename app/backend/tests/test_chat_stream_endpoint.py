@@ -18,7 +18,7 @@ from starlette.requests import Request
 from hospital_ai.api.routes.chat_stream import chat_stream
 from hospital_ai.db.migrations import DOCTOR_ID, PATIENT_ALICE_ID, PATIENT_BOB_ID
 from hospital_ai.db.models import AiQuery, AuditLog, ChatMessage, ChatThread, User
-from hospital_ai.schemas.chat import ChatRequest
+from hospital_ai.schemas.chat import ChatContext, ChatRequest
 from hospital_ai.services.chat import SAFE_INJECTION_DETECTED_ANSWER, SAFE_NO_EVIDENCE_ANSWER
 from hospital_ai.services.guardrails import GuardrailResult
 from hospital_ai.services.llm.stub_provider import StubLLM
@@ -138,6 +138,78 @@ async def test_chat_stream_token_events(session_and_settings):
         assert "content" in te
         assert isinstance(te["content"], str)
         assert len(te["content"]) > 0
+
+
+@pytest.mark.asyncio
+async def test_chat_stream_emits_safe_processing_statuses(session_and_settings):
+    """A successful answer exposes factual, UI-safe activity stages."""
+    session, settings = session_and_settings
+    doctor = await session.get(User, DOCTOR_ID)
+    await create_indexed_document(
+        session,
+        patient_id=PATIENT_ALICE_ID,
+        uploaded_by=DOCTOR_ID,
+        title="Activity note",
+        content="Patient is stable and recovering.",
+    )
+
+    response = await chat_stream(
+        payload=ChatRequest(patient_id=PATIENT_ALICE_ID, question="What is the status?"),
+        request=_request(),
+        session=session,
+        current_user=doctor,
+        settings=settings,
+    )
+    body = b""
+    async for chunk in response.body_iterator:
+        body += chunk.encode("utf-8")
+
+    events = _parse_sse_events(body)
+    assert [event["stage"] for event in events if event.get("type") == "status"] == [
+        "retrieving",
+        "preparing_answer",
+        "validating_citations",
+        "complete",
+    ]
+
+
+@pytest.mark.asyncio
+async def test_chat_attachment_context_limits_streamed_citations_to_attachment(session_and_settings):
+    session, settings = session_and_settings
+    doctor = await session.get(User, DOCTOR_ID)
+    attached = await create_indexed_document(
+        session,
+        patient_id=PATIENT_ALICE_ID,
+        uploaded_by=DOCTOR_ID,
+        title="Attached source",
+        content="Attached document says the patient is stable.",
+    )
+    await create_indexed_document(
+        session,
+        patient_id=PATIENT_ALICE_ID,
+        uploaded_by=DOCTOR_ID,
+        title="Other source",
+        content="Other document says the patient needs follow-up.",
+    )
+
+    response = await chat_stream(
+        payload=ChatRequest(
+            patient_id=PATIENT_ALICE_ID,
+            question="What is the status?",
+            context=ChatContext(document_ids=[attached.id]),
+        ),
+        request=_request(),
+        session=session,
+        current_user=doctor,
+        settings=settings,
+    )
+    body = b""
+    async for chunk in response.body_iterator:
+        body += chunk.encode("utf-8")
+
+    citation_events = [event for event in _parse_sse_events(body) if event.get("type") == "citations"]
+    assert citation_events
+    assert {citation["document_id"] for citation in citation_events[0]["data"]} == {str(attached.id)}
 
 
 @pytest.mark.asyncio

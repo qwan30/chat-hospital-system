@@ -42,3 +42,15 @@ def test_chat_thread_contract_is_only_added_by_forward_migration():
     assert '"chat_messages"' in chat_threads_migration
     assert "ck_chat_threads_patient_scope" in chat_threads_migration
     assert "ck_chat_messages_patient_permission_state" in chat_threads_migration
+
+
+def test_document_processing_events_are_only_added_by_forward_migration():
+    versions_dir = Path(__file__).resolve().parents[1] / "alembic" / "versions"
+    previous_head = (versions_dir / "0009_repair_search_vector_gin.py").read_text(encoding="utf-8")
+    processing_events_migration = (versions_dir / "0010_add_document_processing_events.py").read_text(encoding="utf-8")
+
+    assert "document_processing_events" not in previous_head
+    assert "document_processing_events" in processing_events_migration
+    assert 'down_revision = "0009_repair_search_vector_gin"' in processing_events_migration
+    assert "uq_document_processing_event_sequence" in processing_events_migration
+    assert 'revision = "0010_document_processing_events"' in processing_events_migration

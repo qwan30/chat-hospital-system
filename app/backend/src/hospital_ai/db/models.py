@@ -181,6 +181,43 @@ class Document(TimestampMixin, SoftDeleteMixin, Base):
     patient: Mapped[Optional[Patient]] = relationship(back_populates="documents")
     pages: Mapped[list[DocumentPage]] = relationship(back_populates="document", cascade="all, delete-orphan")
     chunks: Mapped[list[DocumentChunk]] = relationship(back_populates="document", cascade="all, delete-orphan")
+    processing_events: Mapped[list[DocumentProcessingEvent]] = relationship(
+        back_populates="document",
+        cascade="all, delete-orphan",
+    )
+
+
+class DocumentProcessingEvent(Base):
+    """Sanitized, user-visible document processing milestones."""
+
+    __tablename__ = "document_processing_events"
+    __table_args__ = (
+        CheckConstraint("stage in ('upload','ocr','index','ready')", name="ck_document_processing_event_stage"),
+        CheckConstraint("state in ('started','completed','failed')", name="ck_document_processing_event_state"),
+        CheckConstraint(
+            "error_code is null or error_code in ('OCR_FAILED','INDEX_FAILED')",
+            name="ck_document_processing_event_error_code",
+        ),
+        UniqueConstraint(
+            "document_id",
+            "attempt",
+            "sequence",
+            name="uq_document_processing_event_sequence",
+        ),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    document_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("documents.id"), nullable=False, index=True)
+    attempt: Mapped[int] = mapped_column(Integer, nullable=False)
+    sequence: Mapped[int] = mapped_column(Integer, nullable=False)
+    stage: Mapped[str] = mapped_column(String(32), nullable=False)
+    state: Mapped[str] = mapped_column(String(16), nullable=False)
+    progress_current: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    progress_total: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    error_code: Mapped[Optional[str]] = mapped_column(String(32), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
+
+    document: Mapped[Document] = relationship(back_populates="processing_events")
 
 
 class DocumentPage(TimestampMixin, SoftDeleteMixin, Base):

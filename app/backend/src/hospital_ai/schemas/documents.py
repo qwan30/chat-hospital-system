@@ -21,6 +21,22 @@ class DocumentRead(ApiSchema):
     created_at: datetime
 
 
+class DocumentProcessingEventRead(ApiSchema):
+    id: UUID
+    attempt: int
+    sequence: int
+    stage: str
+    state: str
+    progress_current: Optional[int] = None
+    progress_total: Optional[int] = None
+    error_code: Optional[str] = None
+    created_at: datetime
+
+
+class DocumentDetailRead(DocumentRead):
+    processing_events: list[DocumentProcessingEventRead] = Field(default_factory=list)
+
+
 class DocumentPageRead(ApiSchema):
     id: UUID
     document_id: UUID

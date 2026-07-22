@@ -182,6 +182,20 @@ export async function apiFetch<T>(
   }) as T;
 }
 
+/** Fetch protected binary content while preserving the in-memory bearer token policy. */
+export async function apiFetchBlob(path: string, opts: ApiClientOptions = {}): Promise<Blob> {
+  const baseUrl = opts.baseUrl || getBaseUrl();
+  const token = getToken();
+  const headers: Record<string, string> = {};
+  if (token) headers.Authorization = `Bearer ${token}`;
+
+  const response = await fetch(`${baseUrl.replace(/\/+$/, "")}${path}`, { headers });
+  if (!response.ok) {
+    throw new ApiError(response.status, "BLOB_FETCH_FAILED", response.statusText);
+  }
+  return response.blob();
+}
+
 // ── Auth helpers ─────────────────────────────────────────────────────
 
 export async function verifyToken(

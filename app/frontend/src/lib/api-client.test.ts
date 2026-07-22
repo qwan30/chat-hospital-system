@@ -1,6 +1,7 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
 import {
   apiFetch,
+  apiFetchBlob,
   ApiError,
   verifyToken,
   persistToken,
@@ -347,6 +348,25 @@ describe("apiFetch", () => {
     expect(fetchMock).toHaveBeenCalledWith(
       "http://base/patients/20000000-0000-0000-0000-000000000010/documents/90000000-0000-0000-0000-000000000011",
       expect.anything(),
+    );
+  });
+});
+
+describe("apiFetchBlob", () => {
+  it("adds the in-memory bearer token and returns the response blob", async () => {
+    persistToken("blob-jwt");
+    const blob = new Blob(["preview"], { type: "application/pdf" });
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true, blob: () => Promise.resolve(blob) });
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(apiFetchBlob("/documents/d-1/content", { baseUrl: "http://base" })).resolves.toBe(
+      blob,
+    );
+    expect(fetchMock).toHaveBeenCalledWith(
+      "http://base/documents/d-1/content",
+      expect.objectContaining({
+        headers: expect.objectContaining({ Authorization: "Bearer blob-jwt" }),
+      }),
     );
   });
 });

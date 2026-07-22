@@ -1,4 +1,4 @@
-import { apiFetch } from "../api-client";
+import { apiFetch, apiFetchBlob } from "../api-client";
 
 export interface DocumentRead {
   id: string;
@@ -16,6 +16,22 @@ export interface DocumentRead {
 
 export interface DocumentListResponse {
   items: DocumentRead[];
+}
+
+export interface DocumentProcessingEventRead {
+  id: string;
+  attempt: number;
+  sequence: number;
+  stage: "upload" | "ocr" | "index" | "ready";
+  state: "started" | "completed" | "failed";
+  progress_current: number | null;
+  progress_total: number | null;
+  error_code: "OCR_FAILED" | "INDEX_FAILED" | null;
+  created_at: string;
+}
+
+export interface DocumentDetailRead extends DocumentRead {
+  processing_events: DocumentProcessingEventRead[];
 }
 
 export interface DocumentPageRead {
@@ -63,8 +79,12 @@ export const listDocuments = async (params?: {
   return apiFetch<DocumentListResponse>(path);
 };
 
-export const getDocument = async (id: string): Promise<DocumentRead> => {
-  return apiFetch<DocumentRead>(`/documents/${id}`);
+export const getDocument = async (id: string): Promise<DocumentDetailRead> => {
+  return apiFetch<DocumentDetailRead>(`/documents/${id}`);
+};
+
+export const getDocumentBlob = async (id: string): Promise<Blob> => {
+  return apiFetchBlob(`/documents/${id}/content`);
 };
 
 export const getDocumentPage = async (

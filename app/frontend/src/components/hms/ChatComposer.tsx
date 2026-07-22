@@ -18,6 +18,7 @@ export function ChatComposer({
   value: controlledValue,
   onValueChange,
   allowAttachment = false,
+  attachmentStatus,
 }: {
   onSend: (text: string, file?: File) => void | Promise<void>;
   contextNode?: ReactNode;
@@ -26,6 +27,7 @@ export function ChatComposer({
   value?: string;
   onValueChange?: (text: string) => void;
   allowAttachment?: boolean;
+  attachmentStatus?: string | null;
 }) {
   const [internalText, setInternalText] = useState("");
   const [attachedFile, setAttachedFile] = useState<File | null>(null);
@@ -101,6 +103,7 @@ export function ChatComposer({
           </Button>
         </div>
       )}
+      {attachmentStatus && <p className="mb-2 text-xs text-muted-foreground">{attachmentStatus}</p>}
 
       <Textarea
         value={text}

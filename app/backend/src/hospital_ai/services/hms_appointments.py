@@ -40,7 +40,7 @@ class HmsAppointmentEvidenceImporter:
         if patient is None or patient.deleted_at is not None:
             raise NotFoundError("Patient for HMS appointment import was not found.")
 
-        await PermissionService(self.session).require_upload_or_admin_role(
+        await PermissionService(self.session).require_records_or_admin_role(
             user=user,
             patient_id=payload.patient_id,
             action="hms.appointment.import",

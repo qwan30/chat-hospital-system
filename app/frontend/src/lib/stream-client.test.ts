@@ -95,6 +95,21 @@ describe("streamChat", () => {
     });
   });
 
+  it("forwards processing status stages without treating them as answer text", async () => {
+    const sse =
+      'data: {"type":"status","stage":"retrieving"}\n' +
+      'data: {"type":"status","stage":"validating_citations"}\n' +
+      'data: {"type":"done","query_id":"q1","validation":"passed"}\n';
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(mockOkResponse([sse])));
+
+    const onEvent = vi.fn();
+    const result = await streamChat("http://api", "token123", { question: "Hi" }, onEvent);
+
+    expect(onEvent).toHaveBeenCalledWith({ type: "status", stage: "retrieving" });
+    expect(onEvent).toHaveBeenCalledWith({ type: "status", stage: "validating_citations" });
+    expect(result.answer).toBe("");
+  });
+
   it("sets error field on error event", async () => {
     const sse =
       'data: {"type":"error","message":"LLM timeout"}\n' +

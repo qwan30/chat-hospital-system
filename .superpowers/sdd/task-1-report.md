@@ -93,3 +93,5 @@ Pester regression coverage adds a late-collision case that verifies both earlier
 Independent review identified two further preflight bypasses: a target-root junction could alias the protected Codex directory, and duplicate target roots could collide during the mutation pass. The final guard now rejects target roots that use a reparse point (including any existing reparse-point ancestor) and rejects duplicate normalized target roots before creating anything.
 
 The final focused Pester suite passed **11/11** after adding regression cases for both bypasses. The original delivery section's literal default paths describe the then-current environment; final defaults are the current user profile joined with the four documented skill subpaths.
+
+**Final corrective commit:** `60877d84a5dcafad10a12b6dfcd2f08efea4af9b` (`fix: close installer preflight bypasses`).

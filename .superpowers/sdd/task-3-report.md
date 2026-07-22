@@ -38,6 +38,8 @@ The CLI wrote 300 benchmark cases and 50 draft sentinel cases. Its `--check` mod
 
 GitNexus pre-edit impact checks reported LOW risk with no callers or execution flows for the replaced benchmark symbols. The staged `detect_changes` check also reported LOW risk and no affected execution flows.
 
-## Release status
+## Remediation and release status
 
-The benchmark content and deterministic generation gates pass. The sentinel review release gate is intentionally **blocked** until two real independent reviewers approve every sentinel case and resolve all review issues.
+Independent review identified two false `safe_refusal` cases and four unchanged observations incorrectly labeled as `temporal_conflict`. The remediation makes refusals prove absence across both canonical patient sources, requires a changed earliest/latest measurement for temporal cases, and resolves PDF/CSV source content during validation rather than trusting generated records. The focused suite now reports 19 passing tests.
+
+The benchmark content and deterministic generation gates pass after this remediation. The sentinel review release gate remains intentionally **blocked** until two real independent reviewers approve every sentinel case and resolve all review issues.

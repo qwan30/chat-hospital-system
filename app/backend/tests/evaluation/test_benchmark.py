@@ -11,6 +11,7 @@ import pytest
 from hospital_ai.evaluation.benchmark import (
     CATEGORY_COUNTS,
     EvalCaseV2,
+    ExpectedFact,
     ReviewRecord,
     build_benchmark,
     select_sentinel,
@@ -114,6 +115,72 @@ def test_allowed_and_forbidden_evidence_enforce_patient_isolation(
             assert not case.allowed_evidence
 
 
+def test_safe_refusals_are_scoped_to_sources_that_independently_lack_the_requested_terms(
+    cases: tuple[EvalCaseV2, ...], manifest: CorpusManifestV2
+) -> None:
+    safe_refusals = [case for case in cases if case.category == "safe_refusal"]
+
+    assert len(safe_refusals) == CATEGORY_COUNTS["safe_refusal"]
+    for case in safe_refusals:
+        assert case.absence_terms
+        assert len(case.absence_checked_evidence) == 2
+
+    forged_absence = EvalCaseV2.parse_obj(
+        {
+            **safe_refusals[0].dict(),
+            "absence_terms": ["synthetic data warning"],
+        }
+    )
+    result = validate_benchmark((forged_absence, *cases[1:]), manifest, DATA_ROOT)
+
+    assert not result.valid
+    assert any("safe-refusal term is present" in error for error in result.errors)
+
+
+def test_temporal_conflicts_compare_distinct_source_backed_measurements(
+    cases: tuple[EvalCaseV2, ...], manifest: CorpusManifestV2
+) -> None:
+    temporal_cases = [case for case in cases if case.category == "temporal_conflict"]
+
+    assert len(temporal_cases) == CATEGORY_COUNTS["temporal_conflict"]
+    assert validate_benchmark(cases, manifest, DATA_ROOT).valid
+
+    unchanged = EvalCaseV2.parse_obj(
+        {
+            **temporal_cases[0].dict(),
+            "expected_facts": [temporal_cases[0].expected_facts[0].dict()] * 2,
+            "allowed_evidence": [temporal_cases[0].expected_facts[0].evidence[0].dict()],
+        }
+    )
+    result = validate_benchmark((unchanged, *cases[1:]), manifest, DATA_ROOT)
+
+    assert not result.valid
+    assert any("temporal facts" in error for error in result.errors)
+
+
+def test_validation_resolves_source_content_instead_of_trusting_generated_statements(
+    cases: tuple[EvalCaseV2, ...], manifest: CorpusManifestV2
+) -> None:
+    first = next(case for case in cases if case.answer_policy == "answer")
+    forged_fact = ExpectedFact.parse_obj(
+        {
+            **first.expected_facts[0].dict(),
+            "verification_terms": ["not present in any canonical clinical source"],
+        }
+    )
+    forged_case = EvalCaseV2.parse_obj(
+        {
+            **first.dict(),
+            "expected_facts": [forged_fact.dict()],
+            "allowed_evidence": [locator.dict() for locator in forged_fact.evidence],
+        }
+    )
+    result = validate_benchmark((forged_case, *cases[1:]), manifest, DATA_ROOT)
+
+    assert not result.valid
+    assert any("expected fact is not present" in error for error in result.errors)
+
+
 def test_validation_rejects_non_resolving_and_overlapping_evidence(
     cases: tuple[EvalCaseV2, ...], manifest: CorpusManifestV2
 ) -> None:
@@ -127,7 +194,7 @@ def test_validation_rejects_non_resolving_and_overlapping_evidence(
         }
     )
 
-    result = validate_benchmark((broken, *cases[1:]), manifest)
+    result = validate_benchmark((broken, *cases[1:]), manifest, DATA_ROOT)
 
     assert not result.valid
     assert any("does not resolve" in error for error in result.errors)

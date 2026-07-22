@@ -66,7 +66,7 @@ def main(argv: list[str] | None = None) -> int:
     try:
         manifest = manifest_type.parse_raw(args.manifest.read_text(encoding="utf-8"))
         benchmark = build_benchmark(manifest, BACKEND_ROOT / "data")
-        benchmark_validation = validate_benchmark(benchmark, manifest)
+        benchmark_validation = validate_benchmark(benchmark, manifest, BACKEND_ROOT / "data")
         if not benchmark_validation.valid:
             raise ValueError("; ".join(benchmark_validation.errors))
         sentinel = select_sentinel(benchmark)

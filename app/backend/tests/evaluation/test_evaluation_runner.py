@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import importlib.util
 import json
 from pathlib import Path
@@ -7,11 +8,13 @@ from xml.etree import ElementTree
 
 import pytest
 
+from hospital_ai.evaluation.adapter_foundation import EvaluatorIsolationConfig
 from hospital_ai.evaluation.contracts import CaseResult, GateResult, OcrEngineStatus
 from hospital_ai.evaluation.runner import (
     CaseObservation,
     EvaluationConfig,
     run_evaluation,
+    run_evaluation_async,
     write_run_artifacts,
 )
 
@@ -68,6 +71,15 @@ def _config(
     )
 
 
+def _isolation() -> EvaluatorIsolationConfig:
+    return EvaluatorIsolationConfig(
+        evaluation_database_url="postgresql+asyncpg://hospital_ai:test@localhost:5432/hospital_ai_eval",
+        approved_evaluation_database_url="postgresql://hospital_ai:test@127.0.0.1/hospital_ai_eval",
+        product_database_url="postgresql+asyncpg://hospital_ai:test@localhost:5432/hospital_ai",
+        run_namespace="ai-eval/test-run",
+    )
+
+
 def test_result_contracts_preserve_machine_readable_scalar_types() -> None:
     result = CaseResult(
         case_id="contract-fixture",
@@ -94,7 +106,7 @@ def test_result_contracts_preserve_machine_readable_scalar_types() -> None:
 
 def test_deterministic_smoke_validates_reviewed_sentinel_and_writes_all_artifacts(tmp_path: Path) -> None:
     benchmark_dir = _approved_benchmark_dir(tmp_path)
-    config = _config(tmp_path, benchmark_dir)
+    config = _config(tmp_path, benchmark_dir, components=("corpus",))
 
     run = run_evaluation(config)
     write_run_artifacts(run, config.output_dir)
@@ -102,7 +114,6 @@ def test_deterministic_smoke_validates_reviewed_sentinel_and_writes_all_artifact
     assert run.exit_code == 0
     assert run.manifest.status == "passed"
     assert run.manifest.selected_case_count == 50
-    assert any(result.status == "skipped" for result in run.cases if result.component == "chat")
     for filename in ("run.json", "cases.jsonl", "junit.xml", "summary.md"):
         assert (config.output_dir / filename).is_file()
     run_json = json.loads((config.output_dir / "run.json").read_text(encoding="utf-8"))
@@ -112,6 +123,23 @@ def test_deterministic_smoke_validates_reviewed_sentinel_and_writes_all_artifact
     assert "token_usage" in run_json
     ElementTree.parse(config.output_dir / "junit.xml")
     assert "not product quality evidence" in (config.output_dir / "summary.md").read_text(encoding="utf-8")
+
+
+def test_requested_product_component_without_adapter_fails_required_component_gate(tmp_path: Path) -> None:
+    benchmark_dir = _approved_benchmark_dir(tmp_path)
+    config = _config(tmp_path, benchmark_dir, components=("retrieval",))
+
+    run = run_evaluation(config)
+
+    assert run.exit_code == 1
+    assert run.manifest.status == "failed"
+    assert any(
+        gate.name == "evaluation_adapter_configured" and gate.component == "retrieval" and gate.hard and not gate.passed
+        for gate in run.gates
+    )
+    retrieval_results = [result for result in run.cases if result.component == "retrieval"]
+    assert retrieval_results
+    assert all(result.status == "skipped" for result in retrieval_results)
 
 
 def test_unreviewed_real_sentinel_is_a_gate_failure_not_invalid_data(tmp_path: Path) -> None:
@@ -167,7 +195,7 @@ def test_live_lane_without_credentials_is_explicitly_skipped_without_scores(tmp_
 
 
 class _LeakingAdapter:
-    def evaluate(self, _case) -> CaseObservation:
+    def evaluate(self, _case, _context) -> CaseObservation:
         return CaseObservation(
             retrieved_ids=("fabricated-source",),
             cited_ids=("fabricated-source",),
@@ -183,11 +211,52 @@ def test_adapter_observation_that_leaks_evidence_fails_hard_gates(tmp_path: Path
     benchmark_dir = _approved_benchmark_dir(tmp_path)
     config = _config(tmp_path, benchmark_dir, components=("chat",))
 
-    run = run_evaluation(config, adapters={"chat": _LeakingAdapter()})
+    run = run_evaluation(config, adapters={"chat": _LeakingAdapter()}, isolation=_isolation())
 
     assert run.exit_code == 1
     assert any(gate.hard and not gate.passed and gate.name == "zero_unauthorized_evidence" for gate in run.gates)
     assert any(gate.hard and not gate.passed and gate.name == "zero_fabricated_citations" for gate in run.gates)
+
+
+class _AsyncSafeAdapter:
+    def __init__(self) -> None:
+        self.loop_ids: set[int] = set()
+        self.actor_ids: set[str] = set()
+
+    async def evaluate(self, case, context) -> CaseObservation:
+        await asyncio.sleep(0)
+        self.loop_ids.add(id(asyncio.get_running_loop()))
+        self.actor_ids.add(str(context.actor.actor_id))
+        return CaseObservation(
+            covered_fact_ids=tuple(fact.fact_id for fact in case.expected_facts),
+            refused=case.answer_policy != "answer",
+            sync_safety_outcome="answered" if case.answer_policy == "answer" else "refused",
+            stream_safety_outcome="answered" if case.answer_policy == "answer" else "refused",
+        )
+
+
+@pytest.mark.asyncio
+async def test_async_runner_uses_one_event_loop_for_all_adapter_cases(tmp_path: Path) -> None:
+    benchmark_dir = _approved_benchmark_dir(tmp_path)
+    config = _config(tmp_path, benchmark_dir, components=("retrieval",))
+    adapter = _AsyncSafeAdapter()
+
+    run = await run_evaluation_async(config, adapters={"retrieval": adapter}, isolation=_isolation())
+
+    assert run.exit_code == 0
+    assert adapter.loop_ids == {id(asyncio.get_running_loop())}
+    assert len(adapter.actor_ids) == 50
+
+
+def test_adapter_run_without_isolated_database_configuration_is_invalid(tmp_path: Path) -> None:
+    benchmark_dir = _approved_benchmark_dir(tmp_path)
+    config = _config(tmp_path, benchmark_dir, components=("chat",))
+
+    run = run_evaluation(config, adapters={"chat": _LeakingAdapter()})
+
+    assert run.exit_code == 2
+    assert run.manifest.status == "invalid"
+    assert "isolated evaluator" in run.manifest.failure_reason
 
 
 def test_release_selects_all_300_cases(tmp_path: Path) -> None:

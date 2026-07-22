@@ -24,6 +24,9 @@ where pp.user_id = :user_id
   and (pp.expires_at is null or pp.expires_at > now())
 """.strip()
 
+DOCUMENT_UPLOAD_ROLES = frozenset({"records_staff", "admin", "doctor", "nurse", "pharmacist"})
+HMS_WRITE_ROLES = frozenset({"records_staff", "admin"})
+
 
 def active_patient_permission_filters(
     *,
@@ -194,8 +197,10 @@ class PermissionService:
         object_type: str = "document",
         object_id: Optional[uuid.UUID] = None,
         ip_address: Optional[str] = None,
+        allowed_roles: Iterable[str] = DOCUMENT_UPLOAD_ROLES,
     ) -> None:
-        if user.role not in {"records_staff", "admin", "doctor", "nurse", "pharmacist"}:
+        accepted_roles = frozenset(allowed_roles)
+        if user.role not in accepted_roles:
             await AuditService(self.session).record(
                 actor_user_id=user.id,
                 action=action,
@@ -205,10 +210,14 @@ class PermissionService:
                 outcome="denied",
                 trace_id=trace_id,
                 ip_address=ip_address,
-                metadata={"reason": "role_not_allowed", "role": user.role},
+                metadata={
+                    "reason": "role_not_allowed",
+                    "role": user.role,
+                    "allowed_roles": sorted(accepted_roles),
+                },
             )
             await self.session.commit()
-            raise PermissionDeniedError("Only clinical and records staff or admins can upload documents.")
+            raise PermissionDeniedError("User role is not allowed for this write operation.")
 
         await self.require_patient_scope(
             user=user,

@@ -50,6 +50,7 @@ class MetricValue(_FrozenModel):
     numerator: int = Field(ge=0)
     denominator: int = Field(ge=0)
     value: Optional[float]
+    excluded_count: int = Field(ge=0, default=0)
     exclusion_reason: Optional[
         Literal[
             "no_expected_facts",
@@ -65,6 +66,7 @@ class AggregateValue(_FrozenModel):
     numerator: float
     denominator: int = Field(ge=0)
     value: Optional[float]
+    excluded_count: int = Field(ge=0, default=0)
     exclusion_reason: Optional[
         Literal["missing_rag_off", "missing_graph_pair", "missing_semantic_pair", "no_cases"]
     ] = None
@@ -148,7 +150,9 @@ def serialize_expected_facts(facts: Sequence[ExpectedFact]) -> str:
 def assert_no_ground_truth_leakage(case: BenchmarkCase, generator_inputs: Sequence[str]) -> None:
     inputs = normalize_text("\n".join(generator_inputs))
     serialized = normalize_text(serialize_expected_facts(case.expected_facts))
-    leaked = serialized in inputs or any(_fact_control_payload(fact) in inputs for fact in case.expected_facts)
+    leaked = serialized in inputs or any(
+        _input_leaks_fact(item, fact) for item in generator_inputs for fact in case.expected_facts
+    )
     if case.expected_facts and leaked:
         raise GroundTruthLeakageError(f"case {case.case_id}: expected facts reached generator input")
 
@@ -157,12 +161,24 @@ def score_case(case: BenchmarkCase, trace: EvaluationTrace) -> CaseScore:
     assert_no_ground_truth_leakage(case, trace.generator_inputs)
     expected = tuple(_claim_from_fact(fact) for fact in case.expected_facts)
     answer_claims = extract_atomic_claims(trace.answer)
-    matched = tuple(claim for claim in expected if _claim_present(claim, trace.answer))
-    supported_answer = tuple(_supported(claim, trace.cited_chunks) for claim in answer_claims)
+    matched = _matched_expected(expected, answer_claims)
+    support_verdicts = tuple(evaluate_claim_support(claim, trace.cited_chunks) for claim in answer_claims)
+    supported_answer = tuple(
+        bool(claim.citation_labels) and verdict.supported
+        for claim, verdict in zip(answer_claims, support_verdicts, strict=True)
+    )
     supported_expected = tuple(
         claim for claim in expected if _expected_claim_is_cited(claim, answer_claims, trace.cited_chunks)
     )
-    return _build_case_score(case, trace, expected, answer_claims, matched, supported_answer, supported_expected)
+    supported_ids = {
+        evidence_id
+        for claim, verdict in zip(answer_claims, support_verdicts, strict=True)
+        if claim.citation_labels and verdict.supported
+        for evidence_id in verdict.supporting_evidence_ids
+    }
+    return _build_case_score(
+        case, trace, expected, answer_claims, matched, supported_answer, supported_expected, supported_ids
+    )
 
 
 def aggregate_scores(scores: Sequence[CaseScore]) -> CertificationMetrics:
@@ -216,12 +232,15 @@ def _build_case_score(
     matched: tuple[AtomicClaim, ...],
     supported_answer: tuple[bool, ...],
     supported_expected: tuple[AtomicClaim, ...],
+    supported_ids: set[UUID],
 ) -> CaseScore:
     precision = _ratio_or_excluded(len(matched), len(answer), "fact_precision", "no_expected_facts")
     recall = _ratio_or_excluded(len(matched), len(expected), "fact_recall", "no_expected_facts")
     expected_ids = set(case.allowed_evidence_ids)
     retrieved = trace.retrieved_evidence_ids[:5]
     expected_refusal = case.answer_policy != "answer"
+    critical = tuple(claim for claim in expected if claim.critical)
+    supported_critical = tuple(claim for claim in supported_expected if claim.critical)
     return CaseScore(
         case_id=case.case_id,
         category=case.category,
@@ -244,13 +263,13 @@ def _build_case_score(
             len(supported_expected), len(expected), "citation_recall", "no_expected_citations"
         ),
         critical_fact_support=_ratio_or_excluded(
-            len(supported_expected), len(expected), "critical_fact_support", "no_expected_facts"
+            len(supported_critical), len(critical), "critical_fact_support", "no_expected_facts"
         ),
         unsupported_claim_count=sum(not item for item in supported_answer),
         unauthorized_selected_count=len(set(trace.selected_evidence_ids) - expected_ids),
         refusal_correct=trace.refused == expected_refusal,
         false_refusal=trace.refused and not expected_refusal,
-        graph_value_credit=_graph_credit(trace),
+        graph_value_credit=_graph_credit(trace, supported_ids),
         latency_ms=trace.latency_ms,
     )
 
@@ -258,16 +277,32 @@ def _build_case_score(
 def _claim_from_fact(fact: ExpectedFact) -> AtomicClaim:
     match = re.fullmatch(r"\s*(-?\d+(?:\.\d+)?)\s*(.*?)\s*", fact.value)
     value, unit = (match.group(1), match.group(2) or None) if match else (fact.value.strip(), None)
-    return AtomicClaim(field=fact.field, value=value, unit=unit, observed_at=fact.observed_at)
+    aliases = tuple(_split_alias(alias)[0] for alias in fact.aliases)
+    return AtomicClaim(
+        field=fact.field,
+        value=value,
+        unit=unit,
+        observed_at=fact.observed_at,
+        aliases=aliases,
+        critical=fact.critical,
+    )
 
 
-def _fact_control_payload(fact: ExpectedFact) -> str:
-    return normalize_text(f"{fact.field}|{fact.value}|{fact.observed_at or ''}")
+def _split_alias(value: str) -> tuple[str, Optional[str]]:
+    match = re.fullmatch(r"\s*(-?\d+(?:\.\d+)?)\s*(.*?)\s*", value)
+    return (match.group(1), match.group(2) or None) if match else (value.strip(), None)
 
 
-def _claim_present(claim: AtomicClaim, answer: str) -> bool:
-    probe = CitedChunk(evidence_id=UUID(int=0), text=answer, citation_label="answer")
-    return evaluate_claim_support(claim.copy(update={"observed_at": None}), (probe,)).supported
+def _input_leaks_fact(raw: str, fact: ExpectedFact) -> bool:
+    normalized = normalize_text(raw)
+    pipe_payload = normalize_text(f"{fact.field}|{fact.value}|{fact.observed_at or ''}")
+    json_control = '"field"' in normalized and '"value"' in normalized
+    has_fact = normalize_text(fact.field) in normalized and normalize_text(fact.value) in normalized
+    return pipe_payload in normalized or (json_control and has_fact)
+
+
+def _matched_expected(expected: tuple[AtomicClaim, ...], answer: tuple[AtomicClaim, ...]) -> tuple[AtomicClaim, ...]:
+    return tuple(claim for claim in expected if any(_same_claim(claim, actual) for actual in answer))
 
 
 def _supported(claim: AtomicClaim, chunks: tuple[CitedChunk, ...]) -> bool:
@@ -282,15 +317,17 @@ def _expected_claim_is_cited(
 
 
 def _same_claim(expected: AtomicClaim, actual: AtomicClaim) -> bool:
+    values = (expected.value, *expected.aliases)
     return (
         normalize_text(expected.field) == normalize_text(actual.field)
-        and normalize_text(expected.value) == normalize_text(actual.value)
+        and any(normalize_text(value) == normalize_text(actual.value) for value in values)
         and (not expected.unit or normalize_text(expected.unit) == normalize_text(actual.unit or ""))
+        and (not expected.observed_at or expected.observed_at == actual.observed_at)
     )
 
 
 def _excluded(reason: str) -> MetricValue:
-    return MetricValue(numerator=0, denominator=0, value=None, exclusion_reason=reason)
+    return MetricValue(numerator=0, denominator=0, value=None, excluded_count=1, exclusion_reason=reason)
 
 
 def _ratio_or_excluded(numerator: int, denominator: int, metric: str, reason: str) -> MetricValue:
@@ -316,17 +353,25 @@ def _mrr(expected: set[UUID], retrieved: tuple[UUID, ...]) -> MetricValue:
 
 
 def _aggregate_ratio(scores: Sequence[CaseScore], field: str) -> MetricValue:
-    included = tuple(value for value in (getattr(score, field) for score in scores) if value.value is not None)
+    values = tuple(getattr(score, field) for score in scores)
+    included = tuple(value for value in values if value.value is not None)
     if not included:
         return _excluded("no_expected_facts")
-    return safe_ratio(sum(item.numerator for item in included), sum(item.denominator for item in included), field)
+    result = safe_ratio(sum(item.numerator for item in included), sum(item.denominator for item in included), field)
+    return result.copy(update={"excluded_count": len(values) - len(included)})
 
 
 def _mean_metric(scores: Sequence[CaseScore], field: str) -> AggregateValue:
-    values = tuple(value.value for value in (getattr(score, field) for score in scores) if value.value is not None)
+    all_values = tuple(getattr(score, field) for score in scores)
+    values = tuple(value.value for value in all_values if value.value is not None)
     if not values:
         return AggregateValue(numerator=0.0, denominator=0, value=None, exclusion_reason="no_cases")
-    return AggregateValue(numerator=sum(values), denominator=len(values), value=sum(values) / len(values))
+    return AggregateValue(
+        numerator=sum(values),
+        denominator=len(values),
+        value=sum(values) / len(values),
+        excluded_count=len(all_values) - len(values),
+    )
 
 
 def _eligible_ratio(scores: Sequence[CaseScore], field: str, reason: str) -> MetricValue:
@@ -337,26 +382,40 @@ def _mode_lift(
     scores: Sequence[CaseScore], baseline: Mode, variant: Mode, category: Optional[str], reason: str
 ) -> AggregateValue:
     selected = tuple(score for score in scores if category is None or score.category == category)
-    base = _mean_for_mode(selected, baseline)
-    changed = _mean_for_mode(selected, variant)
-    if base is None or changed is None:
+    pairs = _paired_values(selected, baseline, variant)
+    if pairs is None:
         return AggregateValue(numerator=0.0, denominator=0, value=None, exclusion_reason=reason)
-    return AggregateValue(numerator=changed - base, denominator=len(selected), value=changed - base)
+    deltas = tuple(changed - base for base, changed in pairs)
+    return AggregateValue(numerator=sum(deltas), denominator=len(deltas), value=sum(deltas) / len(deltas))
 
 
-def _mean_for_mode(scores: Sequence[CaseScore], mode: Mode) -> Optional[float]:
-    values = tuple(score.fact_f1.value for score in scores if score.mode == mode and score.fact_f1.value is not None)
-    return sum(values) / len(values) if values else None
+def _paired_values(
+    scores: Sequence[CaseScore], baseline: Mode, variant: Mode
+) -> Optional[tuple[tuple[float, float], ...]]:
+    grouped: dict[UUID, dict[Mode, float]] = {}
+    for score in scores:
+        if score.mode not in (baseline, variant) or score.fact_f1.value is None:
+            continue
+        modes = grouped.setdefault(score.case_id, {})
+        if score.mode in modes:
+            return None
+        modes[score.mode] = score.fact_f1.value
+    if not grouped or any(set(modes) != {baseline, variant} for modes in grouped.values()):
+        return None
+    return tuple((modes[baseline], modes[variant]) for modes in grouped.values())
 
 
 def _semantic_regression(scores: Sequence[CaseScore]) -> AggregateValue:
     semantic = tuple(score for score in scores if score.category != "graph_only")
-    off = _mean_for_mode(semantic, "hybrid_graph_off")
-    on = _mean_for_mode(semantic, "hybrid_graph_on")
-    if off is None or on is None:
+    pairs = _paired_values(semantic, "hybrid_graph_off", "hybrid_graph_on")
+    if pairs is None:
         return AggregateValue(numerator=0.0, denominator=0, value=None, exclusion_reason="missing_semantic_pair")
-    regression = max(0.0, off - on)
-    return AggregateValue(numerator=regression, denominator=len(semantic), value=regression)
+    regressions = tuple(max(0.0, off - on) for off, on in pairs)
+    return AggregateValue(
+        numerator=sum(regressions),
+        denominator=len(regressions),
+        value=sum(regressions) / len(regressions),
+    )
 
 
 def _p95_latency(scores: Sequence[CaseScore]) -> AggregateValue:
@@ -366,9 +425,8 @@ def _p95_latency(scores: Sequence[CaseScore]) -> AggregateValue:
     return AggregateValue(numerator=value, denominator=len(ordered), value=value)
 
 
-def _graph_credit(trace: EvaluationTrace) -> bool:
-    cited = {chunk.evidence_id for chunk in trace.cited_chunks}
-    return trace.graph_ran and bool(cited.intersection(trace.graph_selected_evidence_ids))
+def _graph_credit(trace: EvaluationTrace, supported_ids: set[UUID]) -> bool:
+    return trace.graph_ran and bool(supported_ids.intersection(trace.graph_selected_evidence_ids))
 
 
 def _minimum_gate(name: str, metric: MetricValue | AggregateValue, threshold: float) -> GateResult:

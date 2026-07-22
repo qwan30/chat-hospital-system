@@ -157,7 +157,7 @@ def test_attached_but_uncited_chunk_gets_no_citation_credit(case: BenchmarkCase)
 
 
 def test_unexpected_claim_is_a_severe_hallucination(case: BenchmarkCase) -> None:
-    score = score_case(case, _trace(case, answer="Sodium is critically low [E9]."))
+    score = score_case(case, _trace(case, answer="Sodium is critically low."))
 
     assert score.unsupported_claim_count == 1
 
@@ -236,6 +236,47 @@ def test_partial_ground_truth_leakage_is_detected(case: BenchmarkCase) -> None:
     with pytest.raises(GroundTruthLeakageError):
         assert_no_ground_truth_leakage(case, ("HbA1c|7.2 %|2026-01-02",))
 
+    with pytest.raises(GroundTruthLeakageError):
+        assert_no_ground_truth_leakage(case, ('{"value":"7.2 %","field":"HbA1c"}',))
+
+
+def test_wrong_observation_date_gets_no_citation_recall(case: BenchmarkCase) -> None:
+    score = score_case(
+        case,
+        _trace(
+            case,
+            answer="HbA1c was 7.2 % on 2025-01-02 [E1].",
+            cited_chunks=(
+                CitedChunk(
+                    evidence_id=case.expected_facts[0].evidence_id,
+                    text="HbA1c was 7.2 % on 2025-01-02.",
+                    citation_label="E1",
+                ),
+            ),
+        ),
+    )
+
+    assert score.citation_recall.value == 0.0
+
+
+def test_expected_fact_alias_is_bounded(case: BenchmarkCase) -> None:
+    aliased_fact = case.expected_facts[0].copy(update={"aliases": ("7.20 %",)})
+    aliased = case.copy(update={"expected_facts": (aliased_fact,)})
+
+    score = score_case(aliased, _trace(aliased, answer="HbA1c was 7.20 % on 2026-01-02 [E1]."))
+
+    assert score.fact_recall.value == 1.0
+
+
+def test_only_critical_facts_enter_critical_support(case: BenchmarkCase) -> None:
+    noncritical = case.expected_facts[0].copy(update={"critical": False})
+    changed = case.copy(update={"expected_facts": (noncritical,)})
+
+    score = score_case(changed, _trace(changed))
+
+    assert score.critical_fact_support.value is None
+    assert score.critical_fact_support.denominator == 0
+
 
 def test_ablation_and_latency_gates_are_aggregated(case: BenchmarkCase) -> None:
     graph_case = case.copy(update={"category": "graph_only"})
@@ -244,6 +285,7 @@ def test_ablation_and_latency_gates_are_aggregated(case: BenchmarkCase) -> None:
         score_case(graph_case, _trace(graph_case, mode="rag_off", answer="No evidence", cited_chunks=())),
         score_case(graph_case, _trace(graph_case, mode="hybrid_graph_off", answer="No evidence", cited_chunks=())),
         score_case(graph_case, _trace(graph_case, mode="hybrid_graph_on", latency_ms=30)),
+        score_case(semantic_case, _trace(semantic_case, mode="rag_off", answer="No evidence", cited_chunks=())),
         score_case(semantic_case, _trace(semantic_case, mode="hybrid_graph_off")),
         score_case(semantic_case, _trace(semantic_case, mode="hybrid_graph_on")),
     )
@@ -259,6 +301,33 @@ def test_ablation_and_latency_gates_are_aggregated(case: BenchmarkCase) -> None:
     assert gates["graph_lift"].status == "pass"
     assert gates["graph_semantic_regression"].status == "pass"
     assert gates["p95_latency_ms"].status == "pass"
+
+
+def test_ablation_blocks_on_unpaired_case_populations(case: BenchmarkCase) -> None:
+    scores = (
+        score_case(case, _trace(case, mode="rag_off", answer="No evidence", cited_chunks=())),
+        score_case(case.copy(update={"case_id": uuid4()}), _trace(case, mode="hybrid_graph_off")),
+    )
+
+    metrics = aggregate_scores(scores)
+
+    assert metrics.rag_lift.value is None
+    assert metrics.rag_lift.exclusion_reason == "missing_rag_off"
+
+
+def test_graph_credit_requires_supported_graph_claim(case: BenchmarkCase) -> None:
+    evidence_id = case.expected_facts[0].evidence_id
+    score = score_case(
+        case,
+        _trace(
+            case,
+            graph_ran=True,
+            graph_selected_evidence_ids=(evidence_id,),
+            answer="HbA1c was 4.2 % [E1].",
+        ),
+    )
+
+    assert score.graph_value_credit is False
 
 
 def test_scoring_contracts_are_immutable(case: BenchmarkCase) -> None:

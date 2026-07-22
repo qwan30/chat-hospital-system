@@ -22,6 +22,7 @@ class AtomicClaim(_FrozenModel):
     observed_at: Optional[str] = None
     critical: bool = True
     citation_labels: tuple[str, ...] = ()
+    aliases: tuple[str, ...] = ()
 
 
 class CitedChunk(_FrozenModel):
@@ -55,47 +56,54 @@ def evaluate_claim_support(claim: AtomicClaim, cited_chunks: tuple[CitedChunk, .
 
 
 def _chunk_supports_claim(claim: AtomicClaim, text: str) -> bool:
-    return any(_segment_supports_claim(claim, segment) for segment in _segments(text))
+    return any(_claims_match(claim, candidate) for candidate in _association_claims(text))
 
 
 def extract_atomic_claims(answer: str) -> tuple[AtomicClaim, ...]:
     """Extract explicit ``field is/was/: value [citation]`` claims."""
+    return _association_claims(answer)
+
+
+def _segments(text: str) -> tuple[str, ...]:
+    boundary = r"(?<!\d)\.(?!\d)|[;\r\n]+|\band\s+(?=[A-Z][A-Za-z0-9 _/-]{0,40}(?:\s+(?:is|was)|\s*:))"
+    return tuple(item.strip() for item in re.split(boundary, text) if item.strip())
+
+
+def _association_claims(text: str) -> tuple[AtomicClaim, ...]:
     claims: list[AtomicClaim] = []
-    pattern = re.compile(
-        r"(?P<field>[A-Za-z][A-Za-z0-9 _/-]{0,40}?)\s+(?:is|was|:)\s*"
-        r"(?P<value>[^;\[]+?)\s*(?P<labels>(?:\[E[0-9]+\]\s*)+)(?:[.;]|$)",
+    relation = re.compile(
+        r"^(?:on\s+(?P<prefix_date>\d{4}-\d{2}-\d{2}),?\s*)?"
+        r"(?P<field>[A-Za-z][A-Za-z0-9 _/-]{0,40}?)(?:\s+(?:is|was)|\s*:)\s*(?P<value>.+)$",
         re.IGNORECASE,
     )
-    for match in pattern.finditer(answer):
-        value, unit, observed_at = _parse_value(match.group("value").strip())
-        labels = tuple(re.findall(r"\[(E[0-9]+)\]", match.group("labels"), re.IGNORECASE))
+    for segment in _segments(text):
+        labels = tuple(re.findall(r"\[(E[0-9]+)\]", segment, re.IGNORECASE))
+        without_labels = re.sub(r"\[E[0-9]+\]", "", segment, flags=re.IGNORECASE).strip()
+        match = relation.fullmatch(without_labels)
+        if not match:
+            continue
+        value, unit, suffix_date = _parse_value(match.group("value").strip())
         claims.append(
             AtomicClaim(
                 field=match.group("field").strip(),
                 value=value,
                 unit=unit,
-                observed_at=observed_at,
+                observed_at=match.group("prefix_date") or suffix_date,
                 citation_labels=labels,
             )
         )
     return tuple(claims)
 
 
-def _segments(text: str) -> tuple[str, ...]:
-    return tuple(normalize_text(item) for item in re.split(r"(?<!\d)\.(?!\d)|[;\r\n]+", text) if item.strip())
-
-
-def _segment_supports_claim(claim: AtomicClaim, segment: str) -> bool:
-    field = normalize_text(claim.field)
-    field_at = segment.find(field)
-    if field_at < 0:
-        return False
-    tail = segment[field_at + len(field) :]
-    if not _bounded_token(claim.value, tail):
-        return False
-    if claim.unit and normalize_text(claim.unit) not in tail:
-        return False
-    return not claim.observed_at or normalize_text(claim.observed_at) in segment
+def _claims_match(expected: AtomicClaim, actual: AtomicClaim) -> bool:
+    allowed_values = (expected.value, *expected.aliases)
+    value_matches = any(normalize_text(value) == normalize_text(actual.value) for value in allowed_values)
+    return (
+        normalize_text(expected.field) == normalize_text(actual.field)
+        and value_matches
+        and (not expected.unit or normalize_text(expected.unit) == normalize_text(actual.unit or ""))
+        and (not expected.observed_at or expected.observed_at == actual.observed_at)
+    )
 
 
 def _parse_value(raw: str) -> tuple[str, Optional[str], Optional[str]]:

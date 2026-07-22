@@ -56,7 +56,25 @@ def test_claim_support_cannot_combine_unrelated_records() -> None:
     assert evaluate_claim_support(claim, (chunk,)).supported is False
 
 
+def test_claim_support_cannot_combine_conjoined_records() -> None:
+    claim = AtomicClaim(field="Glucose", value="10", unit="mg/dL")
+    chunk = CitedChunk(
+        evidence_id=uuid4(),
+        text="Glucose: 110 mg/dL and Sodium: 10 mg/dL.",
+        citation_label="E1",
+    )
+
+    assert evaluate_claim_support(claim, (chunk,)).supported is False
+
+
 def test_extracts_unexpected_textual_claim_fail_closed() -> None:
     claims = extract_atomic_claims("Sodium is critically low [E9].")
 
     assert claims == (AtomicClaim(field="Sodium", value="critically low", citation_labels=("E9",)),)
+
+
+def test_extracts_uncited_and_colon_claims() -> None:
+    assert extract_atomic_claims("Sodium is critically low.") == (AtomicClaim(field="Sodium", value="critically low"),)
+    assert extract_atomic_claims("HbA1c: 7.2 % [E1].") == (
+        AtomicClaim(field="HbA1c", value="7.2", unit="%", citation_labels=("E1",)),
+    )

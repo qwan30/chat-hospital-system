@@ -59,6 +59,8 @@ class ExpectedFact(_StrictFrozenModel):
     source_locator: str
     evidence_id: UUID
     observed_at: Optional[str] = None
+    aliases: tuple[str, ...] = ()
+    critical: bool = True
 
 
 class ExpectedCitation(_StrictFrozenModel):

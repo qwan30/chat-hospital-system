@@ -220,3 +220,41 @@ class PermissionService:
             trace_id=trace_id,
             ip_address=ip_address,
         )
+
+    async def require_records_or_admin_role(
+        self,
+        *,
+        user: User,
+        patient_id: uuid.UUID,
+        action: str,
+        trace_id: str,
+        object_type: str,
+        object_id: Optional[uuid.UUID] = None,
+        ip_address: Optional[str] = None,
+    ) -> None:
+        """Restrict external HMS imports to records staff and administrators."""
+        if user.role not in {"records_staff", "admin"}:
+            await AuditService(self.session).record(
+                actor_user_id=user.id,
+                action=action,
+                object_type=object_type,
+                object_id=object_id,
+                patient_id=patient_id,
+                outcome="denied",
+                trace_id=trace_id,
+                ip_address=ip_address,
+                metadata={"reason": "role_not_allowed", "role": user.role},
+            )
+            await self.session.commit()
+            raise PermissionDeniedError("Only records staff or administrators can import HMS data.")
+
+        await self.require_patient_scope(
+            user=user,
+            patient_id=patient_id,
+            accepted_scopes=PATIENT_UPLOAD_SCOPES,
+            action=action,
+            object_type=object_type,
+            object_id=object_id,
+            trace_id=trace_id,
+            ip_address=ip_address,
+        )

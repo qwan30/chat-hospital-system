@@ -215,17 +215,18 @@ async def _generate_sse_events(
         await _complete_stream(on_complete, completion)
         completion_callback_active = False
 
-    try:
-        retrieval_status = json.dumps({"type": "status", "stage": "retrieving"})
-        yield f"data: {retrieval_status}\n\n"
+    async def emit_validated_statuses() -> AsyncIterator[str]:
+        """Expose activity only after the answer has passed safety checks."""
+        for stage in ("retrieving", "preparing_answer", "validating_citations"):
+            event = json.dumps({"type": "status", "stage": stage})
+            yield f"data: {event}\n\n"
 
+    try:
         # Get LLM with streaming
         llm_manager = LLMManager(settings)
         llm = llm_manager.get()
 
         if pipeline_name == "chitchat":
-            preparing_status = json.dumps({"type": "status", "stage": "preparing_answer"})
-            yield f"data: {preparing_status}\n\n"
             full_text = ""
             messages = [
                 LLMMessage(
@@ -250,8 +251,6 @@ async def _generate_sse_events(
                 async for token in llm.stream(messages):
                     full_text += token
 
-            validation_status = json.dumps({"type": "status", "stage": "validating_citations"})
-            yield f"data: {validation_status}\n\n"
             output_result = await get_output_guardrail().scan(question, full_text)
             if output_result.blocked:
                 refusal_event = json.dumps({"type": "token", "content": SAFE_PHI_LEAK_BLOCKED_ANSWER})
@@ -274,6 +273,9 @@ async def _generate_sse_events(
                 )
                 yield f"data: {done_event}\n\n"
                 return
+
+            async for status_event in emit_validated_statuses():
+                yield status_event
 
             event = json.dumps({"type": "token", "content": full_text})
             yield f"data: {event}\n\n"
@@ -309,9 +311,6 @@ async def _generate_sse_events(
             yield f"data: {done_event}\n\n"
             return
 
-        preparing_status = json.dumps({"type": "status", "stage": "preparing_answer"})
-        yield f"data: {preparing_status}\n\n"
-
         # Build prompt
         prompt = build_grounded_prompt(question, evidence, conversation_history)
 
@@ -334,8 +333,6 @@ async def _generate_sse_events(
         async for token in llm.stream(messages):
             full_text += token
 
-        validation_status = json.dumps({"type": "status", "stage": "validating_citations"})
-        yield f"data: {validation_status}\n\n"
         output_result = await get_output_guardrail().scan(question, full_text)
         if output_result.blocked:
             logger.warning(
@@ -402,6 +399,9 @@ async def _generate_sse_events(
             )
             yield f"data: {done_event}\n\n"
             return
+
+        async for status_event in emit_validated_statuses():
+            yield status_event
 
         # Validated — emit the full answer as token events so existing
         # frontend parsers continue to accumulate the text.  Yield in

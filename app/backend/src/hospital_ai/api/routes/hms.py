@@ -284,7 +284,7 @@ async def _require_hms_sync_write(
     action: str,
     trace_id: str,
 ) -> None:
-    await PermissionService(session).require_upload_or_admin_role(
+    await PermissionService(session).require_records_or_admin_role(
         user=current_user,
         patient_id=patient_id,
         action=action,

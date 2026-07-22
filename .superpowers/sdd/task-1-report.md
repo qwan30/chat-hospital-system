@@ -83,3 +83,7 @@ The installer now completes a full preflight before it creates a target root or 
 Default roots are now derived from `.NET`'s current-user profile API rather than a hard-coded `C:\Users\NITRO` path.
 
 Pester regression coverage adds a late-collision case that verifies both earlier targets remain absent, and a guard against reintroducing hard-coded default user roots.
+
+## Final status
+
+**DONE** — Task 1 Important review remediation is committed in `ab92cd33fad9f977295554e27a27542b3b931fa8` (`fix: harden AI evaluation skill installer`). Focused Pester verification passed `9/9`; no global junctions were created by the test suite.

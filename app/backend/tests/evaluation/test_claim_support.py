@@ -1,6 +1,11 @@
 from uuid import uuid4
 
-from hospital_ai.evaluation.claims import AtomicClaim, CitedChunk, evaluate_claim_support
+from hospital_ai.evaluation.claims import (
+    AtomicClaim,
+    CitedChunk,
+    evaluate_claim_support,
+    extract_atomic_claims,
+)
 
 
 def test_claim_requires_textual_support_not_only_valid_evidence_id() -> None:
@@ -38,3 +43,20 @@ def test_claim_does_not_accept_substring_numeric_match() -> None:
     chunk = CitedChunk(evidence_id=uuid4(), text="Glucose: 110 mg/dL", citation_label="E1")
 
     assert evaluate_claim_support(claim, (chunk,)).supported is False
+
+
+def test_claim_support_cannot_combine_unrelated_records() -> None:
+    claim = AtomicClaim(field="Glucose", value="10", unit="mg/dL")
+    chunk = CitedChunk(
+        evidence_id=uuid4(),
+        text="Glucose: 110 mg/dL. Sodium: 10 mg/dL.",
+        citation_label="E1",
+    )
+
+    assert evaluate_claim_support(claim, (chunk,)).supported is False
+
+
+def test_extracts_unexpected_textual_claim_fail_closed() -> None:
+    claims = extract_atomic_claims("Sodium is critically low [E9].")
+
+    assert claims == (AtomicClaim(field="Sodium", value="critically low", citation_labels=("E9",)),)

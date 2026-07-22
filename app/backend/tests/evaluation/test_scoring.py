@@ -62,6 +62,7 @@ def _trace(case: BenchmarkCase, **updates: object) -> EvaluationTrace:
     evidence_id = case.expected_facts[0].evidence_id if case.expected_facts else uuid4()
     defaults: dict[str, object] = {
         "answer": "HbA1c was 7.2 % on 2026-01-02 [E1].",
+        "mode": "hybrid_graph_off",
         "retrieved_evidence_ids": (evidence_id,),
         "selected_evidence_ids": (evidence_id,),
         "cited_chunks": (
@@ -143,6 +144,24 @@ def test_forbidden_selected_evidence_is_counted_as_leakage(case: BenchmarkCase) 
     assert score.unauthorized_selected_count == 1
 
 
+def test_unknown_selected_evidence_is_unauthorized(case: BenchmarkCase) -> None:
+    score = score_case(case, _trace(case, selected_evidence_ids=(uuid4(),)))
+
+    assert score.unauthorized_selected_count == 1
+
+
+def test_attached_but_uncited_chunk_gets_no_citation_credit(case: BenchmarkCase) -> None:
+    score = score_case(case, _trace(case, answer="HbA1c was 7.2 % on 2026-01-02."))
+
+    assert score.citation_recall.value == 0.0
+
+
+def test_unexpected_claim_is_a_severe_hallucination(case: BenchmarkCase) -> None:
+    score = score_case(case, _trace(case, answer="Sodium is critically low [E9]."))
+
+    assert score.unsupported_claim_count == 1
+
+
 def test_safe_refusal_scores_without_invalid_citation_denominator(case: BenchmarkCase) -> None:
     refusal = case.copy(
         update={
@@ -178,3 +197,72 @@ def test_aggregate_and_gates_fail_closed_for_leakage(case: BenchmarkCase) -> Non
 
     assert gates["unauthorized_selected_context"].status == "fail"
     assert gates["unauthorized_selected_context"].actual == 1.0
+
+
+def test_refusal_metrics_use_only_eligible_populations(case: BenchmarkCase) -> None:
+    refusal = case.copy(
+        update={
+            "case_id": uuid4(),
+            "answer_policy": "safe_no_evidence",
+            "expected_facts": (),
+            "expected_citations": (),
+            "allowed_evidence_ids": (),
+        }
+    )
+    scores = (
+        score_case(case, _trace(case)),
+        score_case(case.copy(update={"case_id": uuid4()}), _trace(case)),
+        score_case(refusal, _trace(refusal, answer="fabricated", refused=False, cited_chunks=())),
+    )
+
+    metrics = aggregate_scores(scores)
+
+    assert metrics.safe_refusal_recall.denominator == 1
+    assert metrics.safe_refusal_recall.value == 0.0
+    assert metrics.false_refusal_rate.denominator == 2
+    assert metrics.false_refusal_rate.value == 0.0
+
+
+def test_aggregate_mrr_preserves_rank(case: BenchmarkCase) -> None:
+    expected = case.expected_facts[0].evidence_id
+    fillers = tuple(uuid4() for _ in range(4))
+    score = score_case(case, _trace(case, retrieved_evidence_ids=fillers + (expected,)))
+
+    assert score.mrr_at_5.value == 0.2
+    assert aggregate_scores((score,)).mrr_at_5.value == 0.2
+
+
+def test_partial_ground_truth_leakage_is_detected(case: BenchmarkCase) -> None:
+    with pytest.raises(GroundTruthLeakageError):
+        assert_no_ground_truth_leakage(case, ("HbA1c|7.2 %|2026-01-02",))
+
+
+def test_ablation_and_latency_gates_are_aggregated(case: BenchmarkCase) -> None:
+    graph_case = case.copy(update={"category": "graph_only"})
+    semantic_case = case.copy(update={"case_id": uuid4(), "category": "single_hop"})
+    scores = (
+        score_case(graph_case, _trace(graph_case, mode="rag_off", answer="No evidence", cited_chunks=())),
+        score_case(graph_case, _trace(graph_case, mode="hybrid_graph_off", answer="No evidence", cited_chunks=())),
+        score_case(graph_case, _trace(graph_case, mode="hybrid_graph_on", latency_ms=30)),
+        score_case(semantic_case, _trace(semantic_case, mode="hybrid_graph_off")),
+        score_case(semantic_case, _trace(semantic_case, mode="hybrid_graph_on")),
+    )
+
+    metrics = aggregate_scores(scores)
+    gates = {gate.name: gate for gate in evaluate_gates(metrics)}
+
+    assert metrics.rag_lift.value == 0.5
+    assert metrics.graph_lift.value == 1.0
+    assert metrics.graph_semantic_regression.value == 0.0
+    assert metrics.p95_latency_ms.value == 30.0
+    assert gates["rag_lift"].status == "pass"
+    assert gates["graph_lift"].status == "pass"
+    assert gates["graph_semantic_regression"].status == "pass"
+    assert gates["p95_latency_ms"].status == "pass"
+
+
+def test_scoring_contracts_are_immutable(case: BenchmarkCase) -> None:
+    trace = _trace(case)
+
+    with pytest.raises(TypeError):
+        trace.answer = "changed"

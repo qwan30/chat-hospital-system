@@ -181,6 +181,31 @@ def test_validation_resolves_source_content_instead_of_trusting_generated_statem
     assert any("expected fact is not present" in error for error in result.errors)
 
 
+def test_validation_rejects_statement_only_forgery_with_original_source_terms(
+    cases: tuple[EvalCaseV2, ...], manifest: CorpusManifestV2
+) -> None:
+    first = next(case for case in cases if case.answer_policy == "answer" and len(case.expected_facts) == 1)
+    original_fact = first.expected_facts[0]
+    forged_fact = ExpectedFact.parse_obj(
+        {
+            **original_fact.dict(),
+            "statement": "The patient has cancer and requires a chemotherapy regimen.",
+        }
+    )
+    forged_case = EvalCaseV2.parse_obj(
+        {
+            **first.dict(),
+            "expected_facts": [forged_fact.dict()],
+            "allowed_evidence": [locator.dict() for locator in forged_fact.evidence],
+        }
+    )
+
+    result = validate_benchmark((forged_case, *cases[1:]), manifest, DATA_ROOT)
+
+    assert not result.valid
+    assert any("statement does not match canonical source" in error for error in result.errors)
+
+
 def test_validation_rejects_non_resolving_and_overlapping_evidence(
     cases: tuple[EvalCaseV2, ...], manifest: CorpusManifestV2
 ) -> None:

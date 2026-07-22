@@ -40,6 +40,6 @@ GitNexus pre-edit impact checks reported LOW risk with no callers or execution f
 
 ## Remediation and release status
 
-Independent review identified two false `safe_refusal` cases and four unchanged observations incorrectly labeled as `temporal_conflict`. The remediation makes refusals prove absence across both canonical patient sources, requires a changed earliest/latest measurement for temporal cases, and resolves PDF/CSV source content during validation rather than trusting generated records. The focused suite now reports 19 passing tests.
+Independent review identified two false `safe_refusal` cases and four unchanged observations incorrectly labeled as `temporal_conflict`. The remediation makes refusals prove absence across both canonical patient sources, requires a changed earliest/latest measurement for temporal cases, and resolves PDF/CSV source content during validation rather than trusting generated records. Expected-fact statements are also now reconstructed from canonical CSV fields or the canonical document-type metadata and must match exactly; a statement-only forged cancer/chemotherapy claim is rejected even when its original verification terms are preserved. The focused suite now reports 20 passing tests.
 
 The benchmark content and deterministic generation gates pass after this remediation. The sentinel review release gate remains intentionally **blocked** until two real independent reviewers approve every sentinel case and resolve all review issues.

@@ -569,6 +569,28 @@ def _all_locators(case: EvalCaseV2) -> tuple[EvidenceLocator, ...]:
     )
 
 
+def _canonical_statement_for_fact(
+    fact: ExpectedFact, artifacts: dict[str, SourceArtifact], data_root: Path
+) -> str | None:
+    """Reconstruct the only valid fact statement from immutable source fields."""
+    if len(fact.evidence) != 1:
+        return None
+    locator = fact.evidence[0]
+    artifact = artifacts.get(locator.source_path)
+    if artifact is None:
+        return None
+    if artifact.kind == "patient_lab":
+        try:
+            row = _csv_row_at_locator(data_root, locator)
+        except ValueError:
+            return None
+        unit = f" {row['Unit']}" if row["Unit"] else ""
+        return f"On {row['Date']}, {row['Analyte']} was {row['Value']}{unit} with status {row['Status']}."
+    if artifact.kind == "patient_document" and locator.record_id == "document-type" and locator.page_number == 1:
+        return f"The canonical patient document type is {artifact.document_type.replace('_', ' ')}."
+    return None
+
+
 def validate_benchmark(
     cases: Iterable[EvalCaseV2], manifest: CorpusManifestV2, data_root: Path
 ) -> BenchmarkValidationResult:
@@ -634,6 +656,11 @@ def validate_benchmark(
                 source_text = "\n".join(
                     content for locator in fact.evidence if (content := resolved_content(case, locator)) is not None
                 )
+                canonical_statement = _canonical_statement_for_fact(fact, artifacts, data_root)
+                if canonical_statement is None or _normalized_text(fact.statement) != _normalized_text(
+                    canonical_statement
+                ):
+                    errors.append(f"{case.case_id}: expected fact statement does not match canonical source")
                 if not source_text or any(
                     _normalized_text(term) not in _normalized_text(source_text) for term in fact.verification_terms
                 ):

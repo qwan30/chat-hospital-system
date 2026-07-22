@@ -56,7 +56,7 @@ async def process_document(session: AsyncSession, document_id: uuid.UUID, settin
                 document_id=str(document.id),
                 storage_service=LocalStorageService(settings),
             )
-    except Exception as exc:
+    except Exception:
         await _mark_failed_if_current(
             session,
             document_id,
@@ -84,7 +84,7 @@ async def process_document(session: AsyncSession, document_id: uuid.UUID, settin
         embeddings = await EmbeddingService(settings).embed_many(chunk.content for chunk in chunks)
         if len(embeddings) != len(chunks):
             raise RuntimeError(f"Embedding count mismatch: expected {len(chunks)}, received {len(embeddings)}.")
-    except Exception as exc:
+    except Exception:
         await _mark_failed_if_current(
             session,
             document_id,
@@ -162,7 +162,7 @@ async def process_document(session: AsyncSession, document_id: uuid.UUID, settin
         except Exception:
             pass
 
-    except Exception as exc:
+    except Exception:
         await session.rollback()
         await _mark_failed_if_current(
             session,

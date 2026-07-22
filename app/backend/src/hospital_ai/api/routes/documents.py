@@ -13,8 +13,8 @@ from hospital_ai.core.errors import NotFoundError, ValidationAppError
 from hospital_ai.core.security import PATIENT_READ_SCOPES, PATIENT_UPLOAD_SCOPES, new_trace_id
 from hospital_ai.db.models import Document, DocumentPage, DocumentProcessingEvent, User
 from hospital_ai.schemas.documents import (
-    DocumentListResponse,
     DocumentDetailRead,
+    DocumentListResponse,
     DocumentPageRead,
     DocumentRead,
     DocumentSearchRequest,

@@ -6,10 +6,10 @@ from sqlalchemy import select, update
 
 from hospital_ai.db.migrations import DOCTOR_ID, NURSE_ID, PATIENT_ALICE_ID, PATIENT_ELEANOR_ID, RECORDS_ID
 from hospital_ai.db.models import Document, DocumentChunk, DocumentPage, DocumentProcessingEvent
+from hospital_ai.schemas.documents import DocumentDetailRead
 from hospital_ai.services.embeddings import deterministic_embedding
 from hospital_ai.services.ocr import OcrPage
 from hospital_ai.services.retrieval import RetrievalService
-from hospital_ai.schemas.documents import DocumentDetailRead
 from hospital_ai.workers.jobs import process_document
 from tests.conftest import create_indexed_document
 
@@ -69,9 +69,10 @@ async def test_chat_attachment_upload_records_initial_activity(session_and_setti
     from io import BytesIO
 
     from fastapi import Request, UploadFile
+    from starlette.datastructures import Headers
+
     from hospital_ai.api.routes.documents import upload_document
     from hospital_ai.db.models import User
-    from starlette.datastructures import Headers
 
     session, settings = session_and_settings
     current_user = await session.get(User, RECORDS_ID)

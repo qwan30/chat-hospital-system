@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import shutil
+import subprocess
 from collections import Counter
 from pathlib import Path
 
@@ -38,8 +39,35 @@ def test_manifest_requires_all_governed_source_bytes() -> None:
 
     # 210 canonical source files plus one governed, source-derived graph artifact.
     assert result.source_file_count == 211
-    assert result.source_byte_count == 12_649_758
+    assert result.source_byte_count == 12_623_557
     assert result.source_errors == ()
+
+
+def test_git_index_corpus_bytes_match_checked_in_manifest(tmp_path: Path) -> None:
+    repository_root = Path(__file__).parents[4]
+    relative_root = "app/backend/data/hosp_ai_synthetic_dataset"
+    tracked = subprocess.run(
+        ["git", "ls-files", f"{relative_root}/**"],
+        cwd=repository_root,
+        check=True,
+        capture_output=True,
+        text=True,
+    ).stdout.splitlines()
+    export_root = tmp_path / "index-export"
+    export_root.mkdir()
+    subprocess.run(
+        ["git", "checkout-index", f"--prefix={export_root}{Path('/')}", "--", *tracked],
+        cwd=repository_root,
+        check=True,
+    )
+    exported_data_root = export_root / relative_root
+    manifest = load_manifest(exported_data_root / "MANIFEST.json")
+
+    result = validate_benchmark((), manifest=manifest, data_root=exported_data_root)
+
+    assert result.source_errors == ()
+    assert result.source_file_count == 211
+    assert result.source_byte_count == 12_623_557
 
 
 def test_generation_fails_closed_when_a_source_is_missing(tmp_path: Path) -> None:

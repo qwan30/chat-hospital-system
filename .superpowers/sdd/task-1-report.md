@@ -95,3 +95,13 @@ Independent review identified two further preflight bypasses: a target-root junc
 The final focused Pester suite passed **11/11** after adding regression cases for both bypasses. The original delivery section's literal default paths describe the then-current environment; final defaults are the current user profile joined with the four documented skill subpaths.
 
 **Final corrective commit:** `60877d84a5dcafad10a12b6dfcd2f08efea4af9b` (`fix: close installer preflight bypasses`).
+
+### Final installer safety remediation — 2026-07-22
+
+Two further installer-safety findings are resolved before mutation begins:
+
+1. Target roots now reject ancestor/descendant overlap, so a planned skill destination cannot be nested inside another requested root.
+2. Every planned destination is rejected when it overlaps the resolved source root or a source package.
+3. Windows device prefixes (including `\\?\C:\...` and `\\?\UNC\...`) are normalized before the protected Codex-root comparison, so a device-path spelling cannot bypass that guard.
+
+TDD evidence: the four added Pester cases first produced `Passed: 11 Failed: 4`; after the minimal preflight normalization and ancestry checks, the focused suite passed `15/15`. The regression cases assert that rejected overlap/device-path inputs leave the test target paths absent.

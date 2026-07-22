@@ -34,17 +34,44 @@ function Assert-AbsolutePath {
     }
 }
 
+function ConvertTo-NormalizedPath {
+    param([Parameter(Mandatory)][string]$Path)
+
+    $pathWithoutDevicePrefix = $Path
+    if ($pathWithoutDevicePrefix.StartsWith('\\?\UNC\', [System.StringComparison]::OrdinalIgnoreCase)) {
+        $pathWithoutDevicePrefix = '\\' + $pathWithoutDevicePrefix.Substring(8)
+    }
+    elseif (
+        $pathWithoutDevicePrefix.StartsWith('\\?\', [System.StringComparison]::OrdinalIgnoreCase) -or
+        $pathWithoutDevicePrefix.StartsWith('\\.\', [System.StringComparison]::OrdinalIgnoreCase)
+    ) {
+        $pathWithoutDevicePrefix = $pathWithoutDevicePrefix.Substring(4)
+    }
+
+    return [System.IO.Path]::GetFullPath($pathWithoutDevicePrefix).TrimEnd('\', '/')
+}
+
+function Test-PathOverlap {
+    param(
+        [Parameter(Mandatory)][string]$FirstPath,
+        [Parameter(Mandatory)][string]$SecondPath
+    )
+
+    return (
+        [string]::Equals($FirstPath, $SecondPath, [System.StringComparison]::OrdinalIgnoreCase) -or
+        $FirstPath.StartsWith("$SecondPath\", [System.StringComparison]::OrdinalIgnoreCase) -or
+        $SecondPath.StartsWith("$FirstPath\", [System.StringComparison]::OrdinalIgnoreCase)
+    )
+}
+
 function Assert-SafeTargetRoot {
     param([Parameter(Mandatory)][string]$Path)
 
     Assert-AbsolutePath -Path $Path -Label 'TargetRoot'
 
-    $normalizedTargetRoot = [System.IO.Path]::GetFullPath($Path).TrimEnd('\', '/')
-    $normalizedProtectedRoot = [System.IO.Path]::GetFullPath($ProtectedCodexSkillsRoot).TrimEnd('\', '/')
-    if (
-        [string]::Equals($normalizedTargetRoot, $normalizedProtectedRoot, [System.StringComparison]::OrdinalIgnoreCase) -or
-        $normalizedTargetRoot.StartsWith("$normalizedProtectedRoot\", [System.StringComparison]::OrdinalIgnoreCase)
-    ) {
+    $normalizedTargetRoot = ConvertTo-NormalizedPath -Path $Path
+    $normalizedProtectedRoot = ConvertTo-NormalizedPath -Path $ProtectedCodexSkillsRoot
+    if (Test-PathOverlap -FirstPath $normalizedTargetRoot -SecondPath $normalizedProtectedRoot) {
         throw "TargetRoot must not equal or be nested under the protected Codex skills directory: $Path"
     }
 
@@ -67,6 +94,8 @@ function Assert-SafeTargetRoot {
     if ($null -ne $existingAncestor -and -not [string]::IsNullOrWhiteSpace($existingAncestor.LinkType)) {
         throw "TargetRoot must not use a reparse point: $Path"
     }
+
+    return $normalizedTargetRoot
 }
 
 function Resolve-ExistingPath {
@@ -124,17 +153,25 @@ if ($TargetRoots.Count -eq 0) {
 }
 
 $normalizedTargetRoots = @{}
+$validatedTargetRoots = @()
 foreach ($targetRoot in $TargetRoots) {
-    Assert-SafeTargetRoot -Path $targetRoot
+    $normalizedTargetRoot = Assert-SafeTargetRoot -Path $targetRoot
 
-    $normalizedTargetRoot = [System.IO.Path]::GetFullPath($targetRoot).TrimEnd('\', '/')
     $targetRootKey = $normalizedTargetRoot.ToUpperInvariant()
     if ($normalizedTargetRoots.ContainsKey($targetRootKey)) {
         throw "TargetRoots contains duplicate target root: $targetRoot"
     }
 
+    foreach ($existingTargetRoot in $validatedTargetRoots) {
+        if (Test-PathOverlap -FirstPath $normalizedTargetRoot -SecondPath $existingTargetRoot) {
+            throw "TargetRoots must not overlap by ancestry: $targetRoot"
+        }
+    }
+
     $normalizedTargetRoots[$targetRootKey] = $true
+    $validatedTargetRoots += $normalizedTargetRoot
 }
+$TargetRoots = $validatedTargetRoots
 
 $installPlans = @()
 foreach ($skill in $SkillNames) {
@@ -146,6 +183,14 @@ foreach ($skill in $SkillNames) {
 
     foreach ($targetRoot in $TargetRoots) {
         $targetPath = Join-Path $targetRoot $skill
+        $normalizedTargetPath = ConvertTo-NormalizedPath -Path $targetPath
+        if (
+            (Test-PathOverlap -FirstPath $normalizedTargetPath -SecondPath $resolvedSourceRoot) -or
+            (Test-PathOverlap -FirstPath $normalizedTargetPath -SecondPath $resolvedSourcePath)
+        ) {
+            throw "Planned destination must not overlap a source path: $targetPath"
+        }
+
         $existingItem = Get-ExistingTargetItem -Path $targetPath
         if ($null -ne $existingItem) {
             if (Test-CompatibleJunction -Item $existingItem -ExpectedTarget $resolvedSourcePath) {

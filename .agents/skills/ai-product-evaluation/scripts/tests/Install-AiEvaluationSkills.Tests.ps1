@@ -132,6 +132,48 @@ Describe 'Install-AiEvaluationSkills' {
         (Test-Path -LiteralPath (Join-Path $targetRoot 'ai-product-evaluation')) | Should Be $false
     }
 
+    It 'rejects overlapping target roots before creating any junctions' {
+        $nestedTargetRoot = Join-Path $targetRoot 'nested'
+
+        Invoke-ExpectFailure -Operation {
+            & $installer -SourceRoot $sourceRoot -TargetRoots @($targetRoot, $nestedTargetRoot)
+        } -MessagePattern 'overlap'
+
+        (Test-Path -LiteralPath $targetRoot) | Should Be $false
+        (Test-Path -LiteralPath $nestedTargetRoot) | Should Be $false
+    }
+
+    It 'rejects a planned destination that overlaps another target root before changing the filesystem' {
+        $overlappingRoot = Join-Path $targetRoot 'ai-product-evaluation'
+
+        Invoke-ExpectFailure -Operation {
+            & $installer -SourceRoot $sourceRoot -TargetRoots @($targetRoot, $overlappingRoot)
+        } -MessagePattern 'overlap'
+
+        (Test-Path -LiteralPath $targetRoot) | Should Be $false
+        (Test-Path -LiteralPath $overlappingRoot) | Should Be $false
+    }
+
+    It 'rejects a planned destination inside the source tree before changing the filesystem' {
+        $targetInsideSource = Join-Path $sourceRoot 'install-targets'
+
+        Invoke-ExpectFailure -Operation {
+            & $installer -SourceRoot $sourceRoot -TargetRoots @($targetInsideSource)
+        } -MessagePattern 'source'
+
+        (Test-Path -LiteralPath (Join-Path $targetInsideSource 'ai-product-evaluation')) | Should Be $false
+    }
+
+    It 'normalizes a Windows device path before rejecting the protected Codex skills root' {
+        $protectedDevicePath = '\\?\C:\Users\NITRO\.codex\skills\device-path-target'
+
+        Invoke-ExpectFailure -Operation {
+            & $installer -SourceRoot $sourceRoot -TargetRoots @($protectedDevicePath)
+        } -MessagePattern 'protected Codex skills directory'
+
+        (Test-Path -LiteralPath $protectedDevicePath) | Should Be $false
+    }
+
     It 'derives default target roots from the current user profile API' {
         $installerContent = Get-Content -LiteralPath $installer -Raw
 

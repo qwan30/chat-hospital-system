@@ -18,6 +18,7 @@ from hospital_ai.evaluation.corpus_manifest import build_corpus_manifest
 from hospital_ai.evaluation.runner import (
     CaseObservation,
     EvaluationConfig,
+    _graph_case_coverage_gate,
     run_evaluation,
     run_evaluation_async,
     write_run_artifacts,
@@ -272,6 +273,46 @@ def test_graph_adapter_result_without_required_path_fails_graph_gate(tmp_path: P
     assert any(gate.name == "graph_path_recall" and gate.hard and not gate.passed for gate in run.gates)
 
 
+def test_graph_coverage_gate_rejects_a_selected_suite_without_graph_cases() -> None:
+    gate = _graph_case_coverage_gate(())
+
+    assert gate.hard
+    assert not gate.passed
+    assert gate.observed == 0
+
+
+class _GraphOnlyAdapter:
+    def __init__(self) -> None:
+        self.seen_case_ids: list[str] = []
+
+    def evaluate(self, case, _context) -> CaseObservation:
+        assert case.graph is not None
+        self.seen_case_ids.append(case.case_id)
+        return CaseObservation(
+            graph_node_ids=case.graph.required_nodes,
+            graph_edge_ids=tuple("|".join(edge) for edge in case.graph.required_edges),
+            graph_path_ids=(">>".join("|".join(edge) for edge in case.graph.required_edges),),
+            sync_safety_outcome="answered",
+            stream_safety_outcome="answered",
+        )
+
+
+def test_graph_adapter_receives_only_cases_with_graph_expectations(tmp_path: Path) -> None:
+    benchmark_dir = _approved_benchmark_dir(tmp_path)
+    config = _config(tmp_path, benchmark_dir, components=("graph",))
+    adapter = _GraphOnlyAdapter()
+
+    run = run_evaluation(config, adapters={"graph": adapter}, isolation=_isolation())
+
+    selected = [
+        EvalCaseV2.parse_raw(line)
+        for line in (benchmark_dir / "rag_sentinel_v2.jsonl").read_text(encoding="utf-8").splitlines()
+    ]
+    expected_case_ids = {case.case_id for case in selected if case.graph is not None}
+    assert set(adapter.seen_case_ids) == expected_case_ids
+    assert {result.case_id for result in run.cases if result.component == "graph"} == expected_case_ids
+
+
 class _GraphDisconnectedEdgesAdapter:
     def evaluate(self, case, _context) -> CaseObservation:
         graph = case.graph
@@ -416,6 +457,16 @@ def test_cli_invalid_configuration_returns_two_without_argparse_escape(
     base = ["--output-dir", str(tmp_path / "out")]
 
     assert cli.main(base + argv) == expected
+
+
+def test_cli_builds_only_requested_deterministic_product_adapters() -> None:
+    cli = _load_cli()
+
+    adapters, isolation = cli._deterministic_product_adapters(DATA_ROOT, ("retrieval", "graph"))
+
+    assert set(adapters) == {"retrieval", "graph"}
+    assert isolation.evaluation_database_url == "sqlite+aiosqlite:///:memory:"
+    assert isolation.product_database_url != isolation.evaluation_database_url
 
 
 def test_cli_main_returns_gate_exit_and_writes_artifacts(tmp_path: Path) -> None:

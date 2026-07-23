@@ -11,6 +11,7 @@ from pathlib import Path
 BACKEND_ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_DATA_ROOT = BACKEND_ROOT / "data"
 DEFAULT_BENCHMARK_DIR = DEFAULT_DATA_ROOT / "evaluation"
+_PRODUCT_COMPONENTS = {"retrieval", "graph", "chat"}
 
 
 class _Parser(argparse.ArgumentParser):
@@ -39,6 +40,34 @@ def _parse_components(raw: str) -> tuple[str, ...]:
     if not components or set(components) - allowed:
         raise ValueError("components must be a comma-separated subset of corpus,ocr,retrieval,graph,chat")
     return components
+
+
+def _deterministic_product_adapters(data_root: Path, components: tuple[str, ...]):
+    """Build the isolated product adapters used by the deterministic lane only."""
+
+    from hospital_ai.evaluation.adapter_foundation import EvaluatorIsolationConfig
+
+    source_root = data_root.resolve()
+    requested = {}
+    if "retrieval" in components:
+        from hospital_ai.evaluation.product_retrieval_adapter import ProductRetrievalAdapter
+
+        requested["retrieval"] = ProductRetrievalAdapter(source_root)
+    if "graph" in components:
+        from hospital_ai.evaluation.product_graph_adapter import ProductGraphAdapter
+
+        requested["graph"] = ProductGraphAdapter(source_root)
+    if "chat" in components:
+        from hospital_ai.evaluation.product_chat_adapter import ProductChatAdapter
+
+        requested["chat"] = ProductChatAdapter(source_root)
+    isolation = EvaluatorIsolationConfig(
+        evaluation_database_url="sqlite+aiosqlite:///:memory:",
+        approved_evaluation_database_url="sqlite+aiosqlite:///:memory:",
+        product_database_url="sqlite+aiosqlite:///product.db",
+        run_namespace="ai-eval/deterministic-cli",
+    )
+    return requested, isolation
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -71,7 +100,11 @@ def main(argv: list[str] | None = None) -> int:
         environment=os.environ,
         git_sha=_git_sha(),
     )
-    run = run_evaluation(config)
+    adapters = None
+    isolation = None
+    if args.lane == "deterministic" and set(components) & _PRODUCT_COMPONENTS:
+        adapters, isolation = _deterministic_product_adapters(args.data_root, components)
+    run = run_evaluation(config, adapters=adapters, isolation=isolation)
     write_run_artifacts(run, config.output_dir)
     print(f"AI evaluation {run.manifest.status}: {config.output_dir}")
     return run.exit_code

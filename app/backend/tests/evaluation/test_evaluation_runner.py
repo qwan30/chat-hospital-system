@@ -313,11 +313,12 @@ class _AsyncSafeAdapter:
         await asyncio.sleep(0)
         self.loop_ids.add(id(asyncio.get_running_loop()))
         self.actor_ids.add(str(context.actor.actor_id))
+        refused = case.category == "permission_adversarial"
         return CaseObservation(
             covered_fact_ids=tuple(fact.fact_id for fact in case.expected_facts),
-            refused=case.answer_policy != "answer",
-            sync_safety_outcome="answered" if case.answer_policy == "answer" else "refused",
-            stream_safety_outcome="answered" if case.answer_policy == "answer" else "refused",
+            refused=refused,
+            sync_safety_outcome="refused" if refused else "answered",
+            stream_safety_outcome="refused" if refused else "answered",
         )
 
 
@@ -344,11 +345,12 @@ class _ConcurrencyTrackingAdapter:
         self.peak_in_flight = max(self.peak_in_flight, self.in_flight)
         await asyncio.sleep(0.001)
         self.in_flight -= 1
+        refused = case.category == "permission_adversarial"
         return CaseObservation(
             covered_fact_ids=tuple(fact.fact_id for fact in case.expected_facts),
-            refused=case.answer_policy != "answer",
-            sync_safety_outcome="refused" if case.answer_policy != "answer" else "answered",
-            stream_safety_outcome="refused" if case.answer_policy != "answer" else "answered",
+            refused=refused,
+            sync_safety_outcome="refused" if refused else "answered",
+            stream_safety_outcome="refused" if refused else "answered",
         )
 
 

@@ -296,6 +296,27 @@ def test_graph_adapter_disconnected_edges_do_not_satisfy_multi_hop_path(tmp_path
     assert any(gate.name == "graph_path_recall" and gate.hard and not gate.passed for gate in run.gates)
 
 
+class _NonStreamingChatAdapter:
+    def evaluate(self, case, _context) -> CaseObservation:
+        return CaseObservation(
+            covered_fact_ids=tuple(fact.fact_id for fact in case.expected_facts),
+            refused=case.answer_policy != "answer",
+            sync_safety_outcome="refused" if case.answer_policy != "answer" else "answered",
+            stream_safety_outcome="not_evaluated",
+        )
+
+
+def test_non_streaming_chat_result_requires_explicit_sse_coverage(tmp_path: Path) -> None:
+    benchmark_dir = _approved_benchmark_dir(tmp_path)
+    config = _config(tmp_path, benchmark_dir, components=("chat",))
+
+    run = run_evaluation(config, adapters={"chat": _NonStreamingChatAdapter()}, isolation=_isolation())
+
+    assert run.exit_code == 1
+    assert any(gate.name == "sse_transport_coverage" and gate.hard and not gate.passed for gate in run.gates)
+    assert all(gate.passed for gate in run.gates if gate.name == "sync_sse_safety_parity")
+
+
 class _SiblingEvidenceAdapter:
     def evaluate(self, case, context) -> CaseObservation:
         registered = case.allowed_evidence + case.forbidden_evidence + case.absence_checked_evidence

@@ -175,6 +175,19 @@ def _skip_results(cases: tuple[EvalCaseV2, ...], component: str, reason: str) ->
     )
 
 
+def _graph_case_coverage_gate(cases: tuple[EvalCaseV2, ...]) -> GateResult:
+    """Require a requested graph run to exercise at least one graph contract."""
+
+    return _gate(
+        "graph_case_coverage",
+        "graph",
+        bool(cases),
+        len(cases),
+        "> 0 graph expectation cases",
+        "Graph evaluation must not pass without graph-labelled benchmark cases.",
+    )
+
+
 def _evaluate_observation(
     case: EvalCaseV2,
     component: str,
@@ -345,11 +358,12 @@ async def _evaluate_adapter_cases(
     resolver: SourceEvidenceResolver,
     isolation: EvaluatorIsolationConfig,
 ) -> tuple[CaseResult, ...]:
-    """Run all adapter cases on the caller's single event loop."""
+    """Run adapter cases serially on one loop to bound local DB and memory use."""
 
-    return tuple(
-        await asyncio.gather(*(_evaluate_adapter_case(adapter, case, component, resolver, isolation) for case in cases))
-    )
+    results = []
+    for case in cases:
+        results.append(await _evaluate_adapter_case(adapter, case, component, resolver, isolation))
+    return tuple(results)
 
 
 def _harness_contract_result() -> CaseResult:
@@ -523,7 +537,11 @@ async def run_evaluation_async(
             )
         else:
             assert isolation is not None
-            evaluated = await _evaluate_adapter_cases(adapter, selected, component, resolver, isolation)
+            component_cases = selected
+            if component == "graph":
+                component_cases = tuple(case for case in selected if case.graph is not None)
+                gates.append(_graph_case_coverage_gate(component_cases))
+            evaluated = await _evaluate_adapter_cases(adapter, component_cases, component, resolver, isolation)
             results.extend(evaluated)
             gates.extend(gate for result in evaluated for gate in result.gates)
     if config.lane == "deterministic" and set(config.components) & _PRODUCT_COMPONENTS:

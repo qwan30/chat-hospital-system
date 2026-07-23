@@ -105,6 +105,44 @@ _EXPLICIT_RELATION_PATTERN = re.compile(
     re.IGNORECASE,
 )
 
+_LAB_OBSERVATION_FIELDS = ("mrn", "analyte", "status")
+
+
+def _extract_labeled_lab_observation(content: str) -> tuple[list[ExtractedEntity], list[ExtractedRelation]]:
+    """Build a clinical observation graph from complete, explicitly labeled CSV fields.
+
+    The parser intentionally rejects incomplete or duplicate fields.  It does
+    not infer a patient, analyte, or status from prose; each graph edge is
+    justified by a source-literal lab field.
+    """
+    values_by_field: dict[str, list[str]] = {}
+    for line in content.splitlines():
+        field, separator, value = line.partition(":")
+        normalized_field = field.strip().casefold()
+        if separator and normalized_field in _LAB_OBSERVATION_FIELDS:
+            values_by_field.setdefault(normalized_field, []).append(value.strip())
+
+    if any(len(values_by_field.get(field, ())) != 1 for field in _LAB_OBSERVATION_FIELDS):
+        return [], []
+
+    mrn, analyte, status = (values_by_field[field][0] for field in _LAB_OBSERVATION_FIELDS)
+    if any(not value or len(value) > 200 for value in (mrn, analyte, status)):
+        return [], []
+
+    patient_node = f"patient:{mrn.casefold()}"
+    analyte_node = f"analyte:{analyte.casefold()}"
+    status_node = f"status:{status.casefold()}"
+    entities = [
+        ExtractedEntity(patient_node, "patient"),
+        ExtractedEntity(analyte_node, "lab_analyte"),
+        ExtractedEntity(status_node, "lab_status"),
+    ]
+    relations = [
+        ExtractedRelation(patient_node, analyte_node, "has_observation"),
+        ExtractedRelation(analyte_node, status_node, "has_status"),
+    ]
+    return entities, relations
+
 
 def _extract_explicit_relations_fallback(content: str) -> tuple[list[ExtractedEntity], list[ExtractedRelation]]:
     """Extract only explicit graph relations when an LLM response is unavailable.
@@ -113,9 +151,12 @@ def _extract_explicit_relations_fallback(content: str) -> tuple[list[ExtractedEn
     deterministic grammar so offline safety evaluations can validate the same
     patient-scoped graph traversal as production indexing.
     """
-    entities: dict[str, ExtractedEntity] = {}
-    relations: list[ExtractedRelation] = []
-    seen_relations: set[tuple[str, str, str]] = set()
+    lab_entities, lab_relations = _extract_labeled_lab_observation(content)
+    entities: dict[str, ExtractedEntity] = {entity.name: entity for entity in lab_entities}
+    relations: list[ExtractedRelation] = list(lab_relations)
+    seen_relations: set[tuple[str, str, str]] = {
+        (relation.source_name, relation.target_name, relation.relation_type) for relation in relations
+    }
 
     for match in _EXPLICIT_RELATION_PATTERN.finditer(content):
         source = match.group("source").strip().casefold()

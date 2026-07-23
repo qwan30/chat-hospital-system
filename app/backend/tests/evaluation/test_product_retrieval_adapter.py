@@ -135,17 +135,21 @@ async def test_adapter_materializes_canonical_source_and_returns_actual_retrieva
 
 
 @pytest.mark.asyncio
-async def test_adapter_fails_closed_when_actor_lacks_patient_scope(tmp_path: Path) -> None:
+async def test_adapter_records_safe_refusal_when_actor_lacks_patient_scope(tmp_path: Path) -> None:
     patient_id = uuid.uuid4()
     locator = EvidenceLocator(source_path="patients_documents/patient.txt", page_number=1)
     artifact = _artifact(tmp_path, patient_id=patient_id, relative_path=locator.source_path, locator=locator)
     manifest = CorpusManifestV2(artifacts=(artifact,))
     context = _context(manifest, actor_patient_ids=())
 
-    with pytest.raises(EvidenceResolutionError, match="not authorized"):
-        await ProductRetrievalAdapter(tmp_path).evaluate(
-            _case(patient_id=patient_id, actor_patient_ids=(), locator=locator), context
-        )
+    observation = await ProductRetrievalAdapter(tmp_path).evaluate(
+        _case(patient_id=patient_id, actor_patient_ids=(), locator=locator), context
+    )
+
+    assert observation.refused is True
+    assert observation.retrieved_evidence == ()
+    assert observation.sync_safety_outcome == "refused"
+    assert observation.stream_safety_outcome == "refused"
 
 
 @pytest.mark.asyncio

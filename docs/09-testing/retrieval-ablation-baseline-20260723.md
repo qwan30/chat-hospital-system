@@ -1,5 +1,8 @@
 # Retrieval Ablation Baseline — 2026-07-23
 
+> Superseded by the [corrected source-question baseline](retrieval-ablation-baseline-377a7fe-20260723.md).
+> This report is retained as historical evidence of the benchmark-design defect that was corrected.
+
 ## Outcome
 
 No retrieval mode is accepted yet. Vector retrieval preserved the hard authorization

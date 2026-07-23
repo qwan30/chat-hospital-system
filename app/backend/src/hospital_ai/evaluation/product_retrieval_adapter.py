@@ -152,7 +152,7 @@ class ProductRetrievalAdapter:
                         results = combined
                     else:
                         results = base_results
-
+                eval_mode = "hybrid" if self.retrieval_mode == "graph" else self.retrieval_mode
                 if not results or not meets_evidence_threshold(
                     results[0],
                     eval_mode,
@@ -195,7 +195,7 @@ class ProductRetrievalAdapter:
         )
         patient_ids = {artifact.patient_id for _locator, artifact in artifacts if artifact.patient_id is not None}
         for patient_id in patient_ids:
-            session.add(Patient(id=patient_id, mrn=f"EVAL-{patient_id.hex[:16]}", full_name="Evaluation Patient"))
+            session.add(Patient(id=patient_id, mrn=f"EVAL-{patient_id.hex}", full_name="Evaluation Patient"))
         await session.flush()
         for patient_id in patient_ids.intersection(allowed_patient_ids):
             session.add(PatientPermission(user_id=actor_id, patient_id=patient_id, scope="read", source="evaluation"))

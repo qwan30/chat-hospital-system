@@ -476,7 +476,7 @@ async def run_evaluation_async(
         or config.lane not in _ALLOWED_LANES
         or not config.components
         or bool(set(config.components) - _ALLOWED_COMPONENTS)
-        or config.retrieval_mode not in {"vector", "bm25", "hybrid"}
+        or config.retrieval_mode not in {"vector", "bm25", "hybrid", "graph"}
     )
     if invalid:
         return _invalid_run(config, started_at, "invalid suite, lane, component, or retrieval mode configuration")

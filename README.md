@@ -401,15 +401,15 @@ xychart-beta
 
 | Metric | Value | Status |
 |--------|-------|--------|
-| **Canonical patient corpus** | 100 PDF documents + 100 lab CSV files | ✅ Manifest validated |
-| **Source-backed AI benchmark** | 300 cases; 50-case sentinel | 🟠 Sentinel review blocks release |
-| **Evaluation evidence** | `run.json`, `cases.jsonl`, `junit.xml`, `summary.md` | ✅ Emitted on every runner invocation |
-| **REST API Endpoints** | 35+ route decorators, 28 OpenAPI paths | ✅ Verified |
-| **Database Schema** | 14 tables, 7 Alembic migrations | ✅ Migrated |
-| **Frontend Components** | 60+ React components (shadcn/ui) | ✅ Built |
-| **E2E Test Suites** | 3 Playwright suites (business-flow, cdss-flow, +) | ✅ All Passing |
-| **CI/CD Workflows** | 5 pipelines (CI, CD, Security, Rollback, Dependabot) | ✅ Active |
-| **Code Quality** | Ruff + ESLint + TypeScript strict | ✅ Zero Errors |
+| **Canonical patient corpus** | 100 PDF documents + 100 lab CSV files | ✅ Versioned manifest: `synthetic-100-v2` |
+| **Source-backed AI benchmark** | 300 cases; 50-case sentinel | 🟠 Corpus smoke validates all 50 contracts; independent review still blocks release |
+| **Evaluation evidence** | `run.json`, `cases.jsonl`, `junit.xml`, `summary.md` | ✅ Produced by each evaluation-runner invocation |
+| **REST API surface** | 35+ route decorators, 28 OpenAPI paths | ℹ️ Repository inventory; not a production-traffic claim |
+| **Database schema** | 14 tables, 7 Alembic migrations | ℹ️ Repository inventory; migration execution is environment-specific |
+| **Frontend components** | 60+ React components (shadcn/ui) | ℹ️ Repository inventory |
+| **E2E test suites** | 3 Playwright suites (business flow, CDSS flow, and related coverage) | 🟠 Must be verified in the target environment before a release claim |
+| **CI/CD workflows** | 5 pipelines (CI, CD, Security, Rollback, Dependabot) | ℹ️ Workflow inventory; check the current GitHub run for status |
+| **Code quality** | Ruff + ESLint + TypeScript strict | ✅ Focused evaluation checks are recorded; no blanket “zero errors” claim |
 
 ---
 

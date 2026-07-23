@@ -121,7 +121,7 @@ def run_isolated_paddle_ocr(
             stderr=subprocess.PIPE,
             text=True,
             shell=False,
-            creationflags=subprocess.CREATE_NEW_PROCESS_GROUP if windows else 0,
+            creationflags=getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0) if windows else 0,
         )
         stdout, stderr = process.communicate(timeout=timeout_seconds)
     except subprocess.TimeoutExpired:

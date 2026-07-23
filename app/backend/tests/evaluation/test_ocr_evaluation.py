@@ -139,7 +139,7 @@ def test_isolated_paddle_worker_uses_a_new_windows_process_group_and_json_contra
         "stderr": subprocess.PIPE,
         "text": True,
         "shell": False,
-        "creationflags": subprocess.CREATE_NEW_PROCESS_GROUP,
+        "creationflags": getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0),
     }
 
 

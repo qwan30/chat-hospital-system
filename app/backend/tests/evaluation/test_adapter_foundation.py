@@ -129,6 +129,47 @@ def test_resolver_only_accepts_runtime_chunks_bound_to_registered_canonical_cand
         scoped_resolver.resolve_runtime(_runtime_chunk(scoped_resolver, unregistered))
 
 
+def test_case_resolver_registers_only_the_case_provenance_contract() -> None:
+    rows = [
+        EvalCaseV2.parse_obj(json.loads(line))
+        for line in (DATA_ROOT / "evaluation" / "rag_benchmark_v2.jsonl").read_text(encoding="utf-8").splitlines()
+    ]
+    case = rows[0]
+    case_resolver = SourceEvidenceResolver(build_corpus_manifest(DATA_ROOT)).for_case(case)
+    registered = case.allowed_evidence + case.forbidden_evidence + case.absence_checked_evidence
+    sibling = next(
+        locator for other_case in rows[1:] for locator in other_case.allowed_evidence if locator not in registered
+    )
+
+    for locator in registered:
+        resolved = case_resolver.resolve_runtime(_runtime_chunk(case_resolver, locator))
+        assert resolved.evidence_id == case_resolver.evidence_id(locator)
+    with pytest.raises(EvidenceResolutionError, match="registered canonical candidate"):
+        case_resolver.resolve_runtime(_runtime_chunk(case_resolver, sibling))
+
+
+def test_empty_candidate_set_does_not_fall_back_to_the_full_manifest() -> None:
+    manifest = build_corpus_manifest(DATA_ROOT)
+    locator = EvidenceLocator(
+        source_path="patients_documents/patient_MRN0001_lab_result.pdf",
+        page_number=1,
+    )
+    empty_resolver = SourceEvidenceResolver(manifest, candidate_locators=())
+
+    with pytest.raises(EvidenceResolutionError, match="registered canonical candidate"):
+        empty_resolver.resolve_runtime(_runtime_chunk(empty_resolver, locator))
+
+
+def test_case_resolver_rejects_duplicate_runtime_chunks_per_locator_before_scoring() -> None:
+    locator = EvidenceLocator(source_path="patients_documents/patient_MRN0001_lab_result.pdf", page_number=1)
+    case_resolver = SourceEvidenceResolver(build_corpus_manifest(DATA_ROOT), candidate_locators=(locator,))
+    first = _runtime_chunk(case_resolver, locator, runtime_chunk_id="runtime-chunk-1")
+    duplicate = _runtime_chunk(case_resolver, locator, runtime_chunk_id="runtime-chunk-2")
+
+    with pytest.raises(EvidenceResolutionError, match="duplicate runtime chunks per locator"):
+        case_resolver.resolve_runtimes((first, duplicate))
+
+
 def test_case_observation_rejects_adapter_supplied_resolved_evidence(resolver: SourceEvidenceResolver) -> None:
     locator = EvidenceLocator(source_path="patients_documents/patient_MRN0001_lab_result.pdf", page_number=1)
     resolved = resolver.resolve(locator, (_runtime_chunk(resolver, locator),))
@@ -162,9 +203,7 @@ def test_runner_preserves_runtime_retrieval_rank_for_metrics() -> None:
     ]
     case = EvalCaseV2.parse_obj(rows[0])
     relevant = case.allowed_evidence[0]
-    noise = next(
-        locator for row in rows[1:] for locator in EvalCaseV2.parse_obj(row).allowed_evidence if locator != relevant
-    )
+    noise = case.forbidden_evidence[0]
     ranked_resolver = SourceEvidenceResolver(
         build_corpus_manifest(DATA_ROOT),
         candidate_locators=(relevant, noise),

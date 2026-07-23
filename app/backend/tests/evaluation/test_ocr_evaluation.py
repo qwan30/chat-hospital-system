@@ -320,3 +320,52 @@ def test_match_clinical_fields_dosage_and_decimal_misread() -> None:
     assert dose_res_2.decimal_misread_risk is True
 
 
+def test_evaluate_ocr_corpus_mock_run(tmp_path: Path) -> None:
+    import fitz
+
+    import uuid
+    from hospital_ai.evaluation.corpus_manifest import CorpusManifestV2, EvidenceLocator, SourceArtifact
+    from hospital_ai.evaluation.ocr_evaluation import evaluate_ocr_corpus, export_ocr_evaluation_markdown
+
+    pdf_file = tmp_path / "docs" / "sample.pdf"
+    pdf_file.parent.mkdir(parents=True, exist_ok=True)
+    doc = fitz.open()
+    p = doc.new_page(width=300, height=200)
+    p.insert_text((50, 50), "MRN-9988 Dose: 10 mg Date: 2026-07-24")
+    doc.save(str(pdf_file))
+    doc.close()
+
+    manifest = CorpusManifestV2(
+        schema_version="2.0",
+        artifacts=(
+            SourceArtifact(
+                canonical_relative_path="docs/sample.pdf",
+                source_sha256="a" * 64,
+                kind="patient_document",
+                mime_type="application/pdf",
+                document_type="clinical_note",
+                generator="test",
+                generator_version="1.0",
+                provenance_status="synthesized",
+                license_status="permissive",
+                patient_id=uuid.uuid4(),
+                locator=EvidenceLocator(source_path="docs/sample.pdf"),
+            ),
+        ),
+    )
+
+
+    summary = evaluate_ocr_corpus(manifest, tmp_path, limit_pages=1, use_mock_ocr=True)
+    assert summary.gold_page_count == 1
+    assert len(summary.variant_metrics) == 10
+
+    report_path = tmp_path / "report.md"
+    export_ocr_evaluation_markdown(summary, report_path)
+    assert report_path.exists()
+    content = report_path.read_text(encoding="utf-8")
+    assert "OCR Evaluation Harness Summary" in content
+    assert "blur_light" in content
+
+
+
+

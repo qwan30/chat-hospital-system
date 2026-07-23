@@ -390,7 +390,167 @@ def render_scan_variants(pdf_path: Path, *, page_number: int, seed: int) -> tupl
 
 
 
+import time
+
+
+def _calculate_cer(gold_text: str, ext_text: str) -> float:
+    gold = gold_text.strip()
+    ext = ext_text.strip()
+    if not gold:
+        return 0.0 if not ext else 1.0
+    m, n = len(gold), len(ext)
+    dp = list(range(n + 1))
+    for i in range(1, m + 1):
+        prev = dp[0]
+        dp[0] = i
+        for j in range(1, n + 1):
+            temp = dp[j]
+            cost = 0 if gold[i - 1] == ext[j - 1] else 1
+            dp[j] = min(dp[j] + 1, dp[j - 1] + 1, prev + cost)
+            prev = temp
+    return min(1.0, dp[n] / max(m, 1))
+
+
+def _calculate_wer(gold_text: str, ext_text: str) -> float:
+    gold_words = gold_text.strip().split()
+    ext_words = ext_text.strip().split()
+    if not gold_words:
+        return 0.0 if not ext_words else 1.0
+    m, n = len(gold_words), len(ext_words)
+    dp = list(range(n + 1))
+    for i in range(1, m + 1):
+        prev = dp[0]
+        dp[0] = i
+        for j in range(1, n + 1):
+            temp = dp[j]
+            cost = 0 if gold_words[i - 1] == ext_words[j - 1] else 1
+            dp[j] = min(dp[j] + 1, dp[j - 1] + 1, prev + cost)
+            prev = temp
+    return min(1.0, dp[n] / max(m, 1))
+
+
+def evaluate_ocr_corpus(
+    manifest: CorpusManifestV2,
+    data_root: Path,
+    *,
+    limit_pages: int | None = None,
+    isolated_python: Path | None = None,
+    use_mock_ocr: bool = False,
+) -> OcrEvaluationSummary:
+    """Evaluate OCR engine performance across 10 scan variants for gold pages."""
+    gold_pages = build_ocr_gold_pages(manifest, data_root, limit=limit_pages)
+    if not gold_pages:
+        return OcrEvaluationSummary(
+            gold_page_count=0,
+            total_variants_evaluated=0,
+            overall_cer=0.0,
+            overall_wer=0.0,
+            overall_clinical_accuracy=0.0,
+            variant_metrics=(),
+        )
+
+    variant_results: dict[str, list[dict[str, float]]] = {}
+
+    for gold in gold_pages:
+        pdf_path = data_root / gold.source_path
+        variants = render_scan_variants(pdf_path, page_number=gold.page_number, seed=713)
+        for variant in variants:
+            t0 = time.perf_counter()
+            if use_mock_ocr:
+                extracted_text = gold.native_text
+            else:
+                ocr_res = run_isolated_paddle_ocr(variant.png_bytes, isolated_python=isolated_python)
+                extracted_text = ocr_res.text if ocr_res.available else ""
+            elapsed = time.perf_counter() - t0
+
+            cer = _calculate_cer(gold.native_text, extracted_text)
+            wer = _calculate_wer(gold.native_text, extracted_text)
+            field_matches = match_clinical_fields(gold.clinical_fields, extracted_text)
+
+            accuracy = (
+                sum(1 for m in field_matches if m.normalized_match) / len(field_matches)
+                if field_matches
+                else 1.0
+            )
+            decimal_misreads = sum(1 for m in field_matches if m.decimal_misread_risk)
+
+            if variant.name not in variant_results:
+                variant_results[variant.name] = []
+            variant_results[variant.name].append(
+                {
+                    "cer": cer,
+                    "wer": wer,
+                    "accuracy": accuracy,
+                    "decimal_misreads": decimal_misreads,
+                    "latency": elapsed,
+                }
+            )
+
+    variant_metrics: list[OcrVariantMetric] = []
+    total_cer, total_wer, total_acc = 0.0, 0.0, 0.0
+    count = 0
+
+    for name, records in variant_results.items():
+        n = len(records)
+        avg_cer = sum(r["cer"] for r in records) / n
+        avg_wer = sum(r["wer"] for r in records) / n
+        avg_acc = sum(r["accuracy"] for r in records) / n
+        dec_cnt = sum(int(r["decimal_misreads"]) for r in records)
+        avg_lat = sum(r["latency"] for r in records) / n
+
+        variant_metrics.append(
+            OcrVariantMetric(
+                variant_name=name,
+                page_count=n,
+                cer=avg_cer,
+                wer=avg_wer,
+                clinical_field_accuracy=avg_acc,
+                decimal_misread_count=dec_cnt,
+                mean_latency_seconds=avg_lat,
+            )
+        )
+        total_cer += avg_cer
+        total_wer += avg_wer
+        total_acc += avg_acc
+        count += 1
+
+    return OcrEvaluationSummary(
+        gold_page_count=len(gold_pages),
+        total_variants_evaluated=len(variant_metrics),
+        overall_cer=total_cer / max(count, 1),
+        overall_wer=total_wer / max(count, 1),
+        overall_clinical_accuracy=total_acc / max(count, 1),
+        variant_metrics=tuple(variant_metrics),
+    )
+
+
+def export_ocr_evaluation_markdown(summary: OcrEvaluationSummary, output_path: Path) -> None:
+    """Generate official benchmark report in Markdown format."""
+    lines = [
+        "# OCR Evaluation Harness Summary",
+        "",
+        f"- **Gold Pages Evaluated:** {summary.gold_page_count}",
+        f"- **Total Scan Variants:** {summary.total_variants_evaluated}",
+        f"- **Overall CER:** {summary.overall_cer:.4f}",
+        f"- **Overall WER:** {summary.overall_wer:.4f}",
+        f"- **Overall Clinical Accuracy:** {summary.overall_clinical_accuracy * 100:.2f}%",
+        "",
+        "## Performance & Field Accuracy Breakdown by Image Variant",
+        "",
+        "| Variant | Pages | CER | WER | Clinical Accuracy | Decimal Misreads | Mean Latency (s) |",
+        "| :--- | :---: | :---: | :---: | :---: | :---: | :---: |",
+    ]
+    for m in summary.variant_metrics:
+        lines.append(
+            f"| `{m.variant_name}` | {m.page_count} | {m.cer:.4f} | {m.wer:.4f} | {m.clinical_field_accuracy * 100:.1f}% | {m.decimal_misread_count} | {m.mean_latency_seconds:.3f} |"
+        )
+
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    output_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+
+
 def probe_image_ocr_engine(
+
     *,
     find_spec: Callable[[str], ModuleSpec | object | None] = importlib.util.find_spec,
 ) -> OcrEngineStatus:
@@ -410,3 +570,5 @@ def probe_image_ocr_engine(
         available=True,
         reason="Paddle dependencies are available but image OCR was not executed by this deterministic adapter",
     )
+
+

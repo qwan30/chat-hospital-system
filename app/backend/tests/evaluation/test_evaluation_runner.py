@@ -254,6 +254,36 @@ async def test_async_runner_uses_one_event_loop_for_all_adapter_cases(tmp_path: 
     assert len(adapter.actor_ids) == 50
 
 
+class _ConcurrencyTrackingAdapter:
+    def __init__(self) -> None:
+        self.in_flight = 0
+        self.peak_in_flight = 0
+
+    async def evaluate(self, case, _context) -> CaseObservation:
+        self.in_flight += 1
+        self.peak_in_flight = max(self.peak_in_flight, self.in_flight)
+        await asyncio.sleep(0.001)
+        self.in_flight -= 1
+        return CaseObservation(
+            covered_fact_ids=tuple(fact.fact_id for fact in case.expected_facts),
+            refused=case.answer_policy != "answer",
+            sync_safety_outcome="refused" if case.answer_policy != "answer" else "answered",
+            stream_safety_outcome="refused" if case.answer_policy != "answer" else "answered",
+        )
+
+
+@pytest.mark.asyncio
+async def test_adapter_cases_are_serial_by_default_to_bound_local_resources(tmp_path: Path) -> None:
+    benchmark_dir = _approved_benchmark_dir(tmp_path)
+    config = _config(tmp_path, benchmark_dir, components=("retrieval",))
+    adapter = _ConcurrencyTrackingAdapter()
+
+    run = await run_evaluation_async(config, adapters={"retrieval": adapter}, isolation=_isolation())
+
+    assert run.exit_code == 0
+    assert adapter.peak_in_flight == 1
+
+
 class _GraphIncompleteAdapter:
     def evaluate(self, case, _context) -> CaseObservation:
         return CaseObservation(

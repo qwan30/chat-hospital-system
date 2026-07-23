@@ -358,11 +358,12 @@ async def _evaluate_adapter_cases(
     resolver: SourceEvidenceResolver,
     isolation: EvaluatorIsolationConfig,
 ) -> tuple[CaseResult, ...]:
-    """Run all adapter cases on the caller's single event loop."""
+    """Run adapter cases serially on one loop to bound local DB and memory use."""
 
-    return tuple(
-        await asyncio.gather(*(_evaluate_adapter_case(adapter, case, component, resolver, isolation) for case in cases))
-    )
+    results = []
+    for case in cases:
+        results.append(await _evaluate_adapter_case(adapter, case, component, resolver, isolation))
+    return tuple(results)
 
 
 def _harness_contract_result() -> CaseResult:

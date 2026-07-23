@@ -17,7 +17,7 @@ from pydantic import BaseModel, root_validator, validator
 from sqlalchemy.engine import make_url
 from sqlalchemy.exc import ArgumentError
 
-from hospital_ai.evaluation.benchmark import ActorIdentity
+from hospital_ai.evaluation.benchmark import ActorIdentity, EvalCaseV2
 from hospital_ai.evaluation.corpus_manifest import CorpusManifestV2, EvidenceLocator, SourceArtifact
 
 _SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
@@ -101,15 +101,28 @@ class SourceEvidenceResolver:
         manifest: CorpusManifestV2,
         candidate_locators: tuple[EvidenceLocator, ...] | None = None,
     ) -> None:
+        self._manifest = manifest
         artifacts = manifest.artifacts
         by_path = {artifact.canonical_relative_path: artifact for artifact in artifacts}
         if len(by_path) != len(artifacts):
             raise EvidenceResolutionError("canonical manifest contains ambiguous source paths")
         self._by_path = by_path
-        candidates = candidate_locators or tuple(
-            EvidenceLocator(source_path=artifact.canonical_relative_path) for artifact in artifacts
+        candidates = (
+            candidate_locators
+            if candidate_locators is not None
+            else tuple(EvidenceLocator(source_path=artifact.canonical_relative_path) for artifact in artifacts)
         )
         self._candidates = {self._locator_key(locator): locator for locator in candidates}
+
+    def for_case(self, case: EvalCaseV2) -> SourceEvidenceResolver:
+        """Constrain adapter provenance to the exact evidence contract for one case."""
+
+        return SourceEvidenceResolver(
+            self._manifest,
+            candidate_locators=(
+                case.allowed_evidence + case.forbidden_evidence + case.absence_checked_evidence
+            ),
+        )
 
     @staticmethod
     def _locator_key(locator: EvidenceLocator) -> tuple[str, int | None, int | None, str | None]:
@@ -185,6 +198,24 @@ class SourceEvidenceResolver:
         if registered is None:
             raise EvidenceResolutionError("runtime evidence is not a registered canonical candidate")
         return self.resolve(registered, (runtime,))
+
+    def resolve_runtimes(self, runtimes: tuple[RuntimeEvidenceChunk, ...]) -> tuple[ResolvedEvidence, ...]:
+        """Resolve an ordered observation after rejecting duplicate locator claims."""
+
+        locator_keys = tuple(
+            self._locator_key(
+                EvidenceLocator(
+                    source_path=runtime.source_path,
+                    page_number=runtime.page_number,
+                    row_number=runtime.row_number,
+                    record_id=runtime.record_id,
+                )
+            )
+            for runtime in runtimes
+        )
+        if len(set(locator_keys)) != len(locator_keys):
+            raise EvidenceResolutionError("duplicate runtime chunks per locator")
+        return tuple(self.resolve_runtime(runtime) for runtime in runtimes)
 
     def validate_resolved(self, evidence: ResolvedEvidence) -> str:
         """Re-check a structured observation; its claimed evidence ID is untrusted."""

@@ -181,13 +181,14 @@ def _evaluate_observation(
     observation: CaseObservation,
     resolver: SourceEvidenceResolver,
 ) -> CaseResult:
+    resolver = resolver.for_case(case)
     allowed_ids = {resolver.evidence_id(locator) for locator in case.allowed_evidence}
     forbidden_ids = {resolver.evidence_id(locator) for locator in case.forbidden_evidence}
     absence_ids = {resolver.evidence_id(locator) for locator in case.absence_checked_evidence}
     known_ids = allowed_ids | forbidden_ids | absence_ids
     wrong_patient_ids = forbidden_ids if case.category != "permission_adversarial" else set()
-    resolved_retrieved = tuple(resolver.resolve_runtime(evidence) for evidence in observation.retrieved_evidence)
-    resolved_cited = tuple(resolver.resolve_runtime(evidence) for evidence in observation.cited_evidence)
+    resolved_retrieved = resolver.resolve_runtimes(observation.retrieved_evidence)
+    resolved_cited = resolver.resolve_runtimes(observation.cited_evidence)
     ranked_retrieved_ids = tuple(resolver.validate_resolved(evidence) for evidence in resolved_retrieved)
     retrieved_ids = set(observation.retrieved_ids) | set(ranked_retrieved_ids)
     cited_ids = set(observation.cited_ids) | {resolver.validate_resolved(evidence) for evidence in resolved_cited}
@@ -276,6 +277,7 @@ async def _evaluate_adapter_case(
     resolver: SourceEvidenceResolver,
     isolation: EvaluatorIsolationConfig,
 ) -> CaseResult:
+    resolver = resolver.for_case(case)
     context = EvaluationCaseContext(
         actor=materialize_evaluation_actor(case.actor, isolation),
         evidence_resolver=resolver,

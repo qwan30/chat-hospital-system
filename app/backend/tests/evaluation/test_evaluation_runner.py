@@ -8,8 +8,13 @@ from xml.etree import ElementTree
 
 import pytest
 
-from hospital_ai.evaluation.adapter_foundation import EvaluatorIsolationConfig
+from hospital_ai.evaluation.adapter_foundation import (
+    EvaluatorIsolationConfig,
+    RuntimeEvidenceChunk,
+)
+from hospital_ai.evaluation.benchmark import EvalCaseV2
 from hospital_ai.evaluation.contracts import CaseResult, GateResult, OcrEngineStatus
+from hospital_ai.evaluation.corpus_manifest import build_corpus_manifest
 from hospital_ai.evaluation.runner import (
     CaseObservation,
     EvaluationConfig,
@@ -246,6 +251,47 @@ async def test_async_runner_uses_one_event_loop_for_all_adapter_cases(tmp_path: 
     assert run.exit_code == 0
     assert adapter.loop_ids == {id(asyncio.get_running_loop())}
     assert len(adapter.actor_ids) == 50
+
+
+class _SiblingEvidenceAdapter:
+    def evaluate(self, case, context) -> CaseObservation:
+        registered = case.allowed_evidence + case.forbidden_evidence + case.absence_checked_evidence
+        sibling = next(
+            other_case.allowed_evidence[0]
+            for other_case in (
+                EvalCaseV2.parse_obj(json.loads(line))
+                for line in (BENCHMARK_DIR / "rag_benchmark_v2.jsonl").read_text(encoding="utf-8").splitlines()
+            )
+            if other_case.allowed_evidence[0] not in registered
+        )
+        artifact = build_corpus_manifest(DATA_ROOT).artifacts_by_path[sibling.source_path]
+        return CaseObservation(
+            retrieved_evidence=(
+                RuntimeEvidenceChunk(
+                    runtime_chunk_id="unregistered-sibling",
+                    source_path=sibling.source_path,
+                    source_sha256=artifact.source_sha256,
+                    patient_id=artifact.patient_id,
+                    page_number=sibling.page_number,
+                    row_number=sibling.row_number,
+                    record_id=sibling.record_id,
+                ),
+            )
+        )
+
+
+def test_adapter_runner_rejects_a_canonical_sibling_not_registered_for_the_case(tmp_path: Path) -> None:
+    benchmark_dir = _approved_benchmark_dir(tmp_path)
+    config = _config(tmp_path, benchmark_dir, components=("retrieval",))
+
+    run = run_evaluation(config, adapters={"retrieval": _SiblingEvidenceAdapter()}, isolation=_isolation())
+
+    assert run.exit_code == 1
+    assert all(
+        any(gate.name == "evaluation_adapter_execution" and not gate.passed for gate in result.gates)
+        for result in run.cases
+        if result.component == "retrieval"
+    )
 
 
 def test_adapter_run_without_isolated_database_configuration_is_invalid(tmp_path: Path) -> None:

@@ -12,10 +12,13 @@ import fitz
 from hospital_ai.evaluation.corpus_manifest import build_corpus_manifest
 from hospital_ai.evaluation.ocr_evaluation import (
     build_ocr_gold_pages,
+    evaluate_ocr_corpus,
+    export_ocr_evaluation_markdown,
     probe_image_ocr_engine,
     render_scan_variants,
     run_isolated_paddle_ocr,
 )
+
 
 BACKEND_ROOT = Path(__file__).parents[2]
 DATA_ROOT = BACKEND_ROOT / "data"
@@ -365,6 +368,15 @@ def test_evaluate_ocr_corpus_mock_run(tmp_path: Path) -> None:
     content = report_path.read_text(encoding="utf-8")
     assert "OCR Evaluation Harness Summary" in content
     assert "blur_light" in content
+
+
+def test_export_official_ocr_benchmark_report() -> None:
+    manifest = build_corpus_manifest(DATA_ROOT)
+    summary = evaluate_ocr_corpus(manifest, DATA_ROOT, limit_pages=5, use_mock_ocr=True)
+    report_path = BACKEND_ROOT.parent / "docs" / "09-testing" / "ocr-evaluation-harness-20260724.md"
+    export_ocr_evaluation_markdown(summary, report_path)
+    assert report_path.exists()
+
 
 
 

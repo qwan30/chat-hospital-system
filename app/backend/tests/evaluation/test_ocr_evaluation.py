@@ -19,7 +19,6 @@ from hospital_ai.evaluation.ocr_evaluation import (
     run_isolated_paddle_ocr,
 )
 
-
 BACKEND_ROOT = Path(__file__).parents[2]
 DATA_ROOT = BACKEND_ROOT / "data"
 
@@ -72,7 +71,6 @@ def test_scan_variants_are_reproducible_and_seeded(tmp_path: Path) -> None:
         != next(item for item in changed_seed if item.name == "noise_gaussian").sha256
     )
     assert all(variant.png_bytes.startswith(b"\x89PNG") for variant in first)
-
 
 
 def test_missing_paddle_dependencies_are_explicitly_unavailable() -> None:
@@ -324,9 +322,10 @@ def test_match_clinical_fields_dosage_and_decimal_misread() -> None:
 
 
 def test_evaluate_ocr_corpus_mock_run(tmp_path: Path) -> None:
+    import uuid
+
     import fitz
 
-    import uuid
     from hospital_ai.evaluation.corpus_manifest import CorpusManifestV2, EvidenceLocator, SourceArtifact
     from hospital_ai.evaluation.ocr_evaluation import evaluate_ocr_corpus, export_ocr_evaluation_markdown
 
@@ -357,7 +356,6 @@ def test_evaluate_ocr_corpus_mock_run(tmp_path: Path) -> None:
         ),
     )
 
-
     summary = evaluate_ocr_corpus(manifest, tmp_path, limit_pages=1, use_mock_ocr=True)
     assert summary.gold_page_count == 1
     assert len(summary.variant_metrics) == 10
@@ -376,8 +374,3 @@ def test_export_official_ocr_benchmark_report() -> None:
     report_path = BACKEND_ROOT.parent / "docs" / "09-testing" / "ocr-evaluation-harness-20260724.md"
     export_ocr_evaluation_markdown(summary, report_path)
     assert report_path.exists()
-
-
-
-
-

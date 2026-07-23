@@ -9,6 +9,7 @@ import os
 import re
 import subprocess
 import tempfile
+import time
 from collections.abc import Callable
 from dataclasses import dataclass
 from importlib.machinery import ModuleSpec
@@ -28,7 +29,6 @@ from hospital_ai.evaluation.contracts import (
     ScanVariant,
 )
 from hospital_ai.evaluation.corpus_manifest import CorpusManifestV2
-
 
 _FIELD_PATTERNS = (
     ("date", re.compile(r"\b\d{4}-\d{2}-\d{2}\b")),
@@ -272,7 +272,6 @@ def match_clinical_fields(
     return tuple(results)
 
 
-
 def build_ocr_gold_pages(
     manifest: CorpusManifestV2,
     data_root: Path,
@@ -389,11 +388,8 @@ def render_scan_variants(pdf_path: Path, *, page_number: int, seed: int) -> tupl
     )
 
 
-
-import time
-
-
 def _calculate_cer(gold_text: str, ext_text: str) -> float:
+
     gold = gold_text.strip()
     ext = ext_text.strip()
     if not gold:
@@ -468,9 +464,7 @@ def evaluate_ocr_corpus(
             field_matches = match_clinical_fields(gold.clinical_fields, extracted_text)
 
             accuracy = (
-                sum(1 for m in field_matches if m.normalized_match) / len(field_matches)
-                if field_matches
-                else 1.0
+                sum(1 for m in field_matches if m.normalized_match) / len(field_matches) if field_matches else 1.0
             )
             decimal_misreads = sum(1 for m in field_matches if m.decimal_misread_risk)
 
@@ -542,7 +536,8 @@ def export_ocr_evaluation_markdown(summary: OcrEvaluationSummary, output_path: P
     ]
     for m in summary.variant_metrics:
         lines.append(
-            f"| `{m.variant_name}` | {m.page_count} | {m.cer:.4f} | {m.wer:.4f} | {m.clinical_field_accuracy * 100:.1f}% | {m.decimal_misread_count} | {m.mean_latency_seconds:.3f} |"
+            f"| `{m.variant_name}` | {m.page_count} | {m.cer:.4f} | {m.wer:.4f} | "
+            f"{m.clinical_field_accuracy * 100:.1f}% | {m.decimal_misread_count} | {m.mean_latency_seconds:.3f} |"
         )
 
     output_path.parent.mkdir(parents=True, exist_ok=True)
@@ -550,7 +545,6 @@ def export_ocr_evaluation_markdown(summary: OcrEvaluationSummary, output_path: P
 
 
 def probe_image_ocr_engine(
-
     *,
     find_spec: Callable[[str], ModuleSpec | object | None] = importlib.util.find_spec,
 ) -> OcrEngineStatus:
@@ -570,5 +564,3 @@ def probe_image_ocr_engine(
         available=True,
         reason="Paddle dependencies are available but image OCR was not executed by this deterministic adapter",
     )
-
-

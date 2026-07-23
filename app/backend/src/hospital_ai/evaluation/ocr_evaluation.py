@@ -217,8 +217,11 @@ def build_ocr_gold_pages(
     return tuple(pages)
 
 
-def _render_rgb(page: fitz.Page, dpi: int) -> np.ndarray:
-    pixmap = page.get_pixmap(dpi=dpi, alpha=False, colorspace=fitz.csRGB)
+def _render_rgb(page: fitz.Page, dpi: int, rotation: int = 0) -> np.ndarray:
+    mat = fitz.Matrix(dpi / 72.0, dpi / 72.0)
+    if rotation != 0:
+        mat = mat.prerotate(rotation)
+    pixmap = page.get_pixmap(matrix=mat, alpha=False, colorspace=fitz.csRGB)
     return np.frombuffer(pixmap.samples, dtype=np.uint8).reshape(pixmap.height, pixmap.width, 3).copy()
 
 
@@ -233,7 +236,7 @@ def _encode_png(rgb: np.ndarray) -> bytes:
 def _variant(name: str, seed: int, rgb: np.ndarray) -> ScanVariant:
     png_bytes = _encode_png(rgb)
     return ScanVariant(
-        name=name,
+        name=name,  # type: ignore[arg-type]
         seed=seed,
         width=rgb.shape[1],
         height=rgb.shape[0],
@@ -252,32 +255,52 @@ def _skew(rgb: np.ndarray) -> np.ndarray:
     return output
 
 
-def _blur(rgb: np.ndarray) -> np.ndarray:
-    padded = np.pad(rgb.astype(np.uint16), ((1, 1), (1, 1), (0, 0)), mode="edge")
-    summed = sum(
-        padded[row : row + rgb.shape[0], column : column + rgb.shape[1]] for row in range(3) for column in range(3)
-    )
-    return (summed // 9).astype(np.uint8)
+def _blur_kernel(rgb: np.ndarray, radius: int = 1) -> np.ndarray:
+    padded = np.pad(rgb.astype(np.uint32), ((radius, radius), (radius, radius), (0, 0)), mode="edge")
+    h, w, _ = rgb.shape
+    ksize = (2 * radius + 1) ** 2
+    summed = np.zeros((h, w, 3), dtype=np.uint32)
+    for r in range(2 * radius + 1):
+        for c in range(2 * radius + 1):
+            summed += padded[r : r + h, c : c + w]
+    return (summed // ksize).astype(np.uint8)
+
+
+def _contrast_low(rgb: np.ndarray) -> np.ndarray:
+    return np.clip(rgb.astype(np.float32) * 0.5 + 64.0, 0, 255).astype(np.uint8)
 
 
 def render_scan_variants(pdf_path: Path, *, page_number: int, seed: int) -> tuple[ScanVariant, ...]:
-    """Render four deterministic image-only variants for a one-based PDF page."""
+    """Render ten deterministic image-only variants for a one-based PDF page."""
     if page_number < 1:
         raise ValueError("page_number must be positive")
     with fitz.open(pdf_path) as document:
         if page_number > len(document):
             raise ValueError("page_number exceeds PDF page count")
         page = document[page_number - 1]
-        low_dpi = _render_rgb(page, 72)
         base = _render_rgb(page, 144)
+        rot_90_rgb = _render_rgb(page, 144, rotation=90)
+        rot_180_rgb = _render_rgb(page, 144, rotation=180)
+        rot_270_rgb = _render_rgb(page, 144, rotation=270)
+        low_72_rgb = _render_rgb(page, 72)
+        low_150_rgb = _render_rgb(page, 150)
+
     rng = np.random.default_rng(seed)
-    noise = np.clip(base.astype(np.int16) + rng.normal(0, 12, base.shape), 0, 255).astype(np.uint8)
+    noise_rgb = np.clip(base.astype(np.int16) + rng.normal(0, 12, base.shape), 0, 255).astype(np.uint8)
+
     return (
-        _variant("low_dpi", seed, low_dpi),
-        _variant("skew", seed, _skew(base)),
-        _variant("blur", seed, _blur(base)),
-        _variant("noise", seed, noise),
+        _variant("rot_90", seed, rot_90_rgb),
+        _variant("rot_180", seed, rot_180_rgb),
+        _variant("rot_270", seed, rot_270_rgb),
+        _variant("low_res_72dpi", seed, low_72_rgb),
+        _variant("low_res_150dpi", seed, low_150_rgb),
+        _variant("blur_light", seed, _blur_kernel(base, radius=1)),
+        _variant("blur_heavy", seed, _blur_kernel(base, radius=2)),
+        _variant("noise_gaussian", seed, noise_rgb),
+        _variant("contrast_low", seed, _contrast_low(base)),
+        _variant("skew_slight", seed, _skew(base)),
     )
+
 
 
 def probe_image_ocr_engine(

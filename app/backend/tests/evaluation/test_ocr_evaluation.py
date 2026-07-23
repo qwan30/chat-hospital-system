@@ -50,13 +50,26 @@ def test_scan_variants_are_reproducible_and_seeded(tmp_path: Path) -> None:
     second = render_scan_variants(pdf_path, page_number=1, seed=713)
     changed_seed = render_scan_variants(pdf_path, page_number=1, seed=714)
 
-    assert tuple(variant.name for variant in first) == ("low_dpi", "skew", "blur", "noise")
+    expected_names = (
+        "rot_90",
+        "rot_180",
+        "rot_270",
+        "low_res_72dpi",
+        "low_res_150dpi",
+        "blur_light",
+        "blur_heavy",
+        "noise_gaussian",
+        "contrast_low",
+        "skew_slight",
+    )
+    assert tuple(variant.name for variant in first) == expected_names
     assert tuple(variant.sha256 for variant in first) == tuple(variant.sha256 for variant in second)
     assert (
-        next(item for item in first if item.name == "noise").sha256
-        != next(item for item in changed_seed if item.name == "noise").sha256
+        next(item for item in first if item.name == "noise_gaussian").sha256
+        != next(item for item in changed_seed if item.name == "noise_gaussian").sha256
     )
     assert all(variant.png_bytes.startswith(b"\x89PNG") for variant in first)
+
 
 
 def test_missing_paddle_dependencies_are_explicitly_unavailable() -> None:

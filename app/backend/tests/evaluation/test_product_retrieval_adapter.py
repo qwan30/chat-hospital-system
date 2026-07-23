@@ -15,10 +15,19 @@ from hospital_ai.evaluation.adapter_foundation import (
     materialize_evaluation_actor,
 )
 from hospital_ai.evaluation.benchmark import ActorIdentity, EvalCaseV2, ExpectedFact, GraphExpectation, ReviewRecord
-from hospital_ai.evaluation.corpus_manifest import CorpusManifestV2, EvidenceLocator, SourceArtifact
+from hospital_ai.evaluation.corpus_manifest import (
+    CorpusManifestV2,
+    EvidenceLocator,
+    SourceArtifact,
+    build_corpus_manifest,
+)
 from hospital_ai.evaluation.product_chat_adapter import ProductChatAdapter
 from hospital_ai.evaluation.product_graph_adapter import ProductGraphAdapter
 from hospital_ai.evaluation.product_retrieval_adapter import ProductRetrievalAdapter
+
+BACKEND_ROOT = Path(__file__).parents[2]
+DATA_ROOT = BACKEND_ROOT / "data"
+BENCHMARK_DIR = DATA_ROOT / "evaluation"
 
 
 def _artifact(
@@ -170,6 +179,30 @@ async def test_adapter_materializes_whole_csv_for_absence_checked_locator(tmp_pa
     assert len(observation.retrieved_evidence) == 1
     assert observation.retrieved_evidence[0].source_path == locator.source_path
     assert observation.retrieved_evidence[0].row_number is None
+
+
+@pytest.mark.asyncio
+async def test_adapter_excludes_forbidden_generation_evidence_for_source_backed_safe_refusal() -> None:
+    case = next(
+        case
+        for line in (BENCHMARK_DIR / "rag_sentinel_v2.jsonl").read_text(encoding="utf-8").splitlines()
+        for case in (EvalCaseV2.parse_raw(line),)
+        if case.category == "safe_refusal"
+    )
+    manifest = build_corpus_manifest(DATA_ROOT)
+    context = _context(manifest, actor_patient_ids=case.actor.allowed_patient_ids)
+
+    observation = await ProductRetrievalAdapter(DATA_ROOT, evidence_threshold=0.2).evaluate(case, context)
+    forbidden = {
+        (locator.source_path, locator.page_number, locator.row_number, locator.record_id)
+        for locator in case.forbidden_evidence
+    }
+    observed = {
+        (evidence.source_path, evidence.page_number, evidence.row_number, evidence.record_id)
+        for evidence in observation.retrieved_evidence
+    }
+
+    assert observed.isdisjoint(forbidden)
 
 
 @pytest.mark.asyncio

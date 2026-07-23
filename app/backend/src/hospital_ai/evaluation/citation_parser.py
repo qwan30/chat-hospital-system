@@ -3,15 +3,11 @@ from __future__ import annotations
 import re
 from uuid import UUID
 
-_UUID_REGEX = re.compile(
-    r"[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}"
-)
+_UUID_REGEX = re.compile(r"[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}")
 _BRACKET_REGEX = re.compile(r"\[([A-Za-z0-9_-]+)\]")
 
 
-def extract_cited_chunk_ids(
-    answer_text: str, available_chunks: dict[str, UUID]
-) -> set[UUID]:
+def extract_cited_chunk_ids(answer_text: str, available_chunks: dict[str, UUID]) -> set[UUID]:
     """Extract cited chunk UUIDs from raw answer text.
 
     Supports:

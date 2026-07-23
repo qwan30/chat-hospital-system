@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 import os
 import re
-from typing import Sequence
+from collections.abc import Sequence
 
 import httpx
 from pydantic import BaseModel, Field
@@ -77,26 +77,18 @@ class LLMJudge:
 
         # 2. Stub or fallback provider
         if self.provider == "stub" or not self.api_keys:
-            return self._evaluate_stub(
-                redacted_question, redacted_context, answer, verification_terms
-            )
+            return self._evaluate_stub(redacted_question, redacted_context, answer, verification_terms)
 
         # 3. Gemini provider with key rotation
         if self.provider == "gemini":
-            return self._evaluate_gemini(
-                redacted_question, redacted_context, answer, verification_terms
-            )
+            return self._evaluate_gemini(redacted_question, redacted_context, answer, verification_terms)
 
         # 4. Local provider (Ollama or local OpenAI-compatible endpoint)
         if self.provider == "local":
-            return self._evaluate_local(
-                redacted_question, redacted_context, answer, verification_terms
-            )
+            return self._evaluate_local(redacted_question, redacted_context, answer, verification_terms)
 
         # Default fallback
-        return self._evaluate_stub(
-            redacted_question, redacted_context, answer, verification_terms
-        )
+        return self._evaluate_stub(redacted_question, redacted_context, answer, verification_terms)
 
     def _evaluate_stub(
         self,
@@ -132,7 +124,8 @@ class LLMJudge:
     ) -> LLMJudgeScore:
         """Evaluate using Gemini API with key rotation on 429 rate limit."""
         prompt = (
-            "You are a strict medical AI evaluation judge. Evaluate the chatbot answer based on the provided clinical context and user question.\n\n"
+            "You are a strict medical AI evaluation judge. "
+            "Evaluate the chatbot answer based on the provided clinical context and user question.\n\n"
             f"Question:\n{question}\n\n"
             f"Context:\n{context}\n\n"
             f"Answer:\n{answer}\n\n"
@@ -166,12 +159,7 @@ class LLMJudge:
 
                 resp.raise_for_status()
                 data = resp.json()
-                text = (
-                    data.get("candidates", [{}])[0]
-                    .get("content", {})
-                    .get("parts", [{}])[0]
-                    .get("text", "")
-                )
+                text = data.get("candidates", [{}])[0].get("content", {}).get("parts", [{}])[0].get("text", "")
                 score = self._parse_json_score(text)
                 if score is not None:
                     return score
@@ -197,7 +185,8 @@ class LLMJudge:
     ) -> LLMJudgeScore:
         """Evaluate using Local Ollama LLM endpoint."""
         prompt = (
-            "You are a strict medical AI evaluation judge. Evaluate the chatbot answer based on the provided clinical context and user question.\n\n"
+            "You are a strict medical AI evaluation judge. "
+            "Evaluate the chatbot answer based on the provided clinical context and user question.\n\n"
             f"Question:\n{question}\n\n"
             f"Context:\n{context}\n\n"
             f"Answer:\n{answer}\n\n"

@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from unittest.mock import MagicMock, patch
-import pytest
 
 from hospital_ai.evaluation.llm_judge import LLMJudge, LLMJudgeScore
 
@@ -68,11 +67,7 @@ def test_llm_judge_key_rotation_on_429():
         "candidates": [
             {
                 "content": {
-                    "parts": [
-                        {
-                            "text": '{"faithfulness": 0.95, "relevance": 0.92, "reasoning": "High alignment"}'
-                        }
-                    ]
+                    "parts": [{"text": '{"faithfulness": 0.95, "relevance": 0.92, "reasoning": "High alignment"}'}]
                 }
             }
         ]

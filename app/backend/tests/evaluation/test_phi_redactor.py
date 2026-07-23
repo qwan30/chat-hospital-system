@@ -13,7 +13,7 @@ def test_redact_patient_phi_names_and_mrn():
 def test_redact_patient_phi_mrn_formats():
     raw_1 = "MRN: 12345 is pending lab results."
     raw_2 = "Subject EVAL-998877 details attached."
-    
+
     redacted_1 = redact_patient_phi(raw_1)
     redacted_2 = redact_patient_phi(raw_2)
 

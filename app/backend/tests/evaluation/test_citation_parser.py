@@ -1,5 +1,5 @@
 from uuid import UUID
-import pytest
+
 from hospital_ai.evaluation.citation_parser import extract_cited_chunk_ids
 
 

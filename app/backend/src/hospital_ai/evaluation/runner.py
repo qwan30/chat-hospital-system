@@ -278,6 +278,7 @@ def _evaluate_observation(
     relevance = 1.0
     if component == "chat":
         from hospital_ai.evaluation.llm_judge import LLMJudge
+
         verification_terms = tuple(term for fact in case.expected_facts for term in fact.verification_terms)
         context_text = " ".join(fact.statement for fact in case.expected_facts) or case.question
         judge = LLMJudge(provider=llm_judge_provider)
@@ -399,9 +400,7 @@ async def _evaluate_adapter_case(
         observation = await pending if inspect.isawaitable(pending) else pending
         if not isinstance(observation, CaseObservation):
             raise TypeError("adapter must return CaseObservation")
-        return _evaluate_observation(
-            case, component, observation, resolver, llm_judge_provider=llm_judge_provider
-        )
+        return _evaluate_observation(case, component, observation, resolver, llm_judge_provider=llm_judge_provider)
     except Exception as error:  # Adapter failures are evidence, never a passing fallback.
         gate = _gate(
             "evaluation_adapter_execution",

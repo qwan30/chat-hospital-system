@@ -9,10 +9,9 @@ than claiming transport parity from a non-streaming invocation.
 from __future__ import annotations
 
 from pathlib import Path
+from uuid import UUID
 
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
-
-from uuid import UUID
 
 from hospital_ai.core.config import Settings
 from hospital_ai.core.errors import PermissionDeniedError

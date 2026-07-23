@@ -253,6 +253,49 @@ async def test_async_runner_uses_one_event_loop_for_all_adapter_cases(tmp_path: 
     assert len(adapter.actor_ids) == 50
 
 
+class _GraphIncompleteAdapter:
+    def evaluate(self, case, _context) -> CaseObservation:
+        return CaseObservation(
+            covered_fact_ids=tuple(fact.fact_id for fact in case.expected_facts),
+            sync_safety_outcome="answered",
+            stream_safety_outcome="answered",
+        )
+
+
+def test_graph_adapter_result_without_required_path_fails_graph_gate(tmp_path: Path) -> None:
+    benchmark_dir = _approved_benchmark_dir(tmp_path)
+    config = _config(tmp_path, benchmark_dir, components=("graph",))
+
+    run = run_evaluation(config, adapters={"graph": _GraphIncompleteAdapter()}, isolation=_isolation())
+
+    assert run.exit_code == 1
+    assert any(gate.name == "graph_path_recall" and gate.hard and not gate.passed for gate in run.gates)
+
+
+class _GraphDisconnectedEdgesAdapter:
+    def evaluate(self, case, _context) -> CaseObservation:
+        graph = case.graph
+        return CaseObservation(
+            covered_fact_ids=tuple(fact.fact_id for fact in case.expected_facts),
+            sync_safety_outcome="answered",
+            stream_safety_outcome="answered",
+            graph_node_ids=graph.required_nodes if graph else (),
+            graph_edge_ids=tuple("|".join(edge) for edge in graph.required_edges) if graph else (),
+            graph_path_ids=tuple("|".join(edge) for edge in graph.required_edges) if graph else (),
+        )
+
+
+def test_graph_adapter_disconnected_edges_do_not_satisfy_multi_hop_path(tmp_path: Path) -> None:
+    benchmark_dir = _approved_benchmark_dir(tmp_path)
+    config = _config(tmp_path, benchmark_dir, components=("graph",))
+
+    run = run_evaluation(config, adapters={"graph": _GraphDisconnectedEdgesAdapter()}, isolation=_isolation())
+
+    assert run.exit_code == 1
+    assert any(gate.name == "graph_edge_recall" and gate.passed for gate in run.gates)
+    assert any(gate.name == "graph_path_recall" and gate.hard and not gate.passed for gate in run.gates)
+
+
 class _SiblingEvidenceAdapter:
     def evaluate(self, case, context) -> CaseObservation:
         registered = case.allowed_evidence + case.forbidden_evidence + case.absence_checked_evidence

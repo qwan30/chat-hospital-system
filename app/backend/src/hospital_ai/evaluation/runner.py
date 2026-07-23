@@ -259,6 +259,28 @@ def _evaluate_observation(
         "critical_field_accuracy": fields.accuracy,
         "safety_leaks": leaks.total,
     }
+    if component == "graph" and case.graph is not None:
+        required_nodes = {node.casefold() for node in case.graph.required_nodes}
+        observed_nodes = {node.casefold() for node in observation.graph_node_ids}
+        required_edges = {"|".join(part.casefold() for part in edge) for edge in case.graph.required_edges}
+        required_path = ">>".join("|".join(part.casefold() for part in edge) for edge in case.graph.required_edges)
+        observed_edges = {edge.casefold() for edge in observation.graph_edge_ids}
+        observed_paths = {path.casefold() for path in observation.graph_path_ids}
+        node_recall = len(required_nodes & observed_nodes) / len(required_nodes)
+        edge_recall = len(required_edges & observed_edges) / len(required_edges)
+        path_recall = 1.0 if required_path in observed_paths else 0.0
+        checks += (
+            _gate("graph_node_recall", component, node_recall == 1.0, node_recall, "= 1.0"),
+            _gate("graph_edge_recall", component, edge_recall == 1.0, edge_recall, "= 1.0"),
+            _gate("graph_path_recall", component, path_recall == 1.0, path_recall, "= 1.0"),
+        )
+        metrics.update(
+            {
+                "graph_node_recall": node_recall,
+                "graph_edge_recall": edge_recall,
+                "graph_path_recall": path_recall,
+            }
+        )
     return CaseResult(
         case_id=case.case_id,
         component=component,

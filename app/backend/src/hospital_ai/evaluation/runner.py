@@ -188,6 +188,46 @@ def _graph_case_coverage_gate(cases: tuple[EvalCaseV2, ...]) -> GateResult:
     )
 
 
+def _retrieval_quality_gates(
+    cases: tuple[EvalCaseV2, ...],
+    results: tuple[CaseResult, ...],
+) -> tuple[GateResult, ...]:
+    """Aggregate retrieval quality over cases where evidence-backed answers are expected."""
+
+    answer_case_ids = tuple(case.case_id for case in cases if case.answer_policy == "answer")
+    results_by_case_id = {result.case_id: result for result in results}
+
+    def mean_metric(name: str) -> float:
+        if not answer_case_ids:
+            return 0.0
+        total = sum(
+            float(
+                results_by_case_id.get(
+                    case_id,
+                    CaseResult(case_id=case_id, component="retrieval", status="failed"),
+                ).metrics.get(name, 0.0)
+            )
+            for case_id in answer_case_ids
+        )
+        return round(total / len(answer_case_ids), 6)
+
+    recall_at_5 = mean_metric("recall_at_5")
+    mrr = mean_metric("mrr")
+    ndcg_at_5 = mean_metric("ndcg_at_5")
+    return (
+        _gate(
+            "retrieval_answer_case_coverage",
+            "retrieval",
+            bool(answer_case_ids),
+            len(answer_case_ids),
+            "> 0 answer-policy cases",
+        ),
+        _gate("retrieval_recall_at_5", "retrieval", recall_at_5 >= 0.90, recall_at_5, ">= 0.90"),
+        _gate("retrieval_mrr", "retrieval", mrr >= 0.85, mrr, ">= 0.85"),
+        _gate("retrieval_ndcg_at_5", "retrieval", ndcg_at_5 >= 0.85, ndcg_at_5, ">= 0.85"),
+    )
+
+
 def _evaluate_observation(
     case: EvalCaseV2,
     component: str,
@@ -552,6 +592,8 @@ async def run_evaluation_async(
             evaluated = await _evaluate_adapter_cases(adapter, component_cases, component, resolver, isolation)
             results.extend(evaluated)
             gates.extend(gate for result in evaluated for gate in result.gates)
+            if component == "retrieval":
+                gates.extend(_retrieval_quality_gates(component_cases, evaluated))
     if config.lane == "deterministic" and set(config.components) & _PRODUCT_COMPONENTS:
         harness = _harness_contract_result()
         results.append(harness)

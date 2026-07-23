@@ -231,10 +231,11 @@ class ProductRetrievalAdapter:
             decoded = payload.decode("utf-8")
             if locator.row_number is None:
                 return decoded.strip()
-            rows = list(csv.reader(io.StringIO(decoded)))
-            if locator.row_number > len(rows):
+            rows = list(csv.DictReader(io.StringIO(decoded)))
+            row_index = locator.row_number - 2
+            if row_index < 0 or row_index >= len(rows):
                 raise EvidenceResolutionError("CSV locator row is outside the canonical source")
-            return ",".join(rows[locator.row_number - 1])
+            return "\n".join(f"{key}: {value}" for key, value in rows[row_index].items())
         try:
             return payload.decode("utf-8")
         except UnicodeDecodeError as error:

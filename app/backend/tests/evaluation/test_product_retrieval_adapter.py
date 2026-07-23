@@ -347,6 +347,49 @@ async def test_graph_adapter_traverses_real_graph_without_cross_patient_evidence
 
 
 @pytest.mark.asyncio
+async def test_graph_adapter_traverses_source_backed_labeled_lab_observation(tmp_path: Path) -> None:
+    patient_id = uuid.uuid4()
+    locator = EvidenceLocator(source_path="patients_labs/patient.csv", row_number=2)
+    artifact = _artifact(
+        tmp_path,
+        patient_id=patient_id,
+        relative_path=locator.source_path,
+        locator=locator,
+        content=(
+            b"Patient Name,MRN,DOB,Gender,Date,Analyte,Value,Unit,Reference Range,Status\n"
+            b"Alice Synthetic,MRN-0001,1978-05-17,Female,2025-12-02,Creatinine,1.55,mg/dL,0.7-1.3,High\n"
+        ),
+    ).copy(update={"kind": "patient_lab", "mime_type": "text/csv", "document_type": "lab_result"})
+    context = _context(CorpusManifestV2(artifacts=(artifact,)), actor_patient_ids=(patient_id,))
+    base_case = _case(patient_id=patient_id, actor_patient_ids=(patient_id,), locator=locator)
+    case = base_case.copy(
+        update={
+            "case_id": "source-backed-lab-graph-case",
+            "category": "graph_multi_hop",
+            "graph": GraphExpectation(
+                required_nodes=("patient:mrn-0001", "analyte:creatinine", "status:high"),
+                required_edges=(
+                    ("patient:mrn-0001", "has_observation", "analyte:creatinine"),
+                    ("analyte:creatinine", "has_status", "status:high"),
+                ),
+                evidence=(locator,),
+            ),
+        }
+    )
+
+    observation = await ProductGraphAdapter(tmp_path).evaluate(case, context)
+
+    assert observation.graph_node_ids == ("patient:mrn-0001", "analyte:creatinine", "status:high")
+    assert observation.graph_edge_ids == (
+        "analyte:creatinine|has_status|status:high",
+        "patient:mrn-0001|has_observation|analyte:creatinine",
+    )
+    assert (
+        "patient:mrn-0001|has_observation|analyte:creatinine>>analyte:creatinine|has_status|status:high"
+    ) in observation.graph_path_ids
+
+
+@pytest.mark.asyncio
 async def test_chat_adapter_returns_actual_cited_source_backed_evidence(tmp_path: Path) -> None:
     patient_id = uuid.uuid4()
     locator = EvidenceLocator(source_path="patients_documents/patient.txt", page_number=1)

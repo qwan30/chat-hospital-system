@@ -467,9 +467,9 @@ def build_benchmark(manifest: CorpusManifestV2, data_root: Path) -> tuple[EvalCa
 
             if category == "graph_multi_hop":
                 row = rows[index % len(rows)]
-                patient_node = f"patient:{patient_id}"
-                analyte_node = f"analyte:{row['Analyte']}"
-                status_node = f"status:{row['Status']}"
+                patient_node = f"patient:{row['MRN'].casefold()}"
+                analyte_node = f"analyte:{row['Analyte'].casefold()}"
+                status_node = f"status:{row['Status'].casefold()}"
                 graph = GraphExpectation(
                     required_nodes=(patient_node, analyte_node, status_node),
                     required_edges=(

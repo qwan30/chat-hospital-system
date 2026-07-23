@@ -61,6 +61,35 @@ def test_explicit_relation_fallback_is_deterministic():
     }
 
 
+def test_explicit_relation_fallback_extracts_complete_labeled_lab_observation():
+    """A lab observation graph must be derived only from explicit source fields."""
+    entities, relations = _extract_explicit_relations_fallback("MRN: MRN-0001\nAnalyte: Creatinine\nStatus: High")
+
+    assert {(entity.name, entity.entity_type) for entity in entities} == {
+        ("patient:mrn-0001", "patient"),
+        ("analyte:creatinine", "lab_analyte"),
+        ("status:high", "lab_status"),
+    }
+    assert {(relation.source_name, relation.target_name, relation.relation_type) for relation in relations} == {
+        ("patient:mrn-0001", "analyte:creatinine", "has_observation"),
+        ("analyte:creatinine", "status:high", "has_status"),
+    }
+
+
+@pytest.mark.parametrize(
+    "content",
+    (
+        "MRN: MRN-0001\nAnalyte: Creatinine",
+        "MRN: MRN-0001\nMRN: MRN-0002\nAnalyte: Creatinine\nStatus: High",
+    ),
+)
+def test_explicit_relation_fallback_rejects_incomplete_or_ambiguous_lab_observation(content: str):
+    entities, relations = _extract_explicit_relations_fallback(content)
+
+    assert entities == []
+    assert relations == []
+
+
 @pytest.mark.asyncio
 async def test_llm_failure_uses_explicit_relation_fallback(monkeypatch):
     class FailingLlm:

@@ -1,0 +1,59 @@
+{
+  "schema_version": "1.0",
+  "baseline_status": "observed_not_accepted",
+  "recorded_at": "2026-07-23",
+  "dataset_version": "synthetic-100-v2",
+  "git_sha": "e40ad9ce2c069ec4f0b7f757c1a66cd03cd27e65",
+  "suite": "smoke",
+  "lane": "deterministic",
+  "selected_case_count": 50,
+  "answer_case_count": 39,
+  "quality_gates": {
+    "recall_at_5": 0.9,
+    "mrr": 0.85,
+    "ndcg_at_5": 0.85,
+    "unauthorized_evidence_cases": 0
+  },
+  "runs": [
+    {
+      "mode": "vector",
+      "github_run_id": 29999858740,
+      "github_run_url": "https://github.com/qwan30/chat-hospital-system/actions/runs/29999858740",
+      "status": "failed",
+      "recall_at_5": 0.025641,
+      "mrr": 0.025641,
+      "ndcg_at_5": 0.025641,
+      "unauthorized_evidence_cases": 0,
+      "latency_ms": 3302.814,
+      "token_usage": 0
+    },
+    {
+      "mode": "bm25",
+      "github_run_id": 29999570824,
+      "github_run_url": "https://github.com/qwan30/chat-hospital-system/actions/runs/29999570824",
+      "status": "failed",
+      "recall_at_5": 0.692308,
+      "mrr": 0.692308,
+      "ndcg_at_5": 0.692308,
+      "unauthorized_evidence_cases": 4,
+      "latency_ms": 4125.422,
+      "token_usage": 0
+    },
+    {
+      "mode": "hybrid",
+      "github_run_id": 29999052393,
+      "github_run_url": "https://github.com/qwan30/chat-hospital-system/actions/runs/29999052393",
+      "status": "failed",
+      "recall_at_5": 0.692308,
+      "mrr": 0.692308,
+      "ndcg_at_5": 0.692308,
+      "unauthorized_evidence_cases": 4,
+      "latency_ms": 3548.295,
+      "token_usage": 0
+    }
+  ],
+  "decision": {
+    "selected_mode": null,
+    "reason": "No evaluated mode satisfies both the hard authorization gate and the initial retrieval quality gates."
+  }
+}

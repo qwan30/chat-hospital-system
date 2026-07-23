@@ -16,6 +16,7 @@ from pathlib import Path
 from uuid import UUID
 
 import fitz
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
 from hospital_ai.core.config import Settings
@@ -50,8 +51,8 @@ class ProductRetrievalAdapter:
         evidence_threshold: float | None = None,
         retrieval_mode: str = "vector",
     ) -> None:
-        if retrieval_mode not in {"vector", "bm25", "hybrid"}:
-            raise ValueError("retrieval_mode must be vector, bm25, or hybrid")
+        if retrieval_mode not in {"vector", "bm25", "hybrid", "graph"}:
+            raise ValueError("retrieval_mode must be vector, bm25, hybrid, or graph")
         self._source_root = source_root.resolve()
         self._evidence_threshold = (
             evidence_threshold if evidence_threshold is not None else Settings().evidence_threshold
@@ -84,6 +85,25 @@ class ProductRetrievalAdapter:
                     context.actor.allowed_patient_ids,
                     artifacts,
                 )
+                if self.retrieval_mode == "graph":
+                    from hospital_ai.db.models import DocumentChunk
+                    from hospital_ai.services.graph_rag import (
+                        extract_entities_and_relations_offline,
+                        find_related_entities,
+                        index_chunk_entities,
+                    )
+
+                    chunks = list((await session.execute(select(DocumentChunk))).scalars())
+                    for chunk in chunks:
+                        await index_chunk_entities(
+                            session,
+                            chunk.id,
+                            chunk.document_id,
+                            chunk.content,
+                            extractor=extract_entities_and_relations_offline,
+                        )
+                    await session.flush()
+
                 retrieval = RetrievalService(session)
                 query_embedding = deterministic_embedding(case.question)
                 top_k = max(1, len(locators))
@@ -94,7 +114,7 @@ class ProductRetrievalAdapter:
                         query_embedding=query_embedding,
                         top_k=top_k,
                     )
-                else:
+                elif self.retrieval_mode in ("bm25", "hybrid"):
                     results = await retrieval.hybrid_search(
                         user_id=context.actor.actor_id,
                         patient_id=case.patient_id,
@@ -103,9 +123,42 @@ class ProductRetrievalAdapter:
                         top_k=top_k,
                         retrieval_mode=self.retrieval_mode,
                     )
+                else:  # graph mode
+                    base_results = await retrieval.hybrid_search(
+                        user_id=context.actor.actor_id,
+                        patient_id=case.patient_id,
+                        query_embedding=query_embedding,
+                        query_text=case.question,
+                        top_k=top_k,
+                        retrieval_mode="hybrid",
+                    )
+                    graph_nodes = list(case.graph.required_nodes) if case.graph else []
+                    if graph_nodes:
+                        from hospital_ai.services.graph_rag import find_related_entities
+
+                        graph_ctx = await find_related_entities(
+                            session,
+                            graph_nodes,
+                            patient_id=case.patient_id,
+                        )
+                        graph_chunks = await retrieval.get_chunks_by_ids(
+                            list(graph_ctx.related_chunk_ids),
+                            user_id=context.actor.actor_id,
+                            patient_id=case.patient_id,
+                        )
+                        seen_ids = {r.chunk_id for r in base_results}
+                        combined = list(base_results)
+                        for gc in graph_chunks:
+                            if gc.chunk_id not in seen_ids:
+                                combined.append(gc)
+                                seen_ids.add(gc.chunk_id)
+                        results = combined
+                    else:
+                        results = base_results
+                eval_mode = "hybrid" if self.retrieval_mode == "graph" else self.retrieval_mode
                 if not results or not meets_evidence_threshold(
                     results[0],
-                    self.retrieval_mode,
+                    eval_mode,
                     self._evidence_threshold,
                 ):
                     return CaseObservation()
@@ -145,7 +198,7 @@ class ProductRetrievalAdapter:
         )
         patient_ids = {artifact.patient_id for _locator, artifact in artifacts if artifact.patient_id is not None}
         for patient_id in patient_ids:
-            session.add(Patient(id=patient_id, mrn=f"EVAL-{patient_id.hex[:16]}", full_name="Evaluation Patient"))
+            session.add(Patient(id=patient_id, mrn=f"EVAL-{patient_id.hex}", full_name="Evaluation Patient"))
         await session.flush()
         for patient_id in patient_ids.intersection(allowed_patient_ids):
             session.add(PatientPermission(user_id=actor_id, patient_id=patient_id, scope="read", source="evaluation"))

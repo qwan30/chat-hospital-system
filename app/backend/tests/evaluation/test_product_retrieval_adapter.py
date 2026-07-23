@@ -459,3 +459,8 @@ async def test_chat_adapter_never_retrieves_or_cites_forbidden_patient_evidence(
 
     assert [evidence.source_path for evidence in observation.retrieved_evidence] == [locator.source_path]
     assert [evidence.source_path for evidence in observation.cited_evidence] == [locator.source_path]
+
+
+def test_retrieval_adapter_supports_graph_mode(tmp_path: Path) -> None:
+    adapter = ProductRetrievalAdapter(tmp_path, retrieval_mode="graph")
+    assert adapter.retrieval_mode == "graph"

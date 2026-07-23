@@ -172,7 +172,7 @@ async def test_adapter_materializes_whole_csv_for_absence_checked_locator(tmp_pa
     ).copy(update={"mime_type": "text/csv", "document_type": "lab_result"})
     context = _context(CorpusManifestV2(artifacts=(artifact,)), actor_patient_ids=(patient_id,))
 
-    observation = await ProductRetrievalAdapter(tmp_path).evaluate(
+    observation = await ProductRetrievalAdapter(tmp_path, evidence_threshold=0.0).evaluate(
         _case(patient_id=patient_id, actor_patient_ids=(patient_id,), locator=locator), context
     )
 

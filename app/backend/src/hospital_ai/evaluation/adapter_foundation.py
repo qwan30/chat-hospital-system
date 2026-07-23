@@ -119,9 +119,7 @@ class SourceEvidenceResolver:
 
         return SourceEvidenceResolver(
             self._manifest,
-            candidate_locators=(
-                case.allowed_evidence + case.forbidden_evidence + case.absence_checked_evidence
-            ),
+            candidate_locators=(case.allowed_evidence + case.forbidden_evidence + case.absence_checked_evidence),
         )
 
     @staticmethod

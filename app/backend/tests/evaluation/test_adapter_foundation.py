@@ -138,10 +138,7 @@ def test_case_resolver_registers_only_the_case_provenance_contract() -> None:
     case_resolver = SourceEvidenceResolver(build_corpus_manifest(DATA_ROOT)).for_case(case)
     registered = case.allowed_evidence + case.forbidden_evidence + case.absence_checked_evidence
     sibling = next(
-        locator
-        for other_case in rows[1:]
-        for locator in other_case.allowed_evidence
-        if locator not in registered
+        locator for other_case in rows[1:] for locator in other_case.allowed_evidence if locator not in registered
     )
 
     for locator in registered:
@@ -165,9 +162,7 @@ def test_empty_candidate_set_does_not_fall_back_to_the_full_manifest() -> None:
 
 def test_case_resolver_rejects_duplicate_runtime_chunks_per_locator_before_scoring() -> None:
     locator = EvidenceLocator(source_path="patients_documents/patient_MRN0001_lab_result.pdf", page_number=1)
-    case_resolver = SourceEvidenceResolver(
-        build_corpus_manifest(DATA_ROOT), candidate_locators=(locator,)
-    )
+    case_resolver = SourceEvidenceResolver(build_corpus_manifest(DATA_ROOT), candidate_locators=(locator,))
     first = _runtime_chunk(case_resolver, locator, runtime_chunk_id="runtime-chunk-1")
     duplicate = _runtime_chunk(case_resolver, locator, runtime_chunk_id="runtime-chunk-2")
 

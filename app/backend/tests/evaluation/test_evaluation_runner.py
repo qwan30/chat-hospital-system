@@ -724,3 +724,17 @@ def test_cli_main_returns_gate_exit_and_writes_artifacts(tmp_path: Path) -> None
     assert (output / "run.json").is_file()
     run_json = json.loads((output / "run.json").read_text(encoding="utf-8"))
     assert run_json["configuration"]["retrieval_mode"] == "hybrid"
+
+
+def test_graph_multi_hop_path_normalization() -> None:
+    from hospital_ai.evaluation.product_graph_adapter import ProductGraphAdapter
+    from hospital_ai.services.graph_rag import ExtractedRelation
+
+    relations = [
+        ExtractedRelation("patient:mrn-0001", "analyte:potassium", "has_observation"),
+        ExtractedRelation("analyte:potassium", "status:normal", "has_status"),
+    ]
+    paths = ProductGraphAdapter._path_ids(relations)
+    expected_path = "patient:mrn-0001|has_observation|analyte:potassium>>analyte:potassium|has_status|status:normal"
+    assert expected_path in paths
+

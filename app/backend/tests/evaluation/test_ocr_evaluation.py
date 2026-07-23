@@ -241,3 +241,43 @@ def test_paddle_worker_forces_conservative_cpu_configuration(tmp_path: Path, mon
         "use_doc_unwarping": False,
         "use_textline_orientation": False,
     }
+
+
+def test_ocr_contract_instantiation() -> None:
+    from hospital_ai.evaluation.contracts import (
+        ClinicalFieldMatchResult,
+        OcrEvaluationSummary,
+        OcrVariantMetric,
+    )
+
+    match_res = ClinicalFieldMatchResult(
+        field_type="dose",
+        gold_value="5.0 mg",
+        extracted_value="50 mg",
+        exact_match=False,
+        normalized_match=False,
+        decimal_misread_risk=True,
+    )
+    assert match_res.decimal_misread_risk is True
+
+    metric = OcrVariantMetric(
+        variant_name="blur_light",
+        page_count=100,
+        cer=0.05,
+        wer=0.12,
+        clinical_field_accuracy=0.92,
+        decimal_misread_count=1,
+        mean_latency_seconds=0.45,
+    )
+    assert metric.variant_name == "blur_light"
+
+    summary = OcrEvaluationSummary(
+        gold_page_count=100,
+        total_variants_evaluated=10,
+        overall_cer=0.04,
+        overall_wer=0.10,
+        overall_clinical_accuracy=0.94,
+        variant_metrics=(metric,),
+    )
+    assert summary.gold_page_count == 100
+

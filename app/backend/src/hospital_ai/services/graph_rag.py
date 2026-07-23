@@ -22,8 +22,9 @@ import json
 import logging
 import re
 import uuid
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
-from typing import Optional
+from typing import Optional, TypeAlias
 
 from sqlalchemy import Float, ForeignKey, String, delete, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -90,6 +91,9 @@ class GraphContext:
     summary: str
 
 
+EntityRelationExtractor: TypeAlias = Callable[[str], Awaitable[tuple[list[ExtractedEntity], list[ExtractedRelation]]]]
+
+
 # ── Entity extraction (NLP) ──────────────────────────────────────────────
 
 
@@ -127,6 +131,13 @@ def _extract_explicit_relations_fallback(content: str) -> tuple[list[ExtractedEn
         relations.append(ExtractedRelation(source, target, relation_type))
 
     return list(entities.values()), relations
+
+
+async def extract_entities_and_relations_offline(
+    content: str,
+) -> tuple[list[ExtractedEntity], list[ExtractedRelation]]:
+    """Extract explicit graph relations without initializing an LLM provider."""
+    return _extract_explicit_relations_fallback(content)
 
 
 async def extract_entities_and_relations_nlp(content: str) -> tuple[list[ExtractedEntity], list[ExtractedRelation]]:
@@ -204,11 +215,18 @@ async def index_chunk_entities(
     chunk_id: uuid.UUID,
     document_id: uuid.UUID,
     content: str,
+    *,
+    extractor: EntityRelationExtractor | None = None,
 ) -> tuple[list[GraphEntity], list[GraphRelation]]:
-    """Replace a chunk's graph projection with freshly extracted entities."""
+    """Replace a chunk's graph projection with freshly extracted entities.
+
+    ``extractor`` defaults to production LLM-backed extraction. Offline callers
+    can explicitly provide :func:`extract_entities_and_relations_offline`.
+    """
     await session.execute(delete(GraphRelation).where(GraphRelation.source_chunk_id == chunk_id))
     await session.execute(delete(GraphEntity).where(GraphEntity.source_chunk_id == chunk_id))
-    entities, relations = await extract_entities_and_relations_nlp(content)
+    active_extractor = extract_entities_and_relations_nlp if extractor is None else extractor
+    entities, relations = await active_extractor(content)
 
     entity_rows: dict[str, GraphEntity] = {}
     for entity in entities:

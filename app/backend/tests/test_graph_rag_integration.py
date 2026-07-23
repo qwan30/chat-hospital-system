@@ -20,6 +20,7 @@ from hospital_ai.services.graph_rag import (
     GraphRelation,
     _extract_explicit_relations_fallback,
     extract_entities_and_relations_nlp,
+    extract_entities_and_relations_offline,
     find_related_entities,
     index_chunk_entities,
 )
@@ -84,6 +85,65 @@ async def test_llm_failure_uses_explicit_relation_fallback(monkeypatch):
 
 
 # ── Integration: index_chunk_entities ────────────────────────────────
+
+
+@pytest.mark.asyncio
+async def test_index_chunk_entities_defaults_to_production_extractor(session_and_settings, monkeypatch):
+    session, _settings = session_and_settings
+    doc = await create_indexed_document(
+        session,
+        patient_id=PATIENT_ALICE_ID,
+        uploaded_by=DOCTOR_ID,
+        title="Production extractor note",
+        content="Metformin treats diabetes.",
+    )
+    from hospital_ai.db.models import DocumentChunk
+
+    result = await session.execute(select(DocumentChunk).where(DocumentChunk.document_id == doc.id))
+    chunk = result.scalars().one()
+    calls: list[str] = []
+
+    async def production_extractor(content: str):
+        calls.append(content)
+        return [ExtractedEntity("metformin", "drug")], []
+
+    monkeypatch.setattr("hospital_ai.services.graph_rag.extract_entities_and_relations_nlp", production_extractor)
+
+    await index_chunk_entities(session, chunk.id, doc.id, chunk.content)
+
+    assert calls == [chunk.content]
+
+
+@pytest.mark.asyncio
+async def test_index_chunk_entities_with_offline_extractor_never_gets_llm_manager(session_and_settings, monkeypatch):
+    session, _settings = session_and_settings
+    doc = await create_indexed_document(
+        session,
+        patient_id=PATIENT_ALICE_ID,
+        uploaded_by=DOCTOR_ID,
+        title="Offline extractor note",
+        content="Metformin treats diabetes.",
+    )
+    from hospital_ai.db.models import DocumentChunk
+
+    result = await session.execute(select(DocumentChunk).where(DocumentChunk.document_id == doc.id))
+    chunk = result.scalars().one()
+
+    def llm_manager_was_called():
+        raise AssertionError("offline extraction must not access the LLM manager")
+
+    monkeypatch.setattr("hospital_ai.services.graph_rag.get_llm_manager", llm_manager_was_called)
+
+    entities, relations = await index_chunk_entities(
+        session,
+        chunk.id,
+        doc.id,
+        chunk.content,
+        extractor=extract_entities_and_relations_offline,
+    )
+
+    assert [entity.name for entity in entities] == ["metformin", "diabetes"]
+    assert [(relation.relation_type, relation.weight) for relation in relations] == [("treats", 1.0)]
 
 
 @pytest.mark.asyncio

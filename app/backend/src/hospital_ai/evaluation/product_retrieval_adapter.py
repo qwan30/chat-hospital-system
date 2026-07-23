@@ -49,7 +49,11 @@ class ProductRetrievalAdapter:
         """Materialize one case and return only evidence actually retrieved."""
 
         if case.patient_id not in context.actor.allowed_patient_ids:
-            raise EvidenceResolutionError("evaluation actor is not authorized for the requested patient")
+            return CaseObservation(
+                refused=True,
+                sync_safety_outcome="refused",
+                stream_safety_outcome="refused",
+            )
         locators = self._unique_locators(
             case.allowed_evidence + case.forbidden_evidence + case.absence_checked_evidence
         )

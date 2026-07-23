@@ -18,8 +18,17 @@ from typing import Literal
 import fitz
 import numpy as np
 
-from hospital_ai.evaluation.contracts import ClinicalField, OcrEngineStatus, OcrGoldPage, ScanVariant
+from hospital_ai.evaluation.contracts import (
+    ClinicalField,
+    ClinicalFieldMatchResult,
+    OcrEngineStatus,
+    OcrEvaluationSummary,
+    OcrGoldPage,
+    OcrVariantMetric,
+    ScanVariant,
+)
 from hospital_ai.evaluation.corpus_manifest import CorpusManifestV2
+
 
 _FIELD_PATTERNS = (
     ("date", re.compile(r"\b\d{4}-\d{2}-\d{2}\b")),
@@ -184,6 +193,84 @@ def _clinical_fields(text: str) -> tuple[ClinicalField, ...]:
                 )
             )
     return tuple(sorted(fields, key=lambda field: (field.span_start, field.span_end, field.field_type)))
+
+
+def _parse_dose(value_str: str) -> tuple[float, str] | None:
+    m = re.search(r"(\d+(?:\.\d+)?)\s*([a-zA-Z/]+)", value_str)
+    if not m:
+        return None
+    try:
+        return float(m.group(1)), m.group(2).lower()
+    except ValueError:
+        return None
+
+
+def match_clinical_fields(
+    gold_fields: tuple[ClinicalField, ...],
+    extracted_text: str,
+) -> tuple[ClinicalFieldMatchResult, ...]:
+    """Evaluate gold clinical fields against extracted OCR text with normalization."""
+    results: list[ClinicalFieldMatchResult] = []
+    extracted_clean = re.sub(r"\s+", " ", extracted_text).strip()
+
+    for field in gold_fields:
+        exact_match = field.value in extracted_text or field.value in extracted_clean
+        normalized_match = exact_match
+        decimal_misread_risk = False
+        found_extracted_value: str | None = field.value if exact_match else None
+
+        if field.field_type == "dose":
+            gold_parsed = _parse_dose(field.value)
+            if gold_parsed:
+                gold_num, gold_unit = gold_parsed
+                dose_pattern = re.compile(
+                    r"\b(\d+(?:\.\d+)?)\s*([a-zA-Z/]+)\b",
+                    re.IGNORECASE,
+                )
+                for cand in dose_pattern.finditer(extracted_clean):
+                    try:
+                        cand_num = float(cand.group(1))
+                        cand_unit = cand.group(2).lower()
+                    except ValueError:
+                        continue
+                    if cand_unit == gold_unit:
+                        if abs(cand_num - gold_num) < 1e-5:
+                            normalized_match = True
+                            found_extracted_value = cand.group(0)
+                            decimal_misread_risk = False
+                            break
+                        else:
+                            ratio = cand_num / max(gold_num, 1e-5)
+                            if ratio >= 9.0 or ratio <= 0.11:
+                                decimal_misread_risk = True
+                                found_extracted_value = cand.group(0)
+
+        elif field.field_type in ("mrn", "number"):
+            gold_alpha = re.sub(r"[^a-zA-Z0-9]", "", field.value).upper()
+            ext_alpha = re.sub(r"[^a-zA-Z0-9]", "", extracted_clean).upper()
+            if gold_alpha and gold_alpha in ext_alpha:
+                normalized_match = True
+                found_extracted_value = field.value
+
+        elif field.field_type == "date":
+            dates_in_ext = re.findall(r"\b\d{4}-\d{2}-\d{2}\b", extracted_clean)
+            if field.value in dates_in_ext:
+                normalized_match = True
+                found_extracted_value = field.value
+
+        results.append(
+            ClinicalFieldMatchResult(
+                field_type=field.field_type,
+                gold_value=field.value,
+                extracted_value=found_extracted_value,
+                exact_match=exact_match,
+                normalized_match=normalized_match,
+                decimal_misread_risk=decimal_misread_risk,
+            )
+        )
+
+    return tuple(results)
+
 
 
 def build_ocr_gold_pages(

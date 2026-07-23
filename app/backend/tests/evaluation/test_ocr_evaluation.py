@@ -294,3 +294,29 @@ def test_ocr_contract_instantiation() -> None:
     )
     assert summary.gold_page_count == 100
 
+
+def test_match_clinical_fields_dosage_and_decimal_misread() -> None:
+    from hospital_ai.evaluation.contracts import ClinicalField
+    from hospital_ai.evaluation.ocr_evaluation import match_clinical_fields
+
+    gold_fields = (
+        ClinicalField(field_type="dose", value="5.0 mg", span_start=0, span_end=6),
+        ClinicalField(field_type="mrn", value="MRN-0022", span_start=10, span_end=18),
+        ClinicalField(field_type="date", value="2026-07-24", span_start=20, span_end=30),
+    )
+
+    # Test 1: Exact match with dosage formatting tolerance (5.0 mg vs 5mg)
+    extracted_1 = "Patient MRN0022 took 5mg on 2026-07-24"
+    res_1 = match_clinical_fields(gold_fields, extracted_1)
+    dose_res = next(r for r in res_1 if r.field_type == "dose")
+    assert dose_res.normalized_match is True
+    assert dose_res.decimal_misread_risk is False
+
+    # Test 2: Catastrophic decimal misread (5.0 mg read as 50 mg)
+    extracted_2 = "Patient MRN0022 took 50 mg on 2026-07-24"
+    res_2 = match_clinical_fields(gold_fields, extracted_2)
+    dose_res_2 = next(r for r in res_2 if r.field_type == "dose")
+    assert dose_res_2.normalized_match is False
+    assert dose_res_2.decimal_misread_risk is True
+
+

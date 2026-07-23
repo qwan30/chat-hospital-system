@@ -8,10 +8,11 @@ from pydantic import BaseModel, Field, StrictBool, StrictFloat, StrictInt
 
 
 class ClinicalField(BaseModel):
-    field_type: Literal["date", "dose", "number"]
+    field_type: Literal["date", "dose", "number", "mrn"]
     value: str
     span_start: int
     span_end: int
+
 
     class Config:
         frozen = True

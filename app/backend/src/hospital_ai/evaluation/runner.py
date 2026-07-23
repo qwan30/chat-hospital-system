@@ -55,6 +55,7 @@ class EvaluationConfig:
     output_dir: Path
     data_root: Path
     benchmark_dir: Path
+    retrieval_mode: str = "vector"
     environment: Mapping[str, str] = field(default_factory=lambda: os.environ)
     git_sha: str = "unknown"
     clock: Callable[[], str] = lambda: time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
@@ -475,9 +476,10 @@ async def run_evaluation_async(
         or config.lane not in _ALLOWED_LANES
         or not config.components
         or bool(set(config.components) - _ALLOWED_COMPONENTS)
+        or config.retrieval_mode not in {"vector", "bm25", "hybrid"}
     )
     if invalid:
-        return _invalid_run(config, started_at, "invalid suite, lane, or component configuration")
+        return _invalid_run(config, started_at, "invalid suite, lane, component, or retrieval mode configuration")
     try:
         manifest, benchmark, sentinel, review = _load_and_validate_dataset(config)
     except (
@@ -635,6 +637,7 @@ async def run_evaluation_async(
             "benchmark_dir": str(config.benchmark_dir),
             "data_root": str(config.data_root),
             "live_credentials_present": live_configured,
+            "retrieval_mode": config.retrieval_mode,
         },
         started_at=started_at,
         finished_at=finished_at,

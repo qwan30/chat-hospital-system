@@ -144,6 +144,40 @@ async def test_adapter_materializes_canonical_source_and_returns_actual_retrieva
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize("retrieval_mode", ["bm25", "hybrid"])
+async def test_adapter_supports_source_backed_retrieval_ablations(
+    tmp_path: Path,
+    retrieval_mode: str,
+) -> None:
+    patient_id = uuid.uuid4()
+    locator = EvidenceLocator(source_path="patients_documents/patient.txt", page_number=1)
+    artifact = _artifact(
+        tmp_path,
+        patient_id=patient_id,
+        relative_path=locator.source_path,
+        locator=locator,
+    )
+    context = _context(CorpusManifestV2(artifacts=(artifact,)), actor_patient_ids=(patient_id,))
+
+    observation = await ProductRetrievalAdapter(
+        tmp_path,
+        evidence_threshold=0.0,
+        retrieval_mode=retrieval_mode,
+    ).evaluate(
+        _case(patient_id=patient_id, actor_patient_ids=(patient_id,), locator=locator),
+        context,
+    )
+
+    assert len(observation.retrieved_evidence) == 1
+    assert observation.retrieved_evidence[0].source_sha256 == artifact.source_sha256
+
+
+def test_adapter_rejects_an_unknown_retrieval_mode(tmp_path: Path) -> None:
+    with pytest.raises(ValueError, match="retrieval_mode"):
+        ProductRetrievalAdapter(tmp_path, retrieval_mode="unknown")
+
+
+@pytest.mark.asyncio
 async def test_adapter_materializes_whole_pdf_for_absence_checked_locator(tmp_path: Path) -> None:
     patient_id = uuid.uuid4()
     locator = EvidenceLocator(source_path="patients_documents/patient.pdf")

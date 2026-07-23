@@ -42,7 +42,12 @@ def _parse_components(raw: str) -> tuple[str, ...]:
     return components
 
 
-def _deterministic_product_adapters(data_root: Path, components: tuple[str, ...]):
+def _deterministic_product_adapters(
+    data_root: Path,
+    components: tuple[str, ...],
+    *,
+    retrieval_mode: str = "vector",
+):
     """Build the isolated product adapters used by the deterministic lane only."""
 
     from hospital_ai.evaluation.adapter_foundation import EvaluatorIsolationConfig
@@ -52,7 +57,7 @@ def _deterministic_product_adapters(data_root: Path, components: tuple[str, ...]
     if "retrieval" in components:
         from hospital_ai.evaluation.product_retrieval_adapter import ProductRetrievalAdapter
 
-        requested["retrieval"] = ProductRetrievalAdapter(source_root)
+        requested["retrieval"] = ProductRetrievalAdapter(source_root, retrieval_mode=retrieval_mode)
     if "graph" in components:
         from hospital_ai.evaluation.product_graph_adapter import ProductGraphAdapter
 
@@ -78,6 +83,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--output-dir", required=True, type=Path)
     parser.add_argument("--data-root", type=Path, default=DEFAULT_DATA_ROOT)
     parser.add_argument("--benchmark-dir", type=Path, default=DEFAULT_BENCHMARK_DIR)
+    parser.add_argument("--retrieval-mode", choices=("vector", "bm25", "hybrid"), default="vector")
     try:
         args = parser.parse_args(argv)
         components = _parse_components(args.components)
@@ -97,13 +103,18 @@ def main(argv: list[str] | None = None) -> int:
         output_dir=args.output_dir,
         data_root=args.data_root,
         benchmark_dir=args.benchmark_dir,
+        retrieval_mode=args.retrieval_mode,
         environment=os.environ,
         git_sha=_git_sha(),
     )
     adapters = None
     isolation = None
     if args.lane == "deterministic" and set(components) & _PRODUCT_COMPONENTS:
-        adapters, isolation = _deterministic_product_adapters(args.data_root, components)
+        adapters, isolation = _deterministic_product_adapters(
+            args.data_root,
+            components,
+            retrieval_mode=args.retrieval_mode,
+        )
     run = run_evaluation(config, adapters=adapters, isolation=isolation)
     write_run_artifacts(run, config.output_dir)
     print(f"AI evaluation {run.manifest.status}: {config.output_dir}")

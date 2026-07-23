@@ -20,6 +20,19 @@ on:
     - cron: "23 2 * * *"
   workflow_dispatch:
     inputs:
+      ai_eval_suite:
+        description: "Deterministic AI evaluation suite"
+        required: true
+        type: choice
+        options:
+          - smoke
+          - release
+        default: smoke
+      ai_eval_components:
+        description: "Comma-separated deterministic evaluation components"
+        required: true
+        type: string
+        default: "corpus,retrieval,graph"
       run_live_ai_evaluation:
         description: "Run the credentialed live-model evaluation after deterministic gates pass"
         required: false
@@ -308,10 +321,10 @@ jobs:
       run:
         working-directory: app/backend
     env:
-      AI_EVAL_SUITE: ${{ github.event_name == 'pull_request' && 'smoke' || 'release' }}
+      AI_EVAL_SUITE: ${{ github.event_name == 'pull_request' && 'smoke' || github.event_name == 'workflow_dispatch' && inputs.ai_eval_suite || 'release' }}
       # PR validates the source-backed sentinel contract only. Full release/nightly
       # lanes request every component, which fails honestly until real adapters run.
-      AI_EVAL_COMPONENTS: ${{ github.event_name == 'pull_request' && 'corpus' || 'corpus,ocr,retrieval,graph,chat' }}
+      AI_EVAL_COMPONENTS: ${{ github.event_name == 'pull_request' && 'corpus' || github.event_name == 'workflow_dispatch' && inputs.ai_eval_components || 'corpus,ocr,retrieval,graph,chat' }}
 
     steps:
       - name: Checkout

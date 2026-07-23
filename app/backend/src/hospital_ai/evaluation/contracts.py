@@ -13,7 +13,6 @@ class ClinicalField(BaseModel):
     span_start: int
     span_end: int
 
-
     class Config:
         frozen = True
 
@@ -102,7 +101,6 @@ class OcrEvaluationSummary(BaseModel):
 
     class Config:
         frozen = True
-
 
 
 EvaluationComponent = Literal["corpus", "ocr", "retrieval", "graph", "chat", "harness"]

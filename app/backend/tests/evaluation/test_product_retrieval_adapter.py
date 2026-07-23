@@ -14,8 +14,9 @@ from hospital_ai.evaluation.adapter_foundation import (
     SourceEvidenceResolver,
     materialize_evaluation_actor,
 )
-from hospital_ai.evaluation.benchmark import ActorIdentity, EvalCaseV2, ExpectedFact, ReviewRecord
+from hospital_ai.evaluation.benchmark import ActorIdentity, EvalCaseV2, ExpectedFact, GraphExpectation, ReviewRecord
 from hospital_ai.evaluation.corpus_manifest import CorpusManifestV2, EvidenceLocator, SourceArtifact
+from hospital_ai.evaluation.product_graph_adapter import ProductGraphAdapter
 from hospital_ai.evaluation.product_retrieval_adapter import ProductRetrievalAdapter
 
 
@@ -25,8 +26,9 @@ def _artifact(
     patient_id: uuid.UUID,
     relative_path: str,
     locator: EvidenceLocator,
+    content: bytes = b"Patient has an allergy to penicillin and needs allergy documentation.",
 ) -> SourceArtifact:
-    payload = b"Patient has an allergy to penicillin and needs allergy documentation."
+    payload = content
     target = source_root / relative_path
     target.parent.mkdir(parents=True, exist_ok=True)
     target.write_bytes(payload)
@@ -162,3 +164,50 @@ async def test_adapter_rejects_unknown_and_ambiguous_locators(tmp_path: Path) ->
     )
     with pytest.raises(EvidenceResolutionError, match="ambiguous"):
         await adapter.evaluate(ambiguous_case, context)
+
+
+@pytest.mark.asyncio
+async def test_graph_adapter_traverses_real_graph_without_cross_patient_evidence(tmp_path: Path) -> None:
+    patient_id = uuid.uuid4()
+    other_patient_id = uuid.uuid4()
+    locator = EvidenceLocator(source_path="patients_documents/patient.txt", page_number=1)
+    forbidden = EvidenceLocator(source_path="patients_documents/other.txt", page_number=1)
+    artifact = _artifact(
+        tmp_path,
+        patient_id=patient_id,
+        relative_path=locator.source_path,
+        locator=locator,
+        content=b"Metformin treats diabetes. Diabetes causes neuropathy.",
+    )
+    other = _artifact(
+        tmp_path,
+        patient_id=other_patient_id,
+        relative_path=forbidden.source_path,
+        locator=forbidden,
+        content=b"Warfarin treats thrombosis.",
+    )
+    manifest = CorpusManifestV2(artifacts=(artifact, other))
+    context = _context(manifest, actor_patient_ids=(patient_id,))
+    base_case = _case(patient_id=patient_id, actor_patient_ids=(patient_id,), locator=locator)
+    case = base_case.copy(
+        update={
+            "case_id": "graph-adapter-case",
+            "category": "graph_multi_hop",
+            "forbidden_evidence": (forbidden,),
+            "graph": GraphExpectation(
+                required_nodes=("metformin", "diabetes", "neuropathy"),
+                required_edges=(
+                    ("metformin", "treats", "diabetes"),
+                    ("diabetes", "causes", "neuropathy"),
+                ),
+                evidence=(locator,),
+            ),
+        }
+    )
+
+    observation = await ProductGraphAdapter(tmp_path).evaluate(case, context)
+
+    assert [evidence.source_path for evidence in observation.retrieved_evidence] == [locator.source_path]
+    assert observation.graph_node_ids == ("metformin", "diabetes", "neuropathy")
+    assert observation.graph_edge_ids == ("diabetes|causes|neuropathy", "metformin|treats|diabetes")
+    assert "metformin|treats|diabetes>>diabetes|causes|neuropathy" in observation.graph_path_ids

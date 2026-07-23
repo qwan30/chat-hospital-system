@@ -11,6 +11,7 @@ import pytest
 from hospital_ai.evaluation.adapter_foundation import (
     EvaluatorIsolationConfig,
     RuntimeEvidenceChunk,
+    SourceEvidenceResolver,
 )
 from hospital_ai.evaluation.benchmark import EvalCaseV2
 from hospital_ai.evaluation.contracts import CaseResult, GateResult, OcrEngineStatus
@@ -18,6 +19,7 @@ from hospital_ai.evaluation.corpus_manifest import build_corpus_manifest
 from hospital_ai.evaluation.runner import (
     CaseObservation,
     EvaluationConfig,
+    _evaluate_observation,
     _graph_case_coverage_gate,
     run_evaluation,
     run_evaluation_async,
@@ -36,6 +38,27 @@ def _load_cli():
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     return module
+
+
+def _safe_refusal_case() -> EvalCaseV2:
+    for line in (BENCHMARK_DIR / "rag_sentinel_v2.jsonl").read_text(encoding="utf-8").splitlines():
+        case = EvalCaseV2.parse_raw(line)
+        if case.category == "safe_refusal":
+            return case
+    raise AssertionError("sentinel must contain a safe-refusal case")
+
+
+def _runtime_evidence(case: EvalCaseV2, locator, resolver: SourceEvidenceResolver) -> RuntimeEvidenceChunk:
+    artifact = resolver.artifact_for(locator)
+    return RuntimeEvidenceChunk(
+        runtime_chunk_id=f"runtime-{locator.source_path}-{locator.page_number}-{locator.row_number}",
+        source_path=locator.source_path,
+        source_sha256=artifact.source_sha256,
+        patient_id=artifact.patient_id,
+        page_number=locator.page_number,
+        row_number=locator.row_number,
+        record_id=locator.record_id,
+    )
 
 
 def _approved_benchmark_dir(tmp_path: Path) -> Path:
@@ -222,6 +245,63 @@ def test_adapter_observation_that_leaks_evidence_fails_hard_gates(tmp_path: Path
     assert run.exit_code == 1
     assert any(gate.hard and not gate.passed and gate.name == "zero_unauthorized_evidence" for gate in run.gates)
     assert any(gate.hard and not gate.passed and gate.name == "zero_fabricated_citations" for gate in run.gates)
+
+
+def test_retrieval_may_inspect_absence_sources_without_claiming_chat_refusal() -> None:
+    case = _safe_refusal_case()
+    resolver = SourceEvidenceResolver(build_corpus_manifest(DATA_ROOT))
+    evidence = _runtime_evidence(case, case.absence_checked_evidence[0], resolver)
+
+    result = _evaluate_observation(
+        case,
+        "retrieval",
+        CaseObservation(retrieved_evidence=(evidence,)),
+        resolver,
+    )
+    gates = {gate.name: gate for gate in result.gates}
+
+    assert gates["zero_unauthorized_evidence"].passed
+    assert gates["zero_wrong_patient_evidence"].passed
+    assert gates["safe_refusal_behavior"].passed
+
+
+def test_same_patient_forbidden_evidence_is_unauthorized_but_not_wrong_patient() -> None:
+    case = _safe_refusal_case()
+    resolver = SourceEvidenceResolver(build_corpus_manifest(DATA_ROOT))
+    evidence = _runtime_evidence(case, case.forbidden_evidence[0], resolver)
+
+    result = _evaluate_observation(
+        case,
+        "retrieval",
+        CaseObservation(retrieved_evidence=(evidence,)),
+        resolver,
+    )
+    gates = {gate.name: gate for gate in result.gates}
+
+    assert not gates["zero_unauthorized_evidence"].passed
+    assert gates["zero_wrong_patient_evidence"].passed
+
+
+def test_cross_patient_evidence_still_fails_wrong_patient_gate() -> None:
+    resolver = SourceEvidenceResolver(build_corpus_manifest(DATA_ROOT))
+    case = next(
+        case
+        for line in (BENCHMARK_DIR / "rag_sentinel_v2.jsonl").read_text(encoding="utf-8").splitlines()
+        for case in (EvalCaseV2.parse_raw(line),)
+        if case.forbidden_evidence and resolver.artifact_for(case.forbidden_evidence[0]).patient_id != case.patient_id
+    )
+    evidence = _runtime_evidence(case, case.forbidden_evidence[0], resolver)
+
+    result = _evaluate_observation(
+        case,
+        "retrieval",
+        CaseObservation(retrieved_evidence=(evidence,)),
+        resolver,
+    )
+    gates = {gate.name: gate for gate in result.gates}
+
+    assert not gates["zero_unauthorized_evidence"].passed
+    assert not gates["zero_wrong_patient_evidence"].passed
 
 
 class _AsyncSafeAdapter:

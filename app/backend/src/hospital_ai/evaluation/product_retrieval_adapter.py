@@ -18,6 +18,7 @@ from uuid import UUID
 import fitz
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
+from hospital_ai.core.config import Settings
 from hospital_ai.db.models import (
     Base,
     Document,
@@ -35,6 +36,7 @@ from hospital_ai.evaluation.adapter_foundation import (
 from hospital_ai.evaluation.benchmark import EvalCaseV2
 from hospital_ai.evaluation.corpus_manifest import EvidenceLocator, SourceArtifact
 from hospital_ai.evaluation.runner import CaseObservation
+from hospital_ai.services.chat_utils import meets_evidence_threshold
 from hospital_ai.services.embeddings import deterministic_embedding
 from hospital_ai.services.retrieval import RetrievalService
 
@@ -42,8 +44,11 @@ from hospital_ai.services.retrieval import RetrievalService
 class ProductRetrievalAdapter:
     """Run retrieval evaluation against a temporary, source-backed schema."""
 
-    def __init__(self, source_root: Path) -> None:
+    def __init__(self, source_root: Path, evidence_threshold: float | None = None) -> None:
         self._source_root = source_root.resolve()
+        self._evidence_threshold = (
+            evidence_threshold if evidence_threshold is not None else Settings().evidence_threshold
+        )
 
     async def evaluate(self, case: EvalCaseV2, context: EvaluationCaseContext) -> CaseObservation:
         """Materialize one case and return only evidence actually retrieved."""
@@ -77,6 +82,8 @@ class ProductRetrievalAdapter:
                     query_embedding=deterministic_embedding(case.question),
                     top_k=max(1, len(locators)),
                 )
+                if not results or not meets_evidence_threshold(results[0], "vector", self._evidence_threshold):
+                    return CaseObservation()
                 evidence = tuple(self._runtime_evidence(result) for result in results)
                 return CaseObservation(retrieved_evidence=evidence)
         finally:

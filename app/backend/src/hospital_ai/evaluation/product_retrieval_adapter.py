@@ -16,6 +16,7 @@ from pathlib import Path
 from uuid import UUID
 
 import fitz
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
 from hospital_ai.core.config import Settings
@@ -91,6 +92,7 @@ class ProductRetrievalAdapter:
                         find_related_entities,
                         index_chunk_entities,
                     )
+
                     chunks = list((await session.execute(select(DocumentChunk))).scalars())
                     for chunk in chunks:
                         await index_chunk_entities(
@@ -133,6 +135,7 @@ class ProductRetrievalAdapter:
                     graph_nodes = list(case.graph.required_nodes) if case.graph else []
                     if graph_nodes:
                         from hospital_ai.services.graph_rag import find_related_entities
+
                         graph_ctx = await find_related_entities(
                             session,
                             graph_nodes,

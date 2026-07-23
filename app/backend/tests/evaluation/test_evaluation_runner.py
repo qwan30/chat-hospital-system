@@ -737,4 +737,3 @@ def test_graph_multi_hop_path_normalization() -> None:
     paths = ProductGraphAdapter._path_ids(relations)
     expected_path = "patient:mrn-0001|has_observation|analyte:potassium>>analyte:potassium|has_status|status:normal"
     assert expected_path in paths
-

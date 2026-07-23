@@ -117,3 +117,20 @@ def test_refusal_and_safety_leak_counts_are_deterministic() -> None:
     assert leaks.unsafe_refusals == 1
     assert leaks.transport_mismatches == 1
     assert leaks.total == 8
+
+
+def test_transport_not_evaluated_is_not_reported_as_a_mismatch() -> None:
+    leaks = safety_leak_counts(
+        retrieved_ids=set(),
+        allowed_ids=set(),
+        wrong_patient_ids=set(),
+        cited_ids=set(),
+        known_ids=set(),
+        provenance_ids=set(),
+        expected_refusal=False,
+        refused=False,
+        sync_safety_outcome="answered",
+        stream_safety_outcome="not_evaluated",
+    )
+
+    assert leaks.transport_mismatches == 0

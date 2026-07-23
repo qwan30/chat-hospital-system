@@ -16,6 +16,7 @@ from hospital_ai.evaluation.adapter_foundation import (
 )
 from hospital_ai.evaluation.benchmark import ActorIdentity, EvalCaseV2, ExpectedFact, GraphExpectation, ReviewRecord
 from hospital_ai.evaluation.corpus_manifest import CorpusManifestV2, EvidenceLocator, SourceArtifact
+from hospital_ai.evaluation.product_chat_adapter import ProductChatAdapter
 from hospital_ai.evaluation.product_graph_adapter import ProductGraphAdapter
 from hospital_ai.evaluation.product_retrieval_adapter import ProductRetrievalAdapter
 
@@ -211,3 +212,75 @@ async def test_graph_adapter_traverses_real_graph_without_cross_patient_evidence
     assert observation.graph_node_ids == ("metformin", "diabetes", "neuropathy")
     assert observation.graph_edge_ids == ("diabetes|causes|neuropathy", "metformin|treats|diabetes")
     assert "metformin|treats|diabetes>>diabetes|causes|neuropathy" in observation.graph_path_ids
+
+
+@pytest.mark.asyncio
+async def test_chat_adapter_returns_actual_cited_source_backed_evidence(tmp_path: Path) -> None:
+    patient_id = uuid.uuid4()
+    locator = EvidenceLocator(source_path="patients_documents/patient.txt", page_number=1)
+    artifact = _artifact(
+        tmp_path,
+        patient_id=patient_id,
+        relative_path=locator.source_path,
+        locator=locator,
+        content=b"Patient has an allergy to penicillin.",
+    )
+    manifest = CorpusManifestV2(artifacts=(artifact,))
+    context = _context(manifest, actor_patient_ids=(patient_id,))
+    case = _case(patient_id=patient_id, actor_patient_ids=(patient_id,), locator=locator)
+
+    observation = await ProductChatAdapter(tmp_path).evaluate(case, context)
+
+    assert [evidence.source_path for evidence in observation.retrieved_evidence] == [locator.source_path]
+    assert [evidence.source_path for evidence in observation.cited_evidence] == [locator.source_path]
+    assert "penicillin" in observation.answer_text.lower()
+    assert observation.stream_safety_outcome == "not_evaluated"
+
+
+@pytest.mark.asyncio
+async def test_chat_adapter_refuses_an_actor_without_patient_permission(tmp_path: Path) -> None:
+    patient_id = uuid.uuid4()
+    locator = EvidenceLocator(source_path="patients_documents/patient.txt", page_number=1)
+    artifact = _artifact(tmp_path, patient_id=patient_id, relative_path=locator.source_path, locator=locator)
+    manifest = CorpusManifestV2(artifacts=(artifact,))
+    context = _context(manifest, actor_patient_ids=())
+    case = _case(patient_id=patient_id, actor_patient_ids=(), locator=locator)
+
+    observation = await ProductChatAdapter(tmp_path).evaluate(case, context)
+
+    assert observation.refused is True
+    assert observation.retrieved_evidence == ()
+    assert observation.sync_safety_outcome == "refused"
+    assert observation.stream_safety_outcome == "not_evaluated"
+
+
+@pytest.mark.asyncio
+async def test_chat_adapter_never_retrieves_or_cites_forbidden_patient_evidence(tmp_path: Path) -> None:
+    patient_id = uuid.uuid4()
+    other_patient_id = uuid.uuid4()
+    locator = EvidenceLocator(source_path="patients_documents/patient.txt", page_number=1)
+    forbidden = EvidenceLocator(source_path="patients_documents/other.txt", page_number=1)
+    artifact = _artifact(
+        tmp_path,
+        patient_id=patient_id,
+        relative_path=locator.source_path,
+        locator=locator,
+        content=b"Patient has an allergy to penicillin.",
+    )
+    other = _artifact(
+        tmp_path,
+        patient_id=other_patient_id,
+        relative_path=forbidden.source_path,
+        locator=forbidden,
+        content=b"Patient uses apixaban.",
+    )
+    manifest = CorpusManifestV2(artifacts=(artifact, other))
+    context = _context(manifest, actor_patient_ids=(patient_id,))
+    case = _case(patient_id=patient_id, actor_patient_ids=(patient_id,), locator=locator).copy(
+        update={"forbidden_evidence": (forbidden,)}
+    )
+
+    observation = await ProductChatAdapter(tmp_path).evaluate(case, context)
+
+    assert [evidence.source_path for evidence in observation.retrieved_evidence] == [locator.source_path]
+    assert [evidence.source_path for evidence in observation.cited_evidence] == [locator.source_path]

@@ -260,5 +260,8 @@ def safety_leak_counts(
         fabricated_citations=len(cited_ids - known_ids),
         missing_provenance=len(retrieved_ids - provenance_ids),
         unsafe_refusals=int(not refusal_success(expected_refusal=expected_refusal, refused=refused)),
-        transport_mismatches=int(sync_safety_outcome != stream_safety_outcome),
+        transport_mismatches=int(
+            "not_evaluated" not in {sync_safety_outcome, stream_safety_outcome}
+            and sync_safety_outcome != stream_safety_outcome
+        ),
     )

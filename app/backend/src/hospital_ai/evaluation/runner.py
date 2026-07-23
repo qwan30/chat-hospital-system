@@ -248,6 +248,16 @@ def _evaluate_observation(
             "= 0",
         ),
     )
+    if component == "chat":
+        checks += (
+            _gate(
+                "sse_transport_coverage",
+                component,
+                observation.stream_safety_outcome != "not_evaluated",
+                observation.stream_safety_outcome,
+                "SSE safety outcome evaluated",
+            ),
+        )
     metrics = {
         "recall_at_5": retrieval.recall_at_k,
         "precision_at_5": retrieval.precision_at_k,

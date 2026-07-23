@@ -21,6 +21,7 @@ from hospital_ai.evaluation.runner import (
     EvaluationConfig,
     _evaluate_observation,
     _graph_case_coverage_gate,
+    _retrieval_quality_gates,
     run_evaluation,
     run_evaluation_async,
     write_run_artifacts,
@@ -131,6 +132,91 @@ def test_result_contracts_preserve_machine_readable_scalar_types() -> None:
     assert isinstance(result.metrics["ok"], bool)
     assert gate.observed == 2
     assert isinstance(gate.observed, int)
+
+
+def test_retrieval_quality_gates_fail_when_answer_cases_have_nearly_no_evidence() -> None:
+    cases = tuple(
+        EvalCaseV2.parse_raw(line)
+        for line in (BENCHMARK_DIR / "rag_sentinel_v2.jsonl").read_text(encoding="utf-8").splitlines()
+    )
+    results = tuple(
+        CaseResult(
+            case_id=case.case_id,
+            component="retrieval",
+            status="passed",
+            metrics={
+                "recall_at_5": 1.0 if index == 0 else 0.0,
+                "precision_at_5": 0.2 if index == 0 else 0.0,
+                "mrr": 1.0 if index == 0 else 0.0,
+                "ndcg_at_5": 1.0 if index == 0 else 0.0,
+            },
+        )
+        for index, case in enumerate(case for case in cases if case.answer_policy == "answer")
+    )
+
+    gates = {gate.name: gate for gate in _retrieval_quality_gates(cases, results)}
+
+    assert not gates["retrieval_recall_at_5"].passed
+    assert not gates["retrieval_mrr"].passed
+    assert not gates["retrieval_ndcg_at_5"].passed
+    assert gates["retrieval_recall_at_5"].threshold == ">= 0.90"
+    assert gates["retrieval_mrr"].threshold == ">= 0.85"
+    assert gates["retrieval_ndcg_at_5"].threshold == ">= 0.85"
+
+
+def test_retrieval_quality_gates_exclude_refusal_cases_from_quality_denominator() -> None:
+    cases = tuple(
+        EvalCaseV2.parse_raw(line)
+        for line in (BENCHMARK_DIR / "rag_sentinel_v2.jsonl").read_text(encoding="utf-8").splitlines()
+    )
+    results = tuple(
+        CaseResult(
+            case_id=case.case_id,
+            component="retrieval",
+            status="passed",
+            metrics={
+                "recall_at_5": 1.0 if case.answer_policy == "answer" else 0.0,
+                "precision_at_5": 0.2 if case.answer_policy == "answer" else 0.0,
+                "mrr": 1.0 if case.answer_policy == "answer" else 0.0,
+                "ndcg_at_5": 1.0 if case.answer_policy == "answer" else 0.0,
+            },
+        )
+        for case in cases
+    )
+
+    gates = {gate.name: gate for gate in _retrieval_quality_gates(cases, results)}
+
+    assert gates["retrieval_recall_at_5"].passed
+    assert gates["retrieval_mrr"].passed
+    assert gates["retrieval_ndcg_at_5"].passed
+    assert gates["retrieval_recall_at_5"].observed == 1.0
+
+
+class _SafeButEmptyRetrievalAdapter:
+    def evaluate(self, case, _context) -> CaseObservation:
+        refused = case.category == "permission_adversarial"
+        return CaseObservation(
+            covered_fact_ids=tuple(fact.fact_id for fact in case.expected_facts),
+            refused=refused,
+            sync_safety_outcome="refused" if refused else "answered",
+            stream_safety_outcome="refused" if refused else "answered",
+        )
+
+
+def test_runner_fails_when_safe_retrieval_has_insufficient_aggregate_quality(tmp_path: Path) -> None:
+    benchmark_dir = _approved_benchmark_dir(tmp_path)
+    config = _config(tmp_path, benchmark_dir, components=("retrieval",))
+
+    run = run_evaluation(
+        config,
+        adapters={"retrieval": _SafeButEmptyRetrievalAdapter()},
+        isolation=_isolation(),
+    )
+
+    assert run.exit_code == 1
+    assert run.manifest.status == "failed"
+    assert any(gate.name == "retrieval_recall_at_5" and not gate.passed for gate in run.gates)
+    assert "retrieval_recall_at_5" in run.manifest.failure_reason
 
 
 def test_deterministic_smoke_validates_reviewed_sentinel_and_writes_all_artifacts(tmp_path: Path) -> None:
@@ -314,7 +400,13 @@ class _AsyncSafeAdapter:
         self.loop_ids.add(id(asyncio.get_running_loop()))
         self.actor_ids.add(str(context.actor.actor_id))
         refused = case.category == "permission_adversarial"
+        evidence = (
+            tuple(_runtime_evidence(case, locator, context.evidence_resolver) for locator in case.allowed_evidence)
+            if case.answer_policy == "answer"
+            else ()
+        )
         return CaseObservation(
+            retrieved_evidence=evidence,
             covered_fact_ids=tuple(fact.fact_id for fact in case.expected_facts),
             refused=refused,
             sync_safety_outcome="refused" if refused else "answered",
@@ -340,13 +432,19 @@ class _ConcurrencyTrackingAdapter:
         self.in_flight = 0
         self.peak_in_flight = 0
 
-    async def evaluate(self, case, _context) -> CaseObservation:
+    async def evaluate(self, case, context) -> CaseObservation:
         self.in_flight += 1
         self.peak_in_flight = max(self.peak_in_flight, self.in_flight)
         await asyncio.sleep(0.001)
         self.in_flight -= 1
         refused = case.category == "permission_adversarial"
+        evidence = (
+            tuple(_runtime_evidence(case, locator, context.evidence_resolver) for locator in case.allowed_evidence)
+            if case.answer_policy == "answer"
+            else ()
+        )
         return CaseObservation(
+            retrieved_evidence=evidence,
             covered_fact_ids=tuple(fact.fact_id for fact in case.expected_facts),
             refused=refused,
             sync_safety_outcome="refused" if refused else "answered",

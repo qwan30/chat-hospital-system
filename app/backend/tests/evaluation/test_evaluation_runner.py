@@ -236,6 +236,7 @@ def test_deterministic_smoke_validates_reviewed_sentinel_and_writes_all_artifact
     assert run_json["git_sha"] == "fixture-git-sha"
     assert run_json["prompt_version"] == "not-applicable-deterministic"
     assert "token_usage" in run_json
+    assert run_json["configuration"]["retrieval_mode"] == "vector"
     ElementTree.parse(config.output_dir / "junit.xml")
     assert "not product quality evidence" in (config.output_dir / "summary.md").read_text(encoding="utf-8")
 
@@ -255,6 +256,17 @@ def test_requested_product_component_without_adapter_fails_required_component_ga
     retrieval_results = [result for result in run.cases if result.component == "retrieval"]
     assert retrieval_results
     assert all(result.status == "skipped" for result in retrieval_results)
+
+
+def test_runner_rejects_unknown_retrieval_mode_as_invalid_configuration(tmp_path: Path) -> None:
+    benchmark_dir = _approved_benchmark_dir(tmp_path)
+    config = _config(tmp_path, benchmark_dir, components=("corpus",))
+    config = EvaluationConfig(**{**config.__dict__, "retrieval_mode": "unknown"})
+
+    run = run_evaluation(config)
+
+    assert run.exit_code == 2
+    assert run.manifest.status == "invalid"
 
 
 def test_unreviewed_real_sentinel_is_a_gate_failure_not_invalid_data(tmp_path: Path) -> None:
@@ -658,6 +670,7 @@ def test_invalid_dataset_returns_two_and_still_writes_diagnostic_artifacts(tmp_p
         (["--suite", "unknown"], 2),
         (["--lane", "invalid"], 2),
         (["--components", "corpus,unknown"], 2),
+        (["--retrieval-mode", "unknown"], 2),
     ],
 )
 def test_cli_invalid_configuration_returns_two_without_argparse_escape(
@@ -672,9 +685,14 @@ def test_cli_invalid_configuration_returns_two_without_argparse_escape(
 def test_cli_builds_only_requested_deterministic_product_adapters() -> None:
     cli = _load_cli()
 
-    adapters, isolation = cli._deterministic_product_adapters(DATA_ROOT, ("retrieval", "graph"))
+    adapters, isolation = cli._deterministic_product_adapters(
+        DATA_ROOT,
+        ("retrieval", "graph"),
+        retrieval_mode="bm25",
+    )
 
     assert set(adapters) == {"retrieval", "graph"}
+    assert adapters["retrieval"].retrieval_mode == "bm25"
     assert isolation.evaluation_database_url == "sqlite+aiosqlite:///:memory:"
     assert isolation.product_database_url != isolation.evaluation_database_url
 
@@ -697,8 +715,12 @@ def test_cli_main_returns_gate_exit_and_writes_artifacts(tmp_path: Path) -> None
             str(DATA_ROOT),
             "--benchmark-dir",
             str(BENCHMARK_DIR),
+            "--retrieval-mode",
+            "hybrid",
         ]
     )
 
     assert exit_code == 1
     assert (output / "run.json").is_file()
+    run_json = json.loads((output / "run.json").read_text(encoding="utf-8"))
+    assert run_json["configuration"]["retrieval_mode"] == "hybrid"

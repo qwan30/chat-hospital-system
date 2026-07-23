@@ -33,6 +33,15 @@ on:
         required: true
         type: string
         default: "corpus,retrieval,graph"
+      ai_eval_retrieval_mode:
+        description: "Retrieval ablation mode for deterministic evaluation"
+        required: true
+        type: choice
+        options:
+          - vector
+          - bm25
+          - hybrid
+        default: vector
       run_live_ai_evaluation:
         description: "Run the credentialed live-model evaluation after deterministic gates pass"
         required: false
@@ -325,6 +334,7 @@ jobs:
       # PR validates the source-backed sentinel contract only. Full release/nightly
       # lanes request every component, which fails honestly until real adapters run.
       AI_EVAL_COMPONENTS: ${{ github.event_name == 'pull_request' && 'corpus' || github.event_name == 'workflow_dispatch' && inputs.ai_eval_components || 'corpus,ocr,retrieval,graph,chat' }}
+      AI_EVAL_RETRIEVAL_MODE: ${{ github.event_name == 'workflow_dispatch' && inputs.ai_eval_retrieval_mode || 'vector' }}
 
     steps:
       - name: Checkout
@@ -359,6 +369,7 @@ jobs:
             --suite "$AI_EVAL_SUITE" \
             --lane deterministic \
             --components "$AI_EVAL_COMPONENTS" \
+            --retrieval-mode "$AI_EVAL_RETRIEVAL_MODE" \
             --output-dir evaluation-artifacts/deterministic
           evaluation_status=$?
           set -e

@@ -4,10 +4,16 @@ from __future__ import annotations
 
 import hashlib
 import importlib.util
+import json
+import os
 import re
+import subprocess
+import tempfile
 from collections.abc import Callable
+from dataclasses import dataclass
 from importlib.machinery import ModuleSpec
 from pathlib import Path
+from typing import Literal
 
 import fitz
 import numpy as np
@@ -26,6 +32,138 @@ _FIELD_PATTERNS = (
     ),
     ("number", re.compile(r"\b\d+(?:\.\d+)?\b")),
 )
+
+_PNG_SIGNATURE = b"\x89PNG\r\n\x1a\n"
+
+
+@dataclass(frozen=True)
+class IsolatedOcrExecution:
+    """The explicit result of invoking the Pydantic-2/PaddleOCR worker."""
+
+    status: Literal["engine_unavailable", "executed", "execution_failed"]
+    available: bool
+    reason: str
+    text: str = ""
+    rec_scores: tuple[float, ...] = ()
+
+
+def _default_worker_script() -> Path:
+    return Path(__file__).parents[3] / "scripts" / "run_paddle_ocr_worker.py"
+
+
+def _failed_worker_result(reason: str) -> IsolatedOcrExecution:
+    return IsolatedOcrExecution(status="execution_failed", available=False, reason=reason)
+
+
+def _terminate_worker_process_tree(
+    process: subprocess.Popen[str],
+    *,
+    run: Callable[..., subprocess.CompletedProcess[str]],
+    is_windows: bool,
+) -> None:
+    """Best-effort cleanup that includes worker children on Windows."""
+    if process.poll() is not None:
+        return
+    try:
+        if is_windows:
+            run(
+                ["taskkill", "/PID", str(process.pid), "/T", "/F"],
+                capture_output=True,
+                check=False,
+                text=True,
+                shell=False,
+                timeout=5,
+            )
+        else:
+            process.kill()
+    except (OSError, subprocess.TimeoutExpired):
+        # Preserve the explicit timeout contract even if cleanup itself fails.
+        pass
+
+
+def run_isolated_paddle_ocr(
+    png_bytes: bytes,
+    *,
+    isolated_python: Path | None,
+    worker_script: Path | None = None,
+    timeout_seconds: float = 60.0,
+    run: Callable[..., subprocess.CompletedProcess[str]] = subprocess.run,
+    popen: Callable[..., subprocess.Popen[str]] = subprocess.Popen,
+    is_windows: bool | None = None,
+) -> IsolatedOcrExecution:
+    """Execute PaddleOCR in its isolated interpreter and validate its JSON result.
+
+    The backend itself remains on Pydantic 1.x.  This adapter writes only a
+    trusted, generated PNG to a temporary file and passes its path as a single
+    subprocess argument; no image data is interpolated into shell input.
+    """
+    if isolated_python is None:
+        return IsolatedOcrExecution(
+            status="engine_unavailable",
+            available=False,
+            reason="isolated PaddleOCR Python executable is not configured",
+        )
+    if not png_bytes.startswith(_PNG_SIGNATURE):
+        return _failed_worker_result("OCR worker input must be a PNG image")
+    if timeout_seconds <= 0:
+        return _failed_worker_result("OCR worker timeout must be positive")
+
+    script = worker_script or _default_worker_script()
+    windows = os.name == "nt" if is_windows is None else is_windows
+    temporary_path: Path | None = None
+    try:
+        with tempfile.NamedTemporaryFile(prefix="hms-eval-ocr-", suffix=".png", delete=False) as temporary_file:
+            temporary_file.write(png_bytes)
+            temporary_path = Path(temporary_file.name)
+        process = popen(
+            [str(isolated_python), str(script), "--image", str(temporary_path)],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            shell=False,
+            creationflags=subprocess.CREATE_NEW_PROCESS_GROUP if windows else 0,
+        )
+        stdout, stderr = process.communicate(timeout=timeout_seconds)
+    except subprocess.TimeoutExpired:
+        _terminate_worker_process_tree(process, run=run, is_windows=windows)
+        return _failed_worker_result("isolated PaddleOCR worker timed out")
+    except OSError as exc:
+        return IsolatedOcrExecution(
+            status="engine_unavailable",
+            available=False,
+            reason=f"isolated PaddleOCR worker could not start: {exc}",
+        )
+    finally:
+        if temporary_path is not None:
+            temporary_path.unlink(missing_ok=True)
+
+    if process.returncode != 0:
+        detail = stderr.strip() or "worker exited without an error message"
+        return _failed_worker_result(f"isolated PaddleOCR worker failed: {detail}")
+    try:
+        payload = json.loads(stdout)
+    except json.JSONDecodeError:
+        return _failed_worker_result("isolated PaddleOCR worker returned invalid JSON")
+    if not isinstance(payload, dict):
+        return _failed_worker_result("isolated PaddleOCR worker JSON must be an object")
+    if payload.get("status") != "executed":
+        detail = payload.get("reason")
+        return _failed_worker_result(f"isolated PaddleOCR worker did not execute: {detail or 'unknown status'}")
+    text = payload.get("text")
+    scores = payload.get("rec_scores")
+    if (
+        not isinstance(text, str)
+        or not isinstance(scores, list)
+        or any(not isinstance(score, (int, float)) or isinstance(score, bool) for score in scores)
+    ):
+        return _failed_worker_result("isolated PaddleOCR worker returned an invalid OCR result contract")
+    return IsolatedOcrExecution(
+        status="executed",
+        available=True,
+        reason="isolated PaddleOCR worker executed",
+        text=text,
+        rec_scores=tuple(float(score) for score in scores),
+    )
 
 
 def _clinical_fields(text: str) -> tuple[ClinicalField, ...]:

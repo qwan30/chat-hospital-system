@@ -135,6 +135,44 @@ async def test_adapter_materializes_canonical_source_and_returns_actual_retrieva
 
 
 @pytest.mark.asyncio
+async def test_adapter_materializes_whole_pdf_for_absence_checked_locator(tmp_path: Path) -> None:
+    patient_id = uuid.uuid4()
+    locator = EvidenceLocator(source_path="patients_documents/patient.pdf")
+    artifact = _pdf_artifact(tmp_path, patient_id=patient_id, locator=locator)
+    context = _context(CorpusManifestV2(artifacts=(artifact,)), actor_patient_ids=(patient_id,))
+
+    observation = await ProductRetrievalAdapter(tmp_path).evaluate(
+        _case(patient_id=patient_id, actor_patient_ids=(patient_id,), locator=locator), context
+    )
+
+    assert len(observation.retrieved_evidence) == 1
+    assert observation.retrieved_evidence[0].source_path == locator.source_path
+    assert observation.retrieved_evidence[0].page_number is None
+
+
+@pytest.mark.asyncio
+async def test_adapter_materializes_whole_csv_for_absence_checked_locator(tmp_path: Path) -> None:
+    patient_id = uuid.uuid4()
+    locator = EvidenceLocator(source_path="patients_labs/patient.csv")
+    artifact = _artifact(
+        tmp_path,
+        patient_id=patient_id,
+        relative_path=locator.source_path,
+        locator=locator,
+        content=b"test,value\ncreatinine,1.1\n",
+    ).copy(update={"mime_type": "text/csv", "document_type": "lab_result"})
+    context = _context(CorpusManifestV2(artifacts=(artifact,)), actor_patient_ids=(patient_id,))
+
+    observation = await ProductRetrievalAdapter(tmp_path).evaluate(
+        _case(patient_id=patient_id, actor_patient_ids=(patient_id,), locator=locator), context
+    )
+
+    assert len(observation.retrieved_evidence) == 1
+    assert observation.retrieved_evidence[0].source_path == locator.source_path
+    assert observation.retrieved_evidence[0].row_number is None
+
+
+@pytest.mark.asyncio
 async def test_adapter_records_safe_refusal_when_actor_lacks_patient_scope(tmp_path: Path) -> None:
     patient_id = uuid.uuid4()
     locator = EvidenceLocator(source_path="patients_documents/patient.txt", page_number=1)

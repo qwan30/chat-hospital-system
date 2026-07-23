@@ -183,11 +183,11 @@ class ProductRetrievalAdapter:
     @staticmethod
     def _content_for_locator(payload: bytes, artifact: SourceArtifact, locator: EvidenceLocator) -> str:
         if artifact.mime_type == "application/pdf":
-            if locator.page_number is None:
-                raise EvidenceResolutionError("PDF source locators require a page number")
             try:
                 document = fitz.open(stream=payload, filetype="pdf")
                 try:
+                    if locator.page_number is None:
+                        return "\n".join(page.get_text("text").strip() for page in document).strip()
                     if locator.page_number > document.page_count:
                         raise EvidenceResolutionError("PDF locator page is outside the canonical source")
                     return document.load_page(locator.page_number - 1).get_text("text").strip()
@@ -196,9 +196,10 @@ class ProductRetrievalAdapter:
             except fitz.FileDataError as error:
                 raise EvidenceResolutionError("canonical PDF source cannot be read") from error
         if artifact.mime_type == "text/csv":
+            decoded = payload.decode("utf-8")
             if locator.row_number is None:
-                raise EvidenceResolutionError("CSV source locators require a row number")
-            rows = list(csv.reader(io.StringIO(payload.decode("utf-8"))))
+                return decoded.strip()
+            rows = list(csv.reader(io.StringIO(decoded)))
             if locator.row_number > len(rows):
                 raise EvidenceResolutionError("CSV locator row is outside the canonical source")
             return ",".join(rows[locator.row_number - 1])

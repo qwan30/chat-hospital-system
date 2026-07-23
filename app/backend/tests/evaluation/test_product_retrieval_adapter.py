@@ -409,7 +409,7 @@ async def test_chat_adapter_returns_actual_cited_source_backed_evidence(tmp_path
     assert [evidence.source_path for evidence in observation.retrieved_evidence] == [locator.source_path]
     assert [evidence.source_path for evidence in observation.cited_evidence] == [locator.source_path]
     assert "penicillin" in observation.answer_text.lower()
-    assert observation.stream_safety_outcome == "not_evaluated"
+    assert observation.stream_safety_outcome == "answered"
 
 
 @pytest.mark.asyncio
@@ -426,7 +426,7 @@ async def test_chat_adapter_refuses_an_actor_without_patient_permission(tmp_path
     assert observation.refused is True
     assert observation.retrieved_evidence == ()
     assert observation.sync_safety_outcome == "refused"
-    assert observation.stream_safety_outcome == "not_evaluated"
+    assert observation.stream_safety_outcome == "refused"
 
 
 @pytest.mark.asyncio

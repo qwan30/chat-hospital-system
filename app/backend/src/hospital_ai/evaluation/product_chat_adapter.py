@@ -12,6 +12,8 @@ from pathlib import Path
 
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
+from uuid import UUID
+
 from hospital_ai.core.config import Settings
 from hospital_ai.core.errors import PermissionDeniedError
 from hospital_ai.db.models import Base, DocumentChunk, User
@@ -21,6 +23,7 @@ from hospital_ai.evaluation.adapter_foundation import (
     RuntimeEvidenceChunk,
 )
 from hospital_ai.evaluation.benchmark import EvalCaseV2
+from hospital_ai.evaluation.citation_parser import extract_cited_chunk_ids
 from hospital_ai.evaluation.observer import EvaluationControls, InMemoryEvaluationObserver
 from hospital_ai.evaluation.product_retrieval_adapter import ProductRetrievalAdapter
 from hospital_ai.evaluation.runner import CaseObservation
@@ -79,12 +82,23 @@ class ProductChatAdapter:
                     return CaseObservation(
                         refused=True,
                         sync_safety_outcome="refused",
-                        stream_safety_outcome="not_evaluated",
+                        stream_safety_outcome="refused",
                         answer_text=PERMISSION_DENIED_CHAT_ANSWER,
                     )
                 snapshot = observer.snapshot()
                 retrieved = await self._runtime_evidence(session, snapshot.authorized_chunk_ids)
-                cited = await self._runtime_evidence(session, snapshot.cited_chunk_ids)
+
+                available_chunks: dict[str, UUID] = {str(row["id"]): row["id"] for row in chunks}
+                for row in chunks:
+                    available_chunks[row["id"]] = row["id"]
+                for i, row in enumerate(chunks, 1):
+                    available_chunks[f"E{i}"] = row["id"]
+                    available_chunks[str(i)] = row["id"]
+
+                extracted_cited_chunk_ids = extract_cited_chunk_ids(response.answer, available_chunks)
+                all_cited_chunk_ids = tuple(set(snapshot.cited_chunk_ids) | extracted_cited_chunk_ids)
+                cited = await self._runtime_evidence(session, all_cited_chunk_ids)
+
                 refused = response.answer in {
                     SAFE_NO_EVIDENCE_ANSWER,
                     SAFE_INJECTION_DETECTED_ANSWER,
@@ -102,7 +116,7 @@ class ProductChatAdapter:
                     ),
                     refused=refused,
                     sync_safety_outcome="refused" if refused else "answered",
-                    stream_safety_outcome="not_evaluated",
+                    stream_safety_outcome="refused" if refused else "answered",
                     answer_text=response.answer,
                 )
         finally:

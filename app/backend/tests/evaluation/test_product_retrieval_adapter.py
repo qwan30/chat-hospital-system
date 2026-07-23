@@ -240,6 +240,29 @@ async def test_adapter_excludes_forbidden_generation_evidence_for_source_backed_
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize("retrieval_mode", ["bm25", "hybrid"])
+async def test_lexical_retrieval_refuses_safe_no_evidence_without_returning_forbidden_source(
+    retrieval_mode: str,
+) -> None:
+    case = next(
+        case
+        for line in (BENCHMARK_DIR / "rag_sentinel_v2.jsonl").read_text(encoding="utf-8").splitlines()
+        for case in (EvalCaseV2.parse_raw(line),)
+        if case.category == "safe_refusal"
+    )
+    manifest = build_corpus_manifest(DATA_ROOT)
+    context = _context(manifest, actor_patient_ids=case.actor.allowed_patient_ids)
+
+    observation = await ProductRetrievalAdapter(
+        DATA_ROOT,
+        evidence_threshold=0.2,
+        retrieval_mode=retrieval_mode,
+    ).evaluate(case, context)
+
+    assert observation.retrieved_evidence == ()
+
+
+@pytest.mark.asyncio
 async def test_adapter_records_safe_refusal_when_actor_lacks_patient_scope(tmp_path: Path) -> None:
     patient_id = uuid.uuid4()
     locator = EvidenceLocator(source_path="patients_documents/patient.txt", page_number=1)

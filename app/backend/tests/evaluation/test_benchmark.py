@@ -61,6 +61,21 @@ def test_answer_cases_use_real_source_backed_facts(cases: tuple[EvalCaseV2, ...]
     assert all(len({locator.source_path for locator in case.allowed_evidence}) >= 2 for case in multi_document)
 
 
+def test_questions_use_source_fact_language_not_internal_ids_or_patient_uuids(
+    cases: tuple[EvalCaseV2, ...],
+) -> None:
+    for case in cases:
+        question = case.question.casefold()
+        assert str(case.patient_id) not in question
+        assert "canonical source" not in question
+        if case.answer_policy == "answer":
+            fact = next(fact for fact in case.expected_facts if len(fact.verification_terms) >= 2)
+            assert fact.fact_id not in question
+            assert any(term.casefold() in question for term in fact.verification_terms)
+        elif case.category == "safe_refusal":
+            assert case.absence_terms[0].casefold() in question
+
+
 def test_multi_document_facts_match_manifest_document_types(
     cases: tuple[EvalCaseV2, ...], manifest: CorpusManifestV2
 ) -> None:

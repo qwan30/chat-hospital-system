@@ -8,7 +8,7 @@ from pydantic import BaseModel, Field, StrictBool, StrictFloat, StrictInt
 
 
 class ClinicalField(BaseModel):
-    field_type: Literal["date", "dose", "number"]
+    field_type: Literal["date", "dose", "number", "mrn"]
     value: str
     span_start: int
     span_end: int
@@ -39,12 +39,65 @@ class OcrEngineStatus(BaseModel):
 
 
 class ScanVariant(BaseModel):
-    name: Literal["low_dpi", "skew", "blur", "noise"]
+    name: Literal[
+        "rot_90",
+        "rot_180",
+        "rot_270",
+        "low_res_72dpi",
+        "low_res_150dpi",
+        "blur_light",
+        "blur_heavy",
+        "noise_gaussian",
+        "contrast_low",
+        "skew_slight",
+        "low_dpi",
+        "skew",
+        "blur",
+        "noise",
+    ]
     seed: int
     width: int
     height: int
     sha256: str
     png_bytes: bytes
+
+    class Config:
+        frozen = True
+
+
+class ClinicalFieldMatchResult(BaseModel):
+    field_type: str
+    gold_value: str
+    extracted_value: str | None = None
+    exact_match: bool
+    normalized_match: bool
+    decimal_misread_risk: bool
+
+    class Config:
+        frozen = True
+
+
+class OcrVariantMetric(BaseModel):
+    variant_name: str
+    page_count: int
+    cer: float
+    wer: float
+    clinical_field_accuracy: float
+    decimal_misread_count: int
+    mean_latency_seconds: float
+
+    class Config:
+        frozen = True
+
+
+class OcrEvaluationSummary(BaseModel):
+    schema_version: Literal["2.0"] = "2.0"
+    gold_page_count: int
+    total_variants_evaluated: int
+    overall_cer: float
+    overall_wer: float
+    overall_clinical_accuracy: float
+    variant_metrics: tuple[OcrVariantMetric, ...]
 
     class Config:
         frozen = True

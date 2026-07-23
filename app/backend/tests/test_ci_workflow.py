@@ -75,9 +75,21 @@ def test_ai_evaluation_ci_uses_source_backed_runner_and_publishes_artifacts():
     assert "app/backend/evaluation-artifacts/deterministic/" in upload["with"]["path"]
 
     environment = evaluation["env"]
-    assert environment["AI_EVAL_COMPONENTS"] == (
-        "${{ github.event_name == 'pull_request' && 'corpus' || 'corpus,ocr,retrieval,graph,chat' }}"
-    )
+    assert "inputs.ai_eval_suite" in environment["AI_EVAL_SUITE"]
+    assert "inputs.ai_eval_components" in environment["AI_EVAL_COMPONENTS"]
+
+
+def test_manual_ai_evaluation_dispatch_accepts_bounded_suite_and_component_inputs():
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    workflow_path = os.path.abspath(os.path.join(current_dir, "..", "..", "..", ".github", "workflows", "ci.yml"))
+
+    with open(workflow_path, encoding="utf-8") as f:
+        workflow = f.read()
+
+    assert "ai_eval_suite:" in workflow
+    assert "type: choice" in workflow
+    assert "ai_eval_components:" in workflow
+    assert 'default: "corpus,retrieval,graph"' in workflow
 
 
 def test_live_ai_evaluation_is_manual_and_never_falls_back_to_mock_scores():

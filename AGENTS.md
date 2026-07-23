@@ -44,6 +44,10 @@ Git history is not available in this workspace, so no existing commit convention
 
 Pull requests should summarize the change, link the relevant requirement or test case from `docs/`, include screenshots for UI changes, and call out privacy, PHI, permission, or local-LLM impacts.
 
+## Git Branch Naming
+
+Use `<type>/<short-kebab-case>` branch names: `feat/`, `fix/`, `refactor/`, `docs/`, `test/`, `ci/`, or `chore/`. Include a date only when it disambiguates a time-bound initiative, for example `feat/full-ai-evaluation-platform-20260722`. Do not use agent or tool prefixes such as `codex/`.
+
 ## Security & Configuration Tips
 Do not commit secrets or real patient data. Local and development environments should use synthetic or de-identified data only. Keep PHI workflows local-first as documented, and filter permissions before retrieval context reaches the LLM.
 
@@ -128,7 +132,7 @@ Before ending a substantial Khuym work chunk:
 <!-- gitnexus:start -->
 # GitNexus — Code Intelligence
 
-This project is indexed by GitNexus as **chat-hospital-system** (84536 symbols, 213797 relationships, 300 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
+This project is indexed by GitNexus as **chat-hospital-system** (9610 symbols, 16531 relationships, 300 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
 
 > Index stale? Run `node .gitnexus/run.cjs analyze` from the project root — it auto-selects an available runner. No `.gitnexus/run.cjs` yet? `npx gitnexus analyze` (npm 11 crash → `npm i -g gitnexus`; #1939).
 

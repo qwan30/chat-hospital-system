@@ -737,3 +737,13 @@ def test_graph_multi_hop_path_normalization() -> None:
     paths = ProductGraphAdapter._path_ids(relations)
     expected_path = "patient:mrn-0001|has_observation|analyte:potassium>>analyte:potassium|has_status|status:normal"
     assert expected_path in paths
+
+
+def test_cli_accepts_llm_judge_provider_flag(tmp_path: Path) -> None:
+    cli = _load_cli()
+    output_dir = tmp_path / "artifacts"
+    result = cli.main(
+        ["--components", "chat", "--output-dir", str(output_dir), "--llm-judge-provider", "gemini", "--suite", "smoke"]
+    )
+    assert result == 1
+    assert (output_dir / "run.json").exists()

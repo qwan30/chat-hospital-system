@@ -84,6 +84,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--data-root", type=Path, default=DEFAULT_DATA_ROOT)
     parser.add_argument("--benchmark-dir", type=Path, default=DEFAULT_BENCHMARK_DIR)
     parser.add_argument("--retrieval-mode", choices=("vector", "bm25", "hybrid", "graph"), default="vector")
+    parser.add_argument("--llm-judge-provider", choices=("gemini", "local", "stub"), default="stub")
     try:
         args = parser.parse_args(argv)
         components = _parse_components(args.components)
@@ -104,6 +105,7 @@ def main(argv: list[str] | None = None) -> int:
         data_root=args.data_root,
         benchmark_dir=args.benchmark_dir,
         retrieval_mode=args.retrieval_mode,
+        llm_judge_provider=args.llm_judge_provider,
         environment=os.environ,
         git_sha=_git_sha(),
     )

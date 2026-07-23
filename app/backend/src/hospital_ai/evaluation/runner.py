@@ -56,6 +56,7 @@ class EvaluationConfig:
     data_root: Path
     benchmark_dir: Path
     retrieval_mode: str = "vector"
+    llm_judge_provider: str = "stub"
     environment: Mapping[str, str] = field(default_factory=lambda: os.environ)
     git_sha: str = "unknown"
     clock: Callable[[], str] = lambda: time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
@@ -234,6 +235,7 @@ def _evaluate_observation(
     component: str,
     observation: CaseObservation,
     resolver: SourceEvidenceResolver,
+    llm_judge_provider: str = "stub",
 ) -> CaseResult:
     resolver = resolver.for_case(case)
     allowed_ids = {resolver.evidence_id(locator) for locator in case.allowed_evidence}
@@ -271,6 +273,19 @@ def _evaluate_observation(
     citations = citation_metrics(cited_ids, allowed_ids)
     facts = fact_coverage({fact.fact_id for fact in case.expected_facts}, set(observation.covered_fact_ids))
     retrieval = retrieval_metrics(ranked_retrieved_ids, allowed_ids, k=5)
+
+    faithfulness = 1.0
+    relevance = 1.0
+    if component == "chat":
+        from hospital_ai.evaluation.llm_judge import LLMJudge
+
+        verification_terms = tuple(term for fact in case.expected_facts for term in fact.verification_terms)
+        context_text = " ".join(fact.statement for fact in case.expected_facts) or case.question
+        judge = LLMJudge(provider=llm_judge_provider)
+        score = judge.evaluate(case.question, context_text, observation.answer_text, verification_terms)
+        faithfulness = score.faithfulness
+        relevance = score.relevance
+
     checks = (
         _gate(
             "zero_unauthorized_evidence",
@@ -329,6 +344,8 @@ def _evaluate_observation(
         "citation_recall": citations.recall,
         "fact_coverage": facts.accuracy,
         "critical_field_accuracy": fields.accuracy,
+        "faithfulness": faithfulness,
+        "relevance": relevance,
         "safety_leaks": leaks.total,
     }
     if component == "graph" and case.graph is not None:
@@ -370,6 +387,7 @@ async def _evaluate_adapter_case(
     component: str,
     resolver: SourceEvidenceResolver,
     isolation: EvaluatorIsolationConfig,
+    llm_judge_provider: str = "stub",
 ) -> CaseResult:
     resolver = resolver.for_case(case)
     context = EvaluationCaseContext(
@@ -382,7 +400,7 @@ async def _evaluate_adapter_case(
         observation = await pending if inspect.isawaitable(pending) else pending
         if not isinstance(observation, CaseObservation):
             raise TypeError("adapter must return CaseObservation")
-        return _evaluate_observation(case, component, observation, resolver)
+        return _evaluate_observation(case, component, observation, resolver, llm_judge_provider=llm_judge_provider)
     except Exception as error:  # Adapter failures are evidence, never a passing fallback.
         gate = _gate(
             "evaluation_adapter_execution",
@@ -406,12 +424,17 @@ async def _evaluate_adapter_cases(
     component: str,
     resolver: SourceEvidenceResolver,
     isolation: EvaluatorIsolationConfig,
+    llm_judge_provider: str = "stub",
 ) -> tuple[CaseResult, ...]:
     """Run adapter cases serially on one loop to bound local DB and memory use."""
 
     results = []
     for case in cases:
-        results.append(await _evaluate_adapter_case(adapter, case, component, resolver, isolation))
+        results.append(
+            await _evaluate_adapter_case(
+                adapter, case, component, resolver, isolation, llm_judge_provider=llm_judge_provider
+            )
+        )
     return tuple(results)
 
 
@@ -591,7 +614,9 @@ async def run_evaluation_async(
             if component == "graph":
                 component_cases = tuple(case for case in selected if case.graph is not None)
                 gates.append(_graph_case_coverage_gate(component_cases))
-            evaluated = await _evaluate_adapter_cases(adapter, component_cases, component, resolver, isolation)
+            evaluated = await _evaluate_adapter_cases(
+                adapter, component_cases, component, resolver, isolation, llm_judge_provider=config.llm_judge_provider
+            )
             results.extend(evaluated)
             gates.extend(gate for result in evaluated for gate in result.gates)
             if component == "retrieval":

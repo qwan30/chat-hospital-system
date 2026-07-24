@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Literal
 
-from pydantic import BaseModel, Field, StrictBool, StrictFloat, StrictInt
+from pydantic import BaseModel, ConfigDict, Field, StrictBool, StrictFloat, StrictInt
 
 
 class ClinicalField(BaseModel):
@@ -163,3 +163,40 @@ class RunManifest(BaseModel):
 
     class Config:
         frozen = True
+
+
+class MetricDriftComparison(BaseModel):
+    model_config = ConfigDict(frozen=True)
+
+    metric_name: str
+    baseline_value: float
+    candidate_value: float
+    delta: float
+    tolerance: float
+    higher_is_better: bool = True
+    hard_gate_min: float | None = None
+    hard_gate_max: float | None = None
+    status: Literal["passed", "failed_drift", "failed_hard_gate"]
+
+
+class DriftViolation(BaseModel):
+    model_config = ConfigDict(frozen=True)
+
+    metric_name: str
+    violation_type: Literal["hard_gate", "relative_drift"]
+    baseline_value: float
+    candidate_value: float
+    message: str
+
+
+class DriftGateResult(BaseModel):
+    model_config = ConfigDict(frozen=True)
+
+    verdict: Literal["GO", "NO-GO"]
+    passed: bool
+    total_metrics_evaluated: int
+    violation_count: int
+    violations: tuple[DriftViolation, ...]
+    comparisons: tuple[MetricDriftComparison, ...]
+    git_sha_baseline: str
+    git_sha_candidate: str

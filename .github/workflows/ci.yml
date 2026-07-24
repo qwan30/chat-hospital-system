@@ -395,6 +395,19 @@ jobs:
           print("Sentinel review is pending; artifact recorded. Release lanes remain blocked.")
           PY
 
+      - name: Verify AI Baseline Regression & Drift Gate
+        if: always()
+        run: |
+          if [ -f "evaluation-artifacts/deterministic/summary.json" ]; then
+            python scripts/verify_ai_regression.py \
+              --candidate evaluation-artifacts/deterministic/summary.json \
+              --baseline data/evaluation/baselines/baseline-release.json \
+              --output-report evaluation-artifacts/deterministic/drift_report.json \
+              --github-summary
+          else
+            echo "Candidate evaluation-artifacts/deterministic/summary.json not found; skipping drift gate check."
+          fi
+
       - name: Upload deterministic AI evaluation artifacts
         if: always()
         uses: actions/upload-artifact@v4

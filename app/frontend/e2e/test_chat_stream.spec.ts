@@ -14,8 +14,11 @@ test.describe("Chat Stream Flow - QA/QC Phase 5", () => {
     });
     await page.waitForTimeout(1000);
 
-    // Verify chat landing loaded
-    await expect(page.getByRole("heading", { name: "Eleanor Vance" })).toBeVisible({
+    // Verify chat landing loaded. The page renders the patient name in two
+    // headings ("Patient Context: <name>" in the rail and "<name>" in the
+    // header), so an unanchored name match is a strict-mode violation rather
+    // than a real failure -- scope to the patient-context heading explicitly.
+    await expect(page.getByRole("heading", { name: /^Patient Context:/ })).toBeVisible({
       timeout: 15_000,
     });
 

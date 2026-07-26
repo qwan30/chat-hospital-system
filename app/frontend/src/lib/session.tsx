@@ -25,6 +25,18 @@ export interface Session {
   token?: string | null;
 }
 
+/**
+ * Shape written to localStorage. Deliberately excludes `token`: bearer tokens
+ * are memory-only (see lib/api-client `persistToken`) so an XSS cannot read
+ * them out of storage. On rehydrate the dev token is re-derived from `role`
+ * by `buildSession`. A legacy/E2E-seeded payload carrying `token` is accepted
+ * and the field is ignored.
+ */
+interface PersistedSession {
+  role: Role;
+  workspaceId?: string;
+}
+
 interface SessionContextValue {
   session: Session | null;
   hydrated: boolean;
@@ -83,15 +95,12 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       try {
         const raw = localStorage.getItem(STORAGE_KEY);
         if (raw) {
-          const parsed = JSON.parse(raw) as Session;
+          const parsed = JSON.parse(raw) as PersistedSession;
           if (parsed && parsed.role) {
-            // Re-hydrate full session object with latest mock data + token fallback
-            const hydratedSession = buildSession(
-              parsed.role,
-              parsed.workspace?.id,
-              parsed.isRealAuth,
-              parsed.token,
-            );
+            // Re-hydrate full session object with latest mock data. The token is
+            // intentionally not read from storage; buildSession re-derives it
+            // from the role.
+            const hydratedSession = buildSession(parsed.role, parsed.workspaceId);
             setSession(hydratedSession);
             if (hydratedSession.token) {
               persistToken(hydratedSession.token);
@@ -110,7 +119,10 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     if (s) {
       localStorage.setItem(
         STORAGE_KEY,
-        JSON.stringify({ role: s.role, workspaceId: s.workspace.id, token: s.token }),
+        JSON.stringify({
+          role: s.role,
+          workspaceId: s.workspace.id,
+        } satisfies PersistedSession),
       );
     } else {
       localStorage.removeItem(STORAGE_KEY);

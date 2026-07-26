@@ -216,6 +216,16 @@ sequenceDiagram
 
 ## 🔄 CI/CD Pipeline
 
+> **Note on the `main` build status.** Pull requests run the evaluation `smoke` suite and
+> pass. Pushes to `main` and the nightly schedule run the **`release`** suite, which enforces
+> `sentinel_independent_review` — *50 sentinel cases approved by two independent reviewers
+> with no unresolved issues*. That human review is still outstanding, so the
+> `rag-evaluation` job fails **by design** rather than passing by skip. Every other job
+> (CodeQL ×2, backend tests, migrations, frontend, observability, Docker) is green.
+> This is a deliberate quality gate, not a broken pipeline — see
+> [`evaluation/runner.py`](app/backend/src/hospital_ai/evaluation/runner.py) and
+> [`rag_sentinel_v2.jsonl`](app/backend/data/evaluation/rag_sentinel_v2.jsonl).
+
 ```mermaid
 graph LR
     subgraph "Trigger"

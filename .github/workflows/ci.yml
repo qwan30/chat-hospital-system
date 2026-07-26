@@ -546,7 +546,9 @@ jobs:
           # Wait for background tasks and fail if any exits with error
           wait $LINT_PID || (echo "ESLint check failed" && exit 1)
           wait $TYPECHECK_PID || (echo "TypeScript type check failed" && exit 1)
-          wait $TEST_PID || echo "Vitest unit tests failed (advisory)"
+          # Blocking: the suite passes locally (13 files / 90 tests), so a
+          # failure here is a real regression, not environment drift.
+          wait $TEST_PID || (echo "Vitest unit tests failed" && exit 1)
 
       - name: Production build
         env:
@@ -706,6 +708,21 @@ jobs:
               echo "" >> "$GITHUB_STEP_SUMMARY"
               echo "⚠️ Docker/Trivy & Frontend E2E: advisory — does not block merge" >> "$GITHUB_STEP_SUMMARY"
             fi
+
+            # The release lane requests every evaluation component and holds a
+            # sentinel gate that needs two independent human reviewers. Until
+            # that review is recorded, a red `rag-evaluation` on main is the
+            # gate working as designed, not a broken pipeline. Say so here so
+            # nobody has to dig through logs to find out.
+            if [[ "${{ needs.rag-evaluation.result }}" == "failure" && "${{ github.event_name }}" != "pull_request" ]]; then
+              echo "" >> "$GITHUB_STEP_SUMMARY"
+              echo "### ℹ️ About the \`rag-evaluation\` failure" >> "$GITHUB_STEP_SUMMARY"
+              echo "The release lane runs the full component set and enforces \`sentinel_independent_review\`:" >> "$GITHUB_STEP_SUMMARY"
+              echo "**50 sentinel cases approved by two independent reviewers with no unresolved issues.**" >> "$GITHUB_STEP_SUMMARY"
+              echo "That review is still outstanding, so this gate fails honestly rather than passing by skip." >> "$GITHUB_STEP_SUMMARY"
+              echo "See \`docs/09-testing/\` and \`app/backend/data/evaluation/rag_sentinel_v2.jsonl\`." >> "$GITHUB_STEP_SUMMARY"
+            fi
+
             echo "" >> "$GITHUB_STEP_SUMMARY"
             echo "❌ **Some jobs failed.** Check the logs above." >> "$GITHUB_STEP_SUMMARY"
             exit 1

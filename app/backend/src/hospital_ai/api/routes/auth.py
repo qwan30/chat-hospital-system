@@ -1,9 +1,10 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from hospital_ai.api.deps import get_current_user, get_session
+from hospital_ai.api.limiter import limiter
 from hospital_ai.core.config import Settings, get_settings
 from hospital_ai.db.models import User
 from hospital_ai.schemas.auth import TokenResponse, UserRead
@@ -11,8 +12,13 @@ from hospital_ai.schemas.auth import TokenResponse, UserRead
 router = APIRouter()
 
 
+# Brute-force protection: this endpoint authenticates credentials, so it needs a
+# tighter limit than the global default. slowapi requires `request` to derive the
+# client key, and FastAPI injects it automatically.
 @router.post("/token", response_model=TokenResponse)
+@limiter.limit("10/minute")
 async def login_for_access_token(
+    request: Request,
     form_data: OAuth2PasswordRequestForm = Depends(),
     session: AsyncSession = Depends(get_session),
     settings: Settings = Depends(get_settings),

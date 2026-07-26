@@ -142,4 +142,20 @@ def create_app(settings: Optional[Settings] = None) -> FastAPI:
             content={"error": exc.code, "message": exc.message, "metadata": exc.metadata},
         )
 
+    @app.on_event("startup")
+    async def _warm_up_guardrails() -> None:
+        """Load guardrail models off the request path.
+
+        The prompt-injection scanner takes ~5s to load on first use, which
+        exceeds its own 3s scan timeout -- so the first question after every
+        start was refused as a "security policy violation" despite being safe.
+        Runs in an executor so startup is not blocked; if it fails, the scan
+        path still works (just cold) and stays fail-closed.
+        """
+        import asyncio
+
+        from hospital_ai.services.guardrails import warm_up_guardrails
+
+        asyncio.get_running_loop().run_in_executor(None, warm_up_guardrails)
+
     return app

@@ -4,14 +4,15 @@ This folder separates executable application code from the root documentation pa
 
 | Folder | Purpose |
 |---|---|
-| `frontend/` | Next.js 16, React 19, TypeScript, Tailwind v4, shadcn-style UI. |
+| `frontend/` | TanStack Start (Vite 8), React 19, TypeScript, Tailwind v4, shadcn/ui. Package manager: **Bun**. |
 | `backend/` | FastAPI, SQLAlchemy, PostgreSQL/SQLite dev support, OCR/indexing hooks, permission-filtered RAG, shared chat threads, general knowledge answers, and HMS appointment evidence import. |
 
 Use `app/frontend` as the working directory for frontend commands:
 
 ```bash
 cd app/frontend
-npm run dev
+bun install
+bun run dev
 ```
 
 Use `app/backend` as the working directory for backend commands:

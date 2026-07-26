@@ -102,9 +102,23 @@ async def run_cdss_analysis(session: AsyncSession, document_id: uuid.UUID) -> No
 
         # 5. Save alerts
         for alert_info in alerts_data:
-            severity = alert_info.get("severity", "low").lower()
-            if severity not in ("low", "medium", "high"):
-                severity = "low"
+            # ClinicalAlert.severity is constrained to low/medium/high by
+            # ck_clinical_alerts_severity. An unrecognised value means the model
+            # returned something we cannot interpret -- including escalations
+            # like "critical" or "severe", which the prompt does not ask for but
+            # models emit anyway. Fall back to "high" rather than "low": an
+            # uninterpretable clinical severity must not be silently downgraded
+            # to the value a clinician triages last.
+            raw_severity = str(alert_info.get("severity", "")).strip().lower()
+            if raw_severity in ("low", "medium", "high"):
+                severity = raw_severity
+            else:
+                severity = "high"
+                logger.warning(
+                    "CDSS returned unrecognised severity %r for document %s; escalating to 'high'",
+                    raw_severity,
+                    document_id,
+                )
 
             alert = ClinicalAlert(
                 patient_id=document.patient_id,

@@ -1,3 +1,4 @@
+import logging
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Request
@@ -17,6 +18,8 @@ from hospital_ai.services.hms_appointments import (
 )
 from hospital_ai.services.hms_sync import HmsSyncService
 from hospital_ai.services.permissions import PermissionService
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -246,13 +249,21 @@ async def sync_patient(
             outcome="allowed",
             trace_id=trace_id,
             ip_address=get_request_ip(request),
-            metadata={"error": str(exc)},
+            # Record the exception class, not str(exc): httpx failures embed the
+            # internal HMS host and port, which does not belong in an audit row.
+            metadata={"error_type": type(exc).__name__},
         )
         await session.commit()
+        # Correlate via trace_id only. patient_id is a user-supplied path
+        # parameter and, in a clinical system, an identifier that does not
+        # belong in clear-text logs -- the same reason permissions.py logs
+        # patient=[REDACTED]. The audit row above already carries patient_id
+        # in a store that is access-controlled; the log does not need it.
+        logger.exception("HMS patient sync failed trace_id=%s", trace_id)
         return HmsSyncResponse(
             patient_id=patient_id,
             synced={"appointments": 0, "lab_results": 0, "medical_records": 0, "total": 0},
-            message=f"HMS sync failed, background retry enqueued. Error: {str(exc)}",
+            message=f"HMS sync failed, background retry enqueued. Trace ID: {trace_id}",
         )
 
     await AuditService(session).record(

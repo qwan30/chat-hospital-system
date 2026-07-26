@@ -1,3 +1,4 @@
+import os
 import sys
 import uuid
 from collections.abc import AsyncIterator
@@ -6,6 +7,17 @@ from pathlib import Path
 import pytest
 import pytest_asyncio
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+
+# Rate limiting is fail-closed (enabled unless TESTING opts out), and
+# hospital_ai.api.limiter reads this at import time — so it must be set
+# before any hospital_ai module is imported below.
+os.environ.setdefault("TESTING", "true")
+
+# Match the CI backend-test job (ci.yml sets HOSPITAL_AI_DISABLE_GUARDRAILS=true).
+# The guardrail scanners are ONNX models that take ~4-8s per scan on CPU; running
+# them for real makes the suite slow and timing-dependent. Tests that exercise
+# guardrail behaviour patch the scanners directly instead.
+os.environ.setdefault("HOSPITAL_AI_DISABLE_GUARDRAILS", "true")
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))  # noqa: E402

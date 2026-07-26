@@ -16,6 +16,12 @@ class Settings(BaseSettings):
     enable_break_glass: bool = False
     demo_mode: bool = True
     disable_guardrails: bool = False
+    # Seconds allowed for an llm-guard scan before the guardrail fails closed.
+    # The prompt-injection model takes ~4s per scan on CPU, so the previous
+    # hardcoded 3.0 timed out on every request and refused safe questions as
+    # "security policy violations". Raise this on slow hardware rather than
+    # disabling guardrails outright.
+    guardrail_timeout_seconds: float = 15.0
 
     otel_enabled: bool = False
     otel_exporter_otlp_endpoint: str = "http://localhost:4318"

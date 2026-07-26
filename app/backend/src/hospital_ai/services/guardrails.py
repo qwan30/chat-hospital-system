@@ -54,7 +54,9 @@ class InputGuardrail:
         if get_settings().disable_guardrails or not _LLM_GUARD_AVAILABLE:
             return GuardrailResult(blocked=False, reason="")
         try:
-            return await asyncio.wait_for(asyncio.to_thread(self._scan_sync, prompt), timeout=3.0)
+            return await asyncio.wait_for(
+                asyncio.to_thread(self._scan_sync, prompt), timeout=get_settings().guardrail_timeout_seconds
+            )
         except Exception as e:
             logger.warning("InputGuardrail scanner timed out or failed: %s", e)
             return GuardrailResult(blocked=True, reason="Safe refusal: Guardrail system unavailable or timed out")
@@ -79,7 +81,10 @@ class OutputGuardrail:
         if get_settings().disable_guardrails or not _LLM_GUARD_AVAILABLE:
             return GuardrailResult(blocked=False, reason="")
         try:
-            return await asyncio.wait_for(asyncio.to_thread(self._scan_sync, prompt, output), timeout=3.0)
+            return await asyncio.wait_for(
+                asyncio.to_thread(self._scan_sync, prompt, output),
+                timeout=get_settings().guardrail_timeout_seconds,
+            )
         except Exception as e:
             logger.warning("OutputGuardrail scanner timed out or failed: %s", e)
             return GuardrailResult(blocked=True, reason="Safe refusal: Guardrail system unavailable or timed out")
@@ -94,6 +99,34 @@ def get_input_guardrail() -> InputGuardrail:
     if _input_guardrail_instance is None:
         _input_guardrail_instance = InputGuardrail()
     return _input_guardrail_instance
+
+
+def warm_up_guardrails() -> bool:
+    """Load the scanner models before the first real request.
+
+    The guardrails are singletons that lazily construct their ML scanners, and
+    the prompt-injection model takes ~5s to load from disk the first time. That
+    exceeds the 3s scan timeout, and because the guardrail fails closed, the
+    very first question after every server start was refused with a "security
+    policy violation" -- even though the scanner ultimately judged it safe.
+
+    Warming up on startup keeps the timeout (and the fail-closed posture) intact
+    while removing the cold-start penalty. Returns True if the models are ready.
+    """
+    if not _LLM_GUARD_AVAILABLE or get_settings().disable_guardrails:
+        return False
+    try:
+        # Constructing the singletons loads the models; a trivial scan forces
+        # the tokenizer and pipeline to initialise too.
+        get_input_guardrail()._scan_sync("warmup")
+        get_output_guardrail()
+        logger.info("Guardrail scanners warmed up")
+        return True
+    except Exception:
+        # Never block startup on warm-up: the scan path still works (just cold),
+        # and its own timeout plus fail-closed behaviour remain in force.
+        logger.warning("Guardrail warm-up failed; first request may be slower", exc_info=True)
+        return False
 
 
 def get_output_guardrail() -> OutputGuardrail:

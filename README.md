@@ -594,6 +594,33 @@ accounts exist only against synthetic data and are refused outside `HOSPITAL_AI_
 | 🔒 Security | `security@example.test` | `demo` | `dev-security` |
 | ⚙️ Admin | `admin@example.test` | `demo` | `dev-admin` |
 
+### Before a live demo
+
+The prompt-injection and topic-ban scanners are ONNX models that run on CPU. Measured on
+a dev laptop: **~7.8s** for the first input scan and **~4.4s** for the first output scan,
+settling to **~4s per chat turn** once warm. The app warms the models on startup
+(`warm_up_guardrails`), but the very first chat still pays model-load cost.
+
+Measured end-to-end chat latency: **22.5s cold → 5.7s → 4.0s warm**.
+
+So: **start the backend and send one throwaway question before presenting.** Watch for
+`Guardrail scanners warmed up` in the log, then verify with:
+
+```bash
+curl -s -X POST http://127.0.0.1:8000/api/v1/chat \
+  -H "Authorization: Bearer dev-doctor" -H "Content-Type: application/json" \
+  -d '{"question":"List the current medications","patient_id":"20000000-0000-0000-0000-000000000001","top_k":3}'
+```
+
+A healthy response has `"pipeline":"simple_qa"` and a non-empty `citations` array. If you
+see `"pipeline":"blocked"` with *"security policy violation"*, the guardrail scan exceeded
+`HOSPITAL_AI_GUARDRAIL_TIMEOUT_SECONDS` (default 15s) and failed closed — raise it rather
+than disabling guardrails. Setting `HOSPITAL_AI_DISABLE_GUARDRAILS=true` removes the delay
+but also removes the prompt-injection defence that is worth demonstrating.
+
+Note `HOSPITAL_AI_CHAT_PROVIDER=stub` in `.env` returns canned answers. Point it at
+`ollama` or `openai` if you want the LLM path live.
+
 ---
 
 ## 🧪 Testing & Quality

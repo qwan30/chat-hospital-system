@@ -77,8 +77,22 @@ Use `<type>/<short-kebab-case>` branch names: `feat/`, `fix/`, `refactor/`, `doc
 - **TypeScript**: Function components with named exports, PascalCase for components, camelCase for local variables.
 - **Python**: PEP 8 compliance, async handlers for routes, Pydantic v1 models (FastAPI 0.95+ dependency).
 - **Clean Architecture**: Domain exceptions in `exceptions.py` (no FastAPI imports), providers abstract interfaces in `interfaces.py`.
-- **Security Policy**:
-  - JWT RBAC/ABAC role filtering in DB layer (`WHERE role_can_access = true` join queries) before retrieval.
-  - Citation validation: every LLM citation cross-checked against actual document chunks.
-  - Audit logging for all unauthorized or PHI queries.
-  - Bearer tokens only stored in React memory, never persisted to localStorage.
+- **Security Policy** (describes what the code actually does — keep it that way):
+  - **Patient-scope ABAC is enforced in SQL**: retrieval joins an active-permission subquery
+    in the `WHERE` clause (`services/retrieval.py`, `services/permissions.py`), so
+    unauthorized patient chunks never leave the database. Expiry- and soft-delete-aware.
+  - **Role filtering runs in Python after retrieval** (`services/retrieval.py:76-112`,
+    `_apply_role_filters`). There is no `role_can_access` column. It executes *after*
+    `LIMIT :top_k`, so a filtered result set can be smaller than `top_k` — account for that
+    when tuning retrieval recall.
+  - **Citation validation is enforced twice**: inside the pipeline (`services/reasoning.py`)
+    and again at the service boundary (`services/chat.py`), which additionally rejects
+    answers containing zero citations.
+  - Audit logging covers access, denial, query, and config-change events. Use
+    `core/security.py:sanitize_audit_query` for anything user-authored — never write raw
+    clinical free text into audit metadata.
+  - **Rate limiting is fail-closed**: `api/limiter.py` enables limits unless `TESTING=true`
+    is set explicitly. Never reintroduce a default that disables it.
+  - Bearer tokens are currently persisted to `localStorage` (`lib/session.tsx`). This is a
+    known XSS exposure kept for demo convenience; moving to in-memory storage plus an
+    httpOnly refresh cookie is tracked as future work.

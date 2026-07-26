@@ -173,7 +173,7 @@ graph TB
 
 ## 🔐 Permission-First RAG Flow
 
-This sequence diagram shows how the system ensures **zero PHI leakage** by filtering document access at the database query level before any context reaches the LLM:
+This sequence diagram shows the two-stage authorization applied before any context reaches the LLM. **Patient-scope permissions are enforced in the SQL `WHERE` clause**, so chunks the user has no grant for never leave the database. A second **role-scope filter runs in Python after retrieval** (`_apply_role_filters`) — note it executes *after* `LIMIT :top_k`, so a filtered result set can be smaller than the requested `top_k`:
 
 ```mermaid
 sequenceDiagram
@@ -190,11 +190,13 @@ sequenceDiagram
     A->>A: Validate JWT token
     A->>R: Extract role + patient context
     R->>R: Check RBAC permissions
-    R->>V: Query with role filter (SQL JOIN)
+    R->>V: Query with patient-scope filter (SQL JOIN)
 
-    Note over V: WHERE role_can_access = true<br/>AND patient_in_scope = true
+    Note over V: WHERE EXISTS (active permission grant)<br/>AND patient_id = :patient_id<br/>expiry- and soft-delete-aware
 
-    V-->>C: Return permitted chunks only
+    V-->>R: Patient-authorized chunks
+    R->>R: Apply role scope filter (Python, post-query)
+    R-->>C: Return permitted chunks only
 
     Note over C: Assemble safe context<br/>from verified sources
 
@@ -406,8 +408,9 @@ xychart-beta
 | **Evaluation evidence** | `run.json`, `cases.jsonl`, `junit.xml`, `summary.md` | ✅ Produced by each evaluation-runner invocation |
 | **REST API surface** | 35+ route decorators, 28 OpenAPI paths | ℹ️ Repository inventory; not a production-traffic claim |
 | **Database schema** | 14 tables, 7 Alembic migrations | ℹ️ Repository inventory; migration execution is environment-specific |
-| **Frontend components** | 60+ React components (shadcn/ui) | ℹ️ Repository inventory |
-| **E2E test suites** | 3 Playwright suites (business flow, CDSS flow, and related coverage) | 🟠 Must be verified in the target environment before a release claim |
+| **Frontend components** | 83 React components (26 domain, 6 shell, 51 shadcn/ui) | ℹ️ Repository inventory |
+| **Backend test suite** | 549 Pytest tests (546 passing, 3 skipped) | ✅ Verified locally; see CI for the current run |
+| **E2E test suites** | 13 Playwright specs (auth, RBAC, business flow, CDSS, chat, graph, accessibility) | 🔴 Written but **not executed in CI** — the job needs a backend service container (gh#123) |
 | **CI/CD workflows** | 5 pipelines (CI, CD, Security, Rollback, Dependabot) | ℹ️ Workflow inventory; check the current GitHub run for status |
 | **Code quality** | Ruff + ESLint + TypeScript strict | ✅ Focused evaluation checks are recorded; no blanket “zero errors” claim |
 
@@ -554,7 +557,7 @@ cd app/frontend
 bun install
 bun run dev
 ```
-UI: http://localhost:3000
+UI: http://localhost:3000 (Vite dev server; the Docker image serves on **8082**)
 
 ### 4. Full Production Stack
 ```bash
@@ -565,19 +568,27 @@ docker compose -f infra/docker-compose.yml -f infra/docker-compose.observability
 
 ### Demo Accounts
 
-| Role | Email | Password |
-|------|-------|----------|
-| 👨‍⚕️ Doctor | `doctor@hospital.vn` | `Doctor@1234` |
-| 👩‍⚕️ Nurse | `nurse@hospital.vn` | `Nurse@1234` |
-| 💊 Pharmacist | `pharmacist@hospital.vn` | `Pharma@1234` |
-| ⚙️ Admin | `admin@hospital.vn` | `Admin@1234` |
+Synthetic local-only accounts seeded by `scripts/seed_dev.py`. **All roles share the
+password `demo`** — `/auth/token` is a portfolio stub that checks for that literal and
+returns a static dev token; there is no password hashing or credential store. These
+accounts exist only against synthetic data and are refused outside `HOSPITAL_AI_ENVIRONMENT=local`
+(audit finding F-SEC-001).
+
+| Role | Email | Password | Static token |
+|------|-------|----------|--------------|
+| 👨‍⚕️ Doctor | `doctor@example.test` | `demo` | `dev-doctor` |
+| 👩‍⚕️ Nurse | `nurse@example.test` | `demo` | `dev-nurse` |
+| 💊 Pharmacist | `pharmacist@example.test` | `demo` | `dev-pharmacist` |
+| 📁 Records | `records@example.test` | `demo` | `dev-records` |
+| 🔒 Security | `security@example.test` | `demo` | `dev-security` |
+| ⚙️ Admin | `admin@example.test` | `demo` | `dev-admin` |
 
 ---
 
 ## 🧪 Testing & Quality
 
 ```bash
-# Backend — 250+ Pytest tests
+# Backend — 549 Pytest tests (546 pass, 3 skipped)
 cd app/backend && python -m pytest tests/ -v --tb=short
 
 # Backend — deterministic source-backed PR sentinel contract (not product scoring)
@@ -646,9 +657,9 @@ Configurations in [`infra/observability/`](infra/observability/) — Prometheus 
 
 - **PHI Protection**: Permission filters applied at SQL JOIN level before LLM context assembly — zero PHI leakage to unauthorized roles
 - **Citation Validation**: Every LLM response verified against source database before streaming to client — hallucination detection blocks fabricated references
-- **Authentication**: JWT access tokens with role-based claims, token refresh, httpOnly cookie support
+- **Authentication**: JWT bearer validation with pinned algorithm, issuer/audience checks, and expiry enforcement (`services/jwt_auth.py`). ⚠️ The demo login endpoint is a **portfolio stub** — it accepts the literal password `demo` and returns a static token; password hashing, refresh rotation, and httpOnly cookies are documented as future work, not implemented
 - **Authorization**: RBAC with ABAC overlay — 7 roles with scoped patient permissions enforced at API gateway + RAG retrieval layers
-- **Rate Limiting**: Configurable per-endpoint rate limits via slowapi — public endpoints protected, streaming endpoints exempted
+- **Rate Limiting**: Per-endpoint limits via slowapi, enabled by default and fail-closed — login `10/min`, chat `10/min`, streaming `5/min`, search `20/min`, access requests `3/min`, global default `60/min`. Disabled only when `TESTING=true` is set explicitly (test suite and local dev)
 - **Audit Trail**: Every access, denial, query, and config change logged with user ID + timestamp — 100% coverage on sensitive operations
 - **Container Scanning**: Trivy scans on every CI push (CRITICAL+HIGH severity) + weekly scheduled full scan (CRITICAL,HIGH,MEDIUM)
 - **Secret Detection**: TruffleHog weekly scan across full git history + Bandit SAST for Python source code
@@ -696,6 +707,10 @@ This project is a **portfolio demonstration**, not a certified medical device. T
 
 | Area | Current Status | Future Plan |
 |------|---------------|-------------|
+| **Login / Credentials** | `/auth/token` is a stub: accepts the literal password `demo` and returns a static, non-expiring token. JWT *validation* is real; JWT *issuance* is not | Password hashing (argon2), real token minting, refresh rotation, revocation |
+| **Token Storage** | Bearer token is persisted to `localStorage` (`lib/session.tsx`) — an XSS exposure kept for demo convenience | Move to in-memory state plus an httpOnly refresh cookie |
+| **CDSS Alert Grounding** | Clinical alerts are written from raw LLM JSON with no citation or confidence gate — unlike the chat path, which enforces citation validation twice | Apply the same evidence-grounding contract to the CDSS worker |
+| **E2E in CI** | 13 Playwright specs exist but do not run in CI — the job needs a backend service container (gh#123) | Add a backend service to the frontend CI job and make E2E blocking |
 | **PHI Redaction** | Not implemented — UI honestly states "PHI redaction is planned for production hardening" | Implement NER-based PHI detection before embedding pipeline |
 | **Break-Glass Emergency Access** | Disabled by default (`ENABLE_BREAK_GLASS=false`) — treated as planned/future | Implement with justification, expiry, audit trail, and mandatory review |
 | **Session-Only Attachments** | All uploaded files go to the knowledge base — session-only temp files are planned | Add ephemeral document scope that expires with the chat thread |

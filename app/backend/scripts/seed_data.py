@@ -40,9 +40,19 @@ FRONT_DESK_ID = uuid.UUID("10000000-0000-0000-0000-000000000007")
 
 PATIENT_ALICE_ID = uuid.UUID("20000000-0000-0000-0000-000000000001")
 PATIENT_BOB_ID = uuid.UUID("20000000-0000-0000-0000-000000000002")
-PATIENT_CAROL_ID = uuid.UUID("20000000-0000-0000-0000-000000000003")
-PATIENT_DAN_ID = uuid.UUID("20000000-0000-0000-0000-000000000004")
-PATIENT_EVE_ID = uuid.UUID("20000000-0000-0000-0000-000000000005")
+# Two ranges are already spoken for, so this trio lives at ...0101+ where no
+# allocator reaches:
+#   * ...0003 / MRN-0003 belongs to Eleanor Vance (db.migrations.PATIENT_ELEANOR_ID).
+#     seed_dev.py hangs her AFib/CKD documents, HMS appointment evidence, and graph
+#     entities off that UUID, and the RAG eval + E2E suites assert on her name.
+#   * ...0006 onward belongs to scripts/import_patients.py, which allocates
+#     f"{UUID_PREFIX}{i + 6:012d}" (line 147); data/patients_template.csv likewise
+#     documents "Start new MRNs from MRN-0006". Squatting there makes the importer
+#     silently skip its first rows on an MRN match, or abort the seed transaction on
+#     the unique constraint at db/models.py:102 when the PKs differ.
+PATIENT_CAROL_ID = uuid.UUID("20000000-0000-0000-0000-000000000101")
+PATIENT_DAN_ID = uuid.UUID("20000000-0000-0000-0000-000000000102")
+PATIENT_EVE_ID = uuid.UUID("20000000-0000-0000-0000-000000000103")
 
 DOC_ALICE_SUMMARY = uuid.UUID("30000000-0000-0000-0000-000000000001")
 DOC_ALICE_LAB = uuid.UUID("30000000-0000-0000-0000-000000000002")
@@ -118,20 +128,20 @@ async def seed(session: AsyncSession) -> None:
         ),
         Patient(
             id=PATIENT_CAROL_ID,
-            mrn="MRN-0003",
+            mrn="MRN-0101",
             full_name="Carol Synthetic",
             dob=date(1985, 3, 22),
             department="Neurology",
         ),
         Patient(
             id=PATIENT_DAN_ID,
-            mrn="MRN-0004",
+            mrn="MRN-0102",
             full_name="Dan Synthetic",
             dob=date(1992, 11, 1),
             department="Orthopedics",
         ),
         Patient(
-            id=PATIENT_EVE_ID, mrn="MRN-0005", full_name="Eve Synthetic", dob=date(2000, 7, 14), department="Pediatrics"
+            id=PATIENT_EVE_ID, mrn="MRN-0103", full_name="Eve Synthetic", dob=date(2000, 7, 14), department="Pediatrics"
         ),
     ]
 

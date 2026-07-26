@@ -10,7 +10,7 @@ logger = logging.getLogger(__name__)
 try:
     from llm_guard import scan_output, scan_prompt
     from llm_guard.input_scanners import PromptInjection
-    from llm_guard.output_scanners import BanTopics, Deanonymize
+    from llm_guard.output_scanners import Deanonymize
     from llm_guard.vault import Vault
 
     _LLM_GUARD_AVAILABLE = True
@@ -63,9 +63,37 @@ class InputGuardrail:
 
 
 class OutputGuardrail:
+    """Scans generated answers before they reach the caller.
+
+    `BanTopics(topics=["providing medical advice"], threshold=0.5)` used to lead
+    this list and was removed after measurement, not on preference. It is a
+    zero-shot topic classifier, so it scores *subject matter* rather than
+    *speech act* -- and this assistant's entire purpose is to answer clinical
+    questions from retrieved evidence. Measured scores on the real model:
+
+        threshold 0.5   cited answer 1.000 (blocked) | unsafe advice 1.000 (blocked)
+        threshold 0.85  cited answer 0.000 (allowed) | unsafe advice 0.000 (allowed)
+
+    Identical scores for a properly-cited chart lookup and for "You should take
+    500mg of paracetamol twice daily" -- the scanner cannot separate them at any
+    threshold, so it was a blunt on/off switch carrying no safety signal. In the
+    0.5 configuration it refused essentially every substantive clinical question
+    on both /chat and /chat/stream; in the 0.85 configuration it would have
+    passed the unsafe string too, which is worse than removal because it looks
+    like a control.
+
+    Grounding is enforced instead by citation validation, which is measurable
+    and layered: services/reasoning.py rejects hallucinated evidence IDs, and
+    services/chat.py plus api/routes/chat_stream.py independently reject answers
+    with zero citations or IDs outside the retrieved set. The stream buffers the
+    full answer before emitting any token, so those checks cannot be outrun.
+
+    Deanonymize stays: it is the PHI leg of this scanner.
+    """
+
     def __init__(self):
         if _LLM_GUARD_AVAILABLE:
-            self.scanners = [BanTopics(topics=["providing medical advice"], threshold=0.5), Deanonymize(vault=Vault())]
+            self.scanners = [Deanonymize(vault=Vault())]
         else:
             self.scanners = []
 

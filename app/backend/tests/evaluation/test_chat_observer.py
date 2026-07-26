@@ -116,9 +116,15 @@ async def test_graph_required_failure_is_not_silently_swallowed(session_and_sett
     async def failing_graph(*_args, **_kwargs):
         raise RuntimeError("graph unavailable")
 
+    async def pass_guardrail(*_args, **_kwargs):
+        from hospital_ai.services.guardrails import GuardrailResult
+
+        return GuardrailResult(blocked=False, reason="")
+
     monkeypatch.setattr(RetrievalService, "hybrid_search", no_hits)
     monkeypatch.setattr("hospital_ai.services.chat.extract_entities_and_relations_nlp", entities)
     monkeypatch.setattr("hospital_ai.services.chat.find_related_entities", failing_graph)
+    monkeypatch.setattr("hospital_ai.services.guardrails.InputGuardrail.scan", pass_guardrail)
 
     with pytest.raises(GraphCertificationError, match="Graph traversal failed"):
         await ChatService(session, settings).answer(
@@ -150,8 +156,14 @@ async def test_rag_off_bypasses_retrieval_and_graph(session_and_settings, monkey
     async def forbidden_graph(*_args, **_kwargs):
         raise AssertionError("graph must not run")
 
+    async def pass_guardrail(*_args, **_kwargs):
+        from hospital_ai.services.guardrails import GuardrailResult
+
+        return GuardrailResult(blocked=False, reason="")
+
     monkeypatch.setattr(RetrievalService, "hybrid_search", forbidden_retrieval)
     monkeypatch.setattr("hospital_ai.services.chat.find_related_entities", forbidden_graph)
+    monkeypatch.setattr("hospital_ai.services.guardrails.InputGuardrail.scan", pass_guardrail)
     observer = InMemoryEvaluationObserver()
 
     response = await ChatService(session, settings).answer(
@@ -190,8 +202,14 @@ async def test_hybrid_graph_off_runs_hybrid_retrieval_without_graph(session_and_
     async def forbidden_graph(*_args, **_kwargs):
         raise AssertionError("graph must not run")
 
+    async def pass_guardrail(*_args, **_kwargs):
+        from hospital_ai.services.guardrails import GuardrailResult
+
+        return GuardrailResult(blocked=False, reason="")
+
     monkeypatch.setattr(RetrievalService, "hybrid_search", no_hits)
     monkeypatch.setattr("hospital_ai.services.chat.find_related_entities", forbidden_graph)
+    monkeypatch.setattr("hospital_ai.services.guardrails.InputGuardrail.scan", pass_guardrail)
     observer = InMemoryEvaluationObserver()
 
     await ChatService(session, settings).answer(

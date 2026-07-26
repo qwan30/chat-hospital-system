@@ -93,6 +93,8 @@ Use `<type>/<short-kebab-case>` branch names: `feat/`, `fix/`, `refactor/`, `doc
     clinical free text into audit metadata.
   - **Rate limiting is fail-closed**: `api/limiter.py` enables limits unless `TESTING=true`
     is set explicitly. Never reintroduce a default that disables it.
-  - Bearer tokens are currently persisted to `localStorage` (`lib/session.tsx`). This is a
-    known XSS exposure kept for demo convenience; moving to in-memory storage plus an
-    httpOnly refresh cookie is tracked as future work.
+  - **Bearer tokens are never written to `localStorage`.** `lib/session.tsx` persists only
+    `{role, workspaceId}` (typed `PersistedSession`, enforced with `satisfies` so a token
+    cannot be reintroduced without a type error) and re-derives the dev token from the role
+    map on rehydrate; `lib/api-client.ts` keeps the real token in memory only. An httpOnly
+    refresh cookie so a real JWT session survives reload is still future work.

@@ -2,7 +2,7 @@ FROM oven/bun:alpine AS builder
 WORKDIR /app
 
 # Copy package management files
-COPY package.json bun.lockb ./
+COPY package.json bun.lock ./
 RUN bun install --frozen-lockfile
 
 # Copy source code and build

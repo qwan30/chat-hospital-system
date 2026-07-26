@@ -1,13 +1,29 @@
 import uuid
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from hospital_ai.api.deps import get_session, require_role
+from hospital_ai.core.config import Settings, get_settings
 from hospital_ai.services.drug_check import DrugWarning, check_drug_interactions_for_query
 
 router = APIRouter()
+
+
+def require_demo_mode(settings: Settings = Depends(get_settings)) -> Settings:
+    """Guard endpoints that return synthetic demo data.
+
+    These fixtures are clinically realistic but entirely fabricated. Serving
+    them outside an explicit demo deployment would put un-sourced drug advice
+    in front of clinicians, so they are unavailable when demo_mode is off.
+    """
+    if not settings.demo_mode:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Endpoint unavailable: synthetic demo data is disabled outside demo mode.",
+        )
+    return settings
 
 
 class DrugConflictOut(BaseModel):
@@ -34,8 +50,15 @@ class DrugWarningOut(BaseModel):
     message: str
 
 
-# Mock data based on conflicts.ts
-MOCK_CONFLICTS = [
+# SYNTHETIC demo fixtures mirroring the frontend's conflicts.ts.
+#
+# WARNING: every patient name, drug pairing, and recommendation below is
+# fabricated, and the `source` citations do not refer to real publications.
+# This data must never be presented as clinical guidance — it exists so the
+# pharmacist demo screens have something to render. Access is gated by
+# `require_demo_mode`, and each `source` is prefixed to make the payload
+# self-labelling if it is ever inspected in isolation.
+DEMO_CONFLICTS = [
     {
         "id": "c-001",
         "patient": "Eleanor Vance",
@@ -45,7 +68,7 @@ MOCK_CONFLICTS = [
         "type": "interaction",
         "severity": "high",
         "rule": "Amiodarone potentiates warfarin → ↑INR",
-        "source": "Lexicomp Drug Interactions 2026.4",
+        "source": "SYNTHETIC DEMO DATA — Lexicomp Drug Interactions 2026.4",
         "recommendation": "Reduce warfarin dose 30-50% and recheck INR in 3-5 days.",
         "status": "open",
         "ts": "2026-06-12T16:00:00Z",
@@ -59,7 +82,7 @@ MOCK_CONFLICTS = [
         "type": "renal",
         "severity": "high",
         "rule": "NSAIDs contraindicated when eGFR < 60 in CHF",
-        "source": "KDIGO 2024 Guidelines",
+        "source": "SYNTHETIC DEMO DATA — KDIGO 2024 Guidelines",
         "recommendation": "Use acetaminophen instead. Avoid NSAIDs.",
         "status": "open",
         "ts": "2026-06-12T14:32:00Z",
@@ -73,7 +96,7 @@ MOCK_CONFLICTS = [
         "type": "allergy",
         "severity": "critical",
         "rule": "Beta-lactam allergy match",
-        "source": "Patient allergy chart",
+        "source": "SYNTHETIC DEMO DATA — Patient allergy chart",
         "recommendation": "Switch to vancomycin or clindamycin. Confirm allergy severity.",
         "status": "ack",
         "ts": "2026-06-12T11:20:00Z",
@@ -87,7 +110,7 @@ MOCK_CONFLICTS = [
         "type": "interaction",
         "severity": "moderate",
         "rule": "Hold metformin 48h pre/post IV contrast (eGFR < 60)",
-        "source": "ACR Manual on Contrast Media v2024",
+        "source": "SYNTHETIC DEMO DATA — ACR Manual on Contrast Media v2024",
         "recommendation": "Hold metformin starting today. Resume 48h post-contrast.",
         "status": "open",
         "ts": "2026-06-12T10:00:00Z",
@@ -101,7 +124,7 @@ MOCK_CONFLICTS = [
         "type": "duplicate",
         "severity": "moderate",
         "rule": "Overlapping anticoagulation increases bleeding risk",
-        "source": "Internal pharmacy protocol HP-127",
+        "source": "SYNTHETIC DEMO DATA — Internal pharmacy protocol HP-127",
         "recommendation": "Hold apixaban while on heparin gtt. Document plan.",
         "status": "overridden",
         "ts": "2026-06-11T22:00:00Z",
@@ -112,16 +135,20 @@ MOCK_CONFLICTS = [
 @router.get("/review-queue", response_model=list[DrugConflictOut])
 async def get_review_queue(
     _: dict = Depends(require_role(["admin", "pharmacist"])),
+    __: Settings = Depends(require_demo_mode),
 ) -> list[dict]:
-    return MOCK_CONFLICTS
+    """Return the synthetic pharmacist review queue. Demo-mode only."""
+    return DEMO_CONFLICTS
 
 
 @router.get("/conflicts/{conflict_id}", response_model=DrugConflictOut)
 async def get_conflict(
     conflict_id: str,
     _: dict = Depends(require_role(["admin", "pharmacist", "doctor"])),
+    __: Settings = Depends(require_demo_mode),
 ) -> dict:
-    for c in MOCK_CONFLICTS:
+    """Return one synthetic conflict record. Demo-mode only."""
+    for c in DEMO_CONFLICTS:
         if c["id"] == conflict_id:
             return c
     raise HTTPException(status_code=404, detail="Conflict not found")

@@ -1,3 +1,4 @@
+import os
 import sys
 import uuid
 from collections.abc import AsyncIterator
@@ -6,6 +7,11 @@ from pathlib import Path
 import pytest
 import pytest_asyncio
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+
+# Rate limiting is fail-closed (enabled unless TESTING opts out), and
+# hospital_ai.api.limiter reads this at import time — so it must be set
+# before any hospital_ai module is imported below.
+os.environ.setdefault("TESTING", "true")
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))  # noqa: E402

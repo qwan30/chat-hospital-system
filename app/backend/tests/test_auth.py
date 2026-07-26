@@ -6,7 +6,7 @@ and malformed Authorization headers.
 """
 
 import pytest
-from fastapi import HTTPException, status
+from fastapi import HTTPException, Request, status
 from fastapi.security import HTTPAuthorizationCredentials
 from sqlalchemy import update
 
@@ -44,6 +44,19 @@ async def test_me_returns_current_user(session_and_settings):
 # ---------------------------------------------------------------------------
 
 
+def _dummy_request() -> Request:
+    """Minimal ASGI Request so the rate-limit decorator can derive a client key."""
+    return Request(
+        {
+            "type": "http",
+            "method": "POST",
+            "path": "/auth/token",
+            "headers": [],
+            "client": ("127.0.0.1", 12345),
+        }
+    )
+
+
 @pytest.mark.asyncio
 async def test_login_for_access_token_success(session_and_settings):
     """POST /auth/token returns token for valid seeded user with 'demo' password."""
@@ -59,7 +72,9 @@ async def test_login_for_access_token_success(session_and_settings):
         grant_type="password",
     )
 
-    response = await login_for_access_token(form_data=form_data, session=session, settings=settings)
+    response = await login_for_access_token(
+        request=_dummy_request(), form_data=form_data, session=session, settings=settings
+    )
     assert response.access_token == "dev-doctor"
     assert response.user.email == "doctor@example.test"
     assert response.user.role == "doctor"
@@ -81,7 +96,7 @@ async def test_login_for_access_token_invalid_password(session_and_settings):
     )
 
     with pytest.raises(HTTPException) as exc_info:
-        await login_for_access_token(form_data=form_data, session=session, settings=settings)
+        await login_for_access_token(request=_dummy_request(), form_data=form_data, session=session, settings=settings)
 
     assert exc_info.value.status_code == status.HTTP_401_UNAUTHORIZED
     assert "Invalid credentials" in exc_info.value.detail
@@ -103,7 +118,7 @@ async def test_login_for_access_token_unknown_user(session_and_settings):
     )
 
     with pytest.raises(HTTPException) as exc_info:
-        await login_for_access_token(form_data=form_data, session=session, settings=settings)
+        await login_for_access_token(request=_dummy_request(), form_data=form_data, session=session, settings=settings)
 
     assert exc_info.value.status_code == status.HTTP_401_UNAUTHORIZED
     assert "User is not active or seeded" in exc_info.value.detail

@@ -1,5 +1,6 @@
 import asyncio
 import hashlib
+import logging
 import uuid
 from pathlib import Path
 from typing import Optional
@@ -154,13 +155,22 @@ async def process_document(session: AsyncSession, document_id: uuid.UUID, settin
         await _record_processing_event(session, document_id, attempt, "ready", "completed")
         await session.commit()
 
-        # Enqueue CDSS analysis
+        # Enqueue CDSS analysis.
+        #
+        # Deliberately non-fatal: the document is already indexed and committed,
+        # so a queue outage must not fail ingestion or roll back that work. But
+        # it must not be silent either -- a dropped enqueue means clinical alerts
+        # are never generated for this document, with no other signal anywhere.
         try:
             from hospital_ai.workers.queue import enqueue_cdss_analysis
 
             await asyncio.to_thread(enqueue_cdss_analysis, document.id, settings)
         except Exception:
-            pass
+            logging.getLogger(__name__).exception(
+                "Failed to enqueue CDSS analysis for document %s; "
+                "indexing succeeded but no clinical alerts will be generated",
+                document_id,
+            )
 
     except Exception:
         await session.rollback()

@@ -422,6 +422,7 @@ xychart-beta
 | **Backend test suite** | 549 Pytest tests (546 passing, 3 skipped) | ✅ Verified locally; see CI for the current run |
 | **E2E test suites** | 13 Playwright specs (auth, RBAC, business flow, CDSS, chat, graph, accessibility) | 🔴 Written but **not executed in CI** — the job needs a backend service container (gh#123) |
 | **CI/CD workflows** | 5 pipelines (CI, CD, Security, Rollback, Dependabot) | ℹ️ Workflow inventory; check the current GitHub run for status |
+| **Backend coverage** | 73.3% statements (6,117 / 8,059), branch coverage on | ✅ CI gate at `--cov-fail-under=60`. Gaps are concentrated in LLM/embedding providers and document loaders (0%) — they need live services to exercise meaningfully |
 | **Code quality** | Ruff + ESLint + TypeScript strict | ✅ Focused evaluation checks are recorded; no blanket “zero errors” claim |
 
 ---
@@ -670,7 +671,7 @@ Configurations in [`infra/observability/`](infra/observability/) — Prometheus 
 - **Authentication**: JWT bearer validation with pinned algorithm, issuer/audience checks, and expiry enforcement (`services/jwt_auth.py`). ⚠️ The demo login endpoint is a **portfolio stub** — it accepts the literal password `demo` and returns a static token; password hashing, refresh rotation, and httpOnly cookies are documented as future work, not implemented
 - **Authorization**: RBAC with ABAC overlay — 7 roles with scoped patient permissions enforced at API gateway + RAG retrieval layers
 - **Rate Limiting**: Per-endpoint limits via slowapi, enabled by default and fail-closed — login `10/min`, chat `10/min`, streaming `5/min`, search `20/min`, access requests `3/min`, global default `60/min`. Disabled only when `TESTING=true` is set explicitly (test suite and local dev)
-- **Audit Trail**: Every access, denial, query, and config change logged with user ID + timestamp — 100% coverage on sensitive operations
+- **Audit Trail**: Patient reads, permission denials, chat queries, document access, and config changes are logged with actor ID, trace ID, and timestamp via `PermissionService.require_read` / `AuditService`. User-authored text is passed through `sanitize_audit_query` so raw clinical free text does not enter audit metadata
 - **Container Scanning**: Trivy scans on every CI push (CRITICAL+HIGH severity) + weekly scheduled full scan (CRITICAL,HIGH,MEDIUM)
 - **Secret Detection**: TruffleHog weekly scan across full git history + Bandit SAST for Python source code
 - **Dependency Monitoring**: Dependabot (npm, pip, GitHub Actions) + pip-audit + npm audit for continuous vulnerability tracking

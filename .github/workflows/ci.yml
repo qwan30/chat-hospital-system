@@ -216,7 +216,8 @@ jobs:
         run: |
           python -m venv .venv
           .venv/bin/pip install --upgrade pip
-          .venv/bin/pip install pytest-cov -e ".[dev,postgres]"
+          # pytest-cov is declared in the [dev] extra; no ad-hoc install needed.
+          .venv/bin/pip install -e ".[dev,postgres]"
 
       - name: Expose virtualenv
         run: echo "${{ github.workspace }}/app/backend/.venv/bin" >> $GITHUB_PATH

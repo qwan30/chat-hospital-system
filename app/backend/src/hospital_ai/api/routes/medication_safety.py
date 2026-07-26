@@ -1,12 +1,15 @@
 import uuid
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from hospital_ai.api.deps import get_session, require_role
+from hospital_ai.api.deps import get_current_user, get_request_ip, get_session, require_role
 from hospital_ai.core.config import Settings, get_settings
+from hospital_ai.core.security import new_trace_id
+from hospital_ai.db.models import User
 from hospital_ai.services.drug_check import DrugWarning, check_drug_interactions_for_query
+from hospital_ai.services.permissions import PermissionService
 
 router = APIRouter()
 
@@ -157,10 +160,24 @@ async def get_conflict(
 @router.get("/patients/{patient_id}/review", response_model=list[DrugWarningOut])
 async def get_patient_medication_review(
     patient_id: uuid.UUID,
+    request: Request,
     query_text: str = Query("Check for drug interactions with the patient's current medications."),
     db: AsyncSession = Depends(get_session),
+    current_user: User = Depends(get_current_user),
     _: dict = Depends(require_role(["admin", "doctor", "pharmacist", "nurse"])),
 ) -> list[DrugWarning]:
+    # This endpoint returns real patient graph data, so a role check alone is not
+    # sufficient -- without a patient-scope check any doctor or nurse could read
+    # drug interactions for any patient_id. require_read enforces the ABAC grant
+    # and records the audit entry that this route previously never wrote.
+    trace_id = new_trace_id()
+    await PermissionService(db).require_read(
+        user=current_user,
+        patient_id=patient_id,
+        action="medication.review.read",
+        trace_id=trace_id,
+        ip_address=get_request_ip(request),
+    )
     return await check_drug_interactions_for_query(
         session=db,
         query_text=query_text,

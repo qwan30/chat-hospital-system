@@ -254,9 +254,12 @@ async def sync_patient(
             metadata={"error_type": type(exc).__name__},
         )
         await session.commit()
-        # Full detail goes to the server log; the client gets a generic message
-        # plus the trace_id needed to correlate with it.
-        logger.exception("HMS patient sync failed patient_id=%s trace_id=%s", patient_id, trace_id)
+        # Correlate via trace_id only. patient_id is a user-supplied path
+        # parameter and, in a clinical system, an identifier that does not
+        # belong in clear-text logs -- the same reason permissions.py logs
+        # patient=[REDACTED]. The audit row above already carries patient_id
+        # in a store that is access-controlled; the log does not need it.
+        logger.exception("HMS patient sync failed trace_id=%s", trace_id)
         return HmsSyncResponse(
             patient_id=patient_id,
             synced={"appointments": 0, "lab_results": 0, "medical_records": 0, "total": 0},

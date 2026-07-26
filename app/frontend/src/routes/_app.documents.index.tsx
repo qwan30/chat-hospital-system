@@ -194,7 +194,7 @@ function DocumentsPage() {
                       {new Date(d.created_at).toLocaleString()}
                     </TableCell>
                     <TableCell>
-                      <StatusBadge status={d.status as any} />
+                      <StatusBadge status={d.status} />
                     </TableCell>
                   </TableRow>
                 ))}

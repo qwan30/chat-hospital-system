@@ -63,11 +63,14 @@ flowchart TD
 To prevent Prompt Injection and PHI Data Leakage to unauthorized topics, the system implements runtime AI Guardrails using the `llm_guard` library:
 
 1.  **Input Guardrails (PromptInjection)**: Scans the user query and context payload before dispatching to the LLM. Blocks queries that attempt to override instructions (e.g., "Ignore previous instructions") or jailbreak the system.
-2.  **Output Guardrails (BanTopics, Deanonymize)**: Scans the generated output from the LLM. 
-    *   **BanTopics**: Prevents the assistant from generating restricted content, such as providing direct medical advice.
+2.  **Output Guardrails (Deanonymize)**: Scans the generated output from the LLM.
     *   **Deanonymize (Presidio)**: Detects if the output leaks PII/PHI (like SSN or phone numbers) inappropriately.
 
-*Performance note: To minimize Time-To-First-Token (TTFT) impact, these guardrails are wrapped in `asyncio.to_thread` with an explicit `3.0s` timeout. If the guardrail system hangs or is slow, it fails closed (safe refusal).*
+**Grounding is enforced by citation validation, not by a topic classifier.** `services/reasoning.py` rejects hallucinated evidence IDs, and `services/chat.py` and `api/routes/chat_stream.py` independently reject answers carrying zero citations or IDs outside the retrieved set. The streaming path buffers the complete answer before emitting any token, so these checks cannot be outrun.
+
+A `BanTopics(topics=["providing medical advice"], threshold=0.5)` output scanner was removed after measurement. Being a zero-shot topic classifier, it scores subject matter rather than speech act, and this assistant exists to answer clinical questions from retrieved evidence. Measured against the real model, a properly-cited chart lookup and the unsafe string "You should take 500mg of paracetamol twice daily" scored **identically** — 1.000 at threshold 0.5 (both blocked) and 0.000 at 0.85 (both allowed). Carrying no discriminating signal, it refused essentially every substantive clinical question on `/chat` and `/chat/stream` while providing no protection. See the `OutputGuardrail` docstring in `services/guardrails.py`.
+
+*Performance note: To minimize Time-To-First-Token (TTFT) impact, these guardrails are wrapped in `asyncio.to_thread` with a timeout of `guardrail_timeout_seconds` (`core/config.py`, default `15.0s` — the prompt-injection model takes ~4-8s per scan on CPU). If the guardrail system hangs or is slow, it fails closed (safe refusal).*
 
 ---
 

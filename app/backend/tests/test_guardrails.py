@@ -148,3 +148,25 @@ async def test_guardrails_disabled_when_library_missing():
         og = OutputGuardrail()
         result = await og.scan("prompt", "output")
         assert result.blocked is False
+
+
+def test_output_guardrail_does_not_ban_clinical_topics():
+    """A cited clinical answer must survive the output scanners.
+
+    Every other test in this module mocks the scanners and hand-feeds the
+    verdict, so they stayed green while `BanTopics(["providing medical advice"])`
+    scored 1.0 on evidence-cited answers and refused every substantive question
+    on /chat and /chat/stream. This test asserts the *configuration* instead of a
+    mocked result, so reintroducing a topic classifier that bans the product's
+    core function fails here rather than in production.
+    """
+    if not guardrails_module._LLM_GUARD_AVAILABLE:
+        pytest.skip("llm-guard not installed")
+
+    scanner_names = {type(s).__name__ for s in OutputGuardrail().scanners}
+    assert "BanTopics" not in scanner_names, (
+        "BanTopics scores clinical retrieval and unsafe advice identically at every "
+        "threshold (see the OutputGuardrail docstring); grounding is enforced by "
+        "citation validation instead."
+    )
+    assert "Deanonymize" in scanner_names, "The PHI leg of the output guardrail must stay."

@@ -48,10 +48,12 @@ playwright-report/
 # Vinxi / Nitro build output
 .vinxi/
 .output/
+.vercel/
 
 # Test artifacts
 test-results/
 *_page_*.png
+coverage/
 
 # Windows crash dumps
 *.stackdump

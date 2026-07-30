@@ -53,6 +53,7 @@ playwright-report/
 # Test artifacts
 test-results/
 *_page_*.png
+coverage/
 
 # Windows crash dumps
 *.stackdump

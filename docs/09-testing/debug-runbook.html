@@ -1,0 +1,1176 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Debug Runbook — Hospital AI Assistant</title>
+<style>
+  :root {
+    --ground: #FBFAF8;
+    --surface: #FFFFFF;
+    --surface-sunk: #F2F0EC;
+    --line: #DFDBD4;
+    --line-soft: #ECE9E4;
+    --ink: #16191C;
+    --ink-mid: #4A555B;
+    --ink-soft: #6E7C83;
+    --accent: #0E7C86;
+    --accent-sunk: #E2F0F1;
+    --pass: #2F7D4F;
+    --pass-sunk: #E4F0E8;
+    --warn: #A9702A;
+    --warn-sunk: #F5EDE0;
+    --fail: #AC4238;
+    --fail-sunk: #F7E7E5;
+    --shadow: 0 1px 2px rgba(20, 30, 34, .05), 0 6px 20px -12px rgba(20, 30, 34, .28);
+
+    --display: "Newsreader", "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+    --body: "IBM Plex Sans", "Segoe UI", system-ui, -apple-system, sans-serif;
+    --mono: "IBM Plex Mono", "Cascadia Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+
+    --step--1: clamp(.78rem, .76rem + .1vw, .83rem);
+    --step-0: clamp(.94rem, .91rem + .14vw, 1rem);
+    --step-1: clamp(1.1rem, 1.04rem + .3vw, 1.28rem);
+    --step-2: clamp(1.4rem, 1.28rem + .6vw, 1.85rem);
+    --step-3: clamp(1.9rem, 1.6rem + 1.4vw, 3rem);
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --ground: #0F1418;
+      --surface: #161C21;
+      --surface-sunk: #10161A;
+      --line: #29343A;
+      --line-soft: #1F282D;
+      --ink: #E8EDEF;
+      --ink-mid: #A7B6BC;
+      --ink-soft: #7B8B92;
+      --accent: #3FB2BC;
+      --accent-sunk: #102B2E;
+      --pass: #5CB07C;
+      --pass-sunk: #12241A;
+      --warn: #D2A05B;
+      --warn-sunk: #251D10;
+      --fail: #DD7A70;
+      --fail-sunk: #26130F;
+      --shadow: 0 1px 2px rgba(0, 0, 0, .4), 0 10px 28px -16px rgba(0, 0, 0, .8);
+    }
+  }
+
+  :root[data-theme="dark"] {
+    --ground: #0F1418;
+    --surface: #161C21;
+    --surface-sunk: #10161A;
+    --line: #29343A;
+    --line-soft: #1F282D;
+    --ink: #E8EDEF;
+    --ink-mid: #A7B6BC;
+    --ink-soft: #7B8B92;
+    --accent: #3FB2BC;
+    --accent-sunk: #102B2E;
+    --pass: #5CB07C;
+    --pass-sunk: #12241A;
+    --warn: #D2A05B;
+    --warn-sunk: #251D10;
+    --fail: #DD7A70;
+    --fail-sunk: #26130F;
+    --shadow: 0 1px 2px rgba(0, 0, 0, .4), 0 10px 28px -16px rgba(0, 0, 0, .8);
+  }
+
+  :root[data-theme="light"] {
+    --ground: #FBFAF8;
+    --surface: #FFFFFF;
+    --surface-sunk: #F2F0EC;
+    --line: #DFDBD4;
+    --line-soft: #ECE9E4;
+    --ink: #16191C;
+    --ink-mid: #4A555B;
+    --ink-soft: #6E7C83;
+    --accent: #0E7C86;
+    --accent-sunk: #E2F0F1;
+    --pass: #2F7D4F;
+    --pass-sunk: #E4F0E8;
+    --warn: #A9702A;
+    --warn-sunk: #F5EDE0;
+    --fail: #AC4238;
+    --fail-sunk: #F7E7E5;
+    --shadow: 0 1px 2px rgba(20, 30, 34, .05), 0 6px 20px -12px rgba(20, 30, 34, .28);
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--ground);
+    color: var(--ink);
+    font-family: var(--body);
+    font-size: var(--step-0);
+    line-height: 1.62;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .shell {
+    display: grid;
+    grid-template-columns: 250px minmax(0, 1fr);
+    max-width: 1400px;
+    margin: 0 auto;
+  }
+
+  nav {
+    position: sticky;
+    top: 0;
+    align-self: start;
+    height: 100vh;
+    overflow-y: auto;
+    padding: 2.4rem 1.4rem 2.4rem 1.9rem;
+    border-right: 1px solid var(--line);
+    background: var(--surface-sunk);
+  }
+
+  .navmark {
+    font-family: var(--mono);
+    font-size: var(--step--1);
+    letter-spacing: .11em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 1.6rem;
+  }
+
+  .navgroup { margin-bottom: 1.5rem; display: flex; flex-direction: column; gap: .3rem; }
+
+  .navgroup > span {
+    font-family: var(--mono);
+    font-size: .68rem;
+    letter-spacing: .13em;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+    margin-bottom: .35rem;
+  }
+
+  nav a {
+    color: var(--ink-mid);
+    text-decoration: none;
+    font-size: var(--step--1);
+    padding: .26rem .55rem;
+    border-radius: 4px;
+    border-left: 2px solid transparent;
+    transition: color .15s, background .15s, border-color .15s;
+  }
+
+  nav a:hover, nav a:focus-visible {
+    color: var(--ink);
+    background: var(--surface);
+    border-left-color: var(--accent);
+  }
+
+  main {
+    padding: 3.2rem clamp(1.3rem, 4vw, 4rem) 6rem;
+    min-width: 0;
+  }
+
+  header.masthead {
+    border-bottom: 2px solid var(--ink);
+    padding-bottom: 1.7rem;
+    margin-bottom: 2.6rem;
+  }
+
+  .eyebrow {
+    font-family: var(--mono);
+    font-size: var(--step--1);
+    letter-spacing: .14em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin: 0 0 .7rem;
+  }
+
+  h1 {
+    font-family: var(--display);
+    font-size: var(--step-3);
+    font-weight: 500;
+    line-height: 1.08;
+    letter-spacing: -.02em;
+    margin: 0 0 .8rem;
+    text-wrap: balance;
+  }
+
+  .standfirst {
+    font-size: var(--step-1);
+    color: var(--ink-mid);
+    max-width: 60ch;
+    margin: 0;
+    line-height: 1.5;
+  }
+
+  h2 {
+    font-family: var(--display);
+    font-size: var(--step-2);
+    font-weight: 500;
+    letter-spacing: -.015em;
+    line-height: 1.15;
+    margin: 3.4rem 0 .5rem;
+    text-wrap: balance;
+    scroll-margin-top: 1.5rem;
+  }
+
+  .layer-intro {
+    color: var(--ink-mid);
+    max-width: 68ch;
+    margin: 0 0 1.6rem;
+  }
+
+  p { max-width: 68ch; }
+
+  code {
+    font-family: var(--mono);
+    font-size: .88em;
+    background: var(--surface-sunk);
+    border: 1px solid var(--line-soft);
+    border-radius: 3px;
+    padding: .07em .32em;
+  }
+
+  .step {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 7px;
+    box-shadow: var(--shadow);
+    margin: 1.1rem 0;
+    overflow: hidden;
+  }
+
+  .step-head {
+    display: flex;
+    align-items: baseline;
+    gap: .8rem;
+    flex-wrap: wrap;
+    padding: .95rem 1.15rem;
+    border-bottom: 1px solid var(--line-soft);
+    background: linear-gradient(to bottom, var(--surface), var(--surface-sunk));
+  }
+
+  .step-id {
+    font-family: var(--mono);
+    font-size: var(--step--1);
+    font-weight: 600;
+    color: var(--accent);
+    letter-spacing: .04em;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .step-title { font-weight: 600; flex: 1; min-width: 12ch; }
+
+  .step-body { padding: 1.15rem; display: flex; flex-direction: column; gap: .95rem; }
+
+  .field > span {
+    display: block;
+    font-family: var(--mono);
+    font-size: .68rem;
+    letter-spacing: .13em;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+    margin-bottom: .4rem;
+  }
+
+  pre {
+    font-family: var(--mono);
+    font-size: var(--step--1);
+    line-height: 1.65;
+    background: var(--surface-sunk);
+    border: 1px solid var(--line-soft);
+    border-left: 3px solid var(--accent);
+    border-radius: 5px;
+    padding: .75rem .9rem;
+    margin: 0;
+    overflow-x: auto;
+    white-space: pre;
+    tab-size: 2;
+  }
+
+  pre.expect { border-left-color: var(--pass); color: var(--ink-mid); }
+
+  .prompt { color: var(--ink-soft); user-select: none; }
+
+  .note { margin: 0; font-size: var(--step--1); color: var(--ink-mid); }
+
+  .chip {
+    display: inline-flex;
+    align-items: center;
+    gap: .35rem;
+    font-family: var(--mono);
+    font-size: .68rem;
+    letter-spacing: .09em;
+    text-transform: uppercase;
+    padding: .18rem .5rem;
+    border-radius: 3px;
+    border: 1px solid transparent;
+    white-space: nowrap;
+  }
+
+  .chip::before {
+    content: "";
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: currentColor;
+  }
+
+  .chip.pass { color: var(--pass); background: var(--pass-sunk); border-color: color-mix(in srgb, var(--pass) 28%, transparent); }
+  .chip.warn { color: var(--warn); background: var(--warn-sunk); border-color: color-mix(in srgb, var(--warn) 28%, transparent); }
+  .chip.fail { color: var(--fail); background: var(--fail-sunk); border-color: color-mix(in srgb, var(--fail) 28%, transparent); }
+  .chip.info { color: var(--accent); background: var(--accent-sunk); border-color: color-mix(in srgb, var(--accent) 28%, transparent); }
+
+  .branch {
+    border-top: 1px solid var(--line-soft);
+    margin: 0 -1.15rem -1.15rem;
+    padding: .9rem 1.15rem;
+    background: var(--surface-sunk);
+    display: flex;
+    flex-direction: column;
+    gap: .6rem;
+  }
+
+  .branch > span.branch-label {
+    font-family: var(--mono);
+    font-size: .68rem;
+    letter-spacing: .13em;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+  }
+
+  .branch-row {
+    display: grid;
+    grid-template-columns: minmax(9rem, auto) minmax(0, 1fr);
+    gap: .5rem .9rem;
+    align-items: start;
+    font-size: var(--step--1);
+    color: var(--ink-mid);
+  }
+
+  .branch-row + .branch-row { border-top: 1px dotted var(--line); padding-top: .55rem; }
+
+  .branch-row strong { color: var(--ink); }
+
+  .sym { font-family: var(--mono); color: var(--fail); }
+
+  .inset {
+    margin: 0;
+    border: 1px solid var(--line-soft);
+    border-radius: 5px;
+    background: var(--surface-sunk);
+    padding: .9rem 1.15rem;
+    display: flex;
+    flex-direction: column;
+    gap: .6rem;
+  }
+
+  .tablewrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 7px; box-shadow: var(--shadow); margin: 1.3rem 0; }
+
+  table { border-collapse: collapse; width: 100%; font-size: var(--step--1); background: var(--surface); }
+
+  th {
+    text-align: left;
+    font-family: var(--mono);
+    font-size: .68rem;
+    letter-spacing: .12em;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+    font-weight: 500;
+    padding: .7rem .9rem;
+    border-bottom: 1px solid var(--line);
+    background: var(--surface-sunk);
+    white-space: nowrap;
+  }
+
+  td { padding: .62rem .9rem; border-bottom: 1px solid var(--line-soft); vertical-align: top; }
+  tbody tr:last-child td { border-bottom: none; }
+  td.num { font-family: var(--mono); font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+  .callout {
+    border: 1px solid color-mix(in srgb, var(--warn) 32%, transparent);
+    background: var(--warn-sunk);
+    border-radius: 7px;
+    padding: .95rem 1.15rem;
+    margin: 1.3rem 0;
+    max-width: 72ch;
+  }
+
+  .callout.teal { border-color: color-mix(in srgb, var(--accent) 32%, transparent); background: var(--accent-sunk); }
+  .callout strong { display: block; margin-bottom: .25rem; }
+  .callout p { margin: 0; font-size: var(--step--1); color: var(--ink-mid); max-width: none; }
+  .callout.teal p { color: var(--ink); }
+
+  footer {
+    margin-top: 4rem;
+    padding-top: 1.3rem;
+    border-top: 1px solid var(--line);
+    font-family: var(--mono);
+    font-size: var(--step--1);
+    color: var(--ink-soft);
+  }
+
+  @media (max-width: 880px) {
+    .shell { grid-template-columns: 1fr; }
+    nav { position: static; height: auto; border-right: none; border-bottom: 1px solid var(--line); padding: 1.6rem 1.3rem; }
+    .navgroup { margin-bottom: 1rem; }
+    main { padding-top: 2rem; }
+    .branch-row { grid-template-columns: 1fr; gap: .2rem; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { transition: none !important; animation: none !important; }
+  }
+</style>
+</head>
+<body>
+
+<div class="shell">
+  <nav>
+    <div class="navmark">Debug Runbook</div>
+
+    <div class="navgroup">
+      <span>Trước khi bắt đầu</span>
+      <a href="#baseline">Số liệu baseline</a>
+      <a href="#method">Phương pháp</a>
+    </div>
+
+    <div class="navgroup">
+      <span>Các tầng</span>
+      <a href="#l0">L0 · Môi trường</a>
+      <a href="#l1">L1 · Đơn vị backend</a>
+      <a href="#l2">L2 · Dữ liệu &amp; migration</a>
+      <a href="#l3">L3 · API đang chạy</a>
+      <a href="#l4">L4 · Bảo mật</a>
+      <a href="#l5">L5 · RAG &amp; AI</a>
+      <a href="#l6">L6 · Frontend</a>
+      <a href="#l7">L7 · E2E</a>
+    </div>
+
+    <div class="navgroup">
+      <span>Khi có lỗi</span>
+      <a href="#bisect">Thu hẹp phạm vi</a>
+      <a href="#traps">Bẫy đã biết</a>
+    </div>
+  </nav>
+
+  <main>
+    <header class="masthead">
+      <p class="eyebrow">Hospital AI Assistant · chatbot-hospital-system</p>
+      <h1>Debug toàn bộ dự án, theo tầng</h1>
+      <p class="standfirst">
+        Chạy từ tầng thấp lên tầng cao. Mỗi tầng chỉ được bước tiếp khi tầng dưới đã xanh —
+        lỗi ở tầng cao gần như luôn là triệu chứng của tầng thấp.
+      </p>
+    </header>
+
+    <div class="callout teal">
+      <strong>Số liệu trong trang này đo thật trên máy bạn</strong>
+      <p>
+        Backend và frontend unit test đã chạy đầy đủ ngày 27/07/2026 để lấy baseline.
+        Các mốc E2E, migration và dịch vụ ngoài (Postgres, Redis, LLM) chưa chạy trong lần đo này —
+        chúng được đánh dấu rõ ở bảng dưới, đừng coi là đã xác minh.
+      </p>
+    </div>
+
+    <h2 id="baseline">Số liệu baseline</h2>
+    <p class="layer-intro">
+      Đây là trạng thái "xanh" của repo ở commit hiện tại. Khi debug, mọi sai lệch so với bảng này
+      đều là tín hiệu — kể cả thời gian chạy.
+    </p>
+
+    <div class="tablewrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Hạng mục</th>
+            <th>Kết quả</th>
+            <th>Thời gian</th>
+            <th>Trạng thái</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Backend pytest (<code>tests/</code>)</td>
+            <td class="num">547 passed · 3 skipped</td>
+            <td class="num">431s</td>
+            <td><span class="chip pass">Đã đo</span></td>
+          </tr>
+          <tr>
+            <td>Frontend vitest (<code>src</code>)</td>
+            <td class="num">96 passed · 14 files</td>
+            <td class="num">17s</td>
+            <td><span class="chip pass">Đã đo</span></td>
+          </tr>
+          <tr>
+            <td>Playwright E2E (<code>e2e/</code>)</td>
+            <td class="num">16 spec files</td>
+            <td>—</td>
+            <td><span class="chip warn">Chưa chạy</span></td>
+          </tr>
+          <tr>
+            <td>Alembic migrations</td>
+            <td class="num">16 revisions</td>
+            <td>—</td>
+            <td><span class="chip warn">Chưa chạy</span></td>
+          </tr>
+          <tr>
+            <td>Mã nguồn backend</td>
+            <td class="num">~82.000 dòng Python</td>
+            <td>—</td>
+            <td><span class="chip info">Tham chiếu</span></td>
+          </tr>
+          <tr>
+            <td>Mã nguồn frontend</td>
+            <td class="num">~23.700 dòng TS/TSX · 105 routes</td>
+            <td>—</td>
+            <td><span class="chip info">Tham chiếu</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h2 id="method">Phương pháp</h2>
+    <p class="layer-intro">
+      Bốn quy tắc áp dụng cho mọi tầng. Chúng tồn tại để bạn không sửa nhầm chỗ.
+    </p>
+
+    <div class="step">
+      <div class="step-body">
+        <div class="branch-row">
+          <strong>Đọc lỗi đầu tiên</strong>
+          <span>Pytest và Vite đều đổ hàng loạt lỗi phái sinh sau lỗi gốc. Lỗi thứ nhất theo thứ tự thời gian là lỗi thật; phần còn lại thường tự biến mất.</span>
+        </div>
+        <div class="branch-row">
+          <strong>Tái hiện thu hẹp</strong>
+          <span>Trước khi sửa, chạy lại đúng một test đang fail. Nếu chạy riêng thì pass mà chạy cả bộ thì fail — đó là lỗi cô lập trạng thái, không phải lỗi logic.</span>
+        </div>
+        <div class="branch-row">
+          <strong>Một thay đổi, một lần chạy</strong>
+          <span>Sửa hai chỗ rồi chạy lại một lần thì bạn không biết chỗ nào có tác dụng. Giữ nhịp một-đổi-một-chạy cho tới khi xanh.</span>
+        </div>
+        <div class="branch-row">
+          <strong>Sửa code, không sửa test</strong>
+          <span>Chỉ nới lỏng assertion khi đã chứng minh được test sai. Trong dự án y tế, một test bảo mật bị nới lỏng là một lỗ hổng được ký duyệt.</span>
+        </div>
+      </div>
+    </div>
+
+    <h2 id="l0">L0 · Môi trường</h2>
+    <p class="layer-intro">
+      Phần lớn "lỗi bí ẩn" trong repo này thực chất là môi trường sai. Xác minh trước, đừng đoán.
+    </p>
+
+    <div class="step">
+      <div class="step-head">
+        <span class="step-id">L0.1</span>
+        <span class="step-title">Xác minh interpreter và cấu trúc thư mục</span>
+        <span class="chip info">30 giây</span>
+      </div>
+      <div class="step-body">
+        <div class="field">
+          <span>Lệnh</span>
+<pre><span class="prompt">$</span> cd app/backend
+<span class="prompt">$</span> .venv/Scripts/python.exe --version
+<span class="prompt">$</span> .venv/Scripts/python.exe -c "import hospital_ai; print(hospital_ai.__file__)"</pre>
+        </div>
+        <div class="field">
+          <span>Kỳ vọng</span>
+<pre class="expect">Python 3.11.x
+...\app\backend\src\hospital_ai\__init__.py</pre>
+        </div>
+        <div class="branch">
+          <span class="branch-label">Nếu lệch</span>
+          <div class="branch-row">
+            <span class="sym">ModuleNotFoundError</span>
+            <span>Package nằm ở <code>src/hospital_ai</code> (src-layout). Bạn đang chạy python hệ thống thay vì venv, hoặc chưa cài package ở chế độ editable.</span>
+          </div>
+          <div class="branch-row">
+            <span class="sym">Sai đường dẫn</span>
+            <span>Đường dẫn phải trỏ vào <code>src/</code>. Nếu trỏ vào site-packages thì bạn đang test bản đã cài, không phải code đang sửa.</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-head">
+        <span class="step-id">L0.2</span>
+        <span class="step-title">Đối chiếu .env với .env.example</span>
+        <span class="chip info">1 phút</span>
+      </div>
+      <div class="step-body">
+        <p class="note">
+          Mặc định an toàn khi debug là chế độ tất định — không gọi mạng, không tốn API, kết quả lặp lại được:
+        </p>
+        <div class="field">
+          <span>Giá trị cần có trong app/backend/.env</span>
+<pre>HOSPITAL_AI_EMBEDDING_PROVIDER=deterministic
+HOSPITAL_AI_CHAT_PROVIDER=stub
+HOSPITAL_AI_WORKER_INLINE=false
+HOSPITAL_AI_RETRIEVAL_TOP_K=5
+HOSPITAL_AI_EVIDENCE_THRESHOLD=0.2</pre>
+        </div>
+        <div class="branch">
+          <span class="branch-label">Nếu lệch</span>
+          <div class="branch-row">
+            <span class="sym">provider=gemini</span>
+            <span>Test sẽ gọi API thật: chậm, tốn tiền, và kết quả đổi mỗi lần chạy nên không debug được. Chỉ bật khi cố ý kiểm thử nhà cung cấp.</span>
+          </div>
+          <div class="branch-row">
+            <span class="sym">Đòi API key</span>
+            <span>Với <code>stub</code> và <code>deterministic</code> thì không cần key. Nếu vẫn báo thiếu, biến môi trường đang bị ghi đè nơi khác — kiểm tra <code>docker-compose.yml</code>, nó set đè thành <code>gemini</code>.</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <h2 id="l1">L1 · Đơn vị backend</h2>
+    <p class="layer-intro">
+      Tầng này chạy trên SQLite in-memory, không cần Postgres hay Redis. Nếu tầng này đỏ,
+      đừng động đến Docker — lỗi nằm trong logic.
+    </p>
+
+    <div class="step">
+      <div class="step-head">
+        <span class="step-id">L1.1</span>
+        <span class="step-title">Chạy toàn bộ và ghi lại con số</span>
+        <span class="chip pass">Baseline 547 pass</span>
+      </div>
+      <div class="step-body">
+        <div class="field">
+          <span>Lệnh</span>
+<pre><span class="prompt">$</span> cd app/backend
+<span class="prompt">$</span> .venv/Scripts/python.exe -m pytest tests/ -q --no-header</pre>
+        </div>
+        <div class="field">
+          <span>Kỳ vọng</span>
+<pre class="expect">547 passed, 3 skipped, 5 warnings in ~430s</pre>
+        </div>
+        <div class="branch">
+          <span class="branch-label">Đọc kết quả</span>
+          <div class="branch-row">
+            <span class="sym">&lt; 547 passed</span>
+            <span>Có test mới fail. Ghi lại tên file rồi sang L1.2 để chạy riêng.</span>
+          </div>
+          <div class="branch-row">
+            <span class="sym">&gt; 3 skipped</span>
+            <span>Test bị bỏ qua ngoài dự kiến, thường do thiếu dependency tuỳ chọn (paddleocr, sentence-transformers). Thêm cờ <code>-rs</code> để xem lý do skip.</span>
+          </div>
+          <div class="branch-row">
+            <span class="sym">Chậm hơn nhiều</span>
+            <span>Guardrails đang chạy thật. <code>conftest.py</code> đặt <code>HOSPITAL_AI_DISABLE_GUARDRAILS=true</code>; nếu bị ghi đè, mỗi lần quét ONNX tốn 4–8 giây.</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-head">
+        <span class="step-id">L1.2</span>
+        <span class="step-title">Cô lập test đang fail</span>
+        <span class="chip info">Vòng lặp chính</span>
+      </div>
+      <div class="step-body">
+        <div class="field">
+          <span>Lệnh</span>
+<pre><span class="prompt">$</span> .venv/Scripts/python.exe -m pytest tests/test_permissions.py -v
+<span class="prompt">$</span> .venv/Scripts/python.exe -m pytest tests/test_permissions.py::ten_test -vv --tb=long
+<span class="prompt">$</span> .venv/Scripts/python.exe -m pytest tests/test_permissions.py::ten_test -x --pdb</pre>
+        </div>
+        <div class="field">
+          <span>Ý nghĩa cờ</span>
+<pre class="expect">-vv --tb=long   xem đầy đủ giá trị assert, không bị cắt
+--pdb           dừng ngay tại chỗ fail, gõ tên biến để soi
+-x              dừng ở lỗi đầu tiên</pre>
+        </div>
+        <div class="branch">
+          <span class="branch-label">Phân loại lỗi</span>
+          <div class="branch-row">
+            <span class="sym">Riêng pass, chung fail</span>
+            <span>Rò rỉ trạng thái giữa các test, thường do fixture dùng chung session hoặc biến ở cấp module. Thử đảo thứ tự chạy để xác nhận.</span>
+          </div>
+          <div class="branch-row">
+            <span class="sym">Riêng cũng fail</span>
+            <span>Lỗi logic thật. Đây là trường hợp dễ nhất: đọc assert, đặt breakpoint, sửa code nguồn.</span>
+          </div>
+          <div class="branch-row">
+            <span class="sym">Lúc pass lúc fail</span>
+            <span>Lỗi bất định: phụ thuộc thời gian hoặc async race. Chạy lặp nhiều lần để bắt trước khi kết luận.</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <h2 id="l2">L2 · Dữ liệu &amp; migration</h2>
+    <p class="layer-intro">
+      Từ tầng này trở đi cần dịch vụ ngoài. Bật Postgres và Redis trước khi đi tiếp.
+    </p>
+
+    <div class="step">
+      <div class="step-head">
+        <span class="step-id">L2.1</span>
+        <span class="step-title">Khởi động hạ tầng</span>
+        <span class="chip warn">Cần Docker</span>
+      </div>
+      <div class="step-body">
+        <div class="field">
+          <span>Lệnh</span>
+<pre><span class="prompt">$</span> docker compose up -d postgres redis
+<span class="prompt">$</span> docker compose ps</pre>
+        </div>
+        <div class="field">
+          <span>Kỳ vọng</span>
+<pre class="expect">postgres   healthy   0.0.0.0:5433-&gt;5432/tcp
+redis      healthy   0.0.0.0:6379-&gt;6379/tcp</pre>
+        </div>
+        <div class="callout" style="margin:.2rem 0 0">
+          <strong>Cổng Postgres là 5433, không phải 5432</strong>
+          <p>
+            <code>docker-compose.yml</code> map ra <code>5433</code>, nhưng <code>.env.example</code> ghi
+            <code>localhost:5432</code>. Nếu backend báo connection refused, gần như chắc chắn do chênh lệch này.
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-head">
+        <span class="step-id">L2.2</span>
+        <span class="step-title">Migration và seed dữ liệu</span>
+        <span class="chip info">16 revisions</span>
+      </div>
+      <div class="step-body">
+        <div class="field">
+          <span>Lệnh</span>
+<pre><span class="prompt">$</span> .venv/Scripts/python.exe -m alembic current
+<span class="prompt">$</span> .venv/Scripts/python.exe -m alembic upgrade head
+<span class="prompt">$</span> .venv/Scripts/python.exe scripts/seed_dev.py</pre>
+        </div>
+        <div class="branch">
+          <span class="branch-label">Nếu lỗi</span>
+          <div class="branch-row">
+            <span class="sym">Multiple heads</span>
+            <span>Hai nhánh migration song song. Chạy <code>alembic heads</code> để xem rồi merge. Đừng xoá revision.</span>
+          </div>
+          <div class="branch-row">
+            <span class="sym">type "vector" not exist</span>
+            <span>Đang chạy Postgres thường thay vì image <code>pgvector/pgvector:pg16</code>. Kiểm tra image trong compose.</span>
+          </div>
+          <div class="branch-row">
+            <span class="sym">Duplicate key</span>
+            <span>Đã seed rồi. Bệnh nhân synthetic dùng dải UUID riêng <code>20000000-…</code>; nếu trùng dải khác là allocator bị đụng.</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <h2 id="l3">L3 · API đang chạy</h2>
+    <p class="layer-intro">
+      Kiểm tra backend thật qua HTTP. Token dev khai báo trong <code>.env</code> theo cặp <code>token:email</code>.
+    </p>
+
+    <div class="step">
+      <div class="step-head">
+        <span class="step-id">L3.1</span>
+        <span class="step-title">Khởi động và gọi thử</span>
+        <span class="chip info">Port 8000</span>
+      </div>
+      <div class="step-body">
+        <div class="field">
+          <span>Lệnh</span>
+<pre><span class="prompt">$</span> .venv/Scripts/python.exe -m uvicorn hospital_ai.main:create_app --reload
+
+<span class="prompt">#</span> mở tab khác
+<span class="prompt">$</span> curl http://localhost:8000/api/v1/health
+<span class="prompt">$</span> curl -H "Authorization: Bearer dev-doctor" \
+       http://localhost:8000/api/v1/patients</pre>
+        </div>
+        <div class="field">
+          <span>Token dev có sẵn</span>
+<pre class="expect">dev-doctor     dev-nurse      dev-pharmacist
+dev-records    dev-security   dev-admin
+dev-frontdesk</pre>
+        </div>
+        <div class="branch">
+          <span class="branch-label">Nếu lỗi</span>
+          <div class="branch-row">
+            <span class="sym">401</span>
+            <span>Token không khớp <code>HOSPITAL_AI_DEV_BEARER_TOKENS</code>, hoặc server khởi động trước khi bạn sửa <code>.env</code>. Restart uvicorn.</span>
+          </div>
+          <div class="branch-row">
+            <span class="sym">429</span>
+            <span>Rate limit đang bật — đây là hành vi đúng. Limiter fail-closed, chỉ tắt khi <code>TESTING=true</code>. Đừng tắt nó cho "dễ test".</span>
+          </div>
+          <div class="branch-row">
+            <span class="sym">CORS blocked</span>
+            <span>Frontend chạy port 8082; origin đó phải nằm trong <code>HOSPITAL_AI_CORS_ORIGINS</code>.</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-head">
+        <span class="step-id">L3.2</span>
+        <span class="step-title">Kiểm tra hợp đồng API và luồng khói</span>
+        <span class="chip info">Script có sẵn</span>
+      </div>
+      <div class="step-body">
+        <div class="field">
+          <span>Lệnh</span>
+<pre><span class="prompt">$</span> .venv/Scripts/python.exe scripts/verify_contracts.py
+<span class="prompt">$</span> .venv/Scripts/python.exe scripts/smoke_upload_index_chat.py</pre>
+        </div>
+        <p class="note">
+          Script thứ hai chạy trọn vòng đời tài liệu: upload → OCR → index → hỏi đáp.
+          Đây là bài kiểm tra tích hợp nhanh nhất cho cả pipeline.
+        </p>
+      </div>
+    </div>
+
+    <h2 id="l4">L4 · Bảo mật</h2>
+    <p class="layer-intro">
+      Tầng quan trọng nhất của dự án. Bốn ràng buộc dưới đây là bất biến —
+      nếu một trong số chúng đỏ, dừng mọi việc khác và sửa trước.
+    </p>
+
+    <div class="step">
+      <div class="step-head">
+        <span class="step-id">L4.1</span>
+        <span class="step-title">Bốn ràng buộc bất biến</span>
+        <span class="chip fail">Không nới lỏng</span>
+      </div>
+      <div class="step-body">
+        <div class="field">
+          <span>Lệnh</span>
+<pre><span class="prompt">$</span> .venv/Scripts/python.exe -m pytest \
+    tests/test_permissions.py \
+    tests/test_chat_citations.py \
+    tests/test_safe_refusal.py \
+    tests/test_auth.py -v</pre>
+        </div>
+        <div class="branch">
+          <span class="branch-label">Phải luôn đúng</span>
+          <div class="branch-row">
+            <strong>ABAC nằm trong SQL</strong>
+            <span>Lọc quyền bệnh nhân đặt trong mệnh đề <code>WHERE</code> của truy vấn retrieval. Chunk không được phép không bao giờ rời khỏi database, chứ không phải lọc sau khi đã lấy ra.</span>
+          </div>
+          <div class="branch-row">
+            <strong>Citation kiểm hai lần</strong>
+            <span>Một lần trong <code>services/reasoning.py</code>, một lần ở biên <code>services/chat.py</code>. Lần thứ hai còn từ chối câu trả lời không có citation nào.</span>
+          </div>
+          <div class="branch-row">
+            <strong>Rate limit fail-closed</strong>
+            <span><code>api/limiter.py</code> luôn bật trừ khi <code>TESTING=true</code>. Không bao giờ đặt mặc định là tắt.</span>
+          </div>
+          <div class="branch-row">
+            <strong>Token không vào localStorage</strong>
+            <span><code>lib/session.tsx</code> chỉ lưu <code>role</code> và <code>workspaceId</code>, ràng buộc bằng <code>satisfies PersistedSession</code>. Token thật chỉ nằm trong bộ nhớ tại <code>lib/api-client.ts</code>.</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-head">
+        <span class="step-id">L4.2</span>
+        <span class="step-title">Tự kiểm tra rò rỉ token trên trình duyệt</span>
+        <span class="chip info">Thủ công</span>
+      </div>
+      <div class="step-body">
+        <div class="field">
+          <span>Thao tác</span>
+<pre>1. Mở app, đăng nhập bằng tài khoản dev
+2. DevTools → Application → Local Storage
+3. Đọc giá trị khoá "hms.session"</pre>
+        </div>
+        <div class="field">
+          <span>Kỳ vọng</span>
+<pre class="expect">{"role":"cardiologist","workspaceId":"ws-cardio-4n"}
+
+Không xuất hiện trường "token".</pre>
+        </div>
+        <div class="callout" style="margin:.2rem 0 0">
+          <strong>Đừng nhầm với seam của test E2E</strong>
+          <p>
+            Helper <code>e2e/_helpers.ts</code> có ghi token vào localStorage để dựng phiên giả trước khi app khởi động.
+            Đó là công cụ của test, không phải hành vi ứng dụng. Kiểm tra rò rỉ phải làm thủ công qua luồng đăng nhập thật.
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <h2 id="l5">L5 · RAG &amp; AI</h2>
+    <p class="layer-intro">
+      Tầng khó debug nhất vì đầu ra không tất định khi dùng LLM thật.
+      Luôn debug ở chế độ <code>stub</code> trước, chỉ đổi sang model thật ở bước cuối.
+    </p>
+
+    <div class="step">
+      <div class="step-head">
+        <span class="step-id">L5.1</span>
+        <span class="step-title">Tách retrieval khỏi generation</span>
+        <span class="chip info">Nguyên tắc</span>
+      </div>
+      <div class="step-body">
+        <p class="note">
+          Câu trả lời sai có đúng hai nguyên nhân, và chúng cần cách sửa hoàn toàn khác nhau.
+          Xác định nguyên nhân trước khi sửa bất cứ thứ gì:
+        </p>
+        <div class="inset">
+          <div class="branch-row">
+            <strong>Lấy sai bằng chứng</strong>
+            <span>Chunk đúng không nằm trong top-k. Sửa ở embedding, chunking hoặc reranking — không phải ở prompt.</span>
+          </div>
+          <div class="branch-row">
+            <strong>Lấy đúng, trả lời sai</strong>
+            <span>Chunk đúng đã có trong ngữ cảnh nhưng model diễn giải sai. Sửa ở prompt hoặc pipeline suy luận.</span>
+          </div>
+        </div>
+        <div class="field">
+          <span>Lệnh soi</span>
+<pre><span class="prompt">$</span> .venv/Scripts/python.exe -m pytest tests/test_retrieval_sql.py -v
+<span class="prompt">$</span> .venv/Scripts/python.exe -m pytest tests/test_reranking.py -v
+<span class="prompt">$</span> .venv/Scripts/python.exe -m pytest tests/test_graph_rag_integration.py -v</pre>
+        </div>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-head">
+        <span class="step-id">L5.2</span>
+        <span class="step-title">Bẫy top-k của bộ lọc theo vai trò</span>
+        <span class="chip warn">Dễ chẩn đoán nhầm</span>
+      </div>
+      <div class="step-body">
+        <p class="note">
+          Lọc theo vai trò chạy bằng Python <strong>sau khi</strong> <code>LIMIT :top_k</code> đã áp dụng
+          (<code>services/retrieval.py</code>, hàm <code>_apply_role_filters</code>).
+          Hệ quả: kết quả trả về có thể ít hơn <code>top_k</code>, và triệu chứng trông hệt như "retrieval kém".
+        </p>
+        <div class="field">
+          <span>Cách phân biệt</span>
+<pre class="expect">Đếm số chunk trước và sau bước lọc vai trò.
+Trước đủ, sau thiếu  → vấn đề là top-k, không phải embedding.
+Xử lý: tăng top_k, đừng đổi model embedding.</pre>
+        </div>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-head">
+        <span class="step-id">L5.3</span>
+        <span class="step-title">Chạy đánh giá chất lượng</span>
+        <span class="chip info">Script có sẵn</span>
+      </div>
+      <div class="step-body">
+        <div class="field">
+          <span>Lệnh</span>
+<pre><span class="prompt">$</span> .venv/Scripts/python.exe scripts/run_rag_eval.py
+<span class="prompt">$</span> .venv/Scripts/python.exe scripts/run_ai_evaluation.py
+<span class="prompt">$</span> .venv/Scripts/python.exe scripts/verify_ai_regression.py
+<span class="prompt">$</span> .venv/Scripts/python.exe -m pytest tests/evaluation/ -v</pre>
+        </div>
+      </div>
+    </div>
+
+    <h2 id="l6">L6 · Frontend</h2>
+    <p class="layer-intro">
+      Nhanh và rẻ — chạy tầng này thường xuyên khi sửa UI.
+    </p>
+
+    <div class="step">
+      <div class="step-head">
+        <span class="step-id">L6.1</span>
+        <span class="step-title">Kiểm tra tĩnh và unit test</span>
+        <span class="chip pass">Baseline 96 pass</span>
+      </div>
+      <div class="step-body">
+        <div class="field">
+          <span>Lệnh</span>
+<pre><span class="prompt">$</span> cd app/frontend
+<span class="prompt">$</span> bun run typecheck
+<span class="prompt">$</span> bun run lint
+<span class="prompt">$</span> bun run test</pre>
+        </div>
+        <div class="field">
+          <span>Kỳ vọng</span>
+<pre class="expect">Test Files  14 passed (14)
+     Tests  96 passed (96)
+  Duration  ~17s</pre>
+        </div>
+        <div class="branch">
+          <span class="branch-label">Thứ tự sửa</span>
+          <div class="branch-row">
+            <strong>typecheck trước</strong>
+            <span>Lỗi kiểu thường là nguyên nhân gốc của lỗi test. Sửa hết type rồi mới chạy test lại.</span>
+          </div>
+          <div class="branch-row">
+            <span class="sym">vitest run src</span>
+            <span>Script chỉ quét thư mục <code>src</code>; <code>e2e/</code> cố tình bị loại. Đặt unit test trong <code>src/</code>, không đặt ngoài.</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <h2 id="l7">L7 · E2E</h2>
+    <p class="layer-intro">
+      Tầng chậm nhất và dễ nhiễu nhất. Chỉ chạy khi L1 đến L6 đã xanh.
+    </p>
+
+    <div class="step">
+      <div class="step-head">
+        <span class="step-id">L7.1</span>
+        <span class="step-title">Chạy Playwright</span>
+        <span class="chip warn">Cần backend chạy sẵn</span>
+      </div>
+      <div class="step-body">
+        <div class="field">
+          <span>Lệnh</span>
+<pre><span class="prompt">$</span> cd app/frontend
+<span class="prompt">$</span> bun run test:e2e
+<span class="prompt">$</span> bun run test:e2e:ui
+<span class="prompt">$</span> bunx playwright test e2e/rbac-flow.spec.ts --headed</pre>
+        </div>
+        <div class="callout" style="margin:.2rem 0 0">
+          <strong>Playwright chỉ tự khởi động frontend</strong>
+          <p>
+            Config tự chạy <code>bun run dev --port 8082</code> nhưng không khởi động backend.
+            Bạn phải tự chạy uvicorn ở port 8000 trước, nếu không mọi spec gọi API sẽ đỏ hàng loạt.
+          </p>
+        </div>
+        <div class="branch">
+          <span class="branch-label">Đọc lỗi E2E</span>
+          <div class="branch-row">
+            <span class="sym">Fail rồi retry pass</span>
+            <span>Nhiễu do tranh chấp tài nguyên, không phải bug. Config đặt <code>retries: 1</code> và giới hạn 4 workers vì nút thắt là một backend duy nhất ở port 8000.</span>
+          </div>
+          <div class="branch-row">
+            <span class="sym">Timeout hàng loạt</span>
+            <span>Backend chưa chạy hoặc đã chết. Kiểm tra tab uvicorn trước khi nghi ngờ test.</span>
+          </div>
+          <div class="branch-row">
+            <span class="sym">Redirect /auth/login</span>
+            <span>Phiên giả chưa được seed. Spec phải gọi <code>seedSession(page)</code> từ <code>_helpers.ts</code> trước khi điều hướng.</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-head">
+        <span class="step-id">L7.2</span>
+        <span class="step-title">Đọc bằng chứng khi fail</span>
+        <span class="chip info">Trace viewer</span>
+      </div>
+      <div class="step-body">
+        <div class="field">
+          <span>Lệnh</span>
+<pre><span class="prompt">$</span> bunx playwright show-trace test-results/&lt;ten-test&gt;/trace.zip</pre>
+        </div>
+        <p class="note">
+          Config đặt <code>trace</code> và <code>video</code> ở chế độ <code>retain-on-failure</code>,
+          nên chỉ test fail mới có artifact. Trace viewer cho bạn xem lại DOM tại từng bước —
+          hữu ích hơn nhiều so với đọc log.
+        </p>
+      </div>
+    </div>
+
+    <h2 id="bisect">Thu hẹp phạm vi khi bí</h2>
+    <p class="layer-intro">
+      Khi không biết lỗi đến từ đâu, đừng đọc code — hãy để git chỉ chỗ.
+    </p>
+
+    <div class="step">
+      <div class="step-body">
+        <div class="field">
+          <span>Tìm commit gây lỗi</span>
+<pre><span class="prompt">$</span> git bisect start
+<span class="prompt">$</span> git bisect bad HEAD
+<span class="prompt">$</span> git bisect good &lt;commit-tung-xanh&gt;
+<span class="prompt">#</span> lặp: chạy test rồi đánh dấu good hoặc bad
+<span class="prompt">$</span> git bisect reset</pre>
+        </div>
+        <div class="field">
+          <span>Xem những gì đã đổi</span>
+<pre><span class="prompt">$</span> git log --oneline -20
+<span class="prompt">$</span> git diff main...HEAD -- app/backend/src/hospital_ai/services/
+<span class="prompt">$</span> git log -p --follow &lt;file-nghi-ngo&gt;</pre>
+        </div>
+      </div>
+    </div>
+
+    <h2 id="traps">Bẫy đã biết trong repo này</h2>
+    <p class="layer-intro">
+      Những điểm dưới đây đã từng gây mất thời gian. Đọc trước sẽ tiết kiệm vài giờ.
+    </p>
+
+    <div class="tablewrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Triệu chứng</th>
+            <th>Nguyên nhân thật</th>
+            <th>Tầng</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Connection refused tới Postgres</td>
+            <td>Compose map cổng <code>5433</code>, <code>.env.example</code> ghi <code>5432</code></td>
+            <td class="num">L2</td>
+          </tr>
+          <tr>
+            <td>Test suite chậm bất thường</td>
+            <td>Guardrails ONNX chạy thật, 4–8 giây mỗi lần quét</td>
+            <td class="num">L1</td>
+          </tr>
+          <tr>
+            <td>Retrieval trả về ít hơn top_k</td>
+            <td>Lọc vai trò chạy sau <code>LIMIT</code>, đúng theo thiết kế</td>
+            <td class="num">L5</td>
+          </tr>
+          <tr>
+            <td>E2E đỏ hàng loạt</td>
+            <td>Playwright không tự khởi động backend</td>
+            <td class="num">L7</td>
+          </tr>
+          <tr>
+            <td>E2E fail rồi retry lại pass</td>
+            <td>Tranh chấp trên một backend duy nhất, đã có <code>retries: 1</code></td>
+            <td class="num">L7</td>
+          </tr>
+          <tr>
+            <td>Thấy token trong localStorage</td>
+            <td>Do helper E2E seed, không phải app ghi</td>
+            <td class="num">L4</td>
+          </tr>
+          <tr>
+            <td>ModuleNotFoundError hospital_ai</td>
+            <td>src-layout: package nằm ở <code>src/</code>, cần venv đúng</td>
+            <td class="num">L0</td>
+          </tr>
+          <tr>
+            <td>Đòi API key dù đã đặt stub</td>
+            <td><code>docker-compose.yml</code> ghi đè provider thành <code>gemini</code></td>
+            <td class="num">L0</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="callout">
+      <strong>Trước khi kết luận đã sửa xong</strong>
+      <p>
+        Chạy lại từ L1 và đối chiếu baseline: 547 backend pass, 96 frontend pass.
+        Một bản sửa làm xanh test của bạn nhưng giảm tổng số pass thì chưa phải bản sửa xong.
+      </p>
+    </div>
+
+    <footer>
+      Đo trên nhánh fix/e2e-hardening-and-token-leak · 27.07.2026 ·
+      Backend 547 pass / 431s · Frontend 96 pass / 17s
+    </footer>
+  </main>
+</div>
+
+</body>
+</html>

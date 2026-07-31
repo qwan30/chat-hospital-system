@@ -1,8 +1,9 @@
-from datetime import datetime
-from typing import Literal, Optional, Any
-from pydantic import BaseModel
 import uuid
+from datetime import datetime
+from typing import Any, Literal, Optional
+
 from .common import ApiSchema
+
 
 class TimelineEventBase(ApiSchema):
     event_id: str

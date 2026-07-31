@@ -1,14 +1,15 @@
-from fastapi import APIRouter, Depends
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, desc, or_, and_
 import asyncio
 from datetime import UTC, datetime
 
-from hospital_ai.db.session import get_session as get_db
+from fastapi import APIRouter, Depends
+from sqlalchemy import and_, desc, or_, select
+from sqlalchemy.ext.asyncio import AsyncSession
+
 from hospital_ai.api.deps import get_current_user
-from hospital_ai.db.models import User, PatientPermission, ChatThread, Document, AuditLog
-from hospital_ai.schemas.timeline import GlobalTimelineResponse, TimelineEventBase
 from hospital_ai.core.security import PATIENT_READ_SCOPES
+from hospital_ai.db.models import AuditLog, ChatThread, Document, PatientPermission, User
+from hospital_ai.db.session import get_session as get_db
+from hospital_ai.schemas.timeline import GlobalTimelineResponse, TimelineEventBase
 
 router = APIRouter(prefix="/timeline", tags=["Timeline"])
 

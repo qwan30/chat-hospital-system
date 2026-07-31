@@ -8,9 +8,11 @@ import { Button } from "@/components/ui/button";
 export function DocumentPreview({
   documentId,
   mimeType,
+  boundingBox,
 }: {
   documentId: string;
   mimeType: string;
+  boundingBox?: { top: number; left: number; width: number; height: number } | null;
 }) {
   const reduceMotion = useReducedMotion();
   const [url, setUrl] = useState<string | null>(null);

@@ -18,7 +18,7 @@ import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { useState } from "react";
 
-export const Route = createFileRoute("/_app/documents/$documentId_/review")({
+export const Route = createFileRoute("/_app/documents/$documentId/review")({
   head: () => ({ meta: [{ title: "OCR review — HMS AI Copilot" }] }),
   component: Page,
 });

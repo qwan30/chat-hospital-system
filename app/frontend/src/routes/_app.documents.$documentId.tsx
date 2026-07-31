@@ -109,7 +109,7 @@ function Page() {
           <div className="flex gap-2">
             {intelligence?.review_items_count ? (
               <Button asChild variant="default">
-                <Link to={`/documents/${documentId}/review`}>
+                <Link to="/documents/$documentId/review" params={{ documentId }}>
                   Review {intelligence.review_items_count} items
                 </Link>
               </Button>

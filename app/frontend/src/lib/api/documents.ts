@@ -183,8 +183,8 @@ export const getDocumentReviewItems = async (
 };
 
 export interface ReviewItemPatchRequest {
-  action: "approve" | "reject" | "update";
-  value: Record<string, any>;
+  action: "approve" | "reject" | "correct";
+  value?: any;
   reason: string;
   version: number;
   fact_type?: string;

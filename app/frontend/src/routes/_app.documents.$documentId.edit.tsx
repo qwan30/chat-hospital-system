@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 
-export const Route = createFileRoute("/_app/documents/$documentId_/edit")({
+export const Route = createFileRoute("/_app/documents/$documentId/edit")({
   head: () => ({ meta: [{ title: "Edit document — HMS AI Copilot" }] }),
   component: Page,
 });

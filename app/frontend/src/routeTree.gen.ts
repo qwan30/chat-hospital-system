@@ -103,9 +103,9 @@ import { Route as AppIntegrationsTracesTraceIdRouteImport } from './routes/_app.
 import { Route as AppIntegrationsHmsDlqRouteImport } from './routes/_app.integrations.hms.dlq'
 import { Route as AppGraphPatientsPatientIdRouteImport } from './routes/_app.graph.patients.$patientId'
 import { Route as AppGraphPathPathIdRouteImport } from './routes/_app.graph.path.$pathId'
-import { Route as AppDocumentsDocumentIdReviewRouteImport } from './routes/_app.documents.$documentId_.review'
-import { Route as AppDocumentsDocumentIdRetryRouteImport } from './routes/_app.documents.$documentId_.retry'
-import { Route as AppDocumentsDocumentIdEditRouteImport } from './routes/_app.documents.$documentId_.edit'
+import { Route as AppDocumentsDocumentIdReviewRouteImport } from './routes/_app.documents.$documentId.review'
+import { Route as AppDocumentsDocumentIdRetryRouteImport } from './routes/_app.documents.$documentId.retry'
+import { Route as AppDocumentsDocumentIdEditRouteImport } from './routes/_app.documents.$documentId.edit'
 import { Route as AppChatPatientsPatientIdRouteImport } from './routes/_app.chat.patients.$patientId'
 import { Route as AppAuditTracesTraceIdRouteImport } from './routes/_app.audit.traces.$traceId'
 import { Route as AppAuditEventIdRawRouteImport } from './routes/_app.audit.$eventId.raw'
@@ -601,21 +601,21 @@ const AppGraphPathPathIdRoute = AppGraphPathPathIdRouteImport.update({
 } as any)
 const AppDocumentsDocumentIdReviewRoute =
   AppDocumentsDocumentIdReviewRouteImport.update({
-    id: '/$documentId_/review',
-    path: '/$documentId/review',
-    getParentRoute: () => AppDocumentsRoute,
+    id: '/review',
+    path: '/review',
+    getParentRoute: () => AppDocumentsDocumentIdRoute,
   } as any)
 const AppDocumentsDocumentIdRetryRoute =
   AppDocumentsDocumentIdRetryRouteImport.update({
-    id: '/$documentId_/retry',
-    path: '/$documentId/retry',
-    getParentRoute: () => AppDocumentsRoute,
+    id: '/retry',
+    path: '/retry',
+    getParentRoute: () => AppDocumentsDocumentIdRoute,
   } as any)
 const AppDocumentsDocumentIdEditRoute =
   AppDocumentsDocumentIdEditRouteImport.update({
-    id: '/$documentId_/edit',
-    path: '/$documentId/edit',
-    getParentRoute: () => AppDocumentsRoute,
+    id: '/edit',
+    path: '/edit',
+    getParentRoute: () => AppDocumentsDocumentIdRoute,
   } as any)
 const AppChatPatientsPatientIdRoute =
   AppChatPatientsPatientIdRouteImport.update({
@@ -698,7 +698,7 @@ export interface FileRoutesByFullPath {
   '/citations/compare': typeof AppCitationsCompareRoute
   '/dashboard/activity': typeof AppDashboardActivityRoute
   '/dashboard/customize': typeof AppDashboardCustomizeRoute
-  '/documents/$documentId': typeof AppDocumentsDocumentIdRoute
+  '/documents/$documentId': typeof AppDocumentsDocumentIdRouteWithChildren
   '/documents/duplicates': typeof AppDocumentsDuplicatesRoute
   '/documents/ocr-queue': typeof AppDocumentsOcrQueueRoute
   '/documents/search': typeof AppDocumentsSearchRoute
@@ -795,7 +795,7 @@ export interface FileRoutesByTo {
   '/citations/compare': typeof AppCitationsCompareRoute
   '/dashboard/activity': typeof AppDashboardActivityRoute
   '/dashboard/customize': typeof AppDashboardCustomizeRoute
-  '/documents/$documentId': typeof AppDocumentsDocumentIdRoute
+  '/documents/$documentId': typeof AppDocumentsDocumentIdRouteWithChildren
   '/documents/duplicates': typeof AppDocumentsDuplicatesRoute
   '/documents/ocr-queue': typeof AppDocumentsOcrQueueRoute
   '/documents/search': typeof AppDocumentsSearchRoute
@@ -900,7 +900,7 @@ export interface FileRoutesById {
   '/_app/citations/compare': typeof AppCitationsCompareRoute
   '/_app/dashboard/activity': typeof AppDashboardActivityRoute
   '/_app/dashboard/customize': typeof AppDashboardCustomizeRoute
-  '/_app/documents/$documentId': typeof AppDocumentsDocumentIdRoute
+  '/_app/documents/$documentId': typeof AppDocumentsDocumentIdRouteWithChildren
   '/_app/documents/duplicates': typeof AppDocumentsDuplicatesRoute
   '/_app/documents/ocr-queue': typeof AppDocumentsOcrQueueRoute
   '/_app/documents/search': typeof AppDocumentsSearchRoute
@@ -939,9 +939,9 @@ export interface FileRoutesById {
   '/_app/audit/$eventId/raw': typeof AppAuditEventIdRawRoute
   '/_app/audit/traces/$traceId': typeof AppAuditTracesTraceIdRoute
   '/_app/chat/patients/$patientId': typeof AppChatPatientsPatientIdRoute
-  '/_app/documents/$documentId_/edit': typeof AppDocumentsDocumentIdEditRoute
-  '/_app/documents/$documentId_/retry': typeof AppDocumentsDocumentIdRetryRoute
-  '/_app/documents/$documentId_/review': typeof AppDocumentsDocumentIdReviewRoute
+  '/_app/documents/$documentId/edit': typeof AppDocumentsDocumentIdEditRoute
+  '/_app/documents/$documentId/retry': typeof AppDocumentsDocumentIdRetryRoute
+  '/_app/documents/$documentId/review': typeof AppDocumentsDocumentIdReviewRoute
   '/_app/graph/path/$pathId': typeof AppGraphPathPathIdRoute
   '/_app/graph/patients/$patientId': typeof AppGraphPatientsPatientIdRoute
   '/_app/integrations/hms/dlq': typeof AppIntegrationsHmsDlqRoute
@@ -1246,9 +1246,9 @@ export interface FileRouteTypes {
     | '/_app/audit/$eventId/raw'
     | '/_app/audit/traces/$traceId'
     | '/_app/chat/patients/$patientId'
-    | '/_app/documents/$documentId_/edit'
-    | '/_app/documents/$documentId_/retry'
-    | '/_app/documents/$documentId_/review'
+    | '/_app/documents/$documentId/edit'
+    | '/_app/documents/$documentId/retry'
+    | '/_app/documents/$documentId/review'
     | '/_app/graph/path/$pathId'
     | '/_app/graph/patients/$patientId'
     | '/_app/integrations/hms/dlq'
@@ -1951,26 +1951,26 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppGraphPathPathIdRouteImport
       parentRoute: typeof AppRoute
     }
-    '/_app/documents/$documentId_/review': {
-      id: '/_app/documents/$documentId_/review'
-      path: '/$documentId/review'
+    '/_app/documents/$documentId/review': {
+      id: '/_app/documents/$documentId/review'
+      path: '/review'
       fullPath: '/documents/$documentId/review'
       preLoaderRoute: typeof AppDocumentsDocumentIdReviewRouteImport
-      parentRoute: typeof AppDocumentsRoute
+      parentRoute: typeof AppDocumentsDocumentIdRoute
     }
-    '/_app/documents/$documentId_/retry': {
-      id: '/_app/documents/$documentId_/retry'
-      path: '/$documentId/retry'
+    '/_app/documents/$documentId/retry': {
+      id: '/_app/documents/$documentId/retry'
+      path: '/retry'
       fullPath: '/documents/$documentId/retry'
       preLoaderRoute: typeof AppDocumentsDocumentIdRetryRouteImport
-      parentRoute: typeof AppDocumentsRoute
+      parentRoute: typeof AppDocumentsDocumentIdRoute
     }
-    '/_app/documents/$documentId_/edit': {
-      id: '/_app/documents/$documentId_/edit'
-      path: '/$documentId/edit'
+    '/_app/documents/$documentId/edit': {
+      id: '/_app/documents/$documentId/edit'
+      path: '/edit'
       fullPath: '/documents/$documentId/edit'
       preLoaderRoute: typeof AppDocumentsDocumentIdEditRouteImport
-      parentRoute: typeof AppDocumentsRoute
+      parentRoute: typeof AppDocumentsDocumentIdRoute
     }
     '/_app/chat/patients/$patientId': {
       id: '/_app/chat/patients/$patientId'
@@ -2055,30 +2055,42 @@ const AppDashboardRouteWithChildren = AppDashboardRoute._addFileChildren(
   AppDashboardRouteChildren,
 )
 
+interface AppDocumentsDocumentIdRouteChildren {
+  AppDocumentsDocumentIdEditRoute: typeof AppDocumentsDocumentIdEditRoute
+  AppDocumentsDocumentIdRetryRoute: typeof AppDocumentsDocumentIdRetryRoute
+  AppDocumentsDocumentIdReviewRoute: typeof AppDocumentsDocumentIdReviewRoute
+}
+
+const AppDocumentsDocumentIdRouteChildren: AppDocumentsDocumentIdRouteChildren =
+  {
+    AppDocumentsDocumentIdEditRoute: AppDocumentsDocumentIdEditRoute,
+    AppDocumentsDocumentIdRetryRoute: AppDocumentsDocumentIdRetryRoute,
+    AppDocumentsDocumentIdReviewRoute: AppDocumentsDocumentIdReviewRoute,
+  }
+
+const AppDocumentsDocumentIdRouteWithChildren =
+  AppDocumentsDocumentIdRoute._addFileChildren(
+    AppDocumentsDocumentIdRouteChildren,
+  )
+
 interface AppDocumentsRouteChildren {
-  AppDocumentsDocumentIdRoute: typeof AppDocumentsDocumentIdRoute
+  AppDocumentsDocumentIdRoute: typeof AppDocumentsDocumentIdRouteWithChildren
   AppDocumentsDuplicatesRoute: typeof AppDocumentsDuplicatesRoute
   AppDocumentsOcrQueueRoute: typeof AppDocumentsOcrQueueRoute
   AppDocumentsSearchRoute: typeof AppDocumentsSearchRoute
   AppDocumentsSyncHmsRoute: typeof AppDocumentsSyncHmsRoute
   AppDocumentsUploadRoute: typeof AppDocumentsUploadRoute
   AppDocumentsIndexRoute: typeof AppDocumentsIndexRoute
-  AppDocumentsDocumentIdEditRoute: typeof AppDocumentsDocumentIdEditRoute
-  AppDocumentsDocumentIdRetryRoute: typeof AppDocumentsDocumentIdRetryRoute
-  AppDocumentsDocumentIdReviewRoute: typeof AppDocumentsDocumentIdReviewRoute
 }
 
 const AppDocumentsRouteChildren: AppDocumentsRouteChildren = {
-  AppDocumentsDocumentIdRoute: AppDocumentsDocumentIdRoute,
+  AppDocumentsDocumentIdRoute: AppDocumentsDocumentIdRouteWithChildren,
   AppDocumentsDuplicatesRoute: AppDocumentsDuplicatesRoute,
   AppDocumentsOcrQueueRoute: AppDocumentsOcrQueueRoute,
   AppDocumentsSearchRoute: AppDocumentsSearchRoute,
   AppDocumentsSyncHmsRoute: AppDocumentsSyncHmsRoute,
   AppDocumentsUploadRoute: AppDocumentsUploadRoute,
   AppDocumentsIndexRoute: AppDocumentsIndexRoute,
-  AppDocumentsDocumentIdEditRoute: AppDocumentsDocumentIdEditRoute,
-  AppDocumentsDocumentIdRetryRoute: AppDocumentsDocumentIdRetryRoute,
-  AppDocumentsDocumentIdReviewRoute: AppDocumentsDocumentIdReviewRoute,
 }
 
 const AppDocumentsRouteWithChildren = AppDocumentsRoute._addFileChildren(

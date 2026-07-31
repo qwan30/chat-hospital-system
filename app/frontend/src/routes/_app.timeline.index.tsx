@@ -4,13 +4,7 @@ import { AppShell } from "@/components/shell/AppShell";
 import { PageHeader } from "@/components/hms/PageHeader";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import {
-  FileText,
-  Sparkles,
-  UserCheck,
-  type LucideIcon,
-  Loader2,
-} from "lucide-react";
+import { FileText, Sparkles, UserCheck, type LucideIcon, Loader2 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { getGlobalTimeline, TimelineEvent } from "@/lib/api/timeline";
 import { format } from "date-fns";
@@ -48,10 +42,10 @@ const getEventIconAndTone = (type: TimelineEvent["type"]): { icon: LucideIcon; t
 
 function TimelinePage() {
   const [expandedIndex, setExpandedIndex] = useState<number | null>(null);
-  
+
   const { data, isLoading, error } = useQuery({
     queryKey: ["global-timeline"],
-    queryFn: () => getGlobalTimeline()
+    queryFn: () => getGlobalTimeline(),
   });
 
   return (
@@ -67,16 +61,12 @@ function TimelinePage() {
             <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
           </div>
         ) : error ? (
-          <div className="text-center text-destructive py-8">
-            Failed to load timeline events.
-          </div>
-        ) : data?.events.length === 0 ? (
-          <div className="text-center text-muted-foreground py-8">
-            No events found.
-          </div>
+          <div className="text-center text-destructive py-8">Failed to load timeline events.</div>
+        ) : !data || data.events.length === 0 ? (
+          <div className="text-center text-muted-foreground py-8">No events found.</div>
         ) : (
           <ol className="relative space-y-6 border-l border-border pl-6">
-            {data?.events.map((e, i) => {
+            {data.events.map((e, i) => {
               const { icon: Icon, tone } = getEventIconAndTone(e.type);
               return (
                 <li
@@ -105,7 +95,8 @@ function TimelinePage() {
                         <strong>Type:</strong> {e.type}
                       </div>
                       <div>
-                        <strong>Date:</strong> {format(new Date(e.timestamp), "MMM d, yyyy HH:mm:ss")}
+                        <strong>Date:</strong>{" "}
+                        {format(new Date(e.timestamp), "MMM d, yyyy HH:mm:ss")}
                       </div>
                       {e.patient_id && (
                         <Link

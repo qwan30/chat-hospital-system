@@ -1,9 +1,11 @@
 from __future__ import annotations
 
+import os
 import uuid
 from datetime import date, datetime
 from typing import Any, Optional
 
+from cryptography.fernet import Fernet
 from sqlalchemy import (
     JSON,
     Boolean,
@@ -57,9 +59,6 @@ class InetAddress(TypeDecorator):
             return dialect.type_descriptor(INET())
         return dialect.type_descriptor(String(64))
 
-
-import os
-from cryptography.fernet import Fernet
 
 _ENCRYPTION_KEY = os.environ.get("PHI_ENCRYPTION_KEY", Fernet.generate_key().decode("utf-8"))
 _fernet = Fernet(_ENCRYPTION_KEY.encode("utf-8"))
@@ -211,7 +210,8 @@ class Document(TimestampMixin, SoftDeleteMixin, Base):
     __tablename__ = "documents"
     __table_args__ = (
         CheckConstraint(
-            "status in ('uploaded','queued','processing','review_required','ready_with_warnings','ready','failed','cancelled','quarantined','soft_deleted')",
+            "status in ('uploaded','queued','processing','review_required',"
+            "'ready_with_warnings','ready','failed','cancelled','quarantined','soft_deleted')",
             name="ck_documents_status",
         ),
     )
@@ -249,7 +249,10 @@ class DocumentProcessingEvent(Base):
     __tablename__ = "document_processing_events"
     __table_args__ = (
         CheckConstraint(
-            "stage in ('upload','ocr','index','ready','preflight_document','classify_document','extract_native_pages','extract_vision_pages','reconstruct_document','extract_clinical_facts','validate_and_route_review','build_fhir_draft','index_document','extract_graph','run_cdss','finalize_document')",
+            "stage in ('upload','ocr','index','ready','preflight_document','classify_document',"
+            "'extract_native_pages','extract_vision_pages','reconstruct_document','extract_clinical_facts',"
+            "'validate_and_route_review','build_fhir_draft','index_document','extract_graph','run_cdss',"
+            "'finalize_document')",
             name="ck_document_processing_event_stage",
         ),
         CheckConstraint("state in ('started','completed','failed')", name="ck_document_processing_event_state"),

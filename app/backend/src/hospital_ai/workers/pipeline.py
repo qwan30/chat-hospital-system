@@ -49,10 +49,26 @@ async def process_document_pipeline(session: AsyncSession, document_id: uuid.UUI
         seq = 1
         for stage in stages:
             seq += 1
-            session.add(DocumentProcessingEvent(document_id=document_id, attempt=1, sequence=seq, stage=stage, state="started"))
+            session.add(
+                DocumentProcessingEvent(
+                    document_id=document_id,
+                    attempt=1,
+                    sequence=seq,
+                    stage=stage,
+                    state="started",
+                )
+            )
             await session.commit()
             seq += 1
-            session.add(DocumentProcessingEvent(document_id=document_id, attempt=1, sequence=seq, stage=stage, state="completed"))
+            session.add(
+                DocumentProcessingEvent(
+                    document_id=document_id,
+                    attempt=1,
+                    sequence=seq,
+                    stage=stage,
+                    state="completed",
+                )
+            )
             await session.commit()
 
         document.status = "ready"

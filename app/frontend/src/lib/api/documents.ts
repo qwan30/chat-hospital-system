@@ -156,9 +156,7 @@ export interface DocumentFactsResponse {
   facts: ClinicalFactRead[];
 }
 
-export const getDocumentFacts = async (
-  documentId: string,
-): Promise<DocumentFactsResponse> => {
+export const getDocumentFacts = async (documentId: string): Promise<DocumentFactsResponse> => {
   return apiFetch<DocumentFactsResponse>(`/documents/${documentId}/facts`);
 };
 

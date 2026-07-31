@@ -90,10 +90,10 @@ function Page() {
               <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
             </div>
           ) : document ? (
-            <DocumentPreview 
-              documentId={document.id} 
-              mimeType={document.mime_type} 
-              boundingBox={activeFact?.bounding_box} 
+            <DocumentPreview
+              documentId={document.id}
+              mimeType={document.mime_type}
+              boundingBox={activeFact?.bounding_box}
             />
           ) : (
             <div className="flex-1 flex items-center justify-center text-muted-foreground">
@@ -128,7 +128,19 @@ function Page() {
   );
 }
 
-function ReviewItemCard({ item, fact, patchMutation, isActive, onActivate }: { item: any, fact: any, patchMutation: any, isActive: boolean, onActivate: () => void }) {
+function ReviewItemCard({
+  item,
+  fact,
+  patchMutation,
+  isActive,
+  onActivate,
+}: {
+  item: any;
+  fact: any;
+  patchMutation: any;
+  isActive: boolean;
+  onActivate: () => void;
+}) {
   const [isEditing, setIsEditing] = useState(false);
   const [editValue, setEditValue] = useState(item.suggested_value || item.original_value || "");
   const [reason, setReason] = useState("");
@@ -140,14 +152,14 @@ function ReviewItemCard({ item, fact, patchMutation, isActive, onActivate }: { i
       if (action === "reject") finalReason = "Rejected by user";
       if (action === "correct") finalReason = "Corrected by user";
     }
-    
+
     let payloadValue = {};
     if (action === "approve") {
       payloadValue = { [item.field_name]: item.suggested_value || item.original_value };
     } else if (action === "correct") {
       payloadValue = editValue; // sending raw editValue
     }
-    
+
     patchMutation.mutate({
       reviewItemId: item.id,
       action,
@@ -158,8 +170,8 @@ function ReviewItemCard({ item, fact, patchMutation, isActive, onActivate }: { i
   };
 
   return (
-    <div 
-      className={`flex flex-col gap-2 rounded-md border p-3 cursor-pointer transition-colors ${isActive ? 'bg-muted/50 border-primary/50' : 'bg-card hover:bg-muted/20'}`}
+    <div
+      className={`flex flex-col gap-2 rounded-md border p-3 cursor-pointer transition-colors ${isActive ? "bg-muted/50 border-primary/50" : "bg-card hover:bg-muted/20"}`}
       onClick={onActivate}
     >
       <div className="flex items-center justify-between">
@@ -168,10 +180,10 @@ function ReviewItemCard({ item, fact, patchMutation, isActive, onActivate }: { i
             {item.field_name.replace(/_/g, " ")}
           </p>
           {isEditing ? (
-            <Input 
-              value={editValue} 
-              onChange={(e) => setEditValue(e.target.value)} 
-              className="h-8 mt-1 text-sm" 
+            <Input
+              value={editValue}
+              onChange={(e) => setEditValue(e.target.value)}
+              className="h-8 mt-1 text-sm"
               autoFocus
               onClick={(e) => e.stopPropagation()}
             />
@@ -186,7 +198,10 @@ function ReviewItemCard({ item, fact, patchMutation, isActive, onActivate }: { i
         )}
       </div>
 
-      <div className="flex flex-col gap-2 mt-2 pt-2 border-t border-border/50" onClick={(e) => e.stopPropagation()}>
+      <div
+        className="flex flex-col gap-2 mt-2 pt-2 border-t border-border/50"
+        onClick={(e) => e.stopPropagation()}
+      >
         <div className="flex items-center gap-2 w-full">
           <Badge
             variant={
@@ -200,7 +215,7 @@ function ReviewItemCard({ item, fact, patchMutation, isActive, onActivate }: { i
           >
             {item.review_status}
           </Badge>
-          
+
           {item.review_status === "pending" && (
             <div className="ml-auto flex gap-2 items-center">
               <Input
@@ -209,7 +224,7 @@ function ReviewItemCard({ item, fact, patchMutation, isActive, onActivate }: { i
                 onChange={(e) => setReason(e.target.value)}
                 className="h-7 text-xs w-32"
               />
-              
+
               {!isEditing ? (
                 <>
                   <Button

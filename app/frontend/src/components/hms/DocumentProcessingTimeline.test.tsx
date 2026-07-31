@@ -1,8 +1,14 @@
 /** @vitest-environment jsdom */
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import "@testing-library/jest-dom/vitest";
 import { DocumentProcessingTimeline } from "./DocumentProcessingTimeline";
+
+vi.mock("@/components/ui/typewriter", () => ({
+  TypewriterText: ({ text, className }: { text: string; className?: string }) => (
+    <span className={className}>{text}</span>
+  ),
+}));
 
 describe("DocumentProcessingTimeline", () => {
   it("renders the ordered processing history and identifies a failed stage", () => {

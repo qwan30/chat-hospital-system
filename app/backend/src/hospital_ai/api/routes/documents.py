@@ -1,19 +1,26 @@
 import uuid
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, Optional
 
 from fastapi import APIRouter, Depends, File, Form, Query, Request, UploadFile
 from fastapi.responses import FileResponse
+from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from hospital_ai.api.deps import get_current_user, get_request_ip, get_session
 from hospital_ai.core.config import Settings, get_settings
-from hospital_ai.core.errors import NotFoundError, ValidationAppError, PermissionDeniedError
+from hospital_ai.core.errors import NotFoundError, PermissionDeniedError, ValidationAppError
 from hospital_ai.core.security import PATIENT_READ_SCOPES, PATIENT_UPLOAD_SCOPES, new_trace_id
-from hospital_ai.db.models import Document, DocumentPage, DocumentProcessingEvent, User, ClinicalFact, DocumentReviewItem
-from pydantic import BaseModel
-from datetime import UTC
+from hospital_ai.db.models import (
+    ClinicalFact,
+    Document,
+    DocumentPage,
+    DocumentProcessingEvent,
+    DocumentReviewItem,
+    User,
+)
 from hospital_ai.schemas.documents import (
     DocumentDetailRead,
     DocumentListResponse,

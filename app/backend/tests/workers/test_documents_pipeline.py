@@ -8,7 +8,7 @@ from hospital_ai.db.models import Document, DocumentProcessingEvent
 # We'll import it from the module the coder is supposed to create/update
 # For TDD, if it's missing, it'll fail on import or execution.
 try:
-    from hospital_ai.workers.pipeline import PipelineStage, process_document_pipeline
+    from hospital_ai.workers.pipeline import process_document_pipeline
 except ImportError:
     # Dummy mock so test can be written, but we expect the coder to implement it
     async def process_document_pipeline(session, document_id, settings):

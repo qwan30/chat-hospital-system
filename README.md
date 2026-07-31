@@ -31,12 +31,12 @@
 | # | Clinical Domain | Technical Implementation | Business Impact |
 |---|---------------|-------------------------|-----------------|
 | 🔍 | **Permission-Aware RAG** | Vector search with SQL JOIN permission filter — only document chunks the user's role can access are included in LLM context | Zero PHI leakage across role boundaries; HIPAA-aligned data access |
-| ✅ | **Citation Validation** | Post-generation verification: every LLM citation cross-checked against actual document chunks; hallucinated references blocked before streaming | Eliminates clinical misinformation from AI-generated responses |
-| 📄 | **Document OCR & Indexing** | Async RQ worker pipeline: PDF parsing (PyMuPDF) → OCR (PaddleOCR) → chunking → embedding (Ollama/OpenAI/Cohere) → pgvector HNSW index | Converts unstructured hospital documents into searchable knowledge base |
+| ✅ | **Citation Validation** | Regex-based post-generation verification: validates that LLM citation IDs (e.g. [E1]) exist in retrieved evidence. (Note: factual content cross-checking is unimplemented) | Blocks hallucinated source references before streaming |
+| 📄 | **Document OCR & Indexing** | Async RQ pipeline: PDF parsing (PyMuPDF) → conditional OCR fallback (PaddleOCR) → chunking → embedding (Ollama/Gemini) → pgvector index → BM25 tsvector → Graph RAG extraction → CDSS trigger | Converts unstructured hospital documents into searchable knowledge base |
 | 🏥 | **HMS Data Sync** | API bridge to Hospital Management System — imports appointments, lab results, medications; caches as RAG-readable context | Real-time patient context without manual data entry |
 | 💊 | **Drug-Allergy Pre-Check** | Cross-references prescribed medications against patient allergy list + current medications using RAG context + LLM analysis | Prevents adverse drug events at point of care |
 | 🔐 | **RBAC + ABAC Security** | JWT authentication with role-based claims; 7 roles with scoped patient permissions; enforcement at API gateway + RAG retrieval layers | Enforced separation of duties; audit-ready access control |
-| 🚨 | **Autonomous CDSS Agent** | Background RQ worker automatically analyses every ingested document using the patient's Knowledge Graph (entities + relations) as context; feeds LLM a structured risk-analysis prompt; persists `ClinicalAlert` records (severity: low/medium/high) and surfaces them in the Notifications feed | Proactive clinical decision support — alerts clinicians to drug interactions and risk factors before they are noticed manually |
+| 🚨 | **Autonomous CDSS Agent** | Background RQ worker automatically analyses every ingested document using a flat dump of the patient's Knowledge Graph entities/relations as context; feeds LLM a structured risk-analysis prompt; persists `ClinicalAlert` records | Proactive clinical decision support — alerts clinicians to risk factors before they are noticed manually |
 | 📊 | **Impact Metrics** | Time-saved and cost-saved tracking per AI-assisted query; helpfulness feedback loop; dashboard analytics | Quantifiable ROI for hospital administration |
 | 🔄 | **Streaming SSE** | Server-Sent Events for real-time token streaming; buffered until citation validation passes; client-side progressive rendering | Immediate clinician feedback with safety gate |
 
@@ -46,7 +46,7 @@
 
 | Dimension | Demonstrated Skills |
 |-----------|-------------------|
-| **AI/ML Engineering** | RAG pipeline with citation validation, permission-aware vector search, multi-provider LLM/embedding abstraction (Ollama/OpenAI/Cohere), source-backed AI evaluation contracts, centralized prompt registry |
+| **AI/ML Engineering** | RAG pipeline with citation ID validation, permission-aware vector search, multi-provider LLM/embedding abstraction (Ollama/Gemini), source-backed AI evaluation contracts, centralized prompt registry |
 | **Backend Engineering** | FastAPI async, SQLAlchemy 2.0+asyncpg, pgvector HNSW, Redis/RQ workers, Alembic migrations, API contract verification, structured JSON logging |
 | **Frontend Engineering** | TanStack Start (Vite 8), React 19, shadcn/ui, Tailwind CSS v4, SSE streaming, Playwright E2E, 90+ routes with RBAC-gated navigation |
 | **DevOps / SRE** | 5 GitHub Actions workflows (CI/CD/Security/Rollback/Dependabot), Docker multi-stage, Trivy+CodeQL scanning, Grafana+Prometheus+Loki+Tempo observability |
@@ -78,7 +78,7 @@ graph TB
 
     subgraph "AI Layer"
         LLM[🧠 LLM Provider<br/><i>Ollama / OpenAI<br/>Citation Validation</i>]
-        EMB[📐 Embedding Provider<br/><i>Deterministic / Ollama / Cohere</i>]
+        EMB[📐 Embedding Provider<br/><i>Deterministic / Ollama / Gemini</i>]
     end
 
     subgraph "External"
@@ -180,6 +180,7 @@ sequenceDiagram
     actor D as 👨‍⚕️ Doctor
     participant A as Auth (JWT)
     participant R as Role Check
+    participant G as Guardrails & Chit-Chat
     participant V as Vector Search<br/>+ Permission Filter
     participant C as Context Builder
     participant L as LLM
@@ -190,25 +191,32 @@ sequenceDiagram
     A->>A: Validate JWT token
     A->>R: Extract role + patient context
     R->>R: Check RBAC permissions
-    R->>V: Query with patient-scope filter (SQL JOIN)
+    R->>G: Input Guardrail & Chit-Chat Check
+    alt Is Chit-Chat or Injection
+        G-->>S: Short-circuit response
+        S-->>D: Return safe/canned response
+    else Valid Clinical Question
+        G->>V: Query with patient-scope filter (SQL JOIN)
 
-    Note over V: WHERE EXISTS (active permission grant)<br/>AND patient_id = :patient_id<br/>expiry- and soft-delete-aware
+        Note over V: WHERE EXISTS (active permission grant)<br/>AND patient_id = :patient_id<br/>expiry- and soft-delete-aware
 
-    V-->>R: Patient-authorized chunks
-    R->>R: Apply role scope filter (Python, post-query)
-    R-->>C: Return permitted chunks only
+        V-->>R: Patient-authorized chunks
+        R->>R: Apply role scope filter (Python, post-query)
+        R-->>C: Return permitted chunks only
 
-    Note over C: Assemble safe context<br/>from verified sources
+        Note over C: Assemble safe context<br/>from verified sources
 
-    C->>L: Prompt + filtered context
-    L-->>CV: Generated answer + citations
+        C->>L: Prompt + filtered context
+        L-->>G: Output Guardrail Check (PHI)
+        G-->>CV: Generated answer + citations
 
-    alt Citations valid & matched
-        CV-->>S: ✅ Answer verified
-        S-->>D: Stream response with sources
-    else Hallucinated or unauthorized
-        CV-->>S: ❌ Citation mismatch
-        S-->>D: "Unable to answer — insufficient evidence"
+        alt Citations valid & matched
+            CV-->>S: ✅ Answer verified
+            S-->>D: Stream response with sources
+        else Hallucinated or unauthorized
+            CV-->>S: ❌ Citation mismatch
+            S-->>D: "Unable to answer — insufficient evidence"
+        end
     end
 ```
 
@@ -288,6 +296,8 @@ erDiagram
     documents ||--o{ clinical_alerts : triggers
     chat_messages ||--o{ feedback : receives
     chat_messages ||--o{ citations : references
+    patients ||--o{ graph_entities : has
+    graph_entities ||--o{ graph_relations : participates_in
 
     users {
         uuid id PK
@@ -336,6 +346,20 @@ erDiagram
         text description
         boolean is_acknowledged "default: false"
         timestamp created_at
+    }
+    graph_entities {
+        uuid id PK
+        uuid patient_id FK
+        string entity_type
+        string name
+        jsonb metadata
+    }
+    graph_relations {
+        uuid id PK
+        uuid source_entity_id FK
+        uuid target_entity_id FK
+        string relationship_type
+        jsonb evidence_references
     }
 ```
 
@@ -416,10 +440,10 @@ xychart-beta
 | **Canonical patient corpus** | 100 PDF documents + 100 lab CSV files | ✅ Versioned manifest: `synthetic-100-v2` |
 | **Source-backed AI benchmark** | 300 cases; 50-case sentinel | 🟠 Corpus smoke validates all 50 contracts; independent review still blocks release |
 | **Evaluation evidence** | `run.json`, `cases.jsonl`, `junit.xml`, `summary.md` | ✅ Produced by each evaluation-runner invocation |
-| **REST API surface** | 35+ route decorators, 28 OpenAPI paths | ℹ️ Repository inventory; not a production-traffic claim |
-| **Database schema** | 14 tables, 7 Alembic migrations | ℹ️ Repository inventory; migration execution is environment-specific |
-| **Frontend components** | 83 React components (26 domain, 6 shell, 51 shadcn/ui) | ℹ️ Repository inventory |
-| **Backend test suite** | 549 Pytest tests (546 passing, 3 skipped) | ✅ Verified locally; see CI for the current run |
+| **REST API surface** | 62 OpenAPI paths/routes | ℹ️ Repository inventory; not a production-traffic claim |
+| **Database schema** | 18 tables, 16 Alembic migrations | ℹ️ Repository inventory; migration execution is environment-specific |
+| **Frontend components** | 84 React components (32 domain, 6 shell, 46 shadcn/ui) | ℹ️ Repository inventory |
+| **Backend test suite** | 550 Pytest tests | ✅ Verified locally; see CI for the current run |
 | **E2E test suites** | 13 Playwright specs (auth, RBAC, business flow, CDSS, chat, graph, accessibility) | 🔴 Written but **not executed in CI** — the job needs a backend service container (gh#123) |
 | **CI/CD workflows** | 5 pipelines (CI, CD, Security, Rollback, Dependabot) | ℹ️ Workflow inventory; check the current GitHub run for status |
 | **Backend coverage** | 73.3% statements (6,117 / 8,059), branch coverage on | ✅ CI gate at `--cov-fail-under=60`. Gaps are concentrated in LLM/embedding providers and document loaders (0%) — they need live services to exercise meaningfully |
@@ -732,10 +756,10 @@ graph LR
 **Key capabilities:**
 - **Backend-backed graph data** — nodes/edges come from the database, not hardcoded frontend data
 - **Multi-patient support** — graph works for any accessible seeded patient, not only Eleanor Vance
-- **Node detail side panel** — click any node to see clinical summary, related evidence, and source citations
-- **Edge evidence** — click any relationship to see why two nodes are connected and the source document/page
 - **Interactive controls** — zoom, fullscreen, filter by node type, highlight reasoning paths
-- **Export** — PNG screenshot and JSON data export; PDF report export planned
+- *(Planned)* **Node detail side panel** — click any node to see clinical summary, related evidence, and source citations
+- *(Planned)* **Edge evidence** — click any relationship to see why two nodes are connected and the source document/page
+- *(Planned)* **Export** — PNG screenshot and JSON data export; PDF report export
 
 ---
 
@@ -745,9 +769,13 @@ This project is a **portfolio demonstration**, not a certified medical device. T
 
 | Area | Current Status | Future Plan |
 |------|---------------|-------------|
+| **Citation Validation** | Uses regex to verify citation IDs (`[E1]`) exist in context. Factual content cross-checking is currently dead code. | Implement full semantic verification of generated claims against source evidence |
+| **Streaming Endpoint** | The `chat_stream.py` endpoint forces `simple_qa` and ignores advanced reasoning pipelines (`decompose`, `patient_summary`) and HyDE | Enable full reasoning pipeline support for streaming responses |
+| **Document Loaders** | Advanced file loaders (`docx`, `xlsx`, `html`) are implemented but bypassed by the worker which only calls PyMuPDF | Wire up the `services/loaders/` suite into the `jobs.py` ingestion worker |
+| **OCR Pipeline** | PaddleOCR is an optional fallback for blank/image PDFs. Cohere and OpenAI are not wired to the embedding pipeline | Make OCR a standard deterministic step; fix provider integrations |
 | **Login / Credentials** | `/auth/token` is a stub: accepts the literal password `demo` and returns a static, non-expiring token. JWT *validation* is real; JWT *issuance* is not | Password hashing (argon2), real token minting, refresh rotation, revocation |
 | **Token Storage** | Bearer token is kept in-memory to prevent XSS, but session rehydration re-derives a dev token | Implement an httpOnly refresh cookie for secure, persistent sessions |
-| **CDSS Alert Grounding** | Clinical alerts are written from raw LLM JSON with no citation or confidence gate — unlike the chat path, which enforces citation validation twice | Apply the same evidence-grounding contract to the CDSS worker |
+| **CDSS Alert Grounding** | Clinical alerts are written from raw LLM JSON with no citation or confidence gate | Apply the same evidence-grounding contract to the CDSS worker |
 | **E2E in CI** | 13 Playwright specs exist but do not run in CI — the job needs a backend service container (gh#123) | Add a backend service to the frontend CI job and make E2E blocking |
 | **PHI Redaction** | Not implemented — UI honestly states "PHI redaction is planned for production hardening" | Implement NER-based PHI detection before embedding pipeline |
 | **Break-Glass Emergency Access** | Disabled by default (`ENABLE_BREAK_GLASS=false`) — treated as planned/future | Implement with justification, expiry, audit trail, and mandatory review |

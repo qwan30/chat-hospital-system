@@ -76,7 +76,7 @@ async def test_global_search_documents_and_threads(session_and_settings):
         document_type="hms_medical_record",
         storage_uri="hms://medical_records/123",
         mime_type="text/plain",
-        status="indexed",
+        status="ready",
     )
     session.add(doc)
 

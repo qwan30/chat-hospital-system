@@ -87,7 +87,7 @@ async def test_sync_appointments_creates_documents(
     for doc in docs:
         assert doc.patient_id == patient.id
         assert doc.document_type == "hms_appointment"
-        assert doc.status == "indexed"
+        assert doc.status == "ready"
         assert doc.page_count == 1
 
 
@@ -113,7 +113,7 @@ async def test_sync_lab_results_creates_documents(
 
     assert len(docs) == 1
     assert docs[0].document_type == "hms_lab_result"
-    assert docs[0].status == "indexed"
+    assert docs[0].status == "ready"
 
 
 @pytest.mark.asyncio
@@ -138,7 +138,7 @@ async def test_sync_medical_records_creates_documents(
 
     assert len(docs) == 1
     assert docs[0].document_type == "hms_medical_record"
-    assert docs[0].status == "indexed"
+    assert docs[0].status == "ready"
 
 
 @pytest.mark.asyncio

@@ -57,7 +57,7 @@ async def test_text_document_moves_to_indexed(session_and_settings, tmp_path: Pa
     await process_document(session, document.id, settings)
 
     refreshed = await session.get(Document, document.id)
-    assert refreshed.status == "indexed"
+    assert refreshed.status == "ready"
     assert refreshed.page_count == 1
     assert refreshed.indexed_source_sha256 == hashlib.sha256(storage_file.read_bytes()).hexdigest()
     result = await session.execute(select(DocumentChunk).where(DocumentChunk.document_id == document.id))
@@ -189,7 +189,7 @@ async def test_failed_ocr_creates_no_chunks(session_and_settings, tmp_path: Path
     await process_document(session, document.id, settings)
 
     refreshed = await session.get(Document, document.id)
-    assert refreshed.status == "ocr_failed"
+    assert refreshed.status == "failed"
     assert refreshed.ocr_error == "OCR processing failed. Please retry the document."
     result = await session.execute(select(DocumentChunk).where(DocumentChunk.document_id == document.id))
     assert result.scalars().all() == []
@@ -239,7 +239,7 @@ async def test_failed_reindex_preserves_existing_searchable_chunks(
     await process_document(session, document.id, settings)
 
     refreshed = await session.get(Document, document.id)
-    assert refreshed.status == "indexed"
+    assert refreshed.status == "ready"
     assert refreshed.ocr_error == "OCR processing failed. Please retry the document."
     assert refreshed.index_generation == 0
 
@@ -287,7 +287,7 @@ async def test_failed_reindex_after_ocr_preserves_existing_chunks(
     await process_document(session, document.id, settings)
 
     refreshed = await session.get(Document, document.id)
-    assert refreshed.status == "indexed"
+    assert refreshed.status == "ready"
     assert refreshed.ocr_error == "Indexing failed. Please retry the document."
     assert refreshed.index_generation == 0
 
@@ -330,7 +330,7 @@ async def test_failed_reindex_for_changed_source_marks_index_failed(
     await process_document(session, document.id, settings)
 
     refreshed = await session.get(Document, document.id)
-    assert refreshed.status == "index_failed"
+    assert refreshed.status == "failed"
     assert refreshed.ocr_error == "Indexing failed. Please retry the document."
     assert refreshed.index_generation == 0
 
@@ -372,7 +372,7 @@ async def test_failed_reindex_with_unknown_source_hash_marks_index_failed(
     await process_document(session, document.id, settings)
 
     refreshed = await session.get(Document, document.id)
-    assert refreshed.status == "ocr_failed"
+    assert refreshed.status == "failed"
     assert refreshed.ocr_error == "OCR processing failed. Please retry the document."
 
 
@@ -404,7 +404,7 @@ async def test_embedding_count_mismatch_marks_index_failed(session_and_settings,
     await process_document(session, document.id, settings)
 
     refreshed = await session.get(Document, document.id)
-    assert refreshed.status == "index_failed"
+    assert refreshed.status == "failed"
     assert refreshed.ocr_error == "Indexing failed. Please retry the document."
 
     chunk_result = await session.execute(select(DocumentChunk).where(DocumentChunk.document_id == document.id))
@@ -445,7 +445,7 @@ async def test_stale_reindex_attempt_does_not_overwrite_newer_generation(
     await process_document(session, document_id, settings)
 
     refreshed = await session.get(Document, document_id)
-    assert refreshed.status == "indexed"
+    assert refreshed.status == "ready"
     assert refreshed.index_generation == 1
     assert refreshed.ocr_error is None
 

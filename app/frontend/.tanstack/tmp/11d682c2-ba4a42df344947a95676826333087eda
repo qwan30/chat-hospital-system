@@ -5,7 +5,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 
-export const Route = createFileRoute("/_app/documents/$documentId/retry")({
+export const Route = createFileRoute("/_app/documents/$documentId_/retry")({
   head: () => ({ meta: [{ title: "Retry OCR — HMS AI Copilot" }] }),
   component: Page,
 });

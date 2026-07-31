@@ -1,6 +1,6 @@
 import uuid
 from pathlib import Path
-from typing import Optional
+from typing import Any, Optional
 
 from fastapi import APIRouter, Depends, File, Form, Query, Request, UploadFile
 from fastapi.responses import FileResponse
@@ -9,9 +9,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from hospital_ai.api.deps import get_current_user, get_request_ip, get_session
 from hospital_ai.core.config import Settings, get_settings
-from hospital_ai.core.errors import NotFoundError, ValidationAppError
+from hospital_ai.core.errors import NotFoundError, ValidationAppError, PermissionDeniedError
 from hospital_ai.core.security import PATIENT_READ_SCOPES, PATIENT_UPLOAD_SCOPES, new_trace_id
-from hospital_ai.db.models import Document, DocumentPage, DocumentProcessingEvent, User
+from hospital_ai.db.models import Document, DocumentPage, DocumentProcessingEvent, User, ClinicalFact, DocumentReviewItem
+from pydantic import BaseModel
+from datetime import UTC
 from hospital_ai.schemas.documents import (
     DocumentDetailRead,
     DocumentListResponse,
@@ -385,3 +387,213 @@ def evidence_to_schema(item) -> EvidenceRead:
         content=item.content,
         metadata=item.metadata,
     )
+
+
+class ReviewItemPatchRequest(BaseModel):
+    action: str
+    value: Optional[dict[str, Any]] = None
+    reason: str
+    version: int
+
+
+@router.get("/{document_id}/intelligence")
+async def get_document_intelligence(
+    document_id: uuid.UUID,
+    request: Request,
+    session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(get_current_user),
+):
+    document = await _get_document_or_404(session, document_id)
+    trace_id = new_trace_id()
+    await PermissionService(session).require_read(
+        user=current_user,
+        patient_id=document.patient_id,
+        action="document.intelligence.read",
+        trace_id=trace_id,
+        object_type="document",
+        object_id=document.id,
+        ip_address=get_request_ip(request),
+    )
+
+    facts_result = await session.execute(select(ClinicalFact).where(ClinicalFact.document_id == document_id))
+    facts = facts_result.scalars().all()
+
+    reviews_result = await session.execute(
+        select(DocumentReviewItem).where(DocumentReviewItem.document_id == document_id)
+    )
+    reviews = reviews_result.scalars().all()
+
+    return {
+        "document_id": str(document.id),
+        "status": document.status,
+        "facts_count": len(facts),
+        "review_items_count": len(reviews),
+    }
+
+
+@router.get("/{document_id}/facts")
+async def get_document_facts(
+    document_id: uuid.UUID,
+    request: Request,
+    session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(get_current_user),
+):
+    document = await _get_document_or_404(session, document_id)
+    trace_id = new_trace_id()
+    await PermissionService(session).require_read(
+        user=current_user,
+        patient_id=document.patient_id,
+        action="document.facts.read",
+        trace_id=trace_id,
+        object_type="document",
+        object_id=document.id,
+        ip_address=get_request_ip(request),
+    )
+
+    facts_result = await session.execute(select(ClinicalFact).where(ClinicalFact.document_id == document_id))
+    facts = facts_result.scalars().all()
+
+    return {
+        "document_id": str(document.id),
+        "facts": [
+            {
+                "id": str(f.id),
+                "fact_type": f.fact_type,
+                "raw_value": f.raw_value,
+                "normalized_value": f.normalized_value,
+                "confidence": float(f.confidence) if f.confidence is not None else None,
+                "source_page": f.source_page,
+                "status": f.status,
+                "bounding_box": f.bounding_box,
+            }
+            for f in facts
+        ],
+    }
+
+
+@router.get("/{document_id}/review-items")
+async def get_document_review_items(
+    document_id: uuid.UUID,
+    request: Request,
+    session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(get_current_user),
+):
+    document = await _get_document_or_404(session, document_id)
+    trace_id = new_trace_id()
+    await PermissionService(session).require_read(
+        user=current_user,
+        patient_id=document.patient_id,
+        action="document.review_items.read",
+        trace_id=trace_id,
+        object_type="document",
+        object_id=document.id,
+        ip_address=get_request_ip(request),
+    )
+
+    reviews_result = await session.execute(
+        select(DocumentReviewItem).where(DocumentReviewItem.document_id == document_id)
+    )
+    reviews = reviews_result.scalars().all()
+
+    return {
+        "document_id": str(document.id),
+        "review_items": [
+            {
+                "id": str(r.id),
+                "fact_id": str(r.fact_id) if r.fact_id else None,
+                "field_name": r.field_name,
+                "original_value": r.original_value,
+                "suggested_value": r.suggested_value,
+                "review_status": r.review_status,
+            }
+            for r in reviews
+        ],
+    }
+
+
+@router.patch("/{document_id}/review-items/{review_item_id}")
+async def patch_review_item(
+    document_id: uuid.UUID,
+    review_item_id: uuid.UUID,
+    payload: ReviewItemPatchRequest,
+    request: Request,
+    session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(get_current_user),
+):
+    document = await _get_document_or_404(session, document_id)
+    trace_id = new_trace_id()
+
+    # Must have read access at minimum to view/patch
+    await PermissionService(session).require_read(
+        user=current_user,
+        patient_id=document.patient_id,
+        action="document.review_item.patch",
+        trace_id=trace_id,
+        object_type="document",
+        object_id=document.id,
+        ip_address=get_request_ip(request),
+    )
+
+    review_item = await session.get(DocumentReviewItem, review_item_id)
+    if not review_item or review_item.document_id != document_id:
+        raise NotFoundError("Review item not found")
+
+    fact_type = "general"
+    if review_item.fact_id:
+        fact = await session.get(ClinicalFact, review_item.fact_id)
+        if fact:
+            fact_type = fact.fact_type
+
+    # Field-level RBAC check
+    role = current_user.role
+
+    if role not in ("admin", "doctor", "hospitalist", "cardiologist", "nurse", "rn", "pharmacist", "lab_staff"):
+        raise PermissionDeniedError(f"{role} cannot confirm clinical fields.")
+
+    if fact_type in ("medication", "allergy") and role not in ("doctor", "hospitalist", "cardiologist", "pharmacist"):
+        raise PermissionDeniedError(f"{role} cannot confirm {fact_type} fields.")
+        
+    if fact_type == "lab" and role not in ("doctor", "hospitalist", "cardiologist", "lab_staff"):
+        raise PermissionDeniedError(f"{role} cannot confirm {fact_type} fields.")
+
+    if payload.action == "approve":
+        review_item.review_status = "approved"
+        if review_item.fact_id:
+            fact = await session.get(ClinicalFact, review_item.fact_id)
+            if fact:
+                fact.status = "confirmed"
+    elif payload.action == "reject":
+        review_item.review_status = "rejected"
+        if review_item.fact_id:
+            fact = await session.get(ClinicalFact, review_item.fact_id)
+            if fact:
+                fact.status = "rejected"
+    elif payload.action == "correct":
+        review_item.review_status = "approved"
+        if payload.value is not None:
+            review_item.suggested_value = str(payload.value)
+        if review_item.fact_id:
+            fact = await session.get(ClinicalFact, review_item.fact_id)
+            if fact:
+                if payload.value is not None:
+                    fact.normalized_value = str(payload.value)
+                fact.status = "confirmed"
+
+    review_item.reviewed_by_user_id = current_user.id
+    review_item.reviewed_at = datetime.now(UTC)
+
+    await AuditService(session).record(
+        actor_user_id=current_user.id,
+        action="document.review_item.patch",
+        object_type="document_review_item",
+        object_id=review_item.id,
+        patient_id=document.patient_id,
+        outcome="allowed",
+        trace_id=trace_id,
+        ip_address=get_request_ip(request),
+        metadata={"action": payload.action, "reason": payload.reason},
+    )
+
+    await session.commit()
+
+    return {"review_item_id": str(review_item_id), "status": review_item.review_status}

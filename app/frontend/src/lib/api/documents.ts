@@ -126,3 +126,85 @@ export const uploadDocument = async (
     body: formData,
   });
 };
+
+export interface DocumentIntelligenceResponse {
+  document_id: string;
+  status: string;
+  facts_count: number;
+  review_items_count: number;
+}
+
+export const getDocumentIntelligence = async (
+  documentId: string,
+): Promise<DocumentIntelligenceResponse> => {
+  return apiFetch<DocumentIntelligenceResponse>(`/documents/${documentId}/intelligence`);
+};
+
+export interface ClinicalFactRead {
+  id: string;
+  fact_type: string;
+  raw_value: string;
+  normalized_value: string | null;
+  confidence: number | null;
+  source_page: number | null;
+  bounding_box: { top: number; left: number; width: number; height: number } | null;
+  status: string;
+}
+
+export interface DocumentFactsResponse {
+  document_id: string;
+  facts: ClinicalFactRead[];
+}
+
+export const getDocumentFacts = async (
+  documentId: string,
+): Promise<DocumentFactsResponse> => {
+  return apiFetch<DocumentFactsResponse>(`/documents/${documentId}/facts`);
+};
+
+export interface ReviewItemRead {
+  id: string;
+  fact_id: string | null;
+  field_name: string;
+  original_value: string | null;
+  suggested_value: string | null;
+  review_status: string;
+}
+
+export interface DocumentReviewItemsResponse {
+  document_id: string;
+  review_items: ReviewItemRead[];
+}
+
+export const getDocumentReviewItems = async (
+  documentId: string,
+): Promise<DocumentReviewItemsResponse> => {
+  return apiFetch<DocumentReviewItemsResponse>(`/documents/${documentId}/review-items`);
+};
+
+export interface ReviewItemPatchRequest {
+  action: "approve" | "reject" | "update";
+  value: Record<string, any>;
+  reason: string;
+  version: number;
+  fact_type?: string;
+}
+
+export interface ReviewItemPatchResponse {
+  review_item_id: string;
+  status: string;
+}
+
+export const patchReviewItem = async (
+  documentId: string,
+  reviewItemId: string,
+  payload: ReviewItemPatchRequest,
+): Promise<ReviewItemPatchResponse> => {
+  return apiFetch<ReviewItemPatchResponse>(
+    `/documents/${documentId}/review-items/${reviewItemId}`,
+    {
+      method: "PATCH",
+      body: JSON.stringify(payload),
+    },
+  );
+};

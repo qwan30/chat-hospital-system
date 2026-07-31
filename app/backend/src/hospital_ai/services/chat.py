@@ -81,8 +81,8 @@ class ChatService:
         ip_address: str,
         thread_id: Optional[UUID] = None,
         pipeline: str = "auto",
-        evaluation_controls: EvaluationControls | None = None,
-        evaluation_observer: EvaluationObserver | None = None,
+        evaluation_controls: Optional[EvaluationControls] = None,
+        evaluation_observer: Optional[EvaluationObserver] = None,
     ) -> ChatResponse:
         started = time.perf_counter()
         ai_query = AiQuery(
@@ -641,7 +641,7 @@ class ChatService:
         question: str,
         evidence: list[RetrievedChunk],
         conversation_history: list[dict[str, str]],
-        evaluation_observer: EvaluationObserver | None = None,
+        evaluation_observer: Optional[EvaluationObserver] = None,
     ) -> ReasoningResult:
         """Run the selected reasoning pipeline."""
         if pipeline_name == "patient_summary":

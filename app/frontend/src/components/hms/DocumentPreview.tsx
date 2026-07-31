@@ -1,14 +1,18 @@
 import { useEffect, useState } from "react";
-import { FileText, Loader2 } from "lucide-react";
+import { FileText, Loader2, Maximize2 } from "lucide-react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { getDocumentBlob } from "@/lib/api/documents";
+import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
 
 export function DocumentPreview({
   documentId,
   mimeType,
+  boundingBox,
 }: {
   documentId: string;
   mimeType: string;
+  boundingBox?: { top: number; left: number; width: number; height: number } | null;
 }) {
   const reduceMotion = useReducedMotion();
   const [url, setUrl] = useState<string | null>(null);
@@ -56,21 +60,45 @@ export function DocumentPreview({
           <Loader2 className="h-4 w-4 animate-spin" /> Loading preview…
         </motion.div>
       ) : mimeType.startsWith("image/") ? (
-        <motion.img
-          key="image"
-          src={url}
-          alt="Document preview"
-          className="max-h-[520px] w-full rounded border object-contain"
-          {...fade(reduceMotion)}
-        />
+        <motion.div key="image" className="relative group" {...fade(reduceMotion)}>
+          <img
+            src={url}
+            alt="Document preview"
+            className="max-h-[520px] w-full rounded border object-contain bg-muted/20"
+          />
+          <Dialog>
+            <DialogTrigger asChild>
+              <Button
+                variant="outline"
+                size="icon"
+                className="absolute -top-[42px] right-0 h-8 w-8 text-muted-foreground hover:text-foreground shadow-none z-10"
+              >
+                <Maximize2 className="h-4 w-4" />
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-[95vw] w-full max-h-[95vh] h-full p-2 flex flex-col border-none bg-background/95 backdrop-blur">
+              <img src={url} alt="Fullscreen preview" className="w-full h-full object-contain" />
+            </DialogContent>
+          </Dialog>
+        </motion.div>
       ) : mimeType === "application/pdf" ? (
-        <motion.iframe
-          key="pdf"
-          title="Document preview"
-          src={url}
-          className="h-[520px] w-full rounded border"
-          {...fade(reduceMotion)}
-        />
+        <motion.div key="pdf" className="relative group h-[520px]" {...fade(reduceMotion)}>
+          <iframe title="Document preview" src={url} className="h-full w-full rounded border" />
+          <Dialog>
+            <DialogTrigger asChild>
+              <Button
+                variant="outline"
+                size="icon"
+                className="absolute -top-[42px] right-0 h-8 w-8 text-muted-foreground hover:text-foreground shadow-none z-10"
+              >
+                <Maximize2 className="h-4 w-4" />
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-[95vw] w-full max-h-[95vh] h-[95vh] p-0 overflow-hidden border-none">
+              <iframe src={url} className="w-full h-full" title="Fullscreen Document" />
+            </DialogContent>
+          </Dialog>
+        </motion.div>
       ) : (
         <motion.a
           key="download"

@@ -68,7 +68,7 @@ def _scope_matches(scope: str, value: str) -> bool:
 
 
 class RetrievalService:
-    def __init__(self, session: AsyncSession, evaluation_observer: EvaluationObserver | None = None) -> None:
+    def __init__(self, session: AsyncSession, evaluation_observer: Optional[EvaluationObserver] = None) -> None:
         self.session = session
         self.blocked_chunk_count = 0
         self.evaluation_observer = evaluation_observer

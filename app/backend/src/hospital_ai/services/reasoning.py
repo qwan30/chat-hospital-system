@@ -68,7 +68,7 @@ class SimpleQAPipeline:
         question: str,
         evidence: list[RetrievedChunk],
         conversation_history: Optional[list[dict[str, str]]] = None,
-        evaluation_observer: EvaluationObserver | None = None,
+        evaluation_observer: Optional[EvaluationObserver] = None,
     ) -> ReasoningResult:
         reranked = self.reranker.rerank(question, evidence, top_k=self.settings.retrieval_top_k)
 
@@ -119,7 +119,7 @@ class DecomposeQAPipeline:
         question: str,
         evidence: list[RetrievedChunk],
         conversation_history: Optional[list[dict[str, str]]] = None,
-        evaluation_observer: EvaluationObserver | None = None,
+        evaluation_observer: Optional[EvaluationObserver] = None,
     ) -> ReasoningResult:
         sub_questions = _decompose_question(question)
 
@@ -198,7 +198,7 @@ class PatientSummaryPipeline:
         *,
         patient_name: str,
         evidence: list[RetrievedChunk],
-        evaluation_observer: EvaluationObserver | None = None,
+        evaluation_observer: Optional[EvaluationObserver] = None,
     ) -> ReasoningResult:
         reranked = self.reranker.rerank(f"patient summary for {patient_name}", evidence, top_k=10)
 

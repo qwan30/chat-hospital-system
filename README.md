@@ -596,7 +596,7 @@ accounts exist only against synthetic data and are refused outside `HOSPITAL_AI_
 
 ### Before a live demo
 
-The prompt-injection and topic-ban scanners are ONNX models that run on CPU. Measured on
+The prompt-injection and PHI-redaction scanners are ONNX models that run on CPU. Measured on
 a dev laptop: **~7.8s** for the first input scan and **~4.4s** for the first output scan,
 settling to **~4s per chat turn** once warm. The app warms the models on startup
 (`warm_up_guardrails`), but the very first chat still pays model-load cost.
@@ -746,7 +746,7 @@ This project is a **portfolio demonstration**, not a certified medical device. T
 | Area | Current Status | Future Plan |
 |------|---------------|-------------|
 | **Login / Credentials** | `/auth/token` is a stub: accepts the literal password `demo` and returns a static, non-expiring token. JWT *validation* is real; JWT *issuance* is not | Password hashing (argon2), real token minting, refresh rotation, revocation |
-| **Token Storage** | Bearer token is persisted to `localStorage` (`lib/session.tsx`) — an XSS exposure kept for demo convenience | Move to in-memory state plus an httpOnly refresh cookie |
+| **Token Storage** | Bearer token is kept in-memory to prevent XSS, but session rehydration re-derives a dev token | Implement an httpOnly refresh cookie for secure, persistent sessions |
 | **CDSS Alert Grounding** | Clinical alerts are written from raw LLM JSON with no citation or confidence gate — unlike the chat path, which enforces citation validation twice | Apply the same evidence-grounding contract to the CDSS worker |
 | **E2E in CI** | 13 Playwright specs exist but do not run in CI — the job needs a backend service container (gh#123) | Add a backend service to the frontend CI job and make E2E blocking |
 | **PHI Redaction** | Not implemented — UI honestly states "PHI redaction is planned for production hardening" | Implement NER-based PHI detection before embedding pipeline |

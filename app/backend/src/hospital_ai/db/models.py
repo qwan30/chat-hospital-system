@@ -63,6 +63,7 @@ class InetAddress(TypeDecorator):
 _ENCRYPTION_KEY = os.environ.get("PHI_ENCRYPTION_KEY", Fernet.generate_key().decode("utf-8"))
 _fernet = Fernet(_ENCRYPTION_KEY.encode("utf-8"))
 
+
 class EncryptedString(TypeDecorator):
     """
     SQLAlchemy TypeDecorator that applies application-level encryption for PHI fields.

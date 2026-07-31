@@ -14,6 +14,7 @@ class TimelineEventBase(ApiSchema):
     patient_id: Optional[uuid.UUID] = None
     metadata: dict[str, Any] = {}
 
+
 class GlobalTimelineResponse(ApiSchema):
     events: list[TimelineEventBase]
     total_count: int

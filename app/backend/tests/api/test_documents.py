@@ -175,4 +175,4 @@ async def test_patch_review_item_rbac_rejection(session_and_settings):
             session=session,
             current_user=current_user,
         )
-    assert "records_staff cannot confirm medication fields" in str(exc.value)
+    assert "records_staff cannot confirm clinical fields." in str(exc.value)

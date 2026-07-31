@@ -3,7 +3,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, desc
 import asyncio
 
-from hospital_ai.db.session import get_session as get_db
+from hospital_ai.db.session import get_session as get_db, get_session_factory
 from hospital_ai.api.deps import get_current_user
 from hospital_ai.db.models import User, PatientPermission, ChatThread, Document, AuditLog
 from hospital_ai.schemas.timeline import GlobalTimelineResponse, TimelineEventBase
@@ -29,16 +29,21 @@ async def get_global_timeline(
     # 2. Scatter gather
     chat_stmt = select(ChatThread).where(ChatThread.patient_id.in_(allowed_patients)).order_by(desc(ChatThread.created_at)).limit(limit)
     doc_stmt = select(Document).where(Document.patient_id.in_(allowed_patients)).order_by(desc(Document.created_at)).limit(limit)
-    audit_stmt = select(AuditLog).where(AuditLog.user_id == current_user.id).order_by(desc(AuditLog.created_at)).limit(limit)
+    audit_stmt = select(AuditLog).where(AuditLog.actor_user_id == current_user.id).order_by(desc(AuditLog.created_at)).limit(limit)
 
-    chat_res, doc_res, audit_res = await asyncio.gather(
-        db.execute(chat_stmt),
-        db.execute(doc_stmt),
-        db.execute(audit_stmt)
+    async def fetch_scalars(stmt):
+        async with get_session_factory()() as session:
+            res = await session.execute(stmt)
+            return res.scalars().all()
+
+    chat_scalars, doc_scalars, audit_scalars = await asyncio.gather(
+        fetch_scalars(chat_stmt),
+        fetch_scalars(doc_stmt),
+        fetch_scalars(audit_stmt)
     )
 
     events = []
-    for chat in chat_res.scalars().all():
+    for chat in chat_scalars:
         events.append(TimelineEventBase(
             event_id=f"chat-{chat.id}",
             timestamp=chat.created_at,
@@ -49,24 +54,24 @@ async def get_global_timeline(
             metadata={}
         ))
         
-    for doc in doc_res.scalars().all():
+    for doc in doc_scalars:
         events.append(TimelineEventBase(
             event_id=f"doc-{doc.id}",
             timestamp=doc.created_at,
             type="document",
             title="Document uploaded",
-            body=f"{doc.filename} added to patient record",
+            body=f"{doc.title} added to patient record",
             patient_id=doc.patient_id,
             metadata={}
         ))
         
-    for audit in audit_res.scalars().all():
+    for audit in audit_scalars:
         events.append(TimelineEventBase(
             event_id=f"audit-{audit.id}",
             timestamp=audit.created_at,
             type="audit",
             title=audit.action,
-            body=audit.details.get("reason", "Action logged"),
+            body=audit.meta.get("reason", "Action logged"),
             patient_id=None,
             metadata={}
         ))

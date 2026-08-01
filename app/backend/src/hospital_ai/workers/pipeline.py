@@ -12,22 +12,19 @@ class PipelineStage:
 
 async def process_document_pipeline(session: AsyncSession, document_id: uuid.UUID, settings: Settings) -> None:
     from hospital_ai.db.models import DocumentProcessingRun
+
     document = await session.get(Document, document_id)
     if not document:
         return
 
     document.status = "processing"
-    
+
     # Create DocumentProcessingRun to track this run
-    run = DocumentProcessingRun(
-        document_id=document_id,
-        configuration_version="1.0.0",
-        status="running"
-    )
+    run = DocumentProcessingRun(document_id=document_id, configuration_version="1.0.0", status="running")
     session.add(run)
     await session.flush()
     run_id = run.id
-    
+
     await session.commit()
 
     if settings.worker_inline:
@@ -79,10 +76,11 @@ async def process_document_pipeline(session: AsyncSession, document_id: uuid.UUI
         try:
             from redis import Redis
             from rq import Queue
+
             connection = Redis.from_url(settings.redis_url)
-            
+
             q_fast = Queue("document-fast", connection=connection)
-            
+
             # Enqueue the first stage. Subsequent stages would be enqueued by the worker.
             q_fast.enqueue(
                 "hospital_ai.workers.documents.stage_preflight",

@@ -211,7 +211,7 @@ class HmsSyncService:
                 document_type=document_type,
                 storage_uri=storage_uri,
                 mime_type=f"application/vnd.hospital-ai.{document_type}+text",
-                status="indexed",
+                status="ready",
                 page_count=1,
                 indexed_source_sha256=content_hash,
                 index_generation=1,
@@ -221,7 +221,7 @@ class HmsSyncService:
         else:
             document.uploaded_by = actor_user_id
             document.title = title
-            document.status = "indexed"
+            document.status = "ready"
             document.page_count = 1
             document.ocr_error = None
             document.deleted_at = None

@@ -101,7 +101,7 @@ async def create_indexed_document(
         document_type="note",
         storage_uri="memory://synthetic",
         mime_type="text/plain",
-        status="indexed",
+        status="ready",
         page_count=1,
     )
     session.add(document)

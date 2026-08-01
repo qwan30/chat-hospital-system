@@ -216,7 +216,7 @@ class ProductRetrievalAdapter:
                 document_type=artifact.document_type,
                 storage_uri=artifact.canonical_relative_path,
                 mime_type=artifact.mime_type,
-                status="indexed",
+                status="ready",
                 page_count=1,
                 indexed_source_sha256=artifact.source_sha256,
             )

@@ -303,6 +303,30 @@ async def test_authorized_patient_chunks_are_retrieved(session_and_settings):
 
 
 @pytest.mark.asyncio
+async def test_ready_with_warnings_document_remains_retrievable(session_and_settings):
+    session, _ = session_and_settings
+    document = await create_indexed_document(
+        session,
+        patient_id=PATIENT_ALICE_ID,
+        uploaded_by=DOCTOR_ID,
+        title="Preserved discharge",
+        content="The previous generation remains valid after a failed replacement.",
+    )
+    document.status = "ready_with_warnings"
+    await session.commit()
+
+    results = await RetrievalService(session).search(
+        user_id=DOCTOR_ID,
+        patient_id=PATIENT_ALICE_ID,
+        query_embedding=deterministic_embedding("previous generation remains valid"),
+        top_k=5,
+    )
+
+    assert len(results) == 1
+    assert results[0].document_title == "Preserved discharge"
+
+
+@pytest.mark.asyncio
 async def test_global_knowledge_is_runtime_quarantined(session_and_settings):
     session, _ = session_and_settings
     await create_indexed_document(

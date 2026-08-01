@@ -29,7 +29,7 @@ async def test_run_cdss_analysis(session_and_settings):
         document_type="report",
         storage_uri="mock://test",
         mime_type="text/plain",
-        status="indexed",
+        status="ready",
     )
     db_session.add(document)
     await db_session.flush()

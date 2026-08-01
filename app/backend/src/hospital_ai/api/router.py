@@ -18,6 +18,7 @@ from hospital_ai.api.routes import (
     rag_trace,
     search,
     settings,
+    timeline,
 )
 
 api_router = APIRouter()
@@ -44,4 +45,5 @@ api_router.include_router(search.router, prefix="/search", tags=["search"])
 api_router.include_router(access_requests.router, prefix="/access-requests", tags=["access-requests"])
 api_router.include_router(graph.router, prefix="/graph", tags=["graph"])
 api_router.include_router(medication_safety.router, prefix="/medication-safety", tags=["medication-safety"])
+api_router.include_router(timeline.router)
 api_router.include_router(metrics_endpoint.router, tags=["metrics"])

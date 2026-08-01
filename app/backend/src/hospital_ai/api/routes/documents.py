@@ -559,7 +559,7 @@ async def patch_review_item(
 
     if fact_type in ("medication", "allergy") and role not in ("doctor", "hospitalist", "cardiologist", "pharmacist"):
         raise PermissionDeniedError(f"{role} cannot confirm {fact_type} fields.")
-        
+
     if fact_type == "lab" and role not in ("doctor", "hospitalist", "cardiologist", "lab_staff"):
         raise PermissionDeniedError(f"{role} cannot confirm {fact_type} fields.")
 

@@ -304,10 +304,14 @@ export function GraphCanvas({ data }: { data: GraphData }) {
     return map;
   }, [filteredEdges]);
 
-  const visibleNodes = data.nodes.filter((n) => !hidden.has(n.type as NodeType));
-  const visibleIds = new Set(visibleNodes.map((n) => n.id));
-  const visibleEdges = filteredEdges.filter(
-    (e) => visibleIds.has(e.from_node) && visibleIds.has(e.to_node),
+  const visibleNodes = useMemo(
+    () => data.nodes.filter((n) => !hidden.has(n.type as NodeType)),
+    [data.nodes, hidden],
+  );
+  const visibleIds = useMemo(() => new Set(visibleNodes.map((n) => n.id)), [visibleNodes]);
+  const visibleEdges = useMemo(
+    () => filteredEdges.filter((e) => visibleIds.has(e.from_node) && visibleIds.has(e.to_node)),
+    [filteredEdges, visibleIds],
   );
 
   const counts = data.nodes.reduce<Record<string, number>>((acc, n) => {

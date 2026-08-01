@@ -38,7 +38,7 @@ ranked_chunks as (
   where exists (select 1 from allowed)
     and c.patient_id = :patient_id
     and d.patient_id = :patient_id
-    and d.status = 'indexed'
+    and d.status in ('ready', 'ready_with_warnings')
     and c.deleted_at is null
     and d.deleted_at is null
     and p.deleted_at is null
@@ -287,7 +287,7 @@ class RetrievalService:
                 DocumentChunk.id.in_(chunk_ids),
                 DocumentChunk.patient_id == patient_id,
                 Document.patient_id == patient_id,
-                Document.status == "indexed",
+                Document.status.in_(("ready", "ready_with_warnings")),
                 DocumentChunk.deleted_at.is_(None),
                 Document.deleted_at.is_(None),
                 DocumentPage.deleted_at.is_(None),
@@ -371,7 +371,7 @@ class RetrievalService:
             where exists (select 1 from allowed)
               and c.patient_id = :patient_id
               and d.patient_id = :patient_id
-              and d.status = 'indexed'
+              and d.status in ('ready', 'ready_with_warnings')
               and c.deleted_at is null
               and d.deleted_at is null
               and p.deleted_at is null
@@ -448,7 +448,7 @@ class RetrievalService:
                 permission_exists,
                 DocumentChunk.patient_id == patient_id,
                 Document.patient_id == patient_id,
-                Document.status == "indexed",
+                Document.status.in_(("ready", "ready_with_warnings")),
                 DocumentChunk.deleted_at.is_(None),
                 Document.deleted_at.is_(None),
                 DocumentPage.deleted_at.is_(None),
@@ -539,7 +539,7 @@ class RetrievalService:
                 permission_exists,
                 DocumentChunk.patient_id == patient_id,
                 Document.patient_id == patient_id,
-                Document.status == "indexed",
+                Document.status.in_(("ready", "ready_with_warnings")),
                 DocumentChunk.deleted_at.is_(None),
                 Document.deleted_at.is_(None),
                 DocumentPage.deleted_at.is_(None),

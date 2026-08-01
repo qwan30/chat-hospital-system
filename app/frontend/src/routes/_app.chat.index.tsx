@@ -250,9 +250,8 @@ function GlobalChat() {
     enabled: !!session?.token,
   });
 
-  const patientsList = searchResponse?.items || [];
-
   const filteredPatients = useMemo(() => {
+    const patientsList = searchResponse?.items || [];
     const query = patientSearchQuery.trim().toLowerCase();
     if (!query) return patientsList;
     return patientsList.filter(
@@ -261,7 +260,7 @@ function GlobalChat() {
         (p.mrn && p.mrn.toLowerCase().includes(query)) ||
         (p.department && p.department.toLowerCase().includes(query)),
     );
-  }, [patientsList, patientSearchQuery]);
+  }, [searchResponse?.items, patientSearchQuery]);
 
   const activeThread = useMemo(() => {
     if (!thread) return null;

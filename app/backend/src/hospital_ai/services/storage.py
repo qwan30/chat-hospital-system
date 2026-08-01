@@ -61,9 +61,9 @@ class LocalStorageService:
         file: UploadFile,
     ) -> str:
         filename = sanitize_filename(file.filename or "document.bin")
-        target_dir = self.root / "patients" / str(patient_id)
+        target_dir = self.root / "patients" / _key_segment(patient_id, "patient_id")
         target_dir.mkdir(parents=True, exist_ok=True)
-        target_path = target_dir / f"{document_id}_{filename}"
+        target_path = target_dir / f"{_key_segment(document_id, 'document_id')}_{filename}"
 
         size = 0
         with target_path.open("wb") as output:
@@ -97,7 +97,13 @@ class LocalStorageService:
         page_number: int,
     ) -> Path:
         _validate_page_number(page_number)
-        return self.root / "patients" / str(patient_id) / "pages" / f"{document_id}_{page_number}.png"
+        return (
+            self.root
+            / "patients"
+            / _key_segment(patient_id, "patient_id")
+            / "pages"
+            / f"{_key_segment(document_id, 'document_id')}_{page_number}.png"
+        )
 
     def open_binary(self, storage_uri: str) -> BinaryIO:
         return self._resolve_local_path(storage_uri).open("rb")
@@ -147,7 +153,7 @@ class R2StorageService:
             raise ValueError(f"R2 storage requires: {', '.join(missing)}.")
 
         self.bucket = settings.r2_bucket
-        self.client = client or boto3.client(
+        self.client = client if client is not None else boto3.client(
             "s3",
             endpoint_url=settings.r2_endpoint,
             region_name=settings.r2_region,
@@ -253,11 +259,18 @@ def get_storage_service(settings: Settings) -> StorageService:
 
 
 def _document_key(patient_id: uuid.UUID | str, document_id: uuid.UUID | str, filename: str) -> str:
-    return f"patients/{patient_id}/documents/{document_id}/{sanitize_filename(filename)}"
+    return (
+        f"patients/{_key_segment(patient_id, 'patient_id')}/"
+        f"documents/{_key_segment(document_id, 'document_id')}/{sanitize_filename(filename)}"
+    )
 
 
 def _page_key(patient_id: uuid.UUID | str, document_id: uuid.UUID | str, page_number: int) -> str:
-    return f"patients/{patient_id}/documents/{document_id}/pages/{_validate_page_number(page_number)}.png"
+    return (
+        f"patients/{_key_segment(patient_id, 'patient_id')}/"
+        f"documents/{_key_segment(document_id, 'document_id')}/"
+        f"pages/{_validate_page_number(page_number)}.png"
+    )
 
 
 def _r2_uri(key: str) -> str:
@@ -268,6 +281,15 @@ def _validate_page_number(page_number: int) -> int:
     if page_number < 1:
         raise ValueError("Page number must be positive.")
     return page_number
+
+
+def _key_segment(value: uuid.UUID | str, field_name: str) -> str:
+    segment = str(value)
+    if not segment or segment in {".", ".."} or any(char in segment for char in "/\\"):
+        raise ValueError(f"{field_name} must be a single storage path segment.")
+    if any(ord(char) < 32 for char in segment):
+        raise ValueError(f"{field_name} contains an unsafe character.")
+    return segment
 
 
 def sanitize_filename(filename: str) -> str:

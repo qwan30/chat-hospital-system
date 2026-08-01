@@ -677,7 +677,8 @@ async def test_document_content_is_served_after_read_authorization(session_and_s
         request=Request({"type": "http", "client": ("127.0.0.1", 8000)}),
         session=session,
         current_user=doctor,
+        settings=settings,
     )
 
     assert response.media_type == "text/plain"
-    assert response.path.read_bytes() == content
+    assert response.body == content

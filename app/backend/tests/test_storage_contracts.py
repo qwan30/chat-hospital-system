@@ -22,6 +22,7 @@ def test_settings_load_r2_environment_names(monkeypatch: pytest.MonkeyPatch) -> 
     assert settings.r2_region == "auto"
     assert settings.r2_access_key_id == "test-access"
     assert settings.r2_secret_access_key == "test-secret"
+    assert "test-secret" not in repr(settings)
 
 
 def test_factory_rejects_unknown_backend() -> None:
@@ -47,6 +48,12 @@ def test_r2_uri_parser_returns_object_key_for_valid_uri() -> None:
     ],
 )
 def test_r2_uri_parser_rejects_unsafe_or_wrong_scheme(uri: str) -> None:
+    with pytest.raises(ValueError):
+        parse_r2_uri(uri)
+
+
+@pytest.mark.parametrize("uri", ["r2://patients//secret.txt", "r2://patients/a\x00.txt"])
+def test_r2_uri_parser_rejects_empty_segments_and_control_characters(uri: str) -> None:
     with pytest.raises(ValueError):
         parse_r2_uri(uri)
 

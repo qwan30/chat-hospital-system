@@ -14,8 +14,8 @@ class Settings(BaseSettings):
     r2_endpoint: str = ""
     r2_bucket: str = ""
     r2_region: str = "auto"
-    r2_access_key_id: str = ""
-    r2_secret_access_key: str = ""
+    r2_access_key_id: str = Field(default="", repr=False)
+    r2_secret_access_key: str = Field(default="", repr=False)
     worker_inline: bool = False
     cors_origins: str = "http://localhost:3000,http://127.0.0.1:3000,http://localhost:3001,http://127.0.0.1:3001,http://localhost:8082,http://127.0.0.1:8082"
     dev_auto_grant_access: bool = False

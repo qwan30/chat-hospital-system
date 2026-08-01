@@ -263,7 +263,7 @@ async def get_patient_overview(
         .join(DocumentPage, DocumentPage.id == DocumentChunk.page_id)
         .where(
             DocumentChunk.patient_id == patient_id,
-            Document.status == "indexed",
+            Document.status.in_(("ready", "ready_with_warnings")),
             DocumentChunk.deleted_at.is_(None),
             Document.deleted_at.is_(None),
             DocumentPage.deleted_at.is_(None),
@@ -460,7 +460,7 @@ async def get_patient_medications(
             DocumentChunk.patient_id == patient_id,
             Document.patient_id == patient_id,
             Document.document_type.in_(["prescription", "discharge_summary"]),
-            Document.status == "indexed",
+            Document.status.in_(("ready", "ready_with_warnings")),
             DocumentChunk.deleted_at.is_(None),
             Document.deleted_at.is_(None),
             DocumentPage.deleted_at.is_(None),
@@ -574,7 +574,7 @@ async def get_patient_labs(
             DocumentChunk.patient_id == patient_id,
             Document.patient_id == patient_id,
             Document.document_type.in_(["lab_result", "hms_lab_result"]),
-            Document.status == "indexed",
+            Document.status.in_(("ready", "ready_with_warnings")),
             DocumentChunk.deleted_at.is_(None),
             Document.deleted_at.is_(None),
             DocumentPage.deleted_at.is_(None),

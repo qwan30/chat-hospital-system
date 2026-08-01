@@ -182,7 +182,7 @@ async def test_deleted_hms_source_record_is_not_retrieved(session_and_settings):
     await session.execute(
         update(Document)
         .where(Document.id == imported.document_id)
-        .values(deleted_at=datetime.now(UTC), status="archived")
+        .values(deleted_at=datetime.now(UTC), status="soft_deleted")
     )
     await session.commit()
     thread = await create_thread(

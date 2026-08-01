@@ -153,7 +153,7 @@ async def get_patient_graph(
         .where(
             DocumentChunk.patient_id == patient_id,
             Document.patient_id == patient_id,
-            Document.status == "indexed",
+            Document.status.in_(("ready", "ready_with_warnings")),
             DocumentChunk.deleted_at.is_(None),
             DocumentPage.deleted_at.is_(None),
             Document.deleted_at.is_(None),

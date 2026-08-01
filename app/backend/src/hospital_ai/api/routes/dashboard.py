@@ -60,11 +60,9 @@ async def get_dashboard_summary(
 
     # 2. Document stats
     doc_stmt = select(
-        func.sum(case((Document.status == "indexed", 1), else_=0)).label("indexed"),
-        func.sum(
-            case((Document.status.in_(["uploaded", "ocr_processing", "ocr_completed", "indexing"]), 1), else_=0)
-        ).label("processing"),
-        func.sum(case((Document.status.in_(["ocr_failed", "index_failed"]), 1), else_=0)).label("failed"),
+        func.sum(case((Document.status.in_(["ready", "ready_with_warnings"]), 1), else_=0)).label("indexed"),
+        func.sum(case((Document.status.in_(["uploaded", "processing"]), 1), else_=0)).label("processing"),
+        func.sum(case((Document.status.in_(["failed"]), 1), else_=0)).label("failed"),
     ).where(Document.deleted_at.is_(None))
     doc_result = await session.execute(doc_stmt)
     doc_row = doc_result.one()

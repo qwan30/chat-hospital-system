@@ -239,9 +239,19 @@ async def test_failed_reindex_preserves_existing_searchable_chunks(
     await process_document(session, document.id, settings)
 
     refreshed = await session.get(Document, document.id)
-    assert refreshed.status == "ready"
+    assert refreshed.status == "ready_with_warnings"
     assert refreshed.ocr_error == "OCR processing failed. Please retry the document."
     assert refreshed.index_generation == 0
+
+    failed_event = await session.scalar(
+        select(DocumentProcessingEvent)
+        .where(
+            DocumentProcessingEvent.document_id == document.id,
+            DocumentProcessingEvent.state == "failed",
+        )
+        .order_by(DocumentProcessingEvent.sequence.desc())
+    )
+    assert failed_event.error_code == "OCR_FAILED"
 
     chunk_result = await session.execute(select(DocumentChunk).where(DocumentChunk.document_id == document.id))
     chunks = list(chunk_result.scalars().all())
@@ -287,9 +297,19 @@ async def test_failed_reindex_after_ocr_preserves_existing_chunks(
     await process_document(session, document.id, settings)
 
     refreshed = await session.get(Document, document.id)
-    assert refreshed.status == "ready"
+    assert refreshed.status == "ready_with_warnings"
     assert refreshed.ocr_error == "Indexing failed. Please retry the document."
     assert refreshed.index_generation == 0
+
+    failed_event = await session.scalar(
+        select(DocumentProcessingEvent)
+        .where(
+            DocumentProcessingEvent.document_id == document.id,
+            DocumentProcessingEvent.state == "failed",
+        )
+        .order_by(DocumentProcessingEvent.sequence.desc())
+    )
+    assert failed_event.error_code == "INDEX_FAILED"
 
     chunk_result = await session.execute(select(DocumentChunk).where(DocumentChunk.document_id == document.id))
     chunks = list(chunk_result.scalars().all())

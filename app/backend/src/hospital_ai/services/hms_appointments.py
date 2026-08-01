@@ -71,7 +71,7 @@ class HmsAppointmentEvidenceImporter:
                 document_type=HMS_APPOINTMENT_DOCUMENT_TYPE,
                 storage_uri=source_uri,
                 mime_type="application/vnd.hospital-ai.hms-appointment-summary+text",
-                status="indexed",
+                status="ready",
                 page_count=1,
                 indexed_source_sha256=indexed_source_sha256,
                 index_generation=1,
@@ -82,7 +82,7 @@ class HmsAppointmentEvidenceImporter:
             document.uploaded_by = user.id
             document.title = title
             document.mime_type = "application/vnd.hospital-ai.hms-appointment-summary+text"
-            document.status = "indexed"
+            document.status = "ready"
             document.page_count = 1
             document.ocr_error = None
             document.deleted_at = None

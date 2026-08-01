@@ -3,7 +3,7 @@ import hashlib
 import logging
 import uuid
 from pathlib import Path
-from typing import Optional
+from typing import Literal, Optional
 
 from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -26,12 +26,12 @@ async def process_document(session: AsyncSession, document_id: uuid.UUID, settin
     previous_status = document.status
     start_generation = document.index_generation
     source_sha256 = _source_sha256(settings, document.storage_uri)
-    preserve_existing_index = previous_status == "indexed" and (
+    preserve_existing_index = previous_status in {"ready", "ready_with_warnings"} and (
         source_sha256 is not None and document.indexed_source_sha256 == source_sha256
     )
     document.ocr_error = None
-    if previous_status != "indexed":
-        document.status = "ocr_processing"
+    if previous_status not in {"ready", "ready_with_warnings"}:
+        document.status = "processing"
     await _record_processing_event(session, document_id, attempt, "ocr", "started")
     await session.commit()
 
@@ -63,7 +63,8 @@ async def process_document(session: AsyncSession, document_id: uuid.UUID, settin
             document_id,
             start_generation,
             preserve_existing_index,
-            "ocr_failed",
+            "failed",
+            "ocr",
             attempt,
         )
         return
@@ -91,7 +92,8 @@ async def process_document(session: AsyncSession, document_id: uuid.UUID, settin
             document_id,
             start_generation,
             preserve_existing_index,
-            "index_failed",
+            "failed",
+            "index",
             attempt,
         )
         return
@@ -103,7 +105,7 @@ async def process_document(session: AsyncSession, document_id: uuid.UUID, settin
             await session.rollback()
             return
 
-        document.status = "indexing"
+        document.status = "processing"
         await session.execute(delete(DocumentChunk).where(DocumentChunk.document_id == document_id))
         await session.execute(delete(DocumentPage).where(DocumentPage.document_id == document_id))
 
@@ -147,7 +149,7 @@ async def process_document(session: AsyncSession, document_id: uuid.UUID, settin
         # Extract entities and relations for graph RAG
         await _index_graph_entities(session, document)
 
-        document.status = "indexed"
+        document.status = "ready"
         document.ocr_error = None
         document.index_generation = start_generation + 1
         document.indexed_source_sha256 = source_sha256
@@ -179,7 +181,8 @@ async def process_document(session: AsyncSession, document_id: uuid.UUID, settin
             document_id,
             start_generation,
             preserve_existing_index,
-            "index_failed",
+            "failed",
+            "index",
             attempt,
         )
 
@@ -263,7 +266,7 @@ def _source_sha256(settings: Settings, storage_uri: str) -> Optional[str]:
 
 def _failure_status(preserve_existing_index: bool, failed_status: str) -> str:
     if preserve_existing_index:
-        return "indexed"
+        return "ready_with_warnings"
     return failed_status
 
 
@@ -318,6 +321,7 @@ async def _mark_failed_if_current(
     start_generation: int,
     preserve_existing_index: bool,
     failed_status: str,
+    failure_stage: Literal["ocr", "index"],
     attempt: int,
 ) -> None:
     document = await _locked_current_document(session, document_id)
@@ -326,7 +330,7 @@ async def _mark_failed_if_current(
         return
 
     document.status = _failure_status(preserve_existing_index, failed_status)
-    error_code = "OCR_FAILED" if failed_status == "ocr_failed" else "INDEX_FAILED"
+    error_code = "OCR_FAILED" if failure_stage == "ocr" else "INDEX_FAILED"
     document.ocr_error = (
         "OCR processing failed. Please retry the document."
         if error_code == "OCR_FAILED"
@@ -336,7 +340,7 @@ async def _mark_failed_if_current(
         session,
         document_id,
         attempt,
-        "ocr" if error_code == "OCR_FAILED" else "index",
+        failure_stage,
         "failed",
         error_code=error_code,
     )

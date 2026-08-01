@@ -132,5 +132,6 @@ async def run_cdss_analysis(session: AsyncSession, document_id: uuid.UUID) -> No
         if alerts_data:
             await session.commit()
 
-    except Exception as e:
-        logger.error("CDSS analysis failed for %s: %s", document_id, e)
+    except Exception:
+        logger.exception("CDSS analysis failed for %s", document_id)
+        raise

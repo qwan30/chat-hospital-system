@@ -1,10 +1,10 @@
+import asyncio
 import uuid
 from datetime import UTC, datetime
-from pathlib import Path
 from typing import Any, Optional
 
 from fastapi import APIRouter, Depends, File, Form, Query, Request, UploadFile
-from fastapi.responses import FileResponse
+from fastapi.responses import Response
 from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -34,7 +34,7 @@ from hospital_ai.services.audit import AuditService
 from hospital_ai.services.embeddings import EmbeddingService
 from hospital_ai.services.permissions import PermissionService, active_patient_permission_exists
 from hospital_ai.services.retrieval import RetrievalService
-from hospital_ai.services.storage import LocalStorageService
+from hospital_ai.services.storage import get_storage_service
 from hospital_ai.workers.jobs import process_document
 from hospital_ai.workers.queue import enqueue_document_indexing
 
@@ -104,7 +104,7 @@ async def upload_document(
     )
     session.add(document)
     await session.flush()
-    document.storage_uri = await LocalStorageService(settings).save_upload(
+    document.storage_uri = await get_storage_service(settings).save_upload(
         patient_id=patient_id,
         document_id=document.id,
         file=file,
@@ -228,6 +228,7 @@ async def get_document_content(
     request: Request,
     session: AsyncSession = Depends(get_session),
     current_user: User = Depends(get_current_user),
+    settings: Settings = Depends(get_settings),
 ):
     """Serve the original upload only after the normal document read check."""
     document = await _get_document_or_404(session, document_id)
@@ -241,10 +242,11 @@ async def get_document_content(
         object_id=document.id,
         ip_address=get_request_ip(request),
     )
-    content_path = Path(document.storage_uri)
-    if not content_path.exists():
-        raise NotFoundError("Document content not found.")
-    return FileResponse(content_path, media_type=document.mime_type)
+    try:
+        content = await asyncio.to_thread(get_storage_service(settings).read_bytes, document.storage_uri)
+    except (FileNotFoundError, ValueError) as exc:
+        raise NotFoundError("Document content not found.") from exc
+    return Response(content=content, media_type=document.mime_type)
 
 
 @router.get("/{document_id}/pages/{page_number}", response_model=DocumentPageRead)
@@ -287,8 +289,6 @@ async def get_document_page_image(
     current_user: User = Depends(get_current_user),
     settings: Settings = Depends(get_settings),
 ):
-    from fastapi.responses import FileResponse
-
     document = await _get_document_or_404(session, document_id)
     trace_id = new_trace_id()
     await PermissionService(session).require_read(
@@ -301,11 +301,17 @@ async def get_document_page_image(
         ip_address=get_request_ip(request),
     )
 
-    image_path = LocalStorageService(settings).get_page_image_path(document.patient_id, document.id, page_number)
-    if not image_path.exists():
-        raise NotFoundError("Document page image not found.")
+    try:
+        image_bytes = await asyncio.to_thread(
+            get_storage_service(settings).read_page_image,
+            document.patient_id,
+            document.id,
+            page_number,
+        )
+    except (FileNotFoundError, ValueError) as exc:
+        raise NotFoundError("Document page image not found.") from exc
 
-    return FileResponse(image_path, media_type="image/png")
+    return Response(content=image_bytes, media_type="image/png")
 
 
 @router.post("/{document_id}/retry-index", response_model=DocumentRead)

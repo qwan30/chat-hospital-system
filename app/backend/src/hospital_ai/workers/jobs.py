@@ -1,8 +1,6 @@
 import asyncio
-import hashlib
 import logging
 import uuid
-from pathlib import Path
 from typing import Literal, Optional
 
 from sqlalchemy import delete, func, select
@@ -14,6 +12,7 @@ from hospital_ai.db.session import get_session_factory
 from hospital_ai.services.chunking import ChunkingService
 from hospital_ai.services.embeddings import EmbeddingService
 from hospital_ai.services.ocr import OcrService
+from hospital_ai.services.storage import StorageService, get_storage_service
 
 
 async def process_document(session: AsyncSession, document_id: uuid.UUID, settings: Settings) -> None:
@@ -25,7 +24,8 @@ async def process_document(session: AsyncSession, document_id: uuid.UUID, settin
 
     previous_status = document.status
     start_generation = document.index_generation
-    source_sha256 = _source_sha256(settings, document.storage_uri)
+    storage_service = get_storage_service(settings)
+    source_sha256 = _source_sha256(settings, document.storage_uri, storage_service)
     preserve_existing_index = previous_status in {"ready", "ready_with_warnings"} and (
         source_sha256 is not None and document.indexed_source_sha256 == source_sha256
     )
@@ -48,14 +48,12 @@ async def process_document(session: AsyncSession, document_id: uuid.UUID, settin
 
             pages = [OcrPage(page_number=p.page_number, text=p.ocr_text, confidence=p.ocr_confidence) for p in db_pages]
         else:
-            from hospital_ai.services.storage import LocalStorageService
-
             pages = OcrService().extract_pages(
                 storage_uri=document.storage_uri,
                 mime_type=document.mime_type,
                 patient_id=str(document.patient_id),
                 document_id=str(document.id),
-                storage_service=LocalStorageService(settings),
+                storage_service=storage_service,
             )
     except Exception:
         await _mark_failed_if_current(
@@ -248,19 +246,17 @@ async def _index_graph_entities(session: AsyncSession, document: Document) -> No
         logger.debug("Graph entity indexing skipped for document %s", document.id, exc_info=True)
 
 
-def _source_sha256(settings: Settings, storage_uri: str) -> Optional[str]:
+def _source_sha256(
+    settings: Settings,
+    storage_uri: str,
+    storage_service: Optional[StorageService] = None,
+) -> Optional[str]:
     if storage_uri == "pending" or storage_uri.startswith("local://") or storage_uri.startswith("hms://"):
         return None
     try:
-        storage_root = settings.storage_root.resolve()
-        source_path = Path(storage_uri)
-        if not source_path.is_absolute():
-            source_path = Path.cwd() / source_path
-        source_path = source_path.resolve()
-        if not source_path.is_relative_to(storage_root):
-            return None
-        return hashlib.sha256(source_path.read_bytes()).hexdigest()
-    except OSError:
+        service = storage_service or get_storage_service(settings)
+        return service.source_sha256(storage_uri)
+    except (FileNotFoundError, OSError, ValueError):
         return None
 
 

@@ -10,6 +10,12 @@ class Settings(BaseSettings):
     database_url: str = "postgresql+asyncpg://hospital_ai:hospital_ai@localhost:5432/hospital_ai"
     redis_url: str = "redis://localhost:6379/0"
     storage_root: Path = Path(".local_storage")
+    storage_backend: str = "local"
+    r2_endpoint: str = ""
+    r2_bucket: str = ""
+    r2_region: str = "auto"
+    r2_access_key_id: str = Field(default="", repr=False)
+    r2_secret_access_key: str = Field(default="", repr=False)
     worker_inline: bool = False
     cors_origins: str = "http://localhost:3000,http://127.0.0.1:3000,http://localhost:3001,http://127.0.0.1:3001,http://localhost:8082,http://127.0.0.1:8082"
     dev_auto_grant_access: bool = False

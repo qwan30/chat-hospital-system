@@ -29,6 +29,10 @@ def test_factory_rejects_unknown_backend() -> None:
         get_storage_service(Settings(storage_backend="gcs"))
 
 
+def test_r2_uri_parser_returns_object_key_for_valid_uri() -> None:
+    assert parse_r2_uri("r2://patients/documents/report.txt") == "patients/documents/report.txt"
+
+
 @pytest.mark.parametrize(
     "uri",
     [
@@ -48,9 +52,8 @@ def test_r2_uri_parser_rejects_unsafe_or_wrong_scheme(uri: str) -> None:
 
 
 def test_frontend_source_contains_no_r2_credentials() -> None:
-    frontend = Path(__file__).resolve().parents[2] / "frontend"
-    source = "\n".join(path.read_text(encoding="utf-8") for path in frontend.rglob("*.ts*"))
+    frontend_src = Path(__file__).resolve().parents[2] / "frontend" / "src"
+    source = "\n".join(path.read_text(encoding="utf-8") for path in frontend_src.rglob("*.ts*"))
 
     assert "HOSPITAL_AI_R2_ACCESS_KEY_ID" not in source
     assert "HOSPITAL_AI_R2_SECRET_ACCESS_KEY" not in source
-

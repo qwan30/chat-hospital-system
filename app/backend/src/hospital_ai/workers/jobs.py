@@ -367,13 +367,16 @@ def process_document_job(document_id: str) -> None:
                 logger.info("Document %s processed successfully.", document_id)
             except Exception as exc:
                 logger.exception("Document %s processing failed: %s", document_id, exc)
-                # Attempt to move to dead-letter queue on final failure
-                try:
-                    from hospital_ai.workers.queue import enqueue_to_dead_letter
+                from rq import get_current_job
 
-                    enqueue_to_dead_letter(uuid.UUID(document_id), settings, str(exc))
-                except Exception:
-                    logger.error("Failed to move document %s to dead-letter queue.", document_id)
+                job = get_current_job()
+                if job is None or not job.should_retry:
+                    try:
+                        from hospital_ai.workers.queue import enqueue_to_dead_letter
+
+                        enqueue_to_dead_letter(uuid.UUID(document_id), settings, str(exc))
+                    except Exception:
+                        logger.error("Failed to move document %s to dead-letter queue.", document_id)
                 raise  # Re-raise so rq marks the job as failed
 
     asyncio.run(_run())

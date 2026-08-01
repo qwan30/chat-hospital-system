@@ -56,7 +56,7 @@ services:
       # AI/LLM Providers
       HOSPITAL_AI_EMBEDDING_PROVIDER: ${HOSPITAL_AI_EMBEDDING_PROVIDER:-ollama}
       HOSPITAL_AI_CHAT_PROVIDER: ${HOSPITAL_AI_CHAT_PROVIDER:-ollama}
-      HOSPITAL_AI_LLM_BASE_URL: ${HOSPITAL_AI_LLM_BASE_URL:-http://host.docker.internal:11434}
+      HOSPITAL_AI_OLLAMA_BASE_URL: ${HOSPITAL_AI_OLLAMA_BASE_URL:-http://host.docker.internal:11434}
 
       # Worker
       HOSPITAL_AI_WORKER_INLINE: "${HOSPITAL_AI_WORKER_INLINE:-false}"
@@ -66,7 +66,9 @@ services:
       HOSPITAL_AI_HMS_SYNC_ENABLED: "${HOSPITAL_AI_HMS_SYNC_ENABLED:-false}"
 
       # JWT
-      HOSPITAL_AI_JWT_SECRET: ${HOSPITAL_AI_JWT_SECRET}
+      HOSPITAL_AI_JWT_ISSUER: ${HOSPITAL_AI_JWT_ISSUER}
+      HOSPITAL_AI_JWT_AUDIENCE: ${HOSPITAL_AI_JWT_AUDIENCE:-}
+      HOSPITAL_AI_JWT_HMAC_SECRET: ${HOSPITAL_AI_JWT_HMAC_SECRET}
       HOSPITAL_AI_JWT_ALGORITHM: ${HOSPITAL_AI_JWT_ALGORITHM:-HS256}
 
       # Rate Limiting
@@ -91,7 +93,7 @@ services:
   # ── RQ Background Worker (document processing) ────────────────────
   worker:
     image: ghcr.io/${IMAGE_PREFIX:-qwan30/hospital-ai}-backend:latest
-    command: python -m hospital_ai.workers.queue
+    command: python -m hospital_ai.workers.run_worker
     environment:
       HOSPITAL_AI_DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-hospital_ai}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-hospital_ai}
       HOSPITAL_AI_REDIS_URL: redis://redis:6379/0

@@ -16,5 +16,5 @@ export interface TimelineResponse {
 }
 
 export async function getGlobalTimeline(limit = 50, offset = 0): Promise<TimelineResponse> {
-  return apiFetch(`/api/v1/timeline?limit=${limit}&offset=${offset}`);
+  return apiFetch(`/timeline?limit=${limit}&offset=${offset}`);
 }

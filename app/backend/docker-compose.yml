@@ -52,7 +52,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    command: ["python", "-m", "hospital_ai.workers.runner"]
+    command: ["python", "-m", "hospital_ai.workers.run_worker"]
     environment:
       HOSPITAL_AI_DATABASE_URL: postgresql+asyncpg://hospital_ai:hospital_ai@postgres:5432/hospital_ai
       HOSPITAL_AI_REDIS_URL: redis://redis:6379/0
@@ -71,10 +71,10 @@ services:
     build:
       context: ../../app/frontend
       dockerfile: Dockerfile
-    environment:
-      NEXT_PUBLIC_API_URL: http://backend:8000/api/v1
+      args:
+        VITE_API_URL: ${VITE_API_URL:-http://localhost:8000/api/v1}
     ports:
-      - "3000:3000"
+      - "3000:8082"
     depends_on:
       - backend
     restart: unless-stopped

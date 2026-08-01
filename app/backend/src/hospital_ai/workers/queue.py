@@ -145,11 +145,14 @@ def get_queue_stats(settings: Settings) -> dict:
 def enqueue_cdss_analysis(
     document_id: uuid.UUID,
     settings: Settings,
+    *,
+    max_retries: int = DEFAULT_MAX_RETRIES,
+    retry_intervals: Optional[list[int]] = None,
 ) -> str:
     """Enqueue a document for CDSS analysis."""
     try:
         from redis import Redis
-        from rq import Queue
+        from rq import Queue, Retry
     except ImportError:
         return "queue_unavailable"
 
@@ -160,13 +163,17 @@ def enqueue_cdss_analysis(
         return "queue_unavailable"
 
     queue = Queue("cdss-analysis", connection=connection)
+    intervals = retry_intervals or DEFAULT_RETRY_INTERVALS[:max_retries]
+    retry = Retry(max=max_retries, interval=intervals)
 
     queue.enqueue(
         "hospital_ai.workers.jobs.cdss_job_handler",
         str(document_id),
+        retry=retry,
         job_timeout="30m",
         result_ttl=86400,
-        meta={"document_id": str(document_id)},
+        failure_ttl=604800,
+        meta={"document_id": str(document_id), "max_retries": max_retries},
     )
-    logger.info("Document %s enqueued for CDSS analysis.", document_id)
+    logger.info("Document %s enqueued for CDSS analysis (max_retries=%d).", document_id, max_retries)
     return "queued"

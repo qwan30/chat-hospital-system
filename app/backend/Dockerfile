@@ -32,6 +32,6 @@ USER appuser
 EXPOSE 8000
 
 HEALTHCHECK --interval=30s --timeout=10s --retries=3 \
-    CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/v1/health')" || exit 1
+    CMD python -c "import os, urllib.request; urllib.request.urlopen('http://localhost:' + os.getenv('PORT', '8000') + os.getenv('HOSPITAL_AI_API_V1_PREFIX', '/api/v1') + '/health')" || exit 1
 
-CMD ["uvicorn", "hospital_ai.main:create_app", "--factory", "--host", "0.0.0.0", "--port", "8000", "--app-dir", "src"]
+CMD ["sh", "-c", "exec uvicorn hospital_ai.main:create_app --factory --host 0.0.0.0 --port ${PORT:-8000} --app-dir src"]

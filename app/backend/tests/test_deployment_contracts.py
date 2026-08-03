@@ -158,7 +158,9 @@ def test_deployment_contract_cli_reports_invalid_fixture(tmp_path):
 
     compose_path = tmp_path / "infra" / "docker-compose.yml"
     compose_path.write_text(
-        compose_path.read_text(encoding="utf-8").replace('    expose:\n      - "8000"', '    ports:\n      - "8000:8000"'),
+        compose_path.read_text(encoding="utf-8").replace(
+            '    expose:\n      - "8000"', '    ports:\n      - "8000:8000"'
+        ),
         encoding="utf-8",
     )
 

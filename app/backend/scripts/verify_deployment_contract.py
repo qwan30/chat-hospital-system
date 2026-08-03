@@ -49,17 +49,23 @@ def find_repo_root(start: Path | None = None) -> Path:
 def _read(root: Path, relative_path: str, violations: list[ContractViolation]) -> str:
     path = root / relative_path
     if not path.is_file():
-        violations.append(ContractViolation("missing_file", f"required file is missing: {relative_path}", relative_path))
+        violations.append(
+            ContractViolation("missing_file", f"required file is missing: {relative_path}", relative_path)
+        )
         return ""
     return path.read_text(encoding="utf-8")
 
 
-def _require(text: str, needle: str, path: str, violations: list[ContractViolation], code: str = "missing_contract") -> None:
+def _require(
+    text: str, needle: str, path: str, violations: list[ContractViolation], code: str = "missing_contract"
+) -> None:
     if needle not in text:
         violations.append(ContractViolation(code, f"missing required text: {needle}", path))
 
 
-def _forbid(text: str, needle: str, path: str, violations: list[ContractViolation], code: str = "forbidden_contract") -> None:
+def _forbid(
+    text: str, needle: str, path: str, violations: list[ContractViolation], code: str = "forbidden_contract"
+) -> None:
     if needle in text:
         violations.append(ContractViolation(code, f"forbidden text present: {needle}", path))
 
@@ -115,7 +121,7 @@ def validate_deployment_contract(root: Path | None = None) -> list[ContractViola
 
     for forbidden in ("\n  nginx:", "\n  ollama:", "HOSPITAL_AI_OLLAMA_BASE_URL", "localhost:11434"):
         _forbid(compose, forbidden, "infra/docker-compose.yml", violations)
-    _require(compose, "expose:\n      - \"8000\"", "infra/docker-compose.yml", violations)
+    _require(compose, 'expose:\n      - "8000"', "infra/docker-compose.yml", violations)
     _require(compose, "BACKEND_IMAGE", "infra/docker-compose.yml", violations)
     for variable in (
         "HOSPITAL_AI_STORAGE_BACKEND",
@@ -129,7 +135,9 @@ def validate_deployment_contract(root: Path | None = None) -> list[ContractViola
     for port in ("5432", "6379", "8000"):
         if _has_public_mapping(compose, port):
             violations.append(
-                ContractViolation("public_port", f"public host mapping for port {port} is forbidden", "infra/docker-compose.yml")
+                ContractViolation(
+                    "public_port", f"public host mapping for port {port} is forbidden", "infra/docker-compose.yml"
+                )
             )
 
     for workflow_path, workflow in (

@@ -606,6 +606,10 @@ jobs:
     timeout-minutes: 25
     needs: [backend-test, backend-migration, frontend-test, validate-observability]
     if: ${{ github.event_name != 'pull_request' && needs.backend-test.result == 'success' && needs.backend-migration.result == 'success' && needs.frontend-test.result == 'success' && needs.validate-observability.result == 'success' }}
+    outputs:
+      backend_image: ${{ steps.release.outputs.image }}
+      backend_image_tag: ${{ steps.release.outputs.tag }}
+      source_sha: ${{ steps.release.outputs.source_sha }}
 
     steps:
       - name: Checkout
@@ -613,6 +617,37 @@ jobs:
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v4
+
+      - name: Resolve immutable release metadata
+        id: release
+        shell: bash
+        env:
+          SOURCE_SHA: ${{ github.sha }}
+          IMAGE_REPOSITORY: ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}-backend
+        run: |
+          set -euo pipefail
+
+          if [[ ! "$SOURCE_SHA" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "::error::GitHub did not provide a full immutable commit SHA"
+            exit 1
+          fi
+
+          SHORT_SHA="${SOURCE_SHA:0:7}"
+          IMAGE_TAG="sha-${SHORT_SHA}"
+          IMAGE_REF="${IMAGE_REPOSITORY}:${IMAGE_TAG}"
+
+          {
+            echo "source_sha=${SOURCE_SHA}"
+            echo "tag=${IMAGE_TAG}"
+            echo "image=${IMAGE_REF}"
+          } >> "$GITHUB_OUTPUT"
+
+          {
+            echo "## Immutable backend release"
+            echo "- Image: `${IMAGE_REF}`"
+            echo "- Source SHA: `${SOURCE_SHA}`"
+            echo "- Release identity: `${IMAGE_TAG}`"
+          } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Log in to GitHub Container Registry
         uses: docker/login-action@v3
@@ -628,9 +663,7 @@ jobs:
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}-backend
           tags: |
-            type=ref,event=branch
-            type=sha,prefix=
-            type=semver,pattern={{version}}
+            type=sha,prefix=sha-,format=short
 
       # ── Build & push backend image ──
       - name: Build and push backend image
@@ -663,6 +696,36 @@ jobs:
         with:
           sarif_file: trivy-backend.sarif
           category: trivy-backend
+
+      - name: Write release handoff metadata
+        if: success()
+        shell: bash
+        env:
+          IMAGE_REF: ${{ steps.release.outputs.image }}
+          IMAGE_TAG: ${{ steps.release.outputs.tag }}
+          SOURCE_SHA: ${{ steps.release.outputs.source_sha }}
+          IMAGE_DIGEST: ${{ steps.backend-image.outputs.digest }}
+          REPOSITORY: ${{ github.repository }}
+          WORKFLOW_RUN_ID: ${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          jq -n \
+            --arg image "$IMAGE_REF" \
+            --arg tag "$IMAGE_TAG" \
+            --arg source_sha "$SOURCE_SHA" \
+            --arg digest "$IMAGE_DIGEST" \
+            --arg repository "$REPOSITORY" \
+            --arg workflow_run_id "$WORKFLOW_RUN_ID" \
+            '{image: $image, tag: $tag, source_sha: $source_sha, digest: $digest, repository: $repository, workflow_run_id: $workflow_run_id}' \
+            > release-handoff.json
+
+      - name: Upload release handoff metadata
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-release-handoff-${{ steps.release.outputs.tag }}
+          path: release-handoff.json
+          if-no-files-found: error
 
   # ═══════════════════════════════════════════════════════════════════
   # Job 8: CI Summary — final gate (always runs)

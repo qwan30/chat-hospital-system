@@ -1,11 +1,26 @@
 from __future__ import annotations
 
+import importlib.util
+import json
+import shutil
+import subprocess
+import sys
 from pathlib import Path
 from types import SimpleNamespace
 
 from hospital_ai.workers import run_worker
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
+DEPLOYMENT_VALIDATOR = REPO_ROOT / "app" / "backend" / "scripts" / "verify_deployment_contract.py"
+
+
+def _load_deployment_validator():
+    spec = importlib.util.spec_from_file_location("verify_deployment_contract", DEPLOYMENT_VALIDATOR)
+    assert spec and spec.loader
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = module
+    spec.loader.exec_module(module)
+    return module
 
 
 def test_worker_entrypoint_builds_all_supported_queues(monkeypatch):
@@ -117,3 +132,44 @@ def test_backend_compose_uses_frontend_api_variable_name():
     assert '"3000:8082"' in backend_compose
     assert "ARG VITE_API_URL" in frontend_dockerfile
     assert "ENV VITE_API_URL=${VITE_API_URL}" in frontend_dockerfile
+
+
+def test_deployment_contract_validator_accepts_current_repository():
+    validator = _load_deployment_validator()
+
+    assert validator.validate_deployment_contract(REPO_ROOT) == []
+
+
+def test_deployment_contract_cli_reports_invalid_fixture(tmp_path):
+    required_paths = [
+        ".github/workflows/ci.yml",
+        ".github/workflows/cd.yml",
+        ".github/workflows/rollback.yml",
+        "infra/docker-compose.yml",
+        "docs/10-deployment/deployment-guide.md",
+        "docs/10-deployment/env-variables.md",
+        "docs/10-deployment/ci-cd.md",
+        "docs/10-deployment/release-checklist.md",
+    ]
+    for relative in required_paths:
+        target = tmp_path / relative
+        target.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(REPO_ROOT / relative, target)
+
+    compose_path = tmp_path / "infra" / "docker-compose.yml"
+    compose_path.write_text(
+        compose_path.read_text(encoding="utf-8").replace('    expose:\n      - "8000"', '    ports:\n      - "8000:8000"'),
+        encoding="utf-8",
+    )
+
+    result = subprocess.run(
+        [sys.executable, str(DEPLOYMENT_VALIDATOR), "--repo-root", str(tmp_path), "--json"],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert result.returncode == 2
+    payload = json.loads(result.stdout)
+    assert payload["valid"] is False
+    assert any(item["code"] == "public_port" for item in payload["violations"])

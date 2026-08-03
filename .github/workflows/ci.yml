@@ -103,8 +103,13 @@ jobs:
               - 'infra/docker-compose.observability.yml'
               - 'infra/observability/**'
               - 'app/backend/Dockerfile'
+              - 'app/backend/scripts/verify_deployment_contract.py'
               - 'app/frontend/Dockerfile'
               - 'docker-compose.yml'
+              - '.github/workflows/ci.yml'
+              - '.github/workflows/cd.yml'
+              - '.github/workflows/rollback.yml'
+              - 'docs/10-deployment/**'
 
   # ═══════════════════════════════════════════════════════════════════
   # Job 2: CodeQL Security Analysis
@@ -596,6 +601,9 @@ jobs:
 
       - name: Validate docker-compose.observability.yml
         run: docker compose -f infra/docker-compose.yml -f infra/docker-compose.observability.yml config --quiet
+
+      - name: Validate repository deployment contract
+        run: python app/backend/scripts/verify_deployment_contract.py
 
   # ═══════════════════════════════════════════════════════════════════
   # Job 7: Docker build, Trivy scan & push to GHCR

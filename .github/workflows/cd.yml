@@ -68,8 +68,12 @@ jobs:
             echo "::error::source-sha must be a full 40-character lowercase commit SHA"
             exit 1
           fi
-          if [[ ! "$IMAGE_TAG" =~ ^sha-[0-9a-f]{7,40}$ ]]; then
-            echo "::error::image-tag must be an immutable sha-<hex> tag; floating tags are not allowed"
+          if [[ ! "$IMAGE_TAG" =~ ^sha-[0-9a-f]{7}$ ]]; then
+            echo "::error::image-tag must be an immutable sha-<7-hex> tag; floating tags are not allowed"
+            exit 1
+          fi
+          if [[ "$IMAGE_TAG" != "sha-${SOURCE_SHA:0:7}" ]]; then
+            echo "::error::image-tag does not match the supplied source-sha"
             exit 1
           fi
 

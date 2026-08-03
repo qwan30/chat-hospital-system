@@ -42,8 +42,11 @@ jobs:
         run: |
           set -euo pipefail
           [[ "$CONFIRM" == "ROLLBACK" ]] || { echo "::error::Type ROLLBACK to confirm"; exit 1; }
-          [[ "$BACKEND_TAG" =~ ^sha-[0-9a-f]{7,40}$ ]] || {
-            echo "::error::backend-tag must be an immutable sha-<hex> tag"; exit 1;
+          [[ "$BACKEND_TAG" =~ ^sha-[0-9a-f]{7}$ ]] || {
+            echo "::error::backend-tag must be an immutable sha-<7-hex> tag"; exit 1;
+          }
+          [[ "$BACKEND_TAG" == "sha-${SOURCE_SHA:0:7}" ]] || {
+            echo "::error::backend-tag does not match the supplied source-sha"; exit 1;
           }
           [[ "$SOURCE_SHA" =~ ^[0-9a-f]{40}$ ]] || {
             echo "::error::source-sha must be a full 40-character lowercase commit SHA"; exit 1;

@@ -1,85 +1,113 @@
-# CI/CD Pipeline Specification
+# CI/CD release handoff
 
-> Project: AI-Powered Hospital Knowledge Assistant  
-> Project Code: HOSP-AI-001  
-> Version: 3.0  
-> Status: Production  
-> Owner: DevOps / SRE / Tech Lead  
-> Last Updated: 2026-06-14  
+> Project: AI-Powered Hospital Knowledge Assistant
+> Status: Dokploy handoff contract
+> Last updated: 2026-08-04
 
----
+This document describes the repository-side release handoff. It does not
+provision Dokploy, confirm an external deployment, or claim production
+readiness. The frontend remains on Vercel; the backend and worker are managed
+by Dokploy on the VPS.
 
-## 1. Workflow Overview
+## Release identity
 
-The project uses **5 GitHub Actions workflows** providing defense-in-depth:
+The CI `docker-push` job runs only after the existing backend, migration,
+frontend, and observability gates pass. It publishes the backend image with
+one release identity:
 
-| Workflow | File | Trigger | Purpose |
-|----------|------|---------|---------|
-| **CI** | `.github/workflows/ci.yml` | Push, PR, Manual | Code quality, testing, security, Docker build+scan+push |
-| **CD** | `.github/workflows/cd.yml` | CI success, Manual | Staging auto-deploy, production promotion, Slack notify |
-| **Security Scan** | `.github/workflows/security-scan.yml` | Weekly cron, Manual | Dep audit, secret detection, container scanning |
-| **Rollback** | `.github/workflows/rollback.yml` | Manual only | Emergency rollback with confirmation gate |
-| **Dependabot** | `.github/dependabot.yml` | Automatic | Weekly dependency update PRs (npm, pip, GHA) |
+```text
+ghcr.io/<repository-owner>/hospital-ai-backend:sha-<first-7-lowercase-hex-characters-of-commit-sha>
+```
 
----
+`latest`, branch tags, and other floating tags are not release identities. CI
+also exposes the image reference, image tag, and source SHA as job outputs,
+writes the image digest and provenance to `release-handoff.json`, and uploads
+that file as the `backend-release-handoff-sha-<short-sha>` artifact. The CD
+workflow can derive the same tag from the successful `workflow_run.head_sha`.
 
-## 2. CI Pipeline (8 Jobs)
+The image digest is the strongest immutable identity when it is available;
+the `sha-<short-sha>` tag is the required human-readable handoff identity.
 
-| # | Job | Gates | Artifacts |
-|---|-----|-------|-----------|
-| 1 | `changes` | Path-based skip (dorny/paths-filter v3) | Output: backend, frontend, infra booleans |
-| 2 | `codeql` | Security-extended queries (Python + JS/TS matrix) | SARIF → Security tab |
-| 3 | `backend-test` | Ruff lint + format, Pytest 250+, API contract verify | Test results (7-day) |
-| 4 | `backend-migration` | Alembic upgrade head + model alignment check | — |
-| 5 | `frontend-test` | ESLint, TypeScript strict, Vitest, TanStack Start build, Playwright E2E | Playwright report (7-day) |
-| 6 | `validate-observability` | Docker Compose config validation (2 files) | — |
-| 7 | `docker-push` | Multi-stage build, Trivy scan, GHCR push | Trivy SARIF → Security tab |
-| 8 | `ci-summary` | Aggregate all results, fail on any failure | Step summary table |
+## Deployment handoff
 
-**Key features**: Concurrency cancellation, Playwright browser cache, TanStack Start build cache, Docker Buildx GHA cache, path-aware job skipping.
+`.github/workflows/cd.yml` sends a JSON POST to the selected environment's
+Dokploy deploy hook. The payload includes:
 
----
+```json
+{
+  "action": "deploy",
+  "environment": "staging or production",
+  "image": "ghcr.io/<repository-owner>/hospital-ai-backend:sha-<short-sha>",
+  "image_tag": "sha-<short-sha>",
+  "source_sha": "<commit-sha>",
+  "repository": "<owner>/<repository>",
+  "workflow_run_id": "<github-run-id>"
+}
+```
 
-## 3. CD Pipeline (Staging → Production)
+The external hook must return a 2xx response after accepting the request. A
+2xx response means only that the handoff was accepted; it is not a health
+check or deployment-completion proof. Dokploy must be configured to consume
+the immutable image reference in the payload and to report runtime health
+through its own deployment controls.
 
-1. **Staging** (auto on CI pass): SCP `infra/` configs → SSH pull GHCR image → Alembic migration → `docker compose up -d` → 12-attempt smoke check
-2. **Production** (auto-promote from staging): Same process → 15-attempt smoke check → Slack notification
-3. **Manual dispatch**: Can target specific environment + image tag
-
----
-
-## 4. Scheduled Security Scan (Weekly)
-
-Runs every Monday 06:00 UTC:
-
-| Scan | Tool | Scope |
-|------|------|-------|
-| Frontend deps | `npm audit --audit-level=high` | app/frontend/ |
-| Backend deps | `pip-audit` | app/backend/ |
-| Backend SAST | `bandit -r src/ -ll` | Python source |
-| Secret detection | TruffleHog (full git history) | Entire repo |
-| Container images | Trivy (CRITICAL,HIGH,MEDIUM) | GHCR backend:latest |
-
----
-
-## 5. Rollback
-
-Manual `workflow_dispatch` with `ROLLBACK` confirmation string gate → SSH to target → `docker pull <specific-tag>` → `docker compose up -d` → health check.
-
----
-
-## 6. Dependabot
-
-| Ecosystem | Directory | Groups |
-|-----------|-----------|--------|
-| npm | `/app/frontend` | react, nextjs, testing, radix, tailwind |
-| pip | `/app/backend` | fastapi, database, testing, ai-ml |
-| github-actions | `/` | — |
-
----
-
-## Change Log
-| Version | Date | Author | Change |
+| Target | Trigger | GitHub environment gate | Missing deploy hook |
 |---|---|---|---|
-| 1.0 | 2026-04-27 | DevOps Engineer | Initial pipeline definition |
-| 2.0 | 2026-06-07 | Agent | Restructured into dedicated CI/CD documentation with graphical flow |
+| Staging | Successful CI `workflow_run` on `main`/`master`; or manual dispatch with an immutable tag | `staging` | Clearly reported **PENDING — unconfigured** no-op; no deployment is claimed |
+| Production | Manual dispatch with `environment=production` and an immutable tag | `production` approval/environment protection | **Fails closed**; no deployment is claimed |
+
+Production is never auto-promoted by the CI `workflow_run` event. A manual
+production request must provide a CI-produced `sha-<short-sha>` tag. Any
+`latest`, branch, semver-floating, empty, or otherwise non-immutable input is
+rejected before the hook is called.
+
+Dokploy's webhook and auto-deploy configuration is external to this
+repository; configure it in Dokploy according to the [Dokploy auto-deploy
+documentation](https://docs.dokploy.com/docs/core/auto-deploy).
+
+## Rollback handoff
+
+`.github/workflows/rollback.yml` is manual and requires the literal
+`ROLLBACK` confirmation. It accepts only `sha-<short-sha>` image tags and sends
+an explicit rollback payload to the separately configured rollback hook:
+
+```json
+{
+  "action": "rollback",
+  "environment": "staging or production",
+  "image": "ghcr.io/<repository-owner>/hospital-ai-backend:sha-<short-sha>",
+  "image_tag": "sha-<short-sha>",
+  "repository": "<owner>/<repository>",
+  "workflow_run_id": "<github-run-id>"
+}
+```
+
+The rollback hook is intentionally separate from the deploy hook. If it is
+missing, the requested rollback fails closed before any external request is
+made. A 2xx response means the rollback handoff was accepted; it does not
+claim that the running service has recovered.
+
+## Required environment secrets
+
+Store these as GitHub Actions environment secrets, not repository files or
+workflow literals:
+
+| Environment | Secret | Use |
+|---|---|---|
+| `staging` | `DOKPLOY_DEPLOY_HOOK_URL` | Staging deploy handoff |
+| `production` | `DOKPLOY_DEPLOY_HOOK_URL` | Manually approved production deploy handoff |
+| `staging` | `DOKPLOY_ROLLBACK_HOOK_URL` | Staging rollback handoff |
+| `production` | `DOKPLOY_ROLLBACK_HOOK_URL` | Production rollback handoff |
+
+No hook URL, token, API key, SSH credential, registry credential, or backend
+runtime secret belongs in Git. Backend runtime credentials remain configured
+only in the backend/worker Dokploy environment. The workflow uses GitHub's
+environment-scoped secret value only at request time and does not print it.
+
+## Verification boundary
+
+The repository can verify workflow structure, tag validation, and payload
+construction. It cannot verify an external Dokploy hook, VPS state, runtime
+health, database migration result, R2 availability, or production approval.
+Those remain external release gates and must be recorded separately from a
+successful GitHub Actions handoff.

@@ -1,21 +1,25 @@
-name: Rollback
+name: Dokploy rollback handoff
 
 on:
   workflow_dispatch:
     inputs:
       environment:
-        description: "Environment to rollback"
+        description: "Dokploy environment to roll back"
         required: true
         type: choice
         options:
           - staging
           - production
       backend-tag:
-        description: "Backend image tag to rollback to (e.g., sha-abc1234 or v1.2.3)"
+        description: "Immutable backend tag, for example sha-abc1234"
+        required: true
+        type: string
+      source-sha:
+        description: "Full source SHA represented by the rollback image"
         required: true
         type: string
       confirm:
-        description: "Type 'ROLLBACK' to confirm this action"
+        description: "Type ROLLBACK to confirm this action"
         required: true
         type: string
 
@@ -24,83 +28,90 @@ permissions:
   packages: read
 
 jobs:
-  # ═══════════════════════════════════════════════════════════════════
-  # Gate: Require explicit confirmation before rollback
-  # ═══════════════════════════════════════════════════════════════════
   validate:
-    name: Validate rollback confirmation
+    name: Validate rollback request
     runs-on: ubuntu-latest
-    timeout-minutes: 1
+    timeout-minutes: 5
     steps:
-      - name: Check confirmation string
+      - name: Check confirmation and immutable identity
+        shell: bash
+        env:
+          CONFIRM: ${{ inputs.confirm }}
+          BACKEND_TAG: ${{ inputs.backend-tag }}
+          SOURCE_SHA: ${{ inputs.source-sha }}
         run: |
-          if [ "${{ github.event.inputs.confirm }}" != "ROLLBACK" ]; then
-            echo "::error::Confirmation required. Type 'ROLLBACK' in the confirm field."
-            exit 1
-          fi
-          echo "✓ Rollback confirmed for environment: ${{ github.event.inputs.environment }}"
+          set -euo pipefail
+          [[ "$CONFIRM" == "ROLLBACK" ]] || { echo "::error::Type ROLLBACK to confirm"; exit 1; }
+          [[ "$BACKEND_TAG" =~ ^sha-[0-9a-f]{7}$ ]] || {
+            echo "::error::backend-tag must be an immutable sha-<7-hex> tag"; exit 1;
+          }
+          [[ "$BACKEND_TAG" == "sha-${SOURCE_SHA:0:7}" ]] || {
+            echo "::error::backend-tag does not match the supplied source-sha"; exit 1;
+          }
+          [[ "$SOURCE_SHA" =~ ^[0-9a-f]{40}$ ]] || {
+            echo "::error::source-sha must be a full 40-character lowercase commit SHA"; exit 1;
+          }
 
-  # ═══════════════════════════════════════════════════════════════════
-  # Execute rollback on target environment
-  # ═══════════════════════════════════════════════════════════════════
+      - name: Verify rollback image exists in GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Inspect rollback image
+        shell: bash
+        env:
+          BACKEND_TAG: ${{ inputs.backend-tag }}
+        run: |
+          set -euo pipefail
+          docker manifest inspect "ghcr.io/${{ github.repository_owner }}/hospital-ai-backend:${BACKEND_TAG}" > /dev/null
+
   rollback:
-    name: Rollback ${{ github.event.inputs.environment }}
+    name: Invoke Dokploy rollback hook
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     needs: [validate]
     environment:
-      name: ${{ github.event.inputs.environment }}
-
+      name: ${{ inputs.environment }}
+      url: ${{ vars.DOKPLOY_APP_URL || '' }}
+    env:
+      DOKPLOY_ROLLBACK_HOOK_URL: ${{ secrets.DOKPLOY_ROLLBACK_HOOK_URL }}
+      TARGET_ENVIRONMENT: ${{ inputs.environment }}
+      BACKEND_TAG: ${{ inputs.backend-tag }}
+      SOURCE_SHA: ${{ inputs.source-sha }}
     steps:
-      - name: Resolve target host credentials
-        id: params
+      - name: Require configured rollback hook
+        shell: bash
         run: |
-          BTAG="${{ github.event.inputs.backend-tag }}"
-          echo "backend-tag=$BTAG" >> "$GITHUB_OUTPUT"
-
-          ENV="${{ github.event.inputs.environment }}"
-          if [ "$ENV" = "production" ]; then
-            echo "host=${{ secrets.DEPLOY_HOST }}" >> "$GITHUB_OUTPUT"
-            echo "user=${{ secrets.DEPLOY_USER }}" >> "$GITHUB_OUTPUT"
-            echo "key=${{ secrets.DEPLOY_SSH_KEY }}" >> "$GITHUB_OUTPUT"
-          else
-            echo "host=${{ secrets.DEPLOY_HOST_STAGING }}" >> "$GITHUB_OUTPUT"
-            echo "user=${{ secrets.DEPLOY_USER_STAGING }}" >> "$GITHUB_OUTPUT"
-            echo "key=${{ secrets.DEPLOY_SSH_KEY_STAGING }}" >> "$GITHUB_OUTPUT"
+          set -euo pipefail
+          if [[ -z "$DOKPLOY_ROLLBACK_HOOK_URL" ]]; then
+            echo "::error::DOKPLOY_ROLLBACK_HOOK_URL is not configured for this environment"
+            echo "Configure the hook and rerun the rollback; no rollback was requested."
+            exit 1
           fi
 
-      - name: SSH — rollback to specified image tag
-        uses: appleboy/ssh-action@v1.2.5
-        with:
-          host: ${{ steps.params.outputs.host }}
-          username: ${{ steps.params.outputs.user }}
-          key: ${{ steps.params.outputs.key }}
-          script: |
-            set -e
-            cd ~/apps/chatbot-hospital
-
-            REPO="${{ github.repository }}"
-            BTAG="${{ steps.params.outputs.backend-tag }}"
-
-            echo "⚠ Rolling back ${{ github.event.inputs.environment }} to backend:${BTAG}"
-
-            # Pull specific image version
-            docker pull "ghcr.io/${REPO}/backend:${BTAG}"
-
-            # Override image tag and redeploy
-            BACKEND_IMAGE="ghcr.io/${REPO}/backend:${BTAG}" \
-            docker compose -f infra/docker-compose.yml up -d --remove-orphans
-
-            echo "✓ Rollback complete — backend:${BTAG}"
-
-            # Post-rollback health check
-            for attempt in $(seq 1 12); do
-              echo "Health check attempt ${attempt}/12"
-              if curl -sSf http://localhost:8000/api/v1/health > /dev/null 2>&1; then
-                echo "✓ Backend healthy after rollback"
-                exit 0
-              fi
-              echo "Backend not ready, waiting 10s..."
-              sleep 10
-            done
-            echo "✗ Health check failed after rollback — manual intervention required"
-            exit 1
+      - name: Trigger Dokploy rollback hook
+        shell: bash
+        env:
+          DOKPLOY_ROLLBACK_HOOK_URL: ${{ secrets.DOKPLOY_ROLLBACK_HOOK_URL }}
+          TARGET_ENVIRONMENT: ${{ inputs.environment }}
+          BACKEND_TAG: ${{ inputs.backend-tag }}
+          SOURCE_SHA: ${{ inputs.source-sha }}
+          REPOSITORY: ${{ github.repository }}
+          WORKFLOW_RUN_ID: ${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          IMAGE_REF="ghcr.io/${{ github.repository_owner }}/hospital-ai-backend:${BACKEND_TAG}"
+          payload=$(printf '{"action":"rollback","environment":"%s","image":"%s","image_tag":"%s","source_sha":"%s","repository":"%s","workflow_run_id":"%s"}' \
+            "$TARGET_ENVIRONMENT" "$IMAGE_REF" "$BACKEND_TAG" "$SOURCE_SHA" "$REPOSITORY" "$WORKFLOW_RUN_ID")
+          curl --fail-with-body --silent --show-error --retry 2 --max-time 30 \
+            -X POST -H 'Content-Type: application/json' \
+            --data "$payload" "$DOKPLOY_ROLLBACK_HOOK_URL"
+          {
+            echo "## Dokploy rollback hook accepted"
+            echo "- Environment: ${TARGET_ENVIRONMENT}"
+            echo "- Backend image: ${IMAGE_REF}"
+            echo "- Source SHA: ${SOURCE_SHA}"
+            echo "Verify the public health endpoint, worker queue, migrations, and error rate in Dokploy before restoring traffic."
+          } >> "$GITHUB_STEP_SUMMARY"

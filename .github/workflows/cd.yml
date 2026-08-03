@@ -1,332 +1,143 @@
-name: CD
+name: Dokploy release handoff
 
 on:
   workflow_run:
     workflows: ["CI"]
-    types:
-      - completed
+    types: [completed]
     branches:
       - main
       - master
   workflow_dispatch:
     inputs:
       environment:
-        description: "Target environment"
+        description: "Dokploy environment to hand off"
         required: true
         type: choice
         options:
           - staging
           - production
       image-tag:
-        description: "Specific image tag (default: latest main build)"
-        required: false
+        description: "Immutable backend tag, for example sha-abc1234"
+        required: true
         type: string
-        default: "latest"
+      source-sha:
+        description: "Full source SHA that produced the image"
+        required: true
+        type: string
 
 permissions:
   contents: read
   packages: read
 
+concurrency:
+  group: dokploy-handoff-${{ github.event_name == 'workflow_dispatch' && inputs.environment || 'staging' }}
+  cancel-in-progress: false
+
 jobs:
-  # ═══════════════════════════════════════════════════════════════════
-  # Stage 1: Deploy to staging (automatic on CI success)
-  # ═══════════════════════════════════════════════════════════════════
-  deploy-staging:
-    name: Deploy to staging
+  handoff:
+    name: Dokploy ${{ github.event_name == 'workflow_dispatch' && inputs.environment || 'staging' }} handoff
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     environment:
-      name: staging
-      url: ${{ vars.STAGING_URL || 'https://staging.hospital-ai.local' }}
+      name: ${{ github.event_name == 'workflow_dispatch' && inputs.environment || 'staging' }}
+      url: ${{ vars.DOKPLOY_APP_URL || '' }}
     if: |
       (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success') ||
-      (github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'staging')
+      github.event_name == 'workflow_dispatch'
+    env:
+      TARGET_ENVIRONMENT: ${{ github.event_name == 'workflow_dispatch' && inputs.environment || 'staging' }}
+      INPUT_IMAGE_TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.image-tag || '' }}
+      INPUT_SOURCE_SHA: ${{ github.event_name == 'workflow_dispatch' && inputs.source-sha || '' }}
+      DOKPLOY_DEPLOY_HOOK_URL: ${{ secrets.DOKPLOY_DEPLOY_HOOK_URL }}
 
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v6
-
-      - name: Check staging deployment secrets
-        id: check-secrets
+      - name: Resolve immutable release identity
+        id: release
+        shell: bash
         run: |
-          if [ -n "${{ secrets.DEPLOY_HOST_STAGING }}" ] && \
-             [ -n "${{ secrets.DEPLOY_USER_STAGING }}" ] && \
-             [ -n "${{ secrets.DEPLOY_SSH_KEY_STAGING }}" ]; then
-            echo "configured=true" >> "$GITHUB_OUTPUT"
-            echo "Staging deployment secrets configured"
+          set -euo pipefail
+          if [[ "${{ github.event_name }}" == "workflow_run" ]]; then
+            SOURCE_SHA="${{ github.event.workflow_run.head_sha }}"
+            IMAGE_TAG="sha-${SOURCE_SHA:0:7}"
           else
-            echo "configured=false" >> "$GITHUB_OUTPUT"
-            echo "Staging deployment secrets not configured - skipping deploy"
+            SOURCE_SHA="$INPUT_SOURCE_SHA"
+            IMAGE_TAG="$INPUT_IMAGE_TAG"
           fi
 
-      - name: Resolve GHCR token
-        id: ghcr
-        run: |
-          if [ -n "${{ secrets.GHCR_PAT }}" ]; then
-            echo "token=${{ secrets.GHCR_PAT }}" >> "$GITHUB_OUTPUT"
-          else
-            echo "token=${{ secrets.GITHUB_TOKEN }}" >> "$GITHUB_OUTPUT"
-          fi
-
-      - name: Set image tag
-        id: tag
-        run: |
-          TAG="${{ github.event.inputs.image-tag || 'latest' }}"
-          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
-
-      - name: Copy deployment configurations to staging server
-        if: steps.check-secrets.outputs.configured == 'true'
-        uses: appleboy/scp-action@v1.0.0
-        with:
-          host: ${{ secrets.DEPLOY_HOST_STAGING }}
-          username: ${{ secrets.DEPLOY_USER_STAGING }}
-          key: ${{ secrets.DEPLOY_SSH_KEY_STAGING }}
-          source: "infra/docker-compose.yml,infra/docker-compose.observability.yml,infra/observability,infra/nginx"
-          target: "~/apps/chatbot-hospital"
-
-      - name: SSH — deploy to staging
-        if: steps.check-secrets.outputs.configured == 'true'
-        uses: appleboy/ssh-action@v1.2.5
-        with:
-          host: ${{ secrets.DEPLOY_HOST_STAGING }}
-          username: ${{ secrets.DEPLOY_USER_STAGING }}
-          key: ${{ secrets.DEPLOY_SSH_KEY_STAGING }}
-          script: |
-            set -e
-            cd ~/apps/chatbot-hospital
-
-            # Log in to GHCR
-            echo "${{ steps.ghcr.outputs.token }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
-
-            # Pull target images
-            IMAGE_TAG="${{ steps.tag.outputs.tag }}"
-            export BACKEND_IMAGE="ghcr.io/${{ github.repository_owner }}/hospital-ai-backend:${IMAGE_TAG}"
-
-            echo "→ Deploying backend: ${BACKEND_IMAGE}"
-
-            docker compose -f infra/docker-compose.yml pull
-
-            # Run database migrations
-            if docker compose -f infra/docker-compose.yml run --rm backend alembic upgrade head 2>/dev/null; then
-              echo "✓ Migrations applied"
-            else
-              echo "⚠ Migration step skipped (not configured or no pending changes)"
-            fi
-
-            # Recreate containers
-            if [ -f infra/docker-compose.observability.yml ]; then
-              docker compose -f infra/docker-compose.yml -f infra/docker-compose.observability.yml up -d --remove-orphans
-            else
-              docker compose -f infra/docker-compose.yml up -d --remove-orphans
-            fi
-
-            # Clean up old images
-            docker image prune -f
-
-      - name: Staging smoke check
-        if: steps.check-secrets.outputs.configured == 'true'
-        uses: appleboy/ssh-action@v1.2.5
-        with:
-          host: ${{ secrets.DEPLOY_HOST_STAGING }}
-          username: ${{ secrets.DEPLOY_USER_STAGING }}
-          key: ${{ secrets.DEPLOY_SSH_KEY_STAGING }}
-          script: |
-            for attempt in $(seq 1 12); do
-              echo "Smoke check attempt $attempt/12"
-              if curl -sSf http://localhost:8000/api/v1/health > /dev/null 2>&1; then
-                echo "✓ Staging backend healthy"
-                exit 0
-              fi
-              echo "Backend not ready, waiting 10s..."
-              sleep 10
-            done
-            echo "✗ Staging backend health check failed after 12 attempts"
+          if [[ ! "$SOURCE_SHA" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "::error::source-sha must be a full 40-character lowercase commit SHA"
             exit 1
-
-  # ═══════════════════════════════════════════════════════════════════
-  # Stage 2: Deploy to production (promotion from staging)
-  # ═══════════════════════════════════════════════════════════════════
-  deploy-production:
-    name: Deploy to production
-    runs-on: ubuntu-latest
-    needs: [deploy-staging]
-    environment:
-      name: production
-      url: ${{ vars.PROD_URL || 'https://hospital-ai.local' }}
-    if: |
-      (github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'production') ||
-      (github.event_name == 'workflow_run' && needs.deploy-staging.result == 'success')
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v6
-
-      - name: Check production deployment secrets
-        id: check-secrets
-        run: |
-          if [ -n "${{ secrets.DEPLOY_HOST }}" ] && \
-             [ -n "${{ secrets.DEPLOY_USER }}" ] && \
-             [ -n "${{ secrets.DEPLOY_SSH_KEY }}" ]; then
-            echo "configured=true" >> "$GITHUB_OUTPUT"
-            echo "Production deployment secrets configured"
-          else
-            echo "configured=false" >> "$GITHUB_OUTPUT"
-            echo "Production deployment secrets not configured - skipping deploy"
           fi
-
-      - name: Resolve GHCR token
-        id: ghcr
-        run: |
-          if [ -n "${{ secrets.GHCR_PAT }}" ]; then
-            echo "token=${{ secrets.GHCR_PAT }}" >> "$GITHUB_OUTPUT"
-          else
-            echo "token=${{ secrets.GITHUB_TOKEN }}" >> "$GITHUB_OUTPUT"
-          fi
-
-      - name: Set image tag
-        id: tag
-        run: |
-          TAG="${{ github.event.inputs.image-tag || 'latest' }}"
-          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
-
-      - name: Copy deployment configurations to production server
-        if: steps.check-secrets.outputs.configured == 'true'
-        uses: appleboy/scp-action@v1.0.0
-        with:
-          host: ${{ secrets.DEPLOY_HOST }}
-          username: ${{ secrets.DEPLOY_USER }}
-          key: ${{ secrets.DEPLOY_SSH_KEY }}
-          source: "infra/docker-compose.yml,infra/docker-compose.observability.yml,infra/observability,infra/nginx"
-          target: "~/apps/chatbot-hospital"
-
-      - name: SSH — deploy to production
-        if: steps.check-secrets.outputs.configured == 'true'
-        uses: appleboy/ssh-action@v1.2.5
-        with:
-          host: ${{ secrets.DEPLOY_HOST }}
-          username: ${{ secrets.DEPLOY_USER }}
-          key: ${{ secrets.DEPLOY_SSH_KEY }}
-          script: |
-            set -e
-            cd ~/apps/chatbot-hospital
-
-            # Log in to GHCR
-            echo "${{ steps.ghcr.outputs.token }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
-
-            # Pull target images
-            IMAGE_TAG="${{ steps.tag.outputs.tag }}"
-            export BACKEND_IMAGE="ghcr.io/${{ github.repository_owner }}/hospital-ai-backend:${IMAGE_TAG}"
-
-            echo "→ Deploying backend: ${BACKEND_IMAGE}"
-
-            docker compose -f infra/docker-compose.yml pull
-
-            # Run database migrations
-            if docker compose -f infra/docker-compose.yml run --rm backend alembic upgrade head 2>/dev/null; then
-              echo "✓ Migrations applied"
-            else
-              echo "⚠ Migration step skipped (not configured or no pending changes)"
-            fi
-
-            # Recreate containers
-            if [ -f infra/docker-compose.observability.yml ]; then
-              docker compose -f infra/docker-compose.yml -f infra/docker-compose.observability.yml up -d --remove-orphans
-            else
-              docker compose -f infra/docker-compose.yml up -d --remove-orphans
-            fi
-
-            # Clean up old images
-            docker image prune -f
-
-      - name: Production smoke check
-        if: steps.check-secrets.outputs.configured == 'true'
-        uses: appleboy/ssh-action@v1.2.5
-        with:
-          host: ${{ secrets.DEPLOY_HOST }}
-          username: ${{ secrets.DEPLOY_USER }}
-          key: ${{ secrets.DEPLOY_SSH_KEY }}
-          script: |
-            for attempt in $(seq 1 15); do
-              echo "Smoke check attempt $attempt/15"
-              if curl -sSf http://localhost:8000/api/v1/health > /dev/null 2>&1; then
-                echo "✓ Production backend healthy"
-                exit 0
-              fi
-              echo "Backend not ready, waiting 10s..."
-              sleep 10
-            done
-            echo "✗ Production backend health check failed after 15 attempts"
+          if [[ ! "$IMAGE_TAG" =~ ^sha-[0-9a-f]{7}$ ]]; then
+            echo "::error::image-tag must be an immutable sha-<7-hex> tag; floating tags are not allowed"
             exit 1
-
-  # ═══════════════════════════════════════════════════════════════════
-  # Post-deploy: Notify deployment status
-  # ═══════════════════════════════════════════════════════════════════
-  notify:
-    name: Notify deployment status
-    runs-on: ubuntu-latest
-    needs: [deploy-staging, deploy-production]
-    if: always()
-    timeout-minutes: 3
-
-    steps:
-      - name: Determine deployment status
-        id: status
-        run: |
-          STAGING="${{ needs.deploy-staging.result }}"
-          PROD="${{ needs.deploy-production.result }}"
-
-          if [[ "$PROD" == "success" ]]; then
-            echo "emoji=🚀" >> "$GITHUB_OUTPUT"
-            echo "text=Hospital AI deployed to *production* | SHA: \`${GITHUB_SHA:0:7}\` | Actor: ${{ github.actor }}" >> "$GITHUB_OUTPUT"
-            echo "color=good" >> "$GITHUB_OUTPUT"
-          elif [[ "$STAGING" == "success" ]]; then
-            echo "emoji=🔬" >> "$GITHUB_OUTPUT"
-            echo "text=Hospital AI deployed to *staging* | SHA: \`${GITHUB_SHA:0:7}\` | Actor: ${{ github.actor }}" >> "$GITHUB_OUTPUT"
-            echo "color=warning" >> "$GITHUB_OUTPUT"
-          elif [[ "$STAGING" == "skipped" && "$PROD" == "skipped" ]]; then
-            echo "emoji=ℹ️" >> "$GITHUB_OUTPUT"
-            echo "text=Hospital AI CI passed | Deploy *skipped* (no deploy secrets configured) | SHA: \`${GITHUB_SHA:0:7}\`" >> "$GITHUB_OUTPUT"
-            echo "color=good" >> "$GITHUB_OUTPUT"
-          else
-            echo "emoji=❌" >> "$GITHUB_OUTPUT"
-            echo "text=Hospital AI deployment *FAILED* | Staging: ${STAGING} | Prod: ${PROD} | SHA: \`${GITHUB_SHA:0:7}\`" >> "$GITHUB_OUTPUT"
-            echo "color=danger" >> "$GITHUB_OUTPUT"
+          fi
+          if [[ "$IMAGE_TAG" != "sha-${SOURCE_SHA:0:7}" ]]; then
+            echo "::error::image-tag does not match the supplied source-sha"
+            exit 1
           fi
 
-      - name: Post to Slack
-        if: ${{ vars.SLACK_WEBHOOK_URL != '' }}
-        uses: slackapi/slack-github-action@v2
-        with:
-          webhook: ${{ vars.SLACK_WEBHOOK_URL }}
-          webhook-type: incoming-webhook
-          payload: |
-            {
-              "attachments": [
-                {
-                  "color": "${{ steps.status.outputs.color }}",
-                  "blocks": [
-                    {
-                      "type": "section",
-                      "text": {
-                        "type": "mrkdwn",
-                        "text": "${{ steps.status.outputs.emoji }} ${{ steps.status.outputs.text }}"
-                      }
-                    },
-                    {
-                      "type": "context",
-                      "elements": [
-                        {
-                          "type": "mrkdwn",
-                          "text": "<${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|View workflow run>"
-                        }
-                      ]
-                    }
-                  ]
-                }
-              ]
-            }
+          IMAGE_REF="ghcr.io/${{ github.repository_owner }}/hospital-ai-backend:${IMAGE_TAG}"
+          {
+            echo "source_sha=$SOURCE_SHA"
+            echo "image_tag=$IMAGE_TAG"
+            echo "image_ref=$IMAGE_REF"
+          } >> "$GITHUB_OUTPUT"
 
-      - name: No-op notification (Slack not configured)
-        if: ${{ vars.SLACK_WEBHOOK_URL == '' }}
+      - name: Verify image exists in GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Verify immutable backend image
+        shell: bash
+        env:
+          IMAGE_REF: ${{ steps.release.outputs.image_ref }}
         run: |
-          echo "ℹ️ Slack webhook not configured — skipping notification."
-          echo "${{ steps.status.outputs.emoji }} ${{ steps.status.outputs.text }}"
+          set -euo pipefail
+          docker manifest inspect "$IMAGE_REF" > /dev/null
+          echo "Verified $IMAGE_REF"
+
+      - name: Trigger Dokploy deployment hook
+        if: env.DOKPLOY_DEPLOY_HOOK_URL != ''
+        shell: bash
+        env:
+          IMAGE_REF: ${{ steps.release.outputs.image_ref }}
+          IMAGE_TAG: ${{ steps.release.outputs.image_tag }}
+          SOURCE_SHA: ${{ steps.release.outputs.source_sha }}
+          REPOSITORY: ${{ github.repository }}
+          WORKFLOW_RUN_ID: ${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          payload=$(printf '{"action":"deploy","environment":"%s","image":"%s","image_tag":"%s","source_sha":"%s","repository":"%s","workflow_run_id":"%s"}' \
+            "$TARGET_ENVIRONMENT" "$IMAGE_REF" "$IMAGE_TAG" "$SOURCE_SHA" "$REPOSITORY" "$WORKFLOW_RUN_ID")
+          curl --fail-with-body --silent --show-error --retry 2 --max-time 30 \
+            -X POST -H 'Content-Type: application/json' \
+            --data "$payload" "$DOKPLOY_DEPLOY_HOOK_URL"
+          echo "Dokploy deployment hook accepted the release handoff."
+
+      - name: Require production deploy hook
+        if: env.TARGET_ENVIRONMENT == 'production' && env.DOKPLOY_DEPLOY_HOOK_URL == ''
+        shell: bash
+        run: |
+          echo "::error::DOKPLOY_DEPLOY_HOOK_URL is required for production"
+          exit 1
+
+      - name: Record pending external handoff
+        if: env.DOKPLOY_DEPLOY_HOOK_URL == ''
+        shell: bash
+        env:
+          IMAGE_REF: ${{ steps.release.outputs.image_ref }}
+          SOURCE_SHA: ${{ steps.release.outputs.source_sha }}
+        run: |
+          {
+            echo "## Dokploy handoff pending"
+            echo "No environment secret DOKPLOY_DEPLOY_HOOK_URL is configured."
+            echo "The immutable release was verified but no external deployment was requested."
+            echo "- Environment: ${TARGET_ENVIRONMENT}"
+            echo "- Backend image: ${IMAGE_REF}"
+            echo "- Source SHA: ${SOURCE_SHA}"
+            echo "Configure the Dokploy hook in the selected GitHub Environment before treating the VPS as deployed."
+          } >> "$GITHUB_STEP_SUMMARY"

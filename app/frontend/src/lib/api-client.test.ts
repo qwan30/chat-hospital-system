@@ -9,6 +9,7 @@ import {
   getToken,
   getStoredApiUrl,
   persistApiUrl,
+  resolveApiUrl,
 } from "./api-client";
 
 // ---------------------------------------------------------------------------
@@ -42,7 +43,7 @@ describe("persistToken / clearToken", () => {
   });
 });
 
-describe("getStoredApiUrl / persistApiUrl", () => {
+describe("getStoredApiUrl / resolveApiUrl / persistApiUrl", () => {
   beforeEach(() => {
     vi.stubGlobal("window", {});
     const store: Record<string, string> = {};
@@ -62,10 +63,34 @@ describe("getStoredApiUrl / persistApiUrl", () => {
 
   afterEach(() => {
     vi.unstubAllGlobals();
+    vi.unstubAllEnvs();
+    vi.resetModules();
   });
 
   it("returns the default API URL when nothing is stored", () => {
     expect(getStoredApiUrl()).toBe("/api");
+  });
+
+  it("prefers the build-time API URL over stale storage", async () => {
+    vi.stubEnv("VITE_API_URL", "https://api.example.com/api/v1");
+    vi.resetModules();
+
+    const { getStoredApiUrl: freshGetStoredApiUrl, persistApiUrl: freshPersistApiUrl } =
+      await import("./api-client");
+
+    const setItem = vi.mocked(localStorage.setItem);
+    freshPersistApiUrl("http://ignored.example/api/v1");
+
+    expect(freshGetStoredApiUrl()).toBe("https://api.example.com/api/v1");
+    expect(setItem).not.toHaveBeenCalled();
+  });
+
+  it("resolveApiUrl prefers build-time over stored and local fallback", () => {
+    expect(resolveApiUrl("https://api.example.com/api/v1", "http://localhost:8000/api/v1")).toBe(
+      "https://api.example.com/api/v1",
+    );
+    expect(resolveApiUrl("", "http://localhost:8000/api/v1")).toBe("http://localhost:8000/api/v1");
+    expect(resolveApiUrl("", "")).toBe("/api");
   });
 
   it("persists and retrieves a custom API URL", () => {

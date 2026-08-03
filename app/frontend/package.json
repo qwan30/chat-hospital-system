@@ -12,6 +12,8 @@
     "format": "prettier --write .",
     "typecheck": "tsc --noEmit",
     "test": "vitest run src",
+    "verify:public-bundle": "node scripts/verify-public-bundle.mjs .vercel/output",
+    "verify:public-bundle:self-test": "node scripts/verify-public-bundle.mjs --self-test",
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui"
   },

@@ -2,7 +2,7 @@
  * Auth context — wraps the SessionProvider with JWT-based authentication.
  *
  * Dual-mode:
- * - When a JWT token is present in localStorage → real backend auth
+ * - When a JWT token is present in memory → real backend auth
  * - Otherwise → mock role-based session (dev/demo/screenshots)
  */
 import {
@@ -20,6 +20,7 @@ import {
   verifyToken,
   persistApiUrl,
   getStoredApiUrl,
+  resolveApiUrl,
 } from "@/lib/api-client";
 
 export interface AuthUser {
@@ -49,75 +50,69 @@ interface AuthContextValue extends AuthState {
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
-const DEFAULT_API_URL = "/api";
-
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [hydrated, setHydrated] = useState(false);
   const [authUser, setAuthUser] = useState<AuthUser | null>(null);
   const [token, setToken] = useState<string | null>(null);
-  const [apiUrl, setApiUrlState] = useState(DEFAULT_API_URL);
+  const [apiUrl, setApiUrlState] = useState(getStoredApiUrl());
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const storedUrl = getStoredApiUrl();
-    if (storedUrl) setApiUrlState(storedUrl);
-
+    setApiUrlState(getStoredApiUrl());
     setHydrated(true);
   }, []);
 
   const setApiUrl = useCallback((url: string) => {
-    setApiUrlState(url);
+    setApiUrlState(resolveApiUrl(undefined, url));
     persistApiUrl(url);
   }, []);
 
-  const login = useCallback(
-    async (username: string, password: string): Promise<boolean> => {
-      setLoading(true);
-      setError(null);
-      try {
-        const formData = new URLSearchParams();
-        formData.append("username", username);
-        formData.append("password", password);
+  const login = useCallback(async (username: string, password: string): Promise<boolean> => {
+    const resolvedApiUrl = getStoredApiUrl();
+    setLoading(true);
+    setError(null);
+    try {
+      const formData = new URLSearchParams();
+      formData.append("username", username);
+      formData.append("password", password);
 
-        const res = await fetch(`${apiUrl.replace(/\/+$/, "")}/auth/token`, {
-          method: "POST",
-          headers: { "Content-Type": "application/x-www-form-urlencoded" },
-          body: formData.toString(),
-        });
+      const res = await fetch(`${resolvedApiUrl.replace(/\/+$/, "")}/auth/token`, {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: formData.toString(),
+      });
 
-        if (!res.ok) {
-          const errData = await res.json().catch(() => ({}));
-          setError(errData.detail || errData.message || "Invalid credentials");
-          setLoading(false);
-          return false;
-        }
-
-        const data = await res.json();
-        const newToken = data.access_token;
-        persistToken(newToken);
-        setToken(newToken);
-
-        const user = await verifyToken(apiUrl, newToken);
-        if (user) {
-          setAuthUser(user);
-          setLoading(false);
-          return true;
-        }
-
-        setError("Failed to verify credentials");
-        clearToken();
-        setToken(null);
-        setLoading(false);
-        return false;
-      } catch (e) {
-        setError(e instanceof Error ? e.message : "Connection failed");
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        setError(errData.detail || errData.message || "Invalid credentials");
         setLoading(false);
         return false;
       }
-    },
-    [apiUrl],
-  );
+
+      const data = await res.json();
+      const newToken = data.access_token;
+      persistToken(newToken);
+      setToken(newToken);
+
+      const user = await verifyToken(resolvedApiUrl, newToken);
+      if (user) {
+        setAuthUser(user);
+        setLoading(false);
+        return true;
+      }
+
+      setError("Failed to verify credentials");
+      clearToken();
+      setToken(null);
+      setLoading(false);
+      return false;
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Connection failed");
+      setLoading(false);
+      return false;
+    }
+  }, []);
 
   const logout = useCallback(() => {
     clearToken();

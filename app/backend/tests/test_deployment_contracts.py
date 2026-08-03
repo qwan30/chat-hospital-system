@@ -73,11 +73,21 @@ def test_deployment_files_match_settings_environment_names():
 
     assert "HOSPITAL_AI_ENVIRONMENT=local" in env_example
     assert "HOSPITAL_AI_ENV=local" not in env_example
-    assert "HOSPITAL_AI_OLLAMA_BASE_URL" in infra_compose
+    assert "HOSPITAL_AI_OLLAMA_BASE_URL" not in infra_compose
+    assert "HOSPITAL_AI_CHAT_PROVIDER: ${HOSPITAL_AI_CHAT_PROVIDER:-gemini}" in infra_compose
+    assert "HOSPITAL_AI_EMBEDDING_PROVIDER: ${HOSPITAL_AI_EMBEDDING_PROVIDER:-gemini}" in infra_compose
+    assert "HOSPITAL_AI_R2_ENDPOINT" in infra_compose
+    assert "HOSPITAL_AI_JWKS_URL" in infra_compose
     assert "HOSPITAL_AI_LLM_BASE_URL" not in infra_compose
     assert "HOSPITAL_AI_JWT_HMAC_SECRET" in infra_compose
     assert "HOSPITAL_AI_JWT_SECRET" not in infra_compose
     assert "HOSPITAL_AI_JWT_ISSUER" in infra_compose
+    assert "HOSPITAL_AI_JWT_ALGORITHM: ${HOSPITAL_AI_JWT_ALGORITHM:-RS256}" in infra_compose
+    assert "BACKEND_IMAGE" in infra_compose
+    assert "nginx:" not in infra_compose
+    assert '"5432:5432"' not in infra_compose
+    assert '"6379:6379"' not in infra_compose
+    assert '"8000:8000"' not in infra_compose
 
 
 def test_backend_dockerfile_uses_cloud_run_port_contract():

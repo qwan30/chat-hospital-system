@@ -2,24 +2,28 @@
 
 > Project: AI-Powered Hospital Knowledge Assistant  
 > Project Code: HOSP-AI-001  
-> Version: 2.1  
+> Version: 2.2
 > Status: In Sync  
 > Owner: DevOps / SRE / Tech Lead  
-> Last Updated: 2026-06-14  
+> Last Updated: 2026-08-04
 
 ---
 
 ## 1. Deployment Environments
 
-The application is deployed across five distinct environment tiers:
+The current deployment contract separates the Vercel frontend from the
+Dokploy-managed backend stack. The VPS profile is a staging/demo target until
+hospital production approval, PHI controls, and an approved intranet boundary
+exist.
 
 | Environment | Purpose | Data | Access | Hosting Target |
 |---|---|---|---|---|
 | **Local Lite** | 16GB RAM developer local stack | Synthetic data | Developer | Docker Desktop / Local PC |
-| **Dev** | API and feature integration | Synthetic / de-identified | Backend/Frontend Dev | Cloud VM / Local Server |
-| **QA** | QA automation and manual test | Synthetic / masked EMR data | QA Lead / Tester | Cloud VM / K8s Namespace |
-| **UAT** | Clinical user acceptance testing | Masked UAT data | Clinician SMEs / PO | Staging Server |
-| **Prod** | Clinical live operations | Real patient records | Authorized Clinical Staff | Hospital Secure Intranet |
+| **Dev** | API and feature integration | Synthetic / de-identified | Backend/Frontend Dev | Local or cloud VM |
+| **QA** | QA automation and manual test | Synthetic / masked data | QA Lead / Tester | CI or staging VM |
+| **UAT** | Clinical user acceptance testing | Masked UAT data | Clinician SMEs / PO | Approved staging server |
+| **VPS staging/demo** | Dokploy deployment validation | Synthetic / de-identified only | Project team | Dokploy VPS + Vercel |
+| **Prod** | Future clinical operations | Only after approval | Authorized Clinical Staff | Hospital secure intranet |
 
 ---
 
@@ -29,17 +33,21 @@ The system components interact as follows:
 
 ```mermaid
 flowchart TD
-    WEB[Web UI] --> API[FastAPI BFF]
+    WEB[Vercel Web UI] -->|HTTPS / VITE_API_URL| TRAEFIK[Dokploy Traefik]
+    TRAEFIK --> API[FastAPI BFF :8000]
     API --> PG[(PostgreSQL + pgvector)]
     API --> REDIS[(Redis Cache / Queue)]
-    API --> STORAGE[(Object Storage / Local Volume)]
+    API --> STORAGE[(Cloudflare R2)]
     REDIS --> WORKER[RQ Ingestion Worker]
     WORKER --> OCR[PyMuPDF / PaddleOCR Engine]
-    WORKER --> EMB[Embedding Model]
-    API --> LLM[LLM Manager: Ollama Local / OpenAI-compatible]
-    API --> OBS[OpenTelemetry Collector]
-    OBS --> PROM[Prometheus / Grafana / Loki]
+    WORKER --> EMB[Gemini Embeddings]
+    API --> LLM[Gemini Chat / Explicit DeepSeek]
 ```
+
+Dokploy/Traefik is the only public ingress for the VPS stack. PostgreSQL,
+Redis, the worker, and the backend port are private Compose services; no
+application Nginx service is required. The frontend remains on Vercel and
+sets `VITE_API_URL=https://api.<domain>`.
 
 ---
 
@@ -54,16 +62,48 @@ For development, testing, and system demonstrations on standard laptops with a 1
 | **Redis** | Docker Container | Cache only, disable persistent AOF snapshots. |
 | **RQ Worker** | Single worker thread | Avoid high concurrency; process OCR jobs sequentially. |
 | **PyMuPDF / OCR** | CPU mode | PyMuPDF for text extraction; optional PaddleOCR for scanned documents (~10-15s per page on CPU). |
-| **Ollama LLM** | Qwen2.5 3B/7B Q4 Quantized | Q4 quantization reduces model footprint to 2.2GB/4.5GB. Avoid models >7B. OpenAI-compatible providers also supported via LLM Manager. |
+| **Local LLM (optional)** | Ollama Qwen2.5 3B/7B Q4 Quantized | Local-only developer option; not installed on the Dokploy VPS. |
 | **TanStack Start Frontend**| Local dev server | Disable heavy compiler source mapping. |
 
 ---
 
 ## 4. Environment Security Notes
 - **No Real PHI**: Under no circumstances should real patient records be loaded into Local Lite, Dev, or QA environments. Use generated synthetic records or de-identified data.
-- **Network Boundaries**: The MVP is designed for hospital intranets and must not be exposed to the public internet without passing penetration tests and compliance audits.
-- **Local LLM Enforcement**: Enforce local inference mode in configuration settings. External cloud API keys (e.g. OpenAI keys) must be blocked in production configurations.
+- **Network Boundaries**: The VPS profile is for staging/demo validation. Do not expose clinical data publicly without penetration tests, compliance approval, and an approved hospital network boundary.
+- **Provider Policy**: The VPS uses Gemini through its API key. The existing OpenAI-compatible contract can target DeepSeek when explicitly selected; Task 1 does not provide automatic provider fallback. Ollama is not installed on the VPS.
+- **Data Policy**: Cloudflare R2 is the durable document store for the VPS profile. Use synthetic or de-identified data until hospital security and PHI controls are approved.
 - **Secrets Management**: Never commit credentials to git. Use `.env.example` as a template and inject credentials at runtime using environment variables.
+
+## 5. Dokploy/VPS preflight
+
+Before installing or deploying Dokploy, verify that the VPS has enough free
+disk/RAM and that ports 80/443 are available for Traefik. The 4 GB VPS profile
+should not run the optional observability overlay until memory usage has been
+measured. Configure the backend service route in Dokploy as:
+
+```text
+api.<domain> → backend:8000
+```
+
+Configure these values in Dokploy, not in Git:
+
+```text
+POSTGRES_PASSWORD
+HOSPITAL_AI_GEMINI_API_KEY
+HOSPITAL_AI_OPENAI_API_KEY       # only when explicitly using DeepSeek
+HOSPITAL_AI_R2_ENDPOINT
+HOSPITAL_AI_R2_BUCKET
+HOSPITAL_AI_R2_ACCESS_KEY_ID
+HOSPITAL_AI_R2_SECRET_ACCESS_KEY
+HOSPITAL_AI_JWT_ISSUER
+HOSPITAL_AI_JWT_AUDIENCE
+HOSPITAL_AI_JWKS_URL
+HOSPITAL_AI_CORS_ORIGINS
+```
+
+Set `BACKEND_IMAGE` to an immutable GHCR tag or digest for a release. The
+Compose `latest` fallback is only for local validation and must not be used as
+the release identity.
 
 ---
 
@@ -73,3 +113,4 @@ For development, testing, and system demonstrations on standard laptops with a 1
 | 1.0 | 2026-04-27 | DevOps Engineer | Initial deployment plan |
 | 2.0 | 2026-06-07 | Agent | Split into dedicated deployment guide and architecture-linked diagrams |
 | 2.1 | 2026-06-14 | Agent | Corrected services: Celery → RQ, PaddleOCR → PyMuPDF, removed Neo4j, Ollama-only → LLM Manager multi-provider |
+| 2.2 | 2026-08-04 | Agent | Freeze Vercel + Dokploy/Traefik + R2 + Gemini deployment contract; remove VPS Nginx/Ollama assumptions |

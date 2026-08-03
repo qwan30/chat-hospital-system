@@ -70,14 +70,33 @@ def test_deployment_files_use_the_real_worker_entrypoint():
 def test_deployment_files_match_settings_environment_names():
     env_example = (REPO_ROOT / "app" / "backend" / ".env.example").read_text(encoding="utf-8")
     infra_compose = (REPO_ROOT / "infra" / "docker-compose.yml").read_text(encoding="utf-8")
+    env_docs = (REPO_ROOT / "docs" / "10-deployment" / "env-variables.md").read_text(encoding="utf-8")
+    deployment_docs = (REPO_ROOT / "docs" / "10-deployment" / "deployment-guide.md").read_text(encoding="utf-8")
 
     assert "HOSPITAL_AI_ENVIRONMENT=local" in env_example
     assert "HOSPITAL_AI_ENV=local" not in env_example
-    assert "HOSPITAL_AI_OLLAMA_BASE_URL" in infra_compose
+    assert "HOSPITAL_AI_OLLAMA_BASE_URL" not in infra_compose
+    assert "HOSPITAL_AI_CHAT_PROVIDER: ${HOSPITAL_AI_CHAT_PROVIDER:-gemini}" in infra_compose
+    assert "HOSPITAL_AI_EMBEDDING_PROVIDER: ${HOSPITAL_AI_EMBEDDING_PROVIDER:-gemini}" in infra_compose
+    assert "HOSPITAL_AI_R2_ENDPOINT" in infra_compose
+    assert "HOSPITAL_AI_JWKS_URL" in infra_compose
     assert "HOSPITAL_AI_LLM_BASE_URL" not in infra_compose
     assert "HOSPITAL_AI_JWT_HMAC_SECRET" in infra_compose
     assert "HOSPITAL_AI_JWT_SECRET" not in infra_compose
     assert "HOSPITAL_AI_JWT_ISSUER" in infra_compose
+    assert "HOSPITAL_AI_JWT_ALGORITHM: ${HOSPITAL_AI_JWT_ALGORITHM:-RS256}" in infra_compose
+    assert "BACKEND_IMAGE" in infra_compose
+    assert "nginx:" not in infra_compose
+    assert '"5432:5432"' not in infra_compose
+    assert '"6379:6379"' not in infra_compose
+    assert '"8000:8000"' not in infra_compose
+    assert "`HOSPITAL_AI_GEMINI_API_KEY`" in env_docs
+    assert "`GEMINI_API_KEY`" not in env_docs
+    assert "Dokploy DeepSeek value: `https://api.deepseek.com/v1`" in env_docs
+    assert "Dokploy DeepSeek value: `deepseek-chat`" in env_docs
+    assert "VITE_API_URL=https://api.example.com" in env_docs
+    assert "HOSPITAL_AI_R2_ENDPOINT" in deployment_docs
+    assert "HOSPITAL_AI_R2_BUCKET" in deployment_docs
 
 
 def test_backend_dockerfile_uses_cloud_run_port_contract():

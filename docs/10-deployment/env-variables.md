@@ -37,8 +37,8 @@ this project's deployment contract. The VPS does not run Ollama.
 | `HOSPITAL_AI_CHAT_MODEL` | `qwen2.5:7b` | |
 | `HOSPITAL_AI_EMBEDDING_DIMENSIONS` | `1024` | |
 | `HOSPITAL_AI_OPENAI_API_KEY` | (empty) | Required if provider=openai |
-| `HOSPITAL_AI_OPENAI_BASE_URL` | `https://api.openai.com/v1` | Set to `https://api.deepseek.com/v1` for explicit DeepSeek use |
-| `HOSPITAL_AI_OPENAI_CHAT_MODEL` | `gpt-4o-mini` | Set to `deepseek-chat` for explicit DeepSeek use |
+| `HOSPITAL_AI_OPENAI_BASE_URL` | `https://api.openai.com/v1` | Dokploy DeepSeek value: `https://api.deepseek.com/v1` |
+| `HOSPITAL_AI_OPENAI_CHAT_MODEL` | `gpt-4o-mini` | Dokploy DeepSeek value: `deepseek-chat` |
 | `HOSPITAL_AI_OPENAI_EMBEDDING_MODEL` | `text-embedding-3-small` | |
 | `HOSPITAL_AI_GEMINI_API_KEY` | (empty) | Required for VPS chat/embedding |
 | `HOSPITAL_AI_GEMINI_CHAT_MODEL` | `gemini-2.0-flash` | VPS chat model |
@@ -130,7 +130,7 @@ HOSPITAL_AI_HMS_SYNC_ENABLED=false
 HOSPITAL_AI_JWT_ALGORITHM=RS256
 ```
 
-`GEMINI_API_KEY`, DeepSeek/OpenAI-compatible credentials, R2 credentials, and
+`HOSPITAL_AI_GEMINI_API_KEY`, DeepSeek/OpenAI-compatible credentials, R2 credentials, and
 HMS JWT values are backend-only. They must never be placed in Vercel client
 variables or committed to the repository.
 

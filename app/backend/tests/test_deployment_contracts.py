@@ -19,6 +19,8 @@ REQUIRED_DEPLOYMENT_PATHS = [
     ".github/workflows/cd.yml",
     ".github/workflows/rollback.yml",
     "infra/docker-compose.yml",
+    "infra/docker-compose.local-build.yml",
+    "app/backend/.dockerignore",
     "docs/10-deployment/deployment-guide.md",
     "docs/10-deployment/env-variables.md",
     "docs/10-deployment/ci-cd.md",
@@ -167,6 +169,60 @@ def test_deployment_files_match_settings_environment_names():
     assert "VITE_API_URL=https://api.example.com" in env_docs
     assert "HOSPITAL_AI_R2_ENDPOINT" in deployment_docs
     assert "HOSPITAL_AI_R2_BUCKET" in deployment_docs
+
+
+def test_task_7_production_compose_is_image_only_and_bounded():
+    production = (REPO_ROOT / "infra" / "docker-compose.yml").read_text(encoding="utf-8")
+
+    assert "\n    build:" not in production
+    assert "BACKEND_IMAGE:?" in production
+    assert production.count("image: ${BACKEND_IMAGE:?") == 2
+    assert "postgres:\n    image: pgvector/pgvector:pg16\n    mem_limit: 768m" in production
+    assert "redis:\n    image: redis:7-alpine\n    mem_limit: 256m" in production
+    assert "mem_limit: 768m" in production
+    assert "mem_limit: 1024m" in production
+
+
+@pytest.mark.parametrize(
+    ("mutator", "expected_code"),
+    [
+        (
+            lambda text: text.replace(
+                "    image: ${BACKEND_IMAGE:?",
+                "    build:\n      context: ../app/backend\n    image: ${BACKEND_IMAGE:?",
+                1,
+            ),
+            "production_build",
+        ),
+        (
+            lambda text: text.replace(
+                "    image: ${BACKEND_IMAGE:?BACKEND_IMAGE must be set to an immutable GHCR image reference}",
+                "    image: ghcr.io/example/hospital-ai-backend:sha-0000000",
+                1,
+            ),
+            "required_backend_image",
+        ),
+        (
+            lambda text: text.replace(
+                "    image: ${BACKEND_IMAGE:?BACKEND_IMAGE must be set to an immutable GHCR image reference}",
+                "    image: ${BACKEND_IMAGE:-ghcr.io/example/hospital-ai-backend:latest}",
+                1,
+            ),
+            "floating_backend_image",
+        ),
+        (lambda text: text.replace("    mem_limit: 768m\n", "", 1), "missing_memory_limit"),
+    ],
+)
+def test_task_7_validator_rejects_production_contract_mutations(tmp_path, mutator, expected_code):
+    _copy_deployment_contract_fixture(tmp_path)
+    compose_path = tmp_path / "infra" / "docker-compose.yml"
+    compose_path.write_text(mutator(compose_path.read_text(encoding="utf-8")), encoding="utf-8")
+
+    result = _run_validator(tmp_path)
+
+    assert result.returncode == 2
+    payload = json.loads(result.stdout)
+    assert any(item["code"] == expected_code for item in payload["violations"])
 
 
 def test_backend_dockerfile_uses_cloud_run_port_contract():

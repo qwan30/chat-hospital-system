@@ -26,12 +26,42 @@ REQUIRED_FILES = (
     ".github/workflows/cd.yml",
     ".github/workflows/rollback.yml",
     "infra/docker-compose.yml",
+    "infra/docker-compose.local-build.yml",
+    "app/backend/.dockerignore",
     "docs/10-deployment/deployment-guide.md",
     "docs/10-deployment/env-variables.md",
     "docs/10-deployment/ci-cd.md",
     "docs/10-deployment/release-checklist.md",
     "docs/10-deployment/vps-operations.md",
     "docs/10-deployment/vps-preflight-evidence.md",
+)
+
+BACKEND_IMAGE_EXPRESSION = "${BACKEND_IMAGE:?BACKEND_IMAGE must be set to an immutable GHCR image reference}"
+TASK_7_MEMORY_LIMITS = {
+    "postgres": "768m",
+    "redis": "256m",
+    "backend": "768m",
+    "worker": "1024m",
+}
+TASK_7_DOCKERIGNORE_ENTRIES = (
+    ".git",
+    ".venv/",
+    "venv/",
+    "__pycache__/",
+    ".pytest_cache/",
+    ".ruff_cache/",
+    ".mypy_cache/",
+    "tests/",
+    "data/",
+    "local_storage/",
+    "uploads/",
+    "*.log",
+    "coverage/",
+    "htmlcov/",
+    "dist/",
+    "build/",
+    "docs/",
+    ".env*",
 )
 
 EVIDENCE_PENDING_STATUS = "PENDING — operator evidence required"
@@ -267,6 +297,110 @@ def _has_public_mapping(compose: str, container_port: str) -> bool:
     return bool(mapping.search(compose))
 
 
+def _compose_service_block(compose: str, service: str) -> str:
+    pattern = rf"(?ms)^  {re.escape(service)}:\n(?P<body>.*?)(?=^  [A-Za-z0-9_-]+:\n|\Z)"
+    match = re.search(pattern, compose)
+    return match.group("body") if match else ""
+
+
+def _validate_task_7_compose_contract(
+    compose: str,
+    local_build: str,
+    dockerignore: str,
+    violations: list[ContractViolation],
+) -> None:
+    if re.search(r"(?m)^    build:\s*$", compose):
+        violations.append(
+            ContractViolation(
+                "production_build",
+                "production Compose must not contain a backend build stanza",
+                "infra/docker-compose.yml",
+            )
+        )
+
+    service_images: dict[str, str] = {}
+    for service in ("backend", "worker"):
+        block = _compose_service_block(compose, service)
+        match = re.search(r"(?m)^\s+image:\s*(.+?)\s*$", block)
+        if match:
+            service_images[service] = match.group(1)
+        if not match or match.group(1) != BACKEND_IMAGE_EXPRESSION:
+            violations.append(
+                ContractViolation(
+                    "required_backend_image",
+                    f"{service} must require BACKEND_IMAGE with the immutable image expression",
+                    "infra/docker-compose.yml",
+                )
+            )
+
+    if len(service_images) == 2 and service_images["backend"] != service_images["worker"]:
+        violations.append(
+            ContractViolation(
+                "image_mismatch",
+                "backend and worker must use the identical BACKEND_IMAGE expression",
+                "infra/docker-compose.yml",
+            )
+        )
+
+    if any(needle in compose for needle in ("latest", "IMAGE_TAG", "IMAGE_PREFIX", "${BACKEND_IMAGE:-")):
+        violations.append(
+            ContractViolation(
+                "floating_backend_image",
+                "production Compose must not contain a floating backend image fallback",
+                "infra/docker-compose.yml",
+            )
+        )
+
+    for service, memory_limit in TASK_7_MEMORY_LIMITS.items():
+        block = _compose_service_block(compose, service)
+        if f"mem_limit: {memory_limit}" not in block:
+            violations.append(
+                ContractViolation(
+                    "missing_memory_limit",
+                    f"{service} must declare mem_limit: {memory_limit}",
+                    "infra/docker-compose.yml",
+                )
+            )
+
+    for service in ("backend", "worker"):
+        block = _compose_service_block(local_build, service)
+        if not re.search(r"(?m)^\s+build:\s*$", block):
+            violations.append(
+                ContractViolation(
+                    "missing_local_build_override",
+                    f"local build override is missing a build stanza for {service}",
+                    "infra/docker-compose.local-build.yml",
+                )
+            )
+    for needle in ("context: ../app/backend", "dockerfile: Dockerfile"):
+        if needle not in local_build:
+            violations.append(
+                ContractViolation(
+                    "missing_local_build_override",
+                    f"local build override is missing: {needle}",
+                    "infra/docker-compose.local-build.yml",
+                )
+            )
+    if local_build.count("hospital-ai-backend:local") < 2:
+        violations.append(
+            ContractViolation(
+                "missing_local_build_override",
+                "local build override must use hospital-ai-backend:local for backend and worker",
+                "infra/docker-compose.local-build.yml",
+            )
+        )
+
+    for entry in TASK_7_DOCKERIGNORE_ENTRIES:
+        if entry not in dockerignore:
+            violations.append(
+                ContractViolation(
+                    "dockerignore_contract",
+                    f"backend .dockerignore is missing: {entry}",
+                    "app/backend/.dockerignore",
+                )
+            )
+
+
 def _frontend_secret_leaks(root: Path) -> list[str]:
     ignored_parts = {".git", "node_modules", ".next", "dist", "coverage", "__pycache__"}
     frontend_root = root / "app/frontend"
@@ -299,6 +433,8 @@ def validate_deployment_contract(root: Path | None = None) -> list[ContractViola
     files = {relative: _read(repo_root, relative, violations) for relative in REQUIRED_FILES}
 
     compose = files["infra/docker-compose.yml"]
+    local_build = files["infra/docker-compose.local-build.yml"]
+    dockerignore = files["app/backend/.dockerignore"]
     cd_workflow = files[".github/workflows/cd.yml"]
     rollback_workflow = files[".github/workflows/rollback.yml"]
     deployment_guide = files["docs/10-deployment/deployment-guide.md"]
@@ -328,6 +464,7 @@ def validate_deployment_contract(root: Path | None = None) -> list[ContractViola
                     "public_port", f"public host mapping for port {port} is forbidden", "infra/docker-compose.yml"
                 )
             )
+    _validate_task_7_compose_contract(compose, local_build, dockerignore, violations)
 
     for workflow_path, workflow in (
         (".github/workflows/cd.yml", cd_workflow),

@@ -38,6 +38,8 @@ jobs:
     name: Dokploy ${{ github.event_name == 'workflow_dispatch' && inputs.environment || 'staging' }} handoff
     runs-on: ubuntu-latest
     timeout-minutes: 5
+    outputs:
+      deployed: ${{ steps.deploy.outputs.deployed }}
     environment:
       name: ${{ github.event_name == 'workflow_dispatch' && inputs.environment || 'staging' }}
       url: ${{ vars.DOKPLOY_APP_URL || '' }}
@@ -92,15 +94,18 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Verify immutable backend image
+        id: verify
         shell: bash
         env:
           IMAGE_REF: ${{ steps.release.outputs.image_ref }}
         run: |
           set -euo pipefail
-          docker manifest inspect "$IMAGE_REF" > /dev/null
-          echo "Verified $IMAGE_REF"
+          DIGEST=$(docker manifest inspect "$IMAGE_REF" | grep -m1 '"digest":' | cut -d'"' -f4 || echo "unknown")
+          echo "Verified $IMAGE_REF with digest $DIGEST"
+          echo "digest=$DIGEST" >> "$GITHUB_OUTPUT"
 
       - name: Trigger Dokploy deployment hook
+        id: deploy
         if: env.DOKPLOY_DEPLOY_HOOK_URL != ''
         shell: bash
         env:
@@ -117,6 +122,32 @@ jobs:
             -X POST -H 'Content-Type: application/json' \
             --data "$payload" "$DOKPLOY_DEPLOY_HOOK_URL"
           echo "Dokploy deployment hook accepted the release handoff."
+          echo "deployed=true" >> "$GITHUB_OUTPUT"
+
+      - name: Record release evidence
+        shell: bash
+        env:
+          IMAGE_REF: ${{ steps.release.outputs.image_ref }}
+          IMAGE_TAG: ${{ steps.release.outputs.image_tag }}
+          SOURCE_SHA: ${{ steps.release.outputs.source_sha }}
+          DIGEST: ${{ steps.verify.outputs.digest }}
+          WORKFLOW_RUN_ID: ${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          TIMESTAMP=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+          {
+            echo "## Release Record"
+            echo "| Field | Value |"
+            echo "|---|---|"
+            echo "| Environment | $TARGET_ENVIRONMENT |"
+            echo "| Git SHA | $SOURCE_SHA |"
+            echo "| Image Reference | $IMAGE_REF |"
+            echo "| Image Digest | $DIGEST |"
+            echo "| Migration Revision | ⏳ Pending external verification |"
+            echo "| Smoke Test | ⏳ Pending external verification |"
+            echo "| Workflow Run | $WORKFLOW_RUN_ID |"
+            echo "| Timestamp | $TIMESTAMP |"
+          } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Require production deploy hook
         if: env.TARGET_ENVIRONMENT == 'production' && env.DOKPLOY_DEPLOY_HOOK_URL == ''
@@ -141,3 +172,51 @@ jobs:
             echo "- Source SHA: ${SOURCE_SHA}"
             echo "Configure the Dokploy hook in the selected GitHub Environment before treating the VPS as deployed."
           } >> "$GITHUB_STEP_SUMMARY"
+
+  smoke-test:
+    name: Staging smoke test
+    needs: [handoff]
+    if: |
+      (github.event_name == 'workflow_dispatch' && inputs.environment == 'staging' || github.event_name == 'workflow_run') &&
+      needs.handoff.outputs.deployed == 'true'
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - name: Health check
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "Waiting 30s before initial check..."
+          sleep 30
+          
+          MAX_RETRIES=5
+          ATTEMPT=1
+          DELAY=30
+          
+          while [ $ATTEMPT -le $MAX_RETRIES ]; do
+            echo "Attempt $ATTEMPT of $MAX_RETRIES..."
+            if curl -f -s "${{ vars.DOKPLOY_APP_URL }}/health"; then
+              echo "Health check passed!"
+              {
+                echo "## Smoke Test Results"
+                echo "✅ Staging environment is healthy!"
+                echo "- Endpoint: ${{ vars.DOKPLOY_APP_URL }}/health"
+              } >> "$GITHUB_STEP_SUMMARY"
+              exit 0
+            fi
+            
+            if [ $ATTEMPT -lt $MAX_RETRIES ]; then
+              echo "Health check failed. Retrying in $DELAY seconds..."
+              sleep $DELAY
+              DELAY=$((DELAY * 2))
+            fi
+            ATTEMPT=$((ATTEMPT + 1))
+          done
+          
+          echo "::error::Health check failed after $MAX_RETRIES attempts"
+          {
+            echo "## Smoke Test Results"
+            echo "❌ Staging environment health check failed."
+            echo "- Endpoint: ${{ vars.DOKPLOY_APP_URL }}/health"
+          } >> "$GITHUB_STEP_SUMMARY"
+          exit 1

@@ -2,9 +2,9 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use `superpowers:subagent-driven-development` or `superpowers:executing-plans` task-by-task. Apply test-driven development for production behavior and verify every claimed result against the exact branch SHA.
 
-**Goal:** Commit a compact, licensed public medical corpus directly into the repository, validate it offline, remove misleading dataset scripts, and open a CI-backed pull request without downloading external data in GitHub Actions.
+**Goal:** Commit a compact, licensed public medical corpus directly into the repository, validate it offline, remove misleading dataset scripts, and deliver a CI-backed pull request without downloading external data in GitHub Actions.
 
-**Architecture:** A JSON source registry is the authority for vendored artifacts. Python domain code loads and validates registry entries, a CLI performs fail-closed integrity checks, tests enforce artifact/license/workflow contracts, and the committed dataset travels with Git clone/pull and VPS deployments.
+**Architecture:** A JSON source registry is authoritative for vendored artifacts. Python domain code loads and validates immutable entries, a CLI performs fail-closed integrity checks, tests enforce data/license/workflow contracts, and committed XML files travel with Git clone/pull and VPS source deployments.
 
 **Tech stack:** Python 3.11+, Pydantic 1.x, pytest, Ruff, GitHub Actions, JSON, Git/GitHub.
 
@@ -14,62 +14,60 @@
 - External dataset content must be committed under `app/backend/data/public/`.
 - GitHub Actions must not download external datasets.
 - All validation must work without network access.
-- Every vendored artifact must have a pinned upstream identity, CC-compatible redistribution metadata, byte size, and SHA-256.
-- The first artifact is the official MedQuAD LiveQA judged-set archive, not the complete 47,457-pair corpus.
+- Every vendored artifact must have pinned upstream commit/path/blob identity, CC-compatible redistribution metadata, exact byte size, and SHA-256.
+- The first corpus is a five-file MedQuAD GARD XML sample pinned at upstream commit `577bd37b96c02d1833b2c9eed2de9f96964e96cb`.
 - Do not represent MedQuAD as patient records, MIMIC, discharge summaries, or production clinical truth.
+- Preserve upstream XML bytes; do not rewrite medical content.
 - Use failing tests before production code where behavior changes.
 - Preserve the existing canonical 100-patient synthetic corpus and its six quarantined public-reference artifacts.
 
 ## Task 1: Establish branch documentation and source contract
 
 **Files:**
-- Create: `docs/superpowers/specs/2026-08-04-vendored-public-medical-data-design.md`
-- Create: `docs/superpowers/plans/2026-08-04-vendored-public-medical-data.md`
+- Create/update: `docs/superpowers/specs/2026-08-04-vendored-public-medical-data-design.md`
+- Create/update: `docs/superpowers/plans/2026-08-04-vendored-public-medical-data.md`
 
 **Steps:**
-- [x] Create the isolated feature branch from the current `main` SHA.
-- [x] Commit the approved design.
-- [x] Commit this implementation plan.
-- [ ] Self-review both documents for placeholders, contradictions, ambiguous dataset naming, and scope drift.
-
-**Verification:**
-- Compare branch with `main`; only the two documentation files should exist at this checkpoint.
+- [x] Create the isolated feature branch from current `main` SHA.
+- [x] Commit the approved design and plan.
+- [x] Refine the design from a binary ZIP to readable upstream XML after GitHub rejected cross-repository blob reuse.
+- [ ] Self-review documents for placeholders, contradictions, ambiguous dataset naming, and scope drift.
 
 ## Task 2: Add RED tests for the vendored-data contract
 
-**Files:**
-- Create: `app/backend/tests/data_sources/test_vendored_public_data.py`
+**File:** `app/backend/tests/data_sources/test_vendored_public_data.py`
 
 **Tests must initially fail because implementation/data are absent:**
-- registry loads a non-empty source list;
-- MedQuAD entry uses `CC-BY-4.0`, contains attribution, and declares evaluation-only limitations;
-- vendored path is relative and contained by the backend data root;
-- artifact size and SHA-256 match registry values;
-- missing or modified artifacts fail validation;
-- validator performs no network repair;
+- registry declares one pinned MedQuAD GARD source and exactly five expected upstream paths;
+- source uses `CC-BY-4.0`, contains attribution, and declares evaluation-only clinical limitations;
+- all vendored paths are relative and contained by backend data root;
+- every artifact size and SHA-256 matches the registry;
+- missing or modified artifacts fail validation without repair;
 - `.github/workflows/*.yml` and `*.yaml` contain no public-data download command;
 - legacy `download_hf_notes.py` and `seed_mimic.py` paths are absent.
 
 **Verification:**
-- Run only this test module and record the expected failures caused by missing modules/artifacts.
+- Record expected RED failures caused by missing registry/module/artifacts.
 
-## Task 3: Vendor the MedQuAD judged set and provenance files
+## Task 3: Vendor exact MedQuAD XML and provenance files
 
 **Files:**
 - Create: `app/backend/data/public/sources.json`
 - Create: `app/backend/data/public/medquad/README.md`
 - Create: `app/backend/data/public/medquad/LICENSE.txt`
-- Create: `app/backend/data/public/medquad/QA-TestSet-LiveQA-Med-Qrels-2479-Answers.zip`
+- Create under `app/backend/data/public/medquad/sample/`:
+  - `2_GARD_QA/0003206.xml`
+  - `2_GARD_QA/0003638.xml`
+  - `2_GARD_QA/0004425.xml`
+  - `2_GARD_QA/0004873.xml`
+  - `2_GARD_QA/0005459.xml`
 
 **Steps:**
-- [ ] Import the official archive bytes without re-encoding or modifying the upstream artifact.
-- [ ] Calculate and record the local SHA-256 and exact byte size.
-- [ ] Record upstream repository, path, pinned blob SHA `bb81b5cc2497f09b411e2ae5d20cf17aaf099a3d`, retrieval date, license, attribution, intended use, and limitations.
-- [ ] Document that the artifact is an official judged test set and not the full MedQuAD corpus.
-
-**Verification:**
-- Independently hash the committed blob and compare it with the registry.
-- Inspect ZIP structure without extracting files into Git history.
+- [ ] Copy each upstream XML byte-for-byte from pinned commit `577bd37b96c02d1833b2c9eed2de9f96964e96cb`.
+- [ ] Verify each local Git blob SHA equals the upstream blob SHA.
+- [ ] Calculate and record exact byte size and SHA-256.
+- [ ] Record upstream repository, commit, path, blob SHA, retrieval date, license, attribution, intended use, and limitations.
+- [ ] Document that this is a small evaluation fixture, not the full MedQuAD corpus.
 
 ## Task 4: Implement offline registry validation
 
@@ -81,8 +79,8 @@
 **Behavior:**
 - parse `sources.json` through immutable Pydantic models;
 - reject absolute paths and `..` traversal;
-- require source ID, upstream identity, license, attribution, intended use, limitations, expected size, and lowercase SHA-256;
-- hash artifacts in chunks;
+- require source, upstream, license, attribution, intended-use, limitation, artifact, size, and lowercase SHA-256 fields;
+- hash files in chunks;
 - fail on missing, size-mismatched, or hash-mismatched files;
 - return structured validation results and a non-zero CLI exit code on failure;
 - never download, repair, or mutate data.
@@ -97,7 +95,7 @@
 - Delete: `app/backend/scripts/download_hf_notes.py`
 - Delete: `app/backend/scripts/seed_mimic.py`
 - Create: `app/backend/scripts/seed_mock_clinical_notes.py`
-- Update: any references found by repository search.
+- Update: references found by repository search.
 
 **Behavior:**
 - preserve the existing two-note Graph RAG development fixture;
@@ -106,88 +104,72 @@
 - add no replacement network downloader.
 
 **Verification:**
-- Search branch for `tstadel/maccrobat`, `NOTEEVENTS.csv`, `MIMIC-`, `Mimic Patient`, and misleading success messages.
-- Run relevant seed-script import/static tests.
+- Search for `tstadel/maccrobat`, `NOTEEVENTS.csv`, `MIMIC-`, `Mimic Patient`, and misleading messages.
 
-## Task 6: Integrate public artifacts with corpus inventory without weakening quarantine
+## Task 6: Integrate approved public artifacts with corpus inventory
 
 **Files:**
 - Update: `app/backend/src/hospital_ai/evaluation/corpus_manifest.py`
 - Update: `app/backend/tests/evaluation/test_corpus_manifest.py`
 
 **Behavior:**
-- represent approved vendored evaluation datasets separately from the existing six quarantined guideline/drug artifacts;
-- preserve exact canonical patient counts and existing duplicate exclusion behavior;
-- expose provenance/license fields from the public source registry;
-- do not ingest MedQuAD as patient data or automatically place it in the clinical knowledge base.
+- represent approved vendored evaluation datasets separately from six quarantined guideline/drug artifacts;
+- preserve exact canonical patient counts and duplicate-exclusion behavior;
+- expose registry provenance/license fields;
+- never ingest MedQuAD as patient data or clinical knowledge automatically.
 
-**TDD sequence:**
-- add failing manifest tests first;
-- implement the minimal new artifact kind/collection;
-- run all evaluation manifest tests.
+**TDD:** Add failing manifest test, implement minimal collection/type, then run manifest tests.
 
 ## Task 7: Add offline CI validation and deployment documentation
 
 **Files:**
-- Update: the most appropriate existing backend CI workflow under `.github/workflows/`
+- Update: appropriate existing backend workflow under `.github/workflows/`
 - Update: `README.md`
-- Create or update: dataset documentation under `docs/`
+- Create/update: dataset documentation under `docs/`
 
 **Behavior:**
-- CI checks out the repository and invokes the offline validator;
-- no `curl`, `wget`, Hugging Face loader, or dataset download step is introduced;
-- README explains that clone/pull includes the public artifact;
-- VPS documentation explains that source deployments receive it automatically, while Docker images receive it only if the build context/Dockerfile copies the data directory;
-- state repository-size governance for future datasets.
+- CI invokes offline validator after checkout;
+- no external dataset download step is introduced;
+- README states clone/pull includes public XML;
+- VPS source deployment receives it automatically;
+- Docker inclusion depends on build context/Dockerfile copy rules;
+- document size governance for future data.
 
-**Verification:**
-- inspect workflow diff for network dataset operations;
-- run YAML/static workflow tests already present in the repo;
-- run documentation link checks if available.
+## Task 8: Verification and review
 
-## Task 8: Full local-equivalent verification and self-review
-
-**Commands/checks:**
+**Checks:**
 - `python app/backend/scripts/validate_vendored_public_data.py`
-- backend targeted tests for data sources and corpus manifest;
-- full backend pytest suite where environment permits;
-- Ruff check for modified Python files;
-- existing repository contract/workflow tests;
-- compare branch against `main` for unintended files and oversized artifacts.
+- targeted data-source and corpus-manifest tests;
+- full backend pytest where environment permits;
+- Ruff for modified Python;
+- workflow/static contract tests;
+- compare branch with `main` for unintended or oversized files;
+- verify no secrets, PHI, gated data, cache, or clinical-validity claims.
 
-**Review:**
-- verify source/license claims against upstream documentation;
-- verify no secrets, PHI, gated data, or generated cache files were committed;
-- verify the branch does not claim clinical validity;
-- verify source data reaches VPS by clone/pull and is not runner-only.
+## Task 9: Publish draft PR
 
-## Task 9: Push and open draft pull request
-
-**Steps:**
-- [ ] Confirm branch head and clean intended diff.
-- [ ] Push feature branch.
-- [ ] Open a draft PR to `main` with scope, source, license, size impact, tests, limitations, and deployment behavior.
-- [ ] Request review or submit a structured self-review if no independent reviewer is configured.
+- [x] Push feature branch through the connected GitHub repository.
+- [x] Open draft PR #86 to `main`.
+- [ ] Keep PR body synchronized with refined XML sample scope.
+- [ ] Complete structured self-review and request review where available.
 
 ## Task 10: CI log and fix loop
 
-**Loop:**
-1. Fetch workflow runs for the exact PR head SHA.
-2. Wait only by re-querying in the current session; do not assume success from an older SHA.
-3. For each failed job, fetch steps and complete logs.
-4. Apply `superpowers:systematic-debugging`: identify root cause before editing.
-5. Add or adjust a reproducing test when applicable.
-6. Commit the minimal fix to the same branch.
-7. Re-review the fix diff.
-8. Fetch CI for the new head SHA.
-9. Repeat until checks are green or a genuine external blocker is documented.
+1. Fetch workflow runs for exact PR head SHA.
+2. For failed jobs, fetch job steps and complete logs.
+3. Apply `superpowers:systematic-debugging`; identify root cause before edits.
+4. Add/adjust a reproducing test when applicable.
+5. Commit minimal fix on same branch.
+6. Review fix diff.
+7. Fetch CI for new head SHA.
+8. Repeat until green or document an evidenced external blocker.
 
 ## Completion criteria
 
-- The official compact MedQuAD judged-set artifact is committed in the repository.
+- Five original MedQuAD GARD XML files are committed byte-for-byte.
 - Registry and offline validator verify exact bytes, license, provenance, and limitations.
 - CI performs no external dataset download.
 - Misleading MIMIC/MACCROBAT scripts are removed or accurately renamed.
 - Existing synthetic corpus/quarantine guarantees remain intact.
-- Draft PR exists with source-backed documentation.
+- Draft PR #86 accurately documents scope and deployment behavior.
 - Latest-head CI is green, or any unresolvable external blocker is evidenced with exact job/log details.

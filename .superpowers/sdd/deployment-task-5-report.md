@@ -99,3 +99,8 @@ Focused review-fix verification:
 - Reviewer repro:
   - command: temporary failing fixture with `HOSPITAL_AI_DATABASE_URL`, `HOSPITAL_AI_REDIS_URL`, `postgresql+asyncpg://...`, and `redis://...` scanned via `node scripts/verify-public-bundle.mjs <temp-dir>`
   - expected/result: exit code `2` with the scanned path and offending markers reported
+
+Final contract correction:
+
+- Local development now documents `VITE_API_URL=/api`, matching the governing
+  plan and the Vite `/api` -> `/api/v1` proxy contract.

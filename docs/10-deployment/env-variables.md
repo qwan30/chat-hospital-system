@@ -113,7 +113,7 @@ fallback for a staging or production deployment.
 Local development:
 
 ```bash
-VITE_API_URL=
+VITE_API_URL=/api
 ```
 
 Browser API path:

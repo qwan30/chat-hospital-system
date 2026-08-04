@@ -2,7 +2,7 @@
 
 ## Purpose
 
-The project keeps a small, licensed public medical evaluation sample directly in Git. This makes local development, CI, and VPS source deployments use the same immutable files without downloading a dataset during GitHub Actions or application startup.
+The project keeps a small, licensed public medical evaluation sample directly in Git. This makes local development, CI, VPS source deployments, and backend container images use the same immutable files without downloading a dataset during GitHub Actions or application startup.
 
 ## Current source
 
@@ -48,12 +48,11 @@ The data remains on the VPS filesystem for as long as that working tree remains.
 
 ### Docker deployment
 
-Committed data is included in an image only when both conditions are true:
+The backend image explicitly copies `data/public/` to `/app/data/public/`. The backend `.dockerignore` keeps the rest of `data/` outside the build context while re-including only `data/public/**`.
 
-1. the backend data directory is inside the Docker build context; and
-2. the Dockerfile copies that directory into the image.
+Therefore a deployment that pulls the built backend image receives the vendored public sample, but does not receive the synthetic patient corpus, uploads, runtime storage, or other backend data directories.
 
-A `.dockerignore` rule can exclude the data even though it exists in Git. Deployment verification must therefore inspect the final image or mount the repository data path explicitly.
+The container contract is enforced by `tests/data_sources/test_vendored_public_data.py`.
 
 ## Validation
 

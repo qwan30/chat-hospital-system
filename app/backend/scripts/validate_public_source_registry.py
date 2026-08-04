@@ -12,11 +12,11 @@ BACKEND_ROOT = Path(__file__).resolve().parents[1]
 def _load_validator():
     sys.path.insert(0, str(BACKEND_ROOT / "src"))
     from hospital_ai.data_sources.registry import (  # noqa: PLC0415
-        VendoredDataValidationError,
-        validate_vendored_sources,
+        SourceRegistryValidationError,
+        validate_source_registry,
     )
 
-    return VendoredDataValidationError, validate_vendored_sources
+    return SourceRegistryValidationError, validate_source_registry
 
 
 def main(argv: list[str] | None = None) -> int:

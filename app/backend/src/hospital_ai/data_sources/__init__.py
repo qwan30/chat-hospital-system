@@ -2,20 +2,20 @@
 
 from .registry import (
     PublicDataSource,
+    SourceArtifact,
     SourceRegistry,
-    ValidatedArtifact,
-    VendoredArtifact,
-    VendoredDataValidationError,
+    SourceRegistryValidationError,
+    ValidatedSourceArtifact,
     load_source_registry,
-    validate_vendored_sources,
+    validate_source_registry,
 )
 
 __all__ = [
     "PublicDataSource",
+    "SourceArtifact",
     "SourceRegistry",
-    "ValidatedArtifact",
-    "VendoredArtifact",
-    "VendoredDataValidationError",
+    "SourceRegistryValidationError",
+    "ValidatedSourceArtifact",
     "load_source_registry",
-    "validate_vendored_sources",
+    "validate_source_registry",
 ]

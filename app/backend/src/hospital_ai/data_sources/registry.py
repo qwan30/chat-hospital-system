@@ -1,10 +1,11 @@
-"""Offline validation for public datasets committed to the repository."""
+"""Offline validation for explicitly staged public-source artifacts."""
 
 from __future__ import annotations
 
 import hashlib
 import json
 import re
+from datetime import datetime
 from pathlib import Path
 from typing import Literal
 
@@ -15,8 +16,8 @@ _SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
 _SOURCE_ID_RE = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
 
 
-class VendoredDataValidationError(ValueError):
-    """Raised when the vendored public-data contract is not trustworthy."""
+class SourceRegistryValidationError(ValueError):
+    """Raised when a public-source registry or local artifact is untrustworthy."""
 
 
 def _require_text(value: str) -> str:
@@ -32,6 +33,13 @@ def _validate_relative_path(value: str) -> str:
         raise ValueError("path must be a normalized relative path without traversal")
     if path.as_posix() != value:
         raise ValueError("path must be a normalized relative path")
+    return value
+
+
+def _require_https_url(value: str) -> str:
+    value = _require_text(value)
+    if not value.startswith("https://"):
+        raise ValueError("license_url must use HTTPS")
     return value
 
 
@@ -56,22 +64,23 @@ class LicenseMetadata(BaseModel):
     attribution: str
     license_url: str
 
-    _fields_are_present = validator("spdx_id", "attribution", "license_url", allow_reuse=True)(_require_text)
+    _text_fields_are_present = validator("spdx_id", "attribution", allow_reuse=True)(_require_text)
+    _license_url_is_https = validator("license_url", allow_reuse=True)(_require_https_url)
 
     class Config:
         allow_mutation = False
 
 
-class VendoredArtifact(BaseModel):
+class SourceArtifact(BaseModel):
     upstream_path: str
     upstream_blob_sha: str
-    vendored_path: str
+    local_path: str
     media_type: str
     size_bytes: int
     sha256: str
 
     _upstream_path_is_relative = validator("upstream_path", allow_reuse=True)(_validate_relative_path)
-    _vendored_path_is_relative = validator("vendored_path", allow_reuse=True)(_validate_relative_path)
+    _local_path_is_relative = validator("local_path", allow_reuse=True)(_validate_relative_path)
     _media_type_is_present = validator("media_type", allow_reuse=True)(_require_text)
 
     @validator("upstream_blob_sha")
@@ -101,12 +110,12 @@ class PublicDataSource(BaseModel):
     name: str
     upstream: UpstreamSource
     license: LicenseMetadata
-    retrieved_at: str
+    retrieved_at: datetime
     intended_use: str
     limitations: str
-    artifacts: tuple[VendoredArtifact, ...]
+    artifacts: tuple[SourceArtifact, ...]
 
-    _name_is_present = validator("name", "retrieved_at", "intended_use", "limitations", allow_reuse=True)(_require_text)
+    _text_fields_are_present = validator("name", "intended_use", "limitations", allow_reuse=True)(_require_text)
 
     @validator("source_id")
     def _source_id_is_valid(cls, value: str) -> str:
@@ -114,8 +123,14 @@ class PublicDataSource(BaseModel):
             raise ValueError("source_id must be lowercase kebab-case")
         return value
 
+    @validator("retrieved_at")
+    def _retrieved_at_has_timezone(cls, value: datetime) -> datetime:
+        if value.tzinfo is None or value.utcoffset() is None:
+            raise ValueError("retrieved_at must include timezone information")
+        return value
+
     @validator("artifacts")
-    def _artifacts_are_present(cls, value: tuple[VendoredArtifact, ...]) -> tuple[VendoredArtifact, ...]:
+    def _artifacts_are_present(cls, value: tuple[SourceArtifact, ...]) -> tuple[SourceArtifact, ...]:
         if not value:
             raise ValueError("source must contain at least one artifact")
         return value
@@ -124,11 +139,11 @@ class PublicDataSource(BaseModel):
     def _artifact_paths_are_unique(cls, values: dict) -> dict:
         artifacts = values.get("artifacts") or ()
         upstream_paths = [artifact.upstream_path for artifact in artifacts]
-        vendored_paths = [artifact.vendored_path for artifact in artifacts]
+        local_paths = [artifact.local_path for artifact in artifacts]
         if len(set(upstream_paths)) != len(upstream_paths):
             raise ValueError("source contains duplicate upstream paths")
-        if len(set(vendored_paths)) != len(vendored_paths):
-            raise ValueError("source contains duplicate vendored paths")
+        if len(set(local_paths)) != len(local_paths):
+            raise ValueError("source contains duplicate local paths")
         return values
 
     class Config:
@@ -157,7 +172,7 @@ class SourceRegistry(BaseModel):
         allow_mutation = False
 
 
-class ValidatedArtifact(BaseModel):
+class ValidatedSourceArtifact(BaseModel):
     source_id: str
     path: Path
     size_bytes: int
@@ -176,43 +191,44 @@ def _sha256(path: Path) -> str:
 
 
 def load_source_registry(registry_path: Path) -> SourceRegistry:
-    """Load and validate a vendored public-data registry without side effects."""
+    """Load and validate a public-source registry without side effects."""
     try:
         payload = json.loads(registry_path.read_text(encoding="utf-8"))
         return SourceRegistry.parse_obj(payload)
     except (OSError, json.JSONDecodeError, ValidationError, TypeError, ValueError) as error:
-        raise VendoredDataValidationError(f"invalid vendored source registry: {error}") from error
+        raise SourceRegistryValidationError(f"invalid public-source registry: {error}") from error
 
 
-def validate_vendored_sources(data_root: Path, registry_path: Path) -> tuple[ValidatedArtifact, ...]:
-    """Validate every registered artifact using only committed local files."""
+def validate_source_registry(
+    data_root: Path,
+    registry_path: Path,
+) -> tuple[ValidatedSourceArtifact, ...]:
+    """Validate registered artifacts using only the explicitly supplied local root."""
     root = data_root.resolve()
     registry = load_source_registry(registry_path)
-    results: list[ValidatedArtifact] = []
+    results: list[ValidatedSourceArtifact] = []
 
     for source in registry.sources:
         for artifact in source.artifacts:
-            path = (root / artifact.vendored_path).resolve()
+            path = (root / artifact.local_path).resolve()
             if not path.is_relative_to(root):
-                raise VendoredDataValidationError(f"vendored path escapes data root: {artifact.vendored_path}")
+                raise SourceRegistryValidationError(f"local path escapes data root: {artifact.local_path}")
             if not path.is_file():
-                raise VendoredDataValidationError(f"missing vendored artifact: {artifact.vendored_path}")
+                raise SourceRegistryValidationError(f"missing local artifact: {artifact.local_path}")
             actual_size = path.stat().st_size
             if actual_size != artifact.size_bytes:
-                raise VendoredDataValidationError(
-                    "vendored artifact size mismatch: "
-                    f"{artifact.vendored_path} expected {artifact.size_bytes}, "
-                    f"found {actual_size}"
+                raise SourceRegistryValidationError(
+                    "local artifact size mismatch: "
+                    f"{artifact.local_path} expected {artifact.size_bytes}, found {actual_size}"
                 )
             actual_sha256 = _sha256(path)
             if actual_sha256 != artifact.sha256:
-                raise VendoredDataValidationError(
-                    "vendored artifact SHA-256 mismatch: "
-                    f"{artifact.vendored_path} expected {artifact.sha256}, "
-                    f"found {actual_sha256}"
+                raise SourceRegistryValidationError(
+                    "local artifact SHA-256 mismatch: "
+                    f"{artifact.local_path} expected {artifact.sha256}, found {actual_sha256}"
                 )
             results.append(
-                ValidatedArtifact(
+                ValidatedSourceArtifact(
                     source_id=source.source_id,
                     path=path,
                     size_bytes=actual_size,

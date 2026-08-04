@@ -1,0 +1,12 @@
+# Developer-only override. Never use this file for Dokploy/VPS staging.
+services:
+  backend:
+    image: hospital-ai-backend:local
+    build:
+      context: ../app/backend
+      dockerfile: Dockerfile
+  worker:
+    image: hospital-ai-backend:local
+    build:
+      context: ../app/backend
+      dockerfile: Dockerfile

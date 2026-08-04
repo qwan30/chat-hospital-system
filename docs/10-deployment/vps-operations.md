@@ -142,7 +142,35 @@ Expected evidence:
 - Failure to authenticate is recorded as UNVERIFIED, not papered over by the
   presence of a CI workflow.
 
-### 2.7 Secret injection contract
+### 2.7 Candidate image migration and rollout
+
+The normal Dokploy path consumes the GitHub-built image. The source clone on a
+VPS is not a build input. Do not run `git pull`, `docker compose build`, or
+`infra/docker-compose.local-build.yml` for staging.
+
+When the operator must verify the equivalent Compose procedure, use the exact
+candidate image and the following order. Replace every placeholder before
+running; do not put credentials in the command history or this repository.
+
+```bash
+export BACKEND_IMAGE="ghcr.io/<GHCR_NAMESPACE>/hospital-ai-backend:sha-<CANDIDATE_SHA>"
+docker manifest inspect "$BACKEND_IMAGE"
+docker compose -f "<absolute-path-to-infra/docker-compose.yml>" pull postgres redis backend worker
+docker compose -f "<absolute-path-to-infra/docker-compose.yml>" run --rm --no-deps backend alembic upgrade head
+docker compose -f "<absolute-path-to-infra/docker-compose.yml>" up -d postgres redis backend worker
+docker compose -f "<absolute-path-to-infra/docker-compose.yml>" ps
+docker stats --no-stream
+curl --fail --silent --show-error "https://<API_DOMAIN>/api/v1/health"
+```
+
+The migration container, backend, and worker must resolve to the same
+`BACKEND_IMAGE`. Record the migration revision, image digest, source SHA,
+container health, public health result, synthetic/de-identified smoke result,
+RAM, swap, disk, and `docker stats` output in the evidence table. Dokploy may
+execute the same sequence through its UI or deploy hook; a hook acknowledgement
+alone is not deployment or runtime proof.
+
+### 2.8 Secret injection contract
 
 Verify secret key names only. Do not print values.
 
@@ -167,7 +195,7 @@ Operator checkpoint:
 - Record only key presence, secret source owner, and timestamp.
 - Repository validation does not prove that secrets were injected correctly.
 
-### 2.8 Vercel-to-API route
+### 2.9 Vercel-to-API route
 
 Check the expected browser route contract and the backend health path using
 placeholder values only:
@@ -198,9 +226,11 @@ Treat the following as a blocking preflight sequence:
 6. Capture Docker Engine and Docker Compose versions.
 7. Capture Dokploy presence and domain evidence.
 8. Capture GitHub repository reachability and GHCR candidate-image reachability.
-9. Confirm required secret key names are present in Dokploy without exposing
+9. Verify the candidate pull, one-off migration, same-image backend/worker
+   rollout, and container health.
+10. Confirm required secret key names are present in Dokploy without exposing
    values.
-10. Capture the exact Vercel-to-API route contract:
+11. Capture the exact Vercel-to-API route contract:
     `VITE_API_URL=https://<API_DOMAIN>/api/v1` and
     `HOSPITAL_AI_CORS_ORIGINS=https://<VERCEL_FRONTEND_ORIGIN>`.
 

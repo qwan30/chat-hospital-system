@@ -2,8 +2,8 @@
 #
 # The public ingress is Dokploy's Traefik. The frontend is deployed on Vercel;
 # this stack owns the API, worker, database, cache, and temporary storage only.
-# Usage from the repository root:
-#   docker compose -f infra/docker-compose.yml up -d
+# Usage from the repository root with an immutable image supplied by Dokploy:
+#   BACKEND_IMAGE=ghcr.io/<owner>/hospital-ai-backend:sha-<7-hex> docker compose -f infra/docker-compose.yml up -d
 # For observability, use the separate overlay only after VPS resource testing.
 
 x-backend-environment: &backend-environment
@@ -58,6 +58,7 @@ services:
   # ── PostgreSQL 16 + pgvector ────────────────────────────────────
   postgres:
     image: pgvector/pgvector:pg16
+    mem_limit: 768m
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-hospital_ai}
       POSTGRES_USER: ${POSTGRES_USER:-hospital_ai}
@@ -75,6 +76,7 @@ services:
   # ── Redis 7 (job queue + cache) ─────────────────────────────────
   redis:
     image: redis:7-alpine
+    mem_limit: 256m
     # No host port: only backend/worker reach Redis through the Compose network.
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
@@ -85,12 +87,9 @@ services:
 
   # ── Chatbot Backend (FastAPI) ────────────────────────────────────
   backend:
-    # Dokploy should inject an immutable SHA tag or digest through BACKEND_IMAGE.
-    # The latest-tag fallback is for local Compose validation only.
-    image: ${BACKEND_IMAGE:-ghcr.io/${IMAGE_PREFIX:-qwan30/hospital-ai}-backend:${IMAGE_TAG:-latest}}
-    build:
-      context: ../app/backend
-      dockerfile: Dockerfile
+    # Dokploy must inject the exact immutable candidate image.
+    image: ${BACKEND_IMAGE:?BACKEND_IMAGE must be set to an immutable GHCR image reference}
+    mem_limit: 768m
     environment: *backend-environment
     depends_on:
       postgres:
@@ -111,7 +110,8 @@ services:
 
   # ── RQ Background Worker (document processing) ────────────────────
   worker:
-    image: ${BACKEND_IMAGE:-ghcr.io/${IMAGE_PREFIX:-qwan30/hospital-ai}-backend:${IMAGE_TAG:-latest}}
+    image: ${BACKEND_IMAGE:?BACKEND_IMAGE must be set to an immutable GHCR image reference}
+    mem_limit: 1024m
     command: python -m hospital_ai.workers.run_worker
     environment: *backend-environment
     depends_on:

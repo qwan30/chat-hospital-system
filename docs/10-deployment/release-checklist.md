@@ -2,7 +2,7 @@
 
 > Project: AI-Powered Hospital Knowledge Assistant  
 > Project Code: HOSP-AI-001  
-> Version: 2.1
+> Version: 2.2
 > Status: Staging/demo contract; production approval remains outstanding
 > Owner: PM / DevOps / Tech Lead  
 > Last Updated: 2026-08-04
@@ -61,6 +61,13 @@ Cloudflare, the VPS, or an LLM provider.
 - [ ] Task 4 repository deployment-contract validator returns `0`.
 - [ ] CI backend, migration, frontend, observability, and image scan gates pass.
 - [ ] CI release artifact records the source SHA, image tag, and image digest.
+- [ ] Production Compose is image-only, requires `BACKEND_IMAGE`, and uses the
+      same immutable image for the migration container, backend, and worker.
+- [ ] PostgreSQL `768m`, Redis `256m`, backend `768m`, and worker `1024m`
+      memory ceilings are present; actual VPS RAM/swap/disk and `docker stats`
+      evidence is captured separately.
+- [ ] Candidate image is pulled and `alembic upgrade head` succeeds before the
+      backend/worker rollout.
 - [ ] Dokploy environment injects backend-only secrets; Vercel contains only
       client-safe variables such as `VITE_API_URL`.
 - [ ] Traefik route `api.<domain> -> backend:8000` is configured and HTTPS is
@@ -81,3 +88,4 @@ Cloudflare, the VPS, or an LLM provider.
 | 1.0 | 2026-04-27 | Release Manager | Initial release checkpoints |
 | 2.0 | 2026-06-07 | Agent | Extracted release plan and observability runbook to dedicated checklist |
 | 2.1 | 2026-08-04 | Agent | Added Dokploy/Vercel contract validation and staging/demo promotion gates |
+| 2.2 | 2026-08-04 | Agent | Added Task 7 immutable-image, migration-order, and VPS resource gates |

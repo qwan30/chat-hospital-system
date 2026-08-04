@@ -15,7 +15,7 @@ def test_cd_manifest_digest_verification_fails_closed() -> None:
     assert "docker buildx imagetools inspect" in workflow
     assert "{{json .Manifest}}" in workflow
     assert 'test("^sha256:[0-9a-f]{64}$")' in workflow
-    assert "|| echo \"unknown\"" not in workflow
+    assert '|| echo "unknown"' not in workflow
     assert "^sha256:[0-9a-f]{64}$" in workflow
 
 

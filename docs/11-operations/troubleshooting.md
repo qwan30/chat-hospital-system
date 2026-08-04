@@ -1,133 +1,96 @@
 # Troubleshooting Guide
 
-> Project: HOSP-AI-001 · Version: 2.0 · Owner: DevOps Lead · Last Updated: 2026-08-04  
+> Project: HOSP-AI-001 · Version: 2.1 · Owner: DevOps Lead · Last Updated: 2026-08-04
 
 ## 1. Backend Issues
 
 ### API returns 500
-1. Check logs for trace_id
-2. Verify DB: `docker compose -f infra/docker-compose.yml exec backend alembic current`
-3. Verify Redis: `redis-cli PING` (or via docker exec)
-4. Verify LLM config: Check if `HOSPITAL_AI_CHAT_PROVIDER` is set and valid
-5. Check disk: `df -h`
 
-### Chat returns "no evidence" for everything
-1. Check embedding provider is `gemini` (not `deterministic`)
-2. Verify documents indexed: `SELECT status, count(*) FROM documents GROUP BY status`
-3. Check evidence threshold not too high (>0.5)
-4. Run RAG eval locally or via container.
+1. Inspect backend logs and trace ID.
+2. Check database revision with `docker compose -f infra/docker-compose.yml exec backend alembic current`.
+3. Check Redis with `docker compose -f infra/docker-compose.yml exec redis redis-cli PING`.
+4. Validate `HOSPITAL_AI_CHAT_PROVIDER` and provider credentials.
+5. Check disk and memory pressure.
 
-### Migrations fail
-1. `docker compose -f infra/docker-compose.yml exec backend alembic current` → check state
-2. If stuck: `docker compose -f infra/docker-compose.yml exec backend alembic stamp <revision>`
-3. Fresh start: drop DB → create → `alembic upgrade head` → `seed_dev.py` (via docker exec)
+### Chat returns no evidence
 
-## 2. Frontend Issues
+1. Verify the embedding provider and API key.
+2. Confirm documents reached the indexed state.
+3. Inspect `document-indexing` queue depth and failures.
+4. Check retrieval threshold and run the deterministic RAG evaluation.
 
-### CORS errors
-1. Verify `HOSPITAL_AI_CORS_ORIGINS` includes frontend origin
-2. Check frontend API base URL config
-
-### No data in pages
-1. Check browser console for API errors
-2. Verify JWT present + valid
-3. Check Network tab for 401/403
-4. Verify user permissions: `SELECT * FROM patient_permissions WHERE user_id='<uuid>'`
-
-## 3. Gemini / DeepSeek Troubleshooting
-
-### Gemini not responding
-- Check API key validity.
-- Check quota dashboard.
-- Check network connectivity to `generativelanguage.googleapis.com`.
-
-### DeepSeek not responding
-- Check API key.
-- Check credit balance.
-- Check network connectivity to `api.deepseek.com`.
-
-### Too slow
-1. Check provider status pages.
-2. Reduce `retrieval_top_k` or `top_k` for smaller context.
-3. Check for prompt-injection scanner warmup latency (if applicable).
-
-## 3.5 Dokploy / Traefik Issues
+## 2. Dokploy and Traefik
 
 ### 502 Bad Gateway
-- Backend container not healthy, check `docker compose ps`, restart backend.
 
-### TLS certificate error
-- Check Dokploy/Traefik cert renewal, Let's Encrypt rate limits.
+Check container health, backend logs, route target, and port `8000`. Confirm the deployed image matches the release record digest.
 
-### Route not found
-- Verify Dokploy service routing `api.<domain> → backend:8000`.
+### TLS or route failure
 
-## 3.6 R2 Storage Issues
+Inspect Traefik certificate renewal, DNS, route mapping, and Let's Encrypt limits.
 
-### Upload fails
-- Check R2 credentials, endpoint URL, bucket name, key rotation.
+## 3. Gemini and DeepSeek
 
-### Download fails
-- Check object key, version, bucket policy.
+Check provider status, API key validity, quota/balance, and outbound network connectivity. Reduce concurrency or context size only after identifying provider throttling or latency as the cause.
 
-### All R2 operations fail
-- Check Cloudflare status, verify endpoint URL format.
+## 4. R2 Storage
 
-## 3.7 Docker Resource Exhaustion
+### Upload or download failure
 
-### Container OOMKilled
-- Check `docker inspect <container>` for OOM events, increase `mem_limit` or optimize memory footprint.
+Check endpoint, bucket, credentials, object key, network connectivity, and provider status. When the R2 backend is selected, there is **no automatic local-document failover**. Do not assume `storage-data` contains a complete recoverable copy.
 
-### Disk full
-- `docker system df`
-- `docker system prune`
-- Check pg_dump retention (old backups).
+For confirmed loss or corruption, restore from the independently maintained off-host backup into a separate bucket or prefix, validate checksums, and then perform the approved recovery cutover.
 
-### Image pull fails
-- Check GHCR auth, disk space, network connectivity.
+## 5. HMS JWKS Authentication
 
-## 4. Database
+When authentication fails, check HMS IdP status, DNS, TLS, issuer, audience, algorithm configuration, and the JWKS endpoint. The service fails closed when validation cannot be completed. Restore the configured RS256/JWKS path; do not change signing algorithms during an outage.
 
-### Connection pool exhausted
-1. `SELECT count(*) FROM pg_stat_activity`
-2. Increase pool size in DB URL
-3. Check for connection leaks
+## 6. RQ Worker
 
-### pgvector not working
-1. `SELECT * FROM pg_extension WHERE extname='vector'`
-2. `SELECT * FROM pg_indexes WHERE tablename='document_chunks'`
-3. `REINDEX INDEX <index_name>`
+The worker consumes `document-indexing` and `cdss-analysis`.
 
-## 5. RQ Worker
-
-### Jobs stuck
 ```bash
-rq info --url redis://localhost:6379/0          # Status
-rq info --url redis://localhost:6379/0 --failed # Failed jobs
+for queue in document-indexing cdss-analysis; do
+  docker compose -f infra/docker-compose.yml exec -T redis \
+    redis-cli LLEN "rq:queue:${queue}"
+done
+
+for queue in document-indexing cdss-analysis; do
+  docker compose -f infra/docker-compose.yml exec -T worker \
+    python -c "from redis import Redis; from rq.registry import FailedJobRegistry; r=Redis.from_url('redis://redis:6379/0'); print('${queue}', FailedJobRegistry('${queue}', connection=r).count)"
+done
 ```
 
-### Worker not processing
-1. `ps aux | grep run_worker`
-2. Check Redis: `redis-cli PING`
-3. Check worker logs
-4. Kill + restart worker process
+If jobs are stuck, inspect worker logs, job payloads, provider errors, and Redis connectivity before retrying or restarting.
 
-## 6. Quick Diagnostics
+## 7. Resource Exhaustion
 
 ```bash
-curl https://<PLACEHOLDER_DOMAIN>/api/v1/health   # API
-curl -I https://generativelanguage.googleapis.com # Gemini connectivity
-docker compose -f infra/docker-compose.yml exec redis redis-cli PING # Redis
-docker compose -f infra/docker-compose.yml exec backend alembic current # Database
-docker compose -f infra/docker-compose.yml exec worker rq info --url redis://redis:6379/0 # Queue
-df -h                                             # System Disk
-docker system df                                  # Docker Disk
-free -m                                           # Memory
-docker stats --no-stream                          # Container Stats
+df -h
+free -h
+docker stats --no-stream
+docker system df
+```
+
+Identify the actual consumer. Preserve current and rollback image digests. Remove only expired backups, disposable logs, stopped containers, or confirmed unused images after review.
+
+## 8. Quick Diagnostics
+
+```bash
+curl --fail --show-error --connect-timeout 10 --max-time 20 https://<PLACEHOLDER_DOMAIN>/api/v1/health
+docker compose -f infra/docker-compose.yml exec redis redis-cli PING
+docker compose -f infra/docker-compose.yml exec backend alembic current
+docker compose -f infra/docker-compose.yml logs --tail=100 backend worker
+df -h
+free -h
+docker stats --no-stream
+docker system df
 ```
 
 ## Change Log
+
 | Version | Date | Author | Change |
-|---------|------|--------|--------|
-| 1.0 | 2026-06-14 | Agent | Troubleshooting: backend, frontend, LLM, DB, worker, diagnostics |
-| 2.0 | 2026-08-04 | Agent | Replaced poetry with docker compose, replaced Ollama with Gemini/DeepSeek, added Dokploy, R2, and Docker exhaustion sections |
+|---|---|---|---|
+| 1.0 | 2026-06-14 | Agent | Initial troubleshooting guide |
+| 2.0 | 2026-08-04 | Agent | Dokploy/R2/provider update |
+| 2.1 | 2026-08-04 | Agent | Correct queue, R2, JWKS, and disk procedures |

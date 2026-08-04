@@ -25,7 +25,6 @@ COPY --from=builder /install /usr/local
 COPY src/ src/
 COPY alembic/ alembic/
 COPY alembic.ini .
-COPY data/public/ data/public/
 
 # Run as non-root
 USER appuser

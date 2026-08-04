@@ -195,12 +195,12 @@ jobs:
           
           while [ $ATTEMPT -le $MAX_RETRIES ]; do
             echo "Attempt $ATTEMPT of $MAX_RETRIES..."
-            if curl -f -s "${{ vars.DOKPLOY_APP_URL }}/health"; then
+            if curl -f -s "${{ vars.DOKPLOY_APP_URL }}/api/v1/health"; then
               echo "Health check passed!"
               {
                 echo "## Smoke Test Results"
                 echo "✅ Staging environment is healthy!"
-                echo "- Endpoint: ${{ vars.DOKPLOY_APP_URL }}/health"
+                echo "- Endpoint: ${{ vars.DOKPLOY_APP_URL }}/api/v1/health"
               } >> "$GITHUB_STEP_SUMMARY"
               exit 0
             fi
@@ -217,6 +217,6 @@ jobs:
           {
             echo "## Smoke Test Results"
             echo "❌ Staging environment health check failed."
-            echo "- Endpoint: ${{ vars.DOKPLOY_APP_URL }}/health"
+            echo "- Endpoint: ${{ vars.DOKPLOY_APP_URL }}/api/v1/health"
           } >> "$GITHUB_STEP_SUMMARY"
           exit 1

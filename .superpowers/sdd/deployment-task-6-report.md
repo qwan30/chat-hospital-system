@@ -55,3 +55,39 @@ Status: DONE
 - No live provisioning, VPS mutation, Dokploy installation, DNS change, GHCR
   login, R2 check, backup/restore proof, or runtime proof was performed or is
   claimed by this task.
+
+## Review-fix follow-up - 2026-08-04
+
+- Hardened the evidence-table validator so it parses the Markdown table
+  structurally, requires every required check exactly once, requires the exact
+  `PENDING — operator evidence required` status, and rejects duplicate,
+  unexpected, or malformed data rows with actionable violation codes.
+- Restored the frontend secret gate to walk the full `app/frontend` tree while
+  still ignoring `.git`, `node_modules`, `.next`, `dist`, `coverage`,
+  `__pycache__`, unreadable files, and binary files. The validator keeps a
+  narrow allowlist for `app/frontend/scripts/verify-public-bundle.mjs` because
+  that file intentionally embeds the denylist markers and leak fixtures used by
+  the frontend scanner itself.
+- Applied wildcard CORS rejection to `env-variables.md`, `vps-operations.md`,
+  and `vps-preflight-evidence.md`, including dynamic-origin-reflection contract
+  text.
+- Expanded focused invalid-fixture coverage for:
+  - extra non-pending evidence rows;
+  - duplicate/changed evidence rows that would otherwise mask missing checks;
+  - malformed evidence rows;
+  - wildcard CORS in each Task 6 deployment document.
+
+Review-fix verification:
+
+- `python -m pytest --noconftest tests/test_deployment_contracts.py`
+  - Result: `14 passed in 7.50s`
+- `python app/backend/scripts/verify_deployment_contract.py --json`
+  - Result: `{"valid": true, "violations": []}`
+- `ruff format app/backend/scripts/verify_deployment_contract.py app/backend/tests/test_deployment_contracts.py`
+  - Result: `2 files reformatted` on the first pass, then clean
+- `ruff check app/backend/scripts/verify_deployment_contract.py app/backend/tests/test_deployment_contracts.py`
+  - Result: passed
+- `ruff format --check app/backend/scripts/verify_deployment_contract.py app/backend/tests/test_deployment_contracts.py`
+  - Result: passed
+- Docs sanity
+  - Result: `docs sanity ok: 20 pending rows`

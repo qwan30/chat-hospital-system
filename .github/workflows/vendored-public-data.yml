@@ -1,0 +1,64 @@
+name: Vendored Public Data
+
+on:
+  pull_request:
+    paths:
+      - "app/backend/data/public/**"
+      - "app/backend/src/hospital_ai/data_sources/**"
+      - "app/backend/src/hospital_ai/evaluation/corpus_manifest.py"
+      - "app/backend/scripts/validate_vendored_public_data.py"
+      - "app/backend/tests/data_sources/**"
+      - "app/backend/tests/evaluation/test_corpus_manifest.py"
+      - ".github/workflows/vendored-public-data.yml"
+  push:
+    branches:
+      - main
+    paths:
+      - "app/backend/data/public/**"
+      - "app/backend/src/hospital_ai/data_sources/**"
+      - "app/backend/src/hospital_ai/evaluation/corpus_manifest.py"
+      - "app/backend/scripts/validate_vendored_public_data.py"
+      - "app/backend/tests/data_sources/**"
+      - "app/backend/tests/evaluation/test_corpus_manifest.py"
+      - ".github/workflows/vendored-public-data.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: vendored-public-data-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  validate:
+    name: Validate committed public data
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: app/backend
+
+    steps:
+      - name: Checkout committed source and data
+        uses: actions/checkout@v6
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install validation dependencies
+        run: python -m pip install "pydantic>=1.10,<2" "pytest>=8.2"
+
+      - name: Validate vendored artifact integrity offline
+        run: python scripts/validate_vendored_public_data.py
+
+      - name: Run public-data and corpus-manifest contracts
+        env:
+          PYTHONPATH: src
+        run: >-
+          python -m pytest
+          tests/data_sources/test_vendored_public_data.py
+          tests/evaluation/test_corpus_manifest.py
+          -v --tb=short

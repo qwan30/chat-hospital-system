@@ -325,12 +325,11 @@ def build_corpus_manifest(data_root: Path) -> CorpusManifestV2:
     quarantined = tuple(_public_artifact(relative_path, root / relative_path) for relative_path in public_paths)
 
     canonical_by_hash = {
-        artifact.source_sha256: artifact.canonical_relative_path
-        for artifact in artifacts + approved + quarantined
+        artifact.source_sha256: artifact.canonical_relative_path for artifact in artifacts + approved + quarantined
     }
-    reserved_paths = set(canonical_paths) | set(public_paths) | {
-        artifact.canonical_relative_path for artifact in approved
-    }
+    reserved_paths = (
+        set(canonical_paths) | set(public_paths) | {artifact.canonical_relative_path for artifact in approved}
+    )
     duplicate_artifacts: list[SourceArtifact] = []
     for path in sorted(root.rglob("*")):
         if not path.is_file():

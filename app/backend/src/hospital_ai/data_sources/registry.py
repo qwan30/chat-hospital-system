@@ -56,9 +56,7 @@ class LicenseMetadata(BaseModel):
     attribution: str
     license_url: str
 
-    _fields_are_present = validator(
-        "spdx_id", "attribution", "license_url", allow_reuse=True
-    )(_require_text)
+    _fields_are_present = validator("spdx_id", "attribution", "license_url", allow_reuse=True)(_require_text)
 
     class Config:
         allow_mutation = False
@@ -72,12 +70,8 @@ class VendoredArtifact(BaseModel):
     size_bytes: int
     sha256: str
 
-    _upstream_path_is_relative = validator("upstream_path", allow_reuse=True)(
-        _validate_relative_path
-    )
-    _vendored_path_is_relative = validator("vendored_path", allow_reuse=True)(
-        _validate_relative_path
-    )
+    _upstream_path_is_relative = validator("upstream_path", allow_reuse=True)(_validate_relative_path)
+    _vendored_path_is_relative = validator("vendored_path", allow_reuse=True)(_validate_relative_path)
     _media_type_is_present = validator("media_type", allow_reuse=True)(_require_text)
 
     @validator("upstream_blob_sha")
@@ -112,9 +106,7 @@ class PublicDataSource(BaseModel):
     limitations: str
     artifacts: tuple[VendoredArtifact, ...]
 
-    _name_is_present = validator(
-        "name", "retrieved_at", "intended_use", "limitations", allow_reuse=True
-    )(_require_text)
+    _name_is_present = validator("name", "retrieved_at", "intended_use", "limitations", allow_reuse=True)(_require_text)
 
     @validator("source_id")
     def _source_id_is_valid(cls, value: str) -> str:
@@ -123,9 +115,7 @@ class PublicDataSource(BaseModel):
         return value
 
     @validator("artifacts")
-    def _artifacts_are_present(
-        cls, value: tuple[VendoredArtifact, ...]
-    ) -> tuple[VendoredArtifact, ...]:
+    def _artifacts_are_present(cls, value: tuple[VendoredArtifact, ...]) -> tuple[VendoredArtifact, ...]:
         if not value:
             raise ValueError("source must contain at least one artifact")
         return value
@@ -150,9 +140,7 @@ class SourceRegistry(BaseModel):
     sources: tuple[PublicDataSource, ...]
 
     @validator("sources")
-    def _sources_are_present(
-        cls, value: tuple[PublicDataSource, ...]
-    ) -> tuple[PublicDataSource, ...]:
+    def _sources_are_present(cls, value: tuple[PublicDataSource, ...]) -> tuple[PublicDataSource, ...]:
         if not value:
             raise ValueError("registry must contain at least one source")
         return value
@@ -193,14 +181,10 @@ def load_source_registry(registry_path: Path) -> SourceRegistry:
         payload = json.loads(registry_path.read_text(encoding="utf-8"))
         return SourceRegistry.parse_obj(payload)
     except (OSError, json.JSONDecodeError, ValidationError, TypeError, ValueError) as error:
-        raise VendoredDataValidationError(
-            f"invalid vendored source registry: {error}"
-        ) from error
+        raise VendoredDataValidationError(f"invalid vendored source registry: {error}") from error
 
 
-def validate_vendored_sources(
-    data_root: Path, registry_path: Path
-) -> tuple[ValidatedArtifact, ...]:
+def validate_vendored_sources(data_root: Path, registry_path: Path) -> tuple[ValidatedArtifact, ...]:
     """Validate every registered artifact using only committed local files."""
     root = data_root.resolve()
     registry = load_source_registry(registry_path)
@@ -210,13 +194,9 @@ def validate_vendored_sources(
         for artifact in source.artifacts:
             path = (root / artifact.vendored_path).resolve()
             if not path.is_relative_to(root):
-                raise VendoredDataValidationError(
-                    f"vendored path escapes data root: {artifact.vendored_path}"
-                )
+                raise VendoredDataValidationError(f"vendored path escapes data root: {artifact.vendored_path}")
             if not path.is_file():
-                raise VendoredDataValidationError(
-                    f"missing vendored artifact: {artifact.vendored_path}"
-                )
+                raise VendoredDataValidationError(f"missing vendored artifact: {artifact.vendored_path}")
             actual_size = path.stat().st_size
             if actual_size != artifact.size_bytes:
                 raise VendoredDataValidationError(

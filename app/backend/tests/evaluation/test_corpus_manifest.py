@@ -44,15 +44,9 @@ def test_vendored_public_evaluation_data_is_approved_but_not_patient_data():
     assert all(artifact.patient_id is None for artifact in approved)
     assert all(artifact.license_status == "CC-BY-4.0" for artifact in approved)
     assert all(artifact.provenance_status == "pinned-public-source" for artifact in approved)
-    assert all(
-        artifact.canonical_relative_path.startswith("public/medquad/sample/2_GARD_QA/")
-        for artifact in approved
-    )
-    assert not {
-        artifact.canonical_relative_path for artifact in approved
-    } & {
-        artifact.canonical_relative_path
-        for artifact in manifest.quarantined_public_artifacts
+    assert all(artifact.canonical_relative_path.startswith("public/medquad/sample/2_GARD_QA/") for artifact in approved)
+    assert not {artifact.canonical_relative_path for artifact in approved} & {
+        artifact.canonical_relative_path for artifact in manifest.quarantined_public_artifacts
     }
 
 

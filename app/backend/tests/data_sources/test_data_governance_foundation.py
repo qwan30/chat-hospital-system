@@ -93,9 +93,9 @@ def test_registry_rejects_path_traversal_without_touching_files(tmp_path: Path) 
 
 
 def test_public_qualification_sources_are_not_canonical_patient_corpus() -> None:
-    corpus_manifest = (
-        BACKEND_ROOT / "src" / "hospital_ai" / "evaluation" / "corpus_manifest.py"
-    ).read_text(encoding="utf-8")
+    corpus_manifest = (BACKEND_ROOT / "src" / "hospital_ai" / "evaluation" / "corpus_manifest.py").read_text(
+        encoding="utf-8"
+    )
 
     assert "approved_public_artifacts" not in corpus_manifest
     assert "public_evaluation_dataset" not in corpus_manifest

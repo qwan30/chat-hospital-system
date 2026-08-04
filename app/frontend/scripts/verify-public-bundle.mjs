@@ -5,6 +5,8 @@ import path from "node:path";
 
 const DEFAULT_TARGET = path.resolve(import.meta.dirname, "..", ".vercel", "output");
 const BACKEND_ONLY_MARKERS = [
+  "HOSPITAL_AI_DATABASE_URL",
+  "HOSPITAL_AI_REDIS_URL",
   "HOSPITAL_AI_GEMINI_API_KEY",
   "HOSPITAL_AI_OPENAI_API_KEY",
   "HOSPITAL_AI_R2_ACCESS_KEY_ID",
@@ -16,7 +18,7 @@ const BACKEND_ONLY_MARKERS = [
   "OPENAI_API_KEY",
   "HMS_JWT_SECRET",
   "postgresql+asyncpg://",
-  "redis://localhost:6379/0",
+  "redis://",
   "http://localhost:11434",
 ];
 
@@ -73,15 +75,36 @@ async function runSelfTest() {
   try {
     const safeDir = path.join(tempRoot, "safe");
     const nestedDir = path.join(tempRoot, "safe", "nested");
-    const failingDir = path.join(tempRoot, "failing");
+    const failingNameDir = path.join(tempRoot, "failing-names");
+    const failingValueDir = path.join(tempRoot, "failing-values", "nested");
 
     await mkdir(nestedDir, { recursive: true });
-    await mkdir(failingDir, { recursive: true });
+    await mkdir(failingNameDir, { recursive: true });
+    await mkdir(failingValueDir, { recursive: true });
     await writeFile(path.join(safeDir, "index.html"), "<html><body>safe bundle</body></html>", "utf8");
     await writeFile(path.join(nestedDir, "app.js"), "console.log('safe bundle');", "utf8");
     await writeFile(
-      path.join(failingDir, "env.js"),
-      "window.__ENV__='HOSPITAL_AI_GEMINI_API_KEY=leak';",
+      path.join(failingNameDir, "env.js"),
+      [
+        "window.__ENV__='",
+        "HOSPITAL_AI_DATABASE_URL=leak;",
+        "HOSPITAL_AI_REDIS_URL=leak;",
+        "HOSPITAL_AI_R2_SECRET_ACCESS_KEY=leak;",
+        "HOSPITAL_AI_GEMINI_API_KEY=leak;",
+        "HOSPITAL_AI_HMS_API_KEY=leak;",
+        "HOSPITAL_AI_JWT_HMAC_SECRET=leak",
+        "';",
+      ].join(""),
+      "utf8",
+    );
+    await writeFile(
+      path.join(failingValueDir, "bundle.js"),
+      [
+        "window.__ENV__='",
+        "postgresql+asyncpg://hospital_ai:hospital_ai@db.internal:5432/hospital_ai;",
+        "redis://cache.internal:6379/0",
+        "';",
+      ].join(""),
       "utf8",
     );
 
@@ -90,9 +113,29 @@ async function runSelfTest() {
       throw new Error("Scanner self-test failed: safe fixture did not pass cleanly.");
     }
 
-    const failingResult = await scanPublicBundle(failingDir);
-    if (failingResult.violations.length !== 1) {
-      throw new Error("Scanner self-test failed: failing fixture did not report exactly one violation.");
+    const failingNameResult = await scanPublicBundle(failingNameDir);
+    const failingNameMarkers = new Set(failingNameResult.violations.map((violation) => violation.marker));
+    const expectedNameMarkers = [
+      "HOSPITAL_AI_DATABASE_URL",
+      "HOSPITAL_AI_REDIS_URL",
+      "HOSPITAL_AI_R2_SECRET_ACCESS_KEY",
+      "HOSPITAL_AI_GEMINI_API_KEY",
+      "HOSPITAL_AI_HMS_API_KEY",
+      "HOSPITAL_AI_JWT_HMAC_SECRET",
+    ];
+    for (const marker of expectedNameMarkers) {
+      if (!failingNameMarkers.has(marker)) {
+        throw new Error(`Scanner self-test failed: missing backend-only name marker ${marker}.`);
+      }
+    }
+
+    const failingValueResult = await scanPublicBundle(path.join(tempRoot, "failing-values"));
+    const failingValueMarkers = new Set(failingValueResult.violations.map((violation) => violation.marker));
+    const expectedValueMarkers = ["postgresql+asyncpg://", "redis://"];
+    for (const marker of expectedValueMarkers) {
+      if (!failingValueMarkers.has(marker)) {
+        throw new Error(`Scanner self-test failed: missing backend-only value marker ${marker}.`);
+      }
     }
 
     let missingFailed = false;
@@ -111,7 +154,8 @@ async function runSelfTest() {
     console.log("Public bundle scanner self-test passed.");
     return {
       safeResult,
-      failingResult,
+      failingNameResult,
+      failingValueResult,
     };
   } finally {
     await rm(tempRoot, { recursive: true, force: true });

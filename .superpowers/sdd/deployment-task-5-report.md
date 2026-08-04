@@ -79,3 +79,23 @@ Frontend verification:
 ## Result
 
 Task 5 implementation is complete and locally verified.
+
+## Review-fix evidence
+
+- Reviewer finding addressed: the public-bundle scanner now fails on backend-only database and Redis names as well as backend connection-value markers.
+- Scanner marker coverage preserved for backend-only R2, LLM, HMS, and JWT names while adding explicit `HOSPITAL_AI_DATABASE_URL`, `HOSPITAL_AI_REDIS_URL`, and broad `redis://` value detection.
+- `docs/10-deployment/env-variables.md` is now internally consistent with the actual local frontend port `8082` in both the Core table and the `.env` template, while preserving the documented local `/api` -> `/api/v1`, preview, production, and explicit CORS allowlist contract.
+
+Focused review-fix verification:
+
+- `node scripts/verify-public-bundle.mjs --self-test`
+  - Result: pass
+  - Confirms:
+    - recursive scanning still works
+    - backend-only DB/Redis name markers are detected
+    - backend-only DB/Redis value markers are detected
+    - backend-only R2/LLM/HMS/JWT name markers remain detected
+    - missing-target failure remains explicit
+- Reviewer repro:
+  - command: temporary failing fixture with `HOSPITAL_AI_DATABASE_URL`, `HOSPITAL_AI_REDIS_URL`, `postgresql+asyncpg://...`, and `redis://...` scanned via `node scripts/verify-public-bundle.mjs <temp-dir>`
+  - expected/result: exit code `2` with the scanned path and offending markers reported

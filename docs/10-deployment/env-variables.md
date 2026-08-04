@@ -24,7 +24,7 @@ this project's deployment contract. The VPS does not run Ollama.
 | `HOSPITAL_AI_R2_ACCESS_KEY_ID`     | (empty)                     | Backend/worker secret only            |
 | `HOSPITAL_AI_R2_SECRET_ACCESS_KEY` | (empty)                     | Backend/worker secret only            |
 | `HOSPITAL_AI_WORKER_INLINE`        | `false`                     | No                                    |
-| `HOSPITAL_AI_CORS_ORIGINS`         | `http://localhost:3000,...` | Yes                                   |
+| `HOSPITAL_AI_CORS_ORIGINS`         | `http://localhost:8082,...` | Yes                                   |
 
 ## 2. LLM & Embedding
 
@@ -198,7 +198,7 @@ HOSPITAL_AI_OLLAMA_BASE_URL=http://localhost:11434
 HOSPITAL_AI_CHAT_MODEL=qwen2.5:7b
 HOSPITAL_AI_RETRIEVAL_MODE=vector
 HOSPITAL_AI_STREAMING_ENABLED=true
-HOSPITAL_AI_CORS_ORIGINS=http://localhost:3000
+HOSPITAL_AI_CORS_ORIGINS=http://localhost:8082
 ```
 
 ## Change Log

@@ -1,6 +1,6 @@
 # Incident Response
 
-> Project: HOSP-AI-001 · Version: 1.0 · Owner: DevOps Lead · Last Updated: 2026-06-14  
+> Project: HOSP-AI-001 · Version: 2.0 · Owner: DevOps Lead · Last Updated: 2026-08-04  
 
 ## 1. Severity Levels
 
@@ -47,11 +47,37 @@ DETECT → TRIAGE (P1-P4) → INVESTIGATE → MITIGATE → RESOLVE → POST-MORT
 ## 5. P2: Chat / RAG Degraded
 
 ### Actions
-1. Check Ollama: `curl localhost:11434/api/tags`
-2. Check embedding service
-3. Check RQ queue depth
-4. Switch to stub temporarily if needed
-5. Reduce retrieval_top_k
+1. Check Gemini API health / quota dashboard.
+2. Check embedding service.
+3. Check RQ queue depth.
+4. Set `HOSPITAL_AI_CHAT_PROVIDER=stub` in Dokploy, restart backend and worker.
+5. Reduce retrieval_top_k.
+
+## 5.5 P2 — Gemini/DeepSeek Quota Exhaustion
+- **Immediate**: Check quota dashboard, switch to DeepSeek if Gemini exhausted, or set `stub` provider.
+- **Recovery**: Wait for quota reset, request limit increase, or use DeepSeek as temporary primary.
+
+## 5.6 P2 — R2 Storage Outage
+- **Immediate**: Document uploads fail, check R2 status page.
+- **Mitigation**: Existing cached documents in `storage-data` volume may still serve for retrieval.
+- **Recovery**: Monitor R2 status, re-upload failed documents after recovery.
+
+## 5.7 P2 — HMS JWKS Outage
+- **Immediate**: JWT validation fails if cached keys expire.
+- **Mitigation**: PyJWKClient caches JWKS keys; auth works until cache expires.
+- **If auth is failing**: Consider temporary HMAC fallback (`HOSPITAL_AI_JWT_ALGORITHM=HS256` + `HOSPITAL_AI_JWT_HMAC_SECRET`) with explicit incident approval.
+- **Recovery**: Verify JWKS endpoint, restart backend to refresh cache.
+
+## 5.8 P1 — VPS Disk/Memory Exhaustion
+- **Immediate**: `df -h`, `free -h`, `docker system df`.
+- **Mitigation**: `docker system prune -f`, check pg_dump retention, stop non-essential containers.
+- **If <1GB disk**: Emergency prune, remove old backups from VPS (keep off-host copies).
+
+## 5.9 Emergency LLM Disable
+- Set `HOSPITAL_AI_CHAT_PROVIDER=stub` in Dokploy.
+- Restart backend and worker.
+- Returns canned/stub responses without calling external APIs.
+- Reverse by setting `gemini` and restarting.
 
 ## 6. Contacts
 
@@ -59,10 +85,11 @@ DETECT → TRIAGE (P1-P4) → INVESTIGATE → MITIGATE → RESOLVE → POST-MORT
 |------|------|
 | Backend Lead | API, DB, worker issues |
 | Frontend Lead | UI issues |
-| DevOps Lead | Infrastructure, deployment |
+| DevOps Lead | Infrastructure, Dokploy, VPS deployment |
 | Security Lead | Security incidents |
 | Product Owner | User communication |
-| Hospital IT | Network, hardware |
+| R2 Account Owner | Object storage outages or credential rotation |
+| Gemini/DeepSeek Admin | LLM provider quotas, keys, and limits |
 
 ## 7. Post-Mortem Template
 
@@ -80,3 +107,4 @@ DETECT → TRIAGE (P1-P4) → INVESTIGATE → MITIGATE → RESOLVE → POST-MORT
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
 | 1.0 | 2026-06-14 | Agent | Incident response: severity, P1/P2 runbooks, contacts, post-mortem |
+| 2.0 | 2026-08-04 | Agent | Replaced Ollama references, added incident responses for Quotas, R2, JWKS, VPS exhaustion, and updated contacts |

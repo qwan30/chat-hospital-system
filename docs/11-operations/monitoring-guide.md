@@ -2,10 +2,10 @@
 
 > Project: AI-Powered Hospital Knowledge Assistant  
 > Project Code: HOSP-AI-001  
-> Version: 2.0  
+> Version: 3.0  
 > Status: Draft  
 > Owner: DevOps / SRE Lead  
-> Last Updated: 2026-06-07  
+> Last Updated: 2026-08-04  
 
 ---
 
@@ -17,7 +17,7 @@ The operations team monitors the following telemetry parameters to verify system
 |---|---|---|---|
 | **MET-001** | `query_latency_ms` | Histogram (OTel) | Total response duration from user submit to chat answer return. |
 | **MET-002** | `retrieval_latency_ms` | Histogram (OTel) | Time spent querying PostgreSQL pgvector HNSW indexes. |
-| **MET-003** | `generation_latency_ms` | Histogram (OTel) | Time spent generating tokens on local Ollama/vLLM endpoints. |
+| **MET-003** | `generation_latency_ms` | Histogram (OTel) | Time spent generating tokens on Gemini / DeepSeek API endpoints. |
 | **MET-004** | `documents_retrieved` | Counter (DB) | Count of document chunks retrieved to construct LLM context. |
 | **MET-005** | `citations_count` | Counter (DB) | Count of cited source segments embedded in the chat response. |
 | **MET-006** | `baseline_manual_time_sec` | Static Constant | Estimated manual time required to perform task (e.g. 900s for summaries). |
@@ -60,8 +60,40 @@ Savings calculations are based on the following verified manual workflow baselin
 
 ---
 
+## 4. VPS Monitoring Profile
+
+For the initial deployment on a 4 GB RAM VPS, the standard Grafana/Loki/Tempo observability stack is deferred until memory testing proves sufficient headroom. Monitoring is performed natively using the following tools:
+
+- `free -h` — Monitor system RAM and swap usage.
+- `df -h` — Monitor system disk usage.
+- `docker stats --no-stream` — View per-container CPU and memory usage.
+- `docker system df` — Monitor Docker disk usage.
+- `docker compose -f infra/docker-compose.yml logs --tail=100 backend` — View recent backend application logs.
+- `docker compose -f infra/docker-compose.yml exec redis redis-cli INFO memory` — Monitor Redis memory consumption.
+
+---
+
+## 5. Alerts and Thresholds
+
+| What | How | Threshold | Action |
+|------|-----|-----------|--------|
+| API health | `curl <PLACEHOLDER_DOMAIN>/api/v1/health` | Non-200 for >60s | Restart backend |
+| Disk usage | `df -h` | <20% free | Prune Docker images, check pg_dump retention |
+| Memory | `free -h` | <512MB available | Check for memory leaks, restart worker |
+| Docker disk | `docker system df` | >30GB | `docker system prune` |
+| Queue depth | `redis-cli LLEN rq:queue:default` | >50 pending jobs | Check worker health |
+| Failed jobs | `redis-cli LLEN rq:queue:failed` | >0 | Inspect and retry or clear |
+| Chat latency | Backend logs / metrics endpoint | P95 >10s | Check Gemini quota |
+| Gemini quota | Google AI Studio dashboard | >80% of limit | Reduce chat concurrency or switch to DeepSeek |
+
+**LLM Provider Monitoring**:
+Monitor Gemini and DeepSeek API health and rate limits via their respective provider dashboards. Internal usage can be tracked via querying `audit_events` in PostgreSQL.
+
+---
+
 ## Change Log
 | Version | Date | Author | Change |
 |---|---|---|---|
 | 1.0 | 2026-04-28 | PM / Tech Lead | Initial metrics framework definition |
 | 2.0 | 2026-06-07 | Agent | Extracted SQL analytics schema, updated baseline calculations, and organized monitoring guide |
+| 3.0 | 2026-08-04 | Agent | Added VPS monitoring profile, alerts, and replaced Ollama with Gemini/DeepSeek |

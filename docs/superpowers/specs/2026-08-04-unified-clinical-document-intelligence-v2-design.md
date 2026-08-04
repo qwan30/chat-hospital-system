@@ -442,6 +442,8 @@ Historical revisions remain read-only.
 - `content_sha256`
 - immutable `version`
 
+`document_page_revisions.status` is intrinsic immutable lineage metadata for that page revision only. It is never derived from `document_revision_sets.status`, never used as the approval state of a revision set, and unchanged page revisions may be selected by multiple different revision sets over time.
+
 #### `document_revision_sets`
 
 A document-wide revision set pins one selected page revision for every page so indexing cannot mix unrelated page versions.
@@ -449,12 +451,22 @@ A document-wide revision set pins one selected page revision for every page so i
 - `id`
 - `document_id`
 - `revision_number`
-- `status`
+- `status`: `submitted | building | approved | rejected | superseded`
 - `created_by_user_id`
 - `created_at`
 - `approved_by_user_id`
 - `approved_at`
 - `submitted_at`
+
+`document_revision_sets.status` is independent of page revision status and follows this lifecycle only:
+
+- `submitted` when `POST /api/v1/documents/{document_id}/draft/submit` freezes the current draft selection;
+- `building` when approval is accepted and generation work starts;
+- `approved` only when that revision set's generation becomes the document's active generation;
+- `rejected` only on an explicit reject action;
+- `superseded` only when a newer approved revision set becomes active for the same document.
+
+Allowed transitions are `submitted → building`, `submitted → rejected`, `building → approved`, `building → rejected`, and `approved → superseded`. Restore does not mutate one of these immutable lifecycle outcomes back to an earlier state; it creates a new child revision selection that then follows the same lifecycle independently.
 
 #### `documents` revision and generation pointers
 
@@ -512,6 +524,8 @@ An index generation is an independently buildable projection of exactly one froz
 
 Generation activation is an atomic compare-and-swap of `active_index_generation_id`. A failed generation remains `failed`; it must not change the old active pointer, delete active rows, or mix rows from different generations. Retry creates a new `building` generation for the same revision set and records the retry audit lineage.
 
+Rollback is also an atomic generation-state swap. Selecting a previously verified target generation for rollback must, in one transaction, set `active_index_generation_id` to that target generation, mark the target generation `active`, and mark the previously serving generation `superseded`. Pointer-only rollback means no rebuild, deletion, rewrite, or history mutation of derived rows, revision rows, or audit lineage.
+
 #### `ocr_blocks`, `ocr_lines`, and `ocr_spans`
 
 OCR geometry is stored separately from text and is linked to its extraction run and page revision. Each table records `id`, `page_revision_id`, `text_start_offset`, `text_end_offset`, `polygon`, `confidence`, `reading_order`, and `alignment_status`, whose only values are `aligned | partially_aligned | stale`. Blocks contain lines, and lines contain spans; a span also records its normalized text and source engine metadata. When edited text changes the covered offsets or text, the affected geometry becomes `stale` or `partially_aligned`. Stale geometry may be displayed as historical context, but must not be reused as exact evidence for the edited text; exact evidence requires newly aligned geometry.
@@ -552,6 +566,8 @@ Approving a new revision set performs an atomic generation transition:
 3. run all required stages and record stage results and hashes;
 4. atomically set `active_index_generation_id` to the new generation and then mark the prior active generation `superseded`;
 5. preserve the previous active generation if any stage fails.
+
+The linked revision-set lifecycle is separate but synchronized with activation: submit creates a `submitted` revision set, approval acceptance changes that set to `building`, successful activation changes that set to `approved`, explicit rejection changes it to `rejected`, and activation of a newer approved set changes the older approved set to `superseded`.
 
 ---
 
@@ -777,7 +793,7 @@ A canonical entity is not allowed to contain a single source pointer as its only
 - subject and object entity IDs, relation type, normalized value, confidence, effective/observed dates, and status;
 - assertion extraction run/model and created timestamp.
 
-A canonical relation assertion is patient-scoped and may aggregate multiple independent evidence sources over time. It must not store a single active generation pointer. An assertion is active for normal product reads only when at least one authorized `graph_relation_evidence` row for that assertion survives active-generation filtering.
+A canonical relation assertion is patient-scoped and may aggregate multiple independent evidence sources over time. It must not store a single active generation pointer. `graph_relation_assertions` extraction run/model fields are creation metadata only; authoritative per-source lineage comes from `graph_relation_evidence`. An assertion is active for normal product reads only when at least one authorized `graph_relation_evidence` row for that assertion survives active-generation filtering.
 
 #### `graph_relation_evidence`
 
@@ -874,20 +890,27 @@ Neither endpoint accepts a patient identifier that can broaden the document scop
 
 ### 12.1 `/api/v1` revision, upload, graph, and timeline contracts
 
-All endpoints below enforce authentication, patient permission, the existing role/capability grants, and the active-generation boundary. Every write API requires `Idempotency-Key`; `PATCH` draft page and `POST` draft submit also require `If-Match: <lock_version>`.
+All endpoints below enforce authentication, patient permission, and the existing role/capability grants. The active-generation boundary is narrower than the overall document lifecycle:
+
+- upload-session creation/finalization, draft writes, revision-set history/listing, reject/restore, and raw revision inspection are historical or authoring operations and therefore do not require an active generation;
+- retrieval-derived outputs such as chunks/evidence returned for product use, graph reads, timeline reads, and grounded chat must filter to the relevant document's `active_index_generation_id` by default;
+- approve and retry operations validate generation state transitions, idempotency, and capability rules without hiding historical revision metadata;
+- historical and superseded revision access still requires authentication, patient permission, and the relevant capability grants such as `document_revision.view_raw` or `superseded_evidence.read`.
+
+Every write API requires `Idempotency-Key`; `PATCH` draft page and `POST` draft submit also require `If-Match: <lock_version>`.
 
 | Method and path | Normative contract |
 |---|---|
 | `POST /api/v1/documents/upload-sessions` | Creates a `pending_upload` session and immutable object key; returns `201` with upload metadata and the conditional PUT requirements. |
 | `POST /api/v1/documents/{document_id}/uploads/{upload_id}/finalize` | Performs HEAD, SHA-256, byte-size, magic-byte MIME, and malware/quarantine checks, then atomically finalizes only a verified object; returns `202` when verification/finalization is queued or `201` when the finalized source is committed. |
-| `GET /api/v1/documents/{document_id}/revision-sets` | Lists revision sets visible to the caller, including status, author, timestamps, approval state, and generation lineage. |
-| `GET /api/v1/documents/{document_id}/revision-sets/{revision_set_id}` | Returns the selected revision set, page revisions, geometry alignment status, approval data, and accessible evidence. |
+| `GET /api/v1/documents/{document_id}/revision-sets` | Lists revision sets visible to the caller, including status, author, timestamps, approval state, and generation lineage, even when no active generation exists yet. |
+| `GET /api/v1/documents/{document_id}/revision-sets/{revision_set_id}` | Returns the selected historical or current revision set, page revisions, geometry alignment status, approval data, and only the evidence the caller is authorized to inspect for that revision path. |
 | `PATCH /api/v1/documents/{document_id}/draft/pages/{page_number}` | Saves a new immutable page revision and conditionally advances `document_draft_heads`; requires `If-Match` and returns `201`. |
 | `POST /api/v1/documents/{document_id}/draft/submit` | Freezes the current page selection as a revision set; requires `If-Match`, records the submit audit event, and returns `201`. |
-| `POST /api/v1/documents/{document_id}/revision-sets/{revision_set_id}/approve` | Requires `document_revision.approve`, creates a `building` generation, and returns `202`; production rejects `editor_id == approver_id`. |
+| `POST /api/v1/documents/{document_id}/revision-sets/{revision_set_id}/approve` | Requires `document_revision.approve`, validates the revision set and generation state transition, changes the revision set to `building`, creates a `building` generation, and returns `202`; production rejects `editor_id == approver_id`. |
 | `POST /api/v1/documents/{document_id}/revision-sets/{revision_set_id}/reject` | Requires `document_revision.reject`, records the reason and audit event, and returns `200`. |
 | `POST /api/v1/documents/{document_id}/revision-sets/{revision_set_id}/restore` | Requires `document_revision.restore`, creates a new child revision selection rather than mutating history, and returns `202` if generation work is queued. |
-| `POST /api/v1/documents/{document_id}/index-generations/{generation_id}/retry` | Requires retry authorization, creates a new `building` generation linked to the same revision set, preserves the old active pointer, and returns `202`. |
+| `POST /api/v1/documents/{document_id}/index-generations/{generation_id}/retry` | Requires retry authorization, validates the existing generation state, creates a new `building` generation linked to the same revision set, preserves the old active pointer, and returns `202`. |
 | `GET /api/v1/documents/{document_id}/graph` | Returns filtered patient-scoped graph entities, mentions, assertions, and evidence from the active generation; filters are defined in section 11.6. |
 | `GET /api/v1/documents/{document_id}/timeline` | Returns filtered patient-scoped timeline events from the active generation; filters are defined in section 11.6. |
 
@@ -1227,7 +1250,7 @@ Migration is ordered and gated:
 8. Replace direct page/chunk deletion with generation supersession and pointer-only rollback.
 9. Update chat citations and evidence UI before enabling revision switching.
 
-Rollback changes only `active_index_generation_id` to a previously verified generation. It does not delete a generation, rewrite revision history, or auto-approve real data. Only synthetic/demo records that explicitly satisfy the migration policy may be approved by migration automation.
+Rollback is pointer-only in the sense that it performs no rebuild, deletion, or rewrite of stored data. The rollback transaction must atomically move `active_index_generation_id` to a previously verified target generation, mark that target generation `active`, and mark the previously serving generation `superseded`. It does not delete a generation, rewrite revision history, mutate derived rows, or auto-approve real data. Only synthetic/demo records that explicitly satisfy the migration policy may be approved by migration automation.
 
 ---
 

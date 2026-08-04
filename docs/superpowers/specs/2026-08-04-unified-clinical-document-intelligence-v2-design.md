@@ -1247,7 +1247,7 @@ Migration is ordered and gated:
 5. Run backfill, citation, retrieval, wrong-patient, and superseded-generation parity checks.
 6. Preserve the legacy read path until those checks pass and the active-generation filters return equivalent results for legacy synthetic documents.
 7. Enable active-generation filters, then enable editor and approval workflows.
-8. Replace direct page/chunk deletion with generation supersession and pointer-only rollback.
+8. Replace direct page/chunk deletion with generation supersession and atomic pointer/state rollback.
 9. Update chat citations and evidence UI before enabling revision switching.
 
 Rollback is pointer-only in the sense that it performs no rebuild, deletion, or rewrite of stored data. The rollback transaction must atomically move `active_index_generation_id` to a previously verified target generation, mark that target generation `active`, and mark the previously serving generation `superseded`. It does not delete a generation, rewrite revision history, mutate derived rows, or auto-approve real data. Only synthetic/demo records that explicitly satisfy the migration policy may be approved by migration automation.

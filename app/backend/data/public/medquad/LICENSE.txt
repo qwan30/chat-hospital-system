@@ -1,0 +1,10 @@
+MedQuAD GARD evaluation sample
+
+The XML files in `sample/` are selected, unmodified documents from the official MedQuAD repository by Asma Ben Abacha and Pierre Zweigenbaum.
+
+Upstream repository: abachaa/MedQuAD
+Pinned commit: 577bd37b96c02d1833b2c9eed2de9f96964e96cb
+License: Creative Commons Attribution 4.0 International (CC BY 4.0)
+License reference: https://creativecommons.org/licenses/by/4.0/
+
+Attribution must be preserved when this material is copied or redistributed. The application code and other project assets remain governed by their own applicable licenses.

@@ -755,15 +755,15 @@ Graph RAG must support five explicit jobs:
 
 ### 11.1 Graph model
 
-Graph data is patient-scoped and generation-scoped. The normative tables are:
+Graph data is patient-scoped. Canonical identity and canonical relation records are not keyed to a single generation, because one patient-scoped entity or relation may remain supported by multiple authorized documents across different approved revision generations. Generation lineage remains attached to source-bearing mention and evidence rows, and active reads must evaluate those rows against the active generation of each authorized source document. The normative tables are:
 
 #### `graph_entities`
 
-- `id`, `patient_id`, `active_generation_id`;
+- `id`, `patient_id`;
 - canonical entity type, normalized label, and lifecycle status;
 - created and updated timestamps.
 
-A canonical entity is not allowed to contain a single source as its only provenance. It may represent the same clinical concept across multiple documents, extraction runs, or approved revisions, but each source must be recorded in mentions or relation evidence.
+A canonical entity is not allowed to contain a single source pointer as its only provenance. It may represent the same clinical concept across multiple documents, extraction runs, approved revisions, and active generations for the same patient, but each supporting source must be recorded in `graph_mentions` or `graph_relation_evidence`. Canonical entity identity is therefore patient-scoped, while provenance is source-scoped.
 
 #### `graph_mentions`
 
@@ -773,9 +773,11 @@ A canonical entity is not allowed to contain a single source as its only provena
 
 #### `graph_relation_assertions`
 
-- `id`, `patient_id`, `generation_id`;
+- `id`, `patient_id`;
 - subject and object entity IDs, relation type, normalized value, confidence, effective/observed dates, and status;
 - assertion extraction run/model and created timestamp.
+
+A canonical relation assertion is patient-scoped and may aggregate multiple independent evidence sources over time. It must not store a single active generation pointer. An assertion is active for normal product reads only when at least one authorized `graph_relation_evidence` row for that assertion survives active-generation filtering.
 
 #### `graph_relation_evidence`
 
@@ -783,7 +785,14 @@ A canonical entity is not allowed to contain a single source as its only provena
 - source document, revision set, page revision, chunk, text offsets, polygon/alignment status, and evidence locator;
 - independent provenance source identity, confidence, and status.
 
-All four tables reject cross-patient links. Multiple independent mentions and relation-evidence rows for a canonical entity or assertion remain separately addressable, so canonicalization never erases provenance. Active graph reads include only the document’s `active_index_generation_id`; superseded data is readable only through the `superseded_evidence.read` capability and patient permission.
+All four tables reject cross-patient links. Multiple independent mentions and relation-evidence rows for a canonical entity or assertion remain separately addressable, so canonicalization never erases provenance. Active graph reads must:
+
+1. limit candidate source documents to documents the caller is authorized to read for the patient;
+2. join each `graph_mentions.generation_id` and `graph_relation_evidence.generation_id` to the `active_index_generation_id` of that same source document;
+3. surface canonical entities only when at least one authorized mention survives that per-document active-generation check;
+4. surface canonical relation assertions only when at least one authorized evidence row survives that same per-document active-generation check.
+
+Superseded mentions and relation-evidence rows remain stored for audit lineage, but they are excluded from default retrieval, graph exploration, timeline generation, and chat enrichment even when the canonical entity or assertion remains active through newer evidence. Reading superseded evidence requires both patient permission and `superseded_evidence.read`, and is restricted to the audit capability path rather than normal active graph views.
 
 ### 11.2 Explainability
 
@@ -854,7 +863,7 @@ Graph evidence is fused with lexical/vector candidates, deduplicated, permission
 
 The normative read contracts are:
 
-- `GET /api/v1/documents/{document_id}/graph`: returns only patient-authorized entities, mentions, relation assertions, and relation evidence from the active generation by default. It accepts `node_limit`, `edge_limit`, `hop_depth`, `entity_types`, `relation_types`, `min_confidence`, `document_scope`, `approved_revision_set_id`, `date_from`, `date_to`, `layout`, and `include_superseded`; the last option requires `superseded_evidence.read` in addition to patient permission.
+- `GET /api/v1/documents/{document_id}/graph`: returns only patient-authorized entities, mentions, relation assertions, and relation evidence that survive per-source active-generation filtering by default. Canonical entities and assertions may span multiple authorized source documents, but every returned mention or evidence row must match the `active_index_generation_id` of its own source document unless the audit-only superseded path is explicitly requested. It accepts `node_limit`, `edge_limit`, `hop_depth`, `entity_types`, `relation_types`, `min_confidence`, `document_scope`, `approved_revision_set_id`, `date_from`, `date_to`, `layout`, and `include_superseded`; the last option requires `superseded_evidence.read` in addition to patient permission and must mark superseded rows as audit-only evidence.
 - `GET /api/v1/documents/{document_id}/timeline`: returns patient-authorized events from the active generation, with `approved_revision_set_id`, `date_from`, `date_to`, `event_types`, and `include_superseded` filters under the same capability gate.
 
 Neither endpoint accepts a patient identifier that can broaden the document scope. Wrong-patient and superseded-generation rows are filtered before serialization and before any graph result is passed to chat.

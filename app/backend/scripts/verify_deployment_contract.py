@@ -30,6 +30,8 @@ REQUIRED_FILES = (
     "docs/10-deployment/env-variables.md",
     "docs/10-deployment/ci-cd.md",
     "docs/10-deployment/release-checklist.md",
+    "docs/10-deployment/vps-operations.md",
+    "docs/10-deployment/vps-preflight-evidence.md",
 )
 
 
@@ -70,6 +72,18 @@ def _forbid(
         violations.append(ContractViolation(code, f"forbidden text present: {needle}", path))
 
 
+def _require_pending_row(text: str, check_name: str, path: str, violations: list[ContractViolation]) -> None:
+    row_prefix = f"| PENDING — operator evidence required | {check_name} |"
+    if row_prefix not in text:
+        violations.append(
+            ContractViolation(
+                "missing_preflight_row",
+                f"missing required preflight evidence row for: {check_name}",
+                path,
+            )
+        )
+
+
 def _has_public_mapping(compose: str, container_port: str) -> bool:
     """Return true only for a Compose host:container mapping, not a URL/healthcheck."""
 
@@ -90,9 +104,17 @@ def _frontend_secret_leaks(root: Path) -> list[str]:
     if not frontend_root.is_dir():
         return []
 
+    scan_roots = [frontend_root / "src", frontend_root / "public"]
+    scan_files = [frontend_root / "index.html"]
     leaks: list[str] = []
-    for path in frontend_root.rglob("*"):
-        if not path.is_file() or ignored_parts.intersection(path.parts):
+    paths_to_scan: list[Path] = []
+    for directory in scan_roots:
+        if directory.is_dir():
+            paths_to_scan.extend(path for path in directory.rglob("*") if path.is_file())
+    paths_to_scan.extend(path for path in scan_files if path.is_file())
+
+    for path in paths_to_scan:
+        if ignored_parts.intersection(path.parts):
             continue
         try:
             content = path.read_text(encoding="utf-8")
@@ -118,6 +140,8 @@ def validate_deployment_contract(root: Path | None = None) -> list[ContractViola
     env_docs = files["docs/10-deployment/env-variables.md"]
     ci_cd_docs = files["docs/10-deployment/ci-cd.md"]
     release_checklist = files["docs/10-deployment/release-checklist.md"]
+    vps_ops = files["docs/10-deployment/vps-operations.md"]
+    vps_evidence = files["docs/10-deployment/vps-preflight-evidence.md"]
 
     for forbidden in ("\n  nginx:", "\n  ollama:", "HOSPITAL_AI_OLLAMA_BASE_URL", "localhost:11434"):
         _forbid(compose, forbidden, "infra/docker-compose.yml", violations)
@@ -162,10 +186,144 @@ def validate_deployment_contract(root: Path | None = None) -> list[ContractViola
     _require(deployment_guide, "4 GB", "docs/10-deployment/deployment-guide.md", violations)
     _require(env_docs, "Supabase is not part", "docs/10-deployment/env-variables.md", violations)
     _require(env_docs, "The VPS does not run Ollama", "docs/10-deployment/env-variables.md", violations)
+    _require(env_docs, "VITE_API_URL=/api", "docs/10-deployment/env-variables.md", violations)
+    _require(
+        env_docs,
+        "Vite rewrites that local path to `/api/v1` in development.",
+        "docs/10-deployment/env-variables.md",
+        violations,
+    )
+    _require(
+        env_docs,
+        "VITE_API_URL=https://api-preview.example.com/api/v1",
+        "docs/10-deployment/env-variables.md",
+        violations,
+    )
+    _require(
+        env_docs,
+        "HOSPITAL_AI_CORS_ORIGINS=https://preview-app.example.com",
+        "docs/10-deployment/env-variables.md",
+        violations,
+    )
+    _require(
+        env_docs,
+        "VITE_API_URL=https://api.example.com/api/v1",
+        "docs/10-deployment/env-variables.md",
+        violations,
+    )
+    _require(
+        env_docs,
+        "HOSPITAL_AI_CORS_ORIGINS=https://app.example.com",
+        "docs/10-deployment/env-variables.md",
+        violations,
+    )
+    _require(
+        env_docs,
+        "Preview domains must be explicitly approved and added to the backend CORS",
+        "docs/10-deployment/env-variables.md",
+        violations,
+    )
+    for forbidden in ("HOSPITAL_AI_CORS_ORIGINS=*", "Access-Control-Allow-Origin: *", "allow any origin"):
+        _forbid(env_docs, forbidden, "docs/10-deployment/env-variables.md", violations, code="wildcard_cors")
     _require(ci_cd_docs, "DOKPLOY_DEPLOY_HOOK_URL", "docs/10-deployment/ci-cd.md", violations)
     _require(ci_cd_docs, "DOKPLOY_ROLLBACK_HOOK_URL", "docs/10-deployment/ci-cd.md", violations)
     _require(release_checklist, "verify_deployment_contract.py", "docs/10-deployment/release-checklist.md", violations)
     _require(release_checklist, "synthetic/de-identified", "docs/10-deployment/release-checklist.md", violations)
+    _require(
+        vps_ops,
+        "Repository validation is static only;",
+        "docs/10-deployment/vps-operations.md",
+        violations,
+    )
+    _require(
+        vps_ops,
+        "The route remains UNVERIFIED until an operator captures candidate-specific evidence.",
+        "docs/10-deployment/vps-operations.md",
+        violations,
+    )
+    _require(
+        vps_ops,
+        "VITE_API_URL=https://<API_DOMAIN>/api/v1",
+        "docs/10-deployment/vps-operations.md",
+        violations,
+    )
+    _require(
+        vps_ops,
+        "HOSPITAL_AI_CORS_ORIGINS=https://<VERCEL_FRONTEND_ORIGIN>",
+        "docs/10-deployment/vps-operations.md",
+        violations,
+    )
+    for needle in (
+        "cat /etc/os-release",
+        "free -h",
+        'df -h "<VPS_DATA_MOUNT>"',
+        "swapon --show",
+        "ufw status numbered",
+        "ss -ltnp",
+        "docker --version",
+        "docker compose version",
+        'docker manifest inspect "ghcr.io/<GHCR_NAMESPACE>/<IMAGE_NAME>:sha-<CANDIDATE_SHA>"',
+        'curl --fail --silent --show-error "https://<API_DOMAIN>/api/v1/health"',
+    ):
+        _require(vps_ops, needle, "docs/10-deployment/vps-operations.md", violations)
+    _require(
+        vps_evidence,
+        "Every row in this template starts as `PENDING — operator evidence required`.",
+        "docs/10-deployment/vps-preflight-evidence.md",
+        violations,
+    )
+    _require(
+        vps_evidence,
+        "| Status | Check | Command | Expected result | Operator-captured value | Timestamp | Owner |",
+        "docs/10-deployment/vps-preflight-evidence.md",
+        violations,
+    )
+    _require(
+        vps_evidence,
+        "<CANDIDATE_SHA>",
+        "docs/10-deployment/vps-preflight-evidence.md",
+        violations,
+    )
+    _require(
+        vps_evidence,
+        "<CI_RUN_ID>",
+        "docs/10-deployment/vps-preflight-evidence.md",
+        violations,
+    )
+    _require(
+        vps_evidence,
+        "repository validation is static only and does not prove",
+        "docs/10-deployment/vps-preflight-evidence.md",
+        violations,
+    )
+    for check_name in (
+        "Candidate SHA pinned",
+        "CI Run ID recorded",
+        "Synthetic/de-identified data only",
+        "OS and version",
+        "RAM headroom",
+        "Disk headroom",
+        "Swap configured or absent",
+        "SSH key access",
+        "Firewall policy",
+        "Listener review for 22/80/443/3000",
+        "Docker server version",
+        "Docker Compose version",
+        "Dokploy installed",
+        "Dokploy domain and HTTPS route",
+        "GitHub source connection",
+        "GHCR candidate image access",
+        "Secret key presence only",
+        "Vercel `VITE_API_URL` route",
+        "Backend CORS allowlist for Vercel origin",
+        "API health route from the approved domain",
+    ):
+        _require_pending_row(
+            vps_evidence,
+            check_name,
+            "docs/10-deployment/vps-preflight-evidence.md",
+            violations,
+        )
 
     for leak in _frontend_secret_leaks(repo_root):
         violations.append(ContractViolation("frontend_secret_leak", leak, "app/frontend"))

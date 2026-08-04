@@ -150,6 +150,8 @@ def test_deployment_contract_cli_reports_invalid_fixture(tmp_path):
         "docs/10-deployment/env-variables.md",
         "docs/10-deployment/ci-cd.md",
         "docs/10-deployment/release-checklist.md",
+        "docs/10-deployment/vps-operations.md",
+        "docs/10-deployment/vps-preflight-evidence.md",
     ]
     for relative in required_paths:
         target = tmp_path / relative
@@ -160,6 +162,22 @@ def test_deployment_contract_cli_reports_invalid_fixture(tmp_path):
     compose_path.write_text(
         compose_path.read_text(encoding="utf-8").replace(
             '    expose:\n      - "8000"', '    ports:\n      - "8000:8000"'
+        ),
+        encoding="utf-8",
+    )
+    env_docs_path = tmp_path / "docs" / "10-deployment" / "env-variables.md"
+    env_docs_path.write_text(
+        env_docs_path.read_text(encoding="utf-8").replace(
+            "HOSPITAL_AI_CORS_ORIGINS=https://app.example.com",
+            "HOSPITAL_AI_CORS_ORIGINS=*",
+        ),
+        encoding="utf-8",
+    )
+    evidence_path = tmp_path / "docs" / "10-deployment" / "vps-preflight-evidence.md"
+    evidence_path.write_text(
+        evidence_path.read_text(encoding="utf-8").replace(
+            "| PENDING — operator evidence required | Vercel `VITE_API_URL` route |",
+            "| VERIFIED | Vercel `VITE_API_URL` route |",
         ),
         encoding="utf-8",
     )
@@ -175,3 +193,5 @@ def test_deployment_contract_cli_reports_invalid_fixture(tmp_path):
     payload = json.loads(result.stdout)
     assert payload["valid"] is False
     assert any(item["code"] == "public_port" for item in payload["violations"])
+    assert any(item["code"] == "wildcard_cors" for item in payload["violations"])
+    assert any(item["code"] == "missing_preflight_row" for item in payload["violations"])

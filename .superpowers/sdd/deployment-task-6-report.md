@@ -1,0 +1,57 @@
+# Task 6 report - VPS and Dokploy preflight contract
+
+Status: DONE
+
+## What I implemented
+
+- Expanded `docs/10-deployment/vps-operations.md` into a placeholder-only,
+  auditable preflight runbook for VPS and Dokploy operators.
+- Added `docs/10-deployment/vps-preflight-evidence.md` with a required-evidence
+  table for candidate SHA, CI Run ID, synthetic/de-identified data, OS/version,
+  RAM, disk, swap, SSH key access, firewall, ports `22/80/443/3000`, Docker,
+  Docker Compose, Dokploy, GitHub, GHCR, secret-key presence, CORS, and the
+  Vercel-to-API route.
+- Extended `app/backend/scripts/verify_deployment_contract.py` so repository
+  validation now requires:
+  - the new preflight runbook and evidence template;
+  - explicit frontend API-base and CORS documentation;
+  - no wildcard CORS contract text;
+  - explicit external-boundary / UNVERIFIED language;
+  - deterministic, repository-only validation with unchanged exit semantics
+    (`0` valid, `2` invalid, `--json` supported).
+- Extended `app/backend/tests/test_deployment_contracts.py` with an invalid
+  fixture that breaks the new CORS and preflight-row invariants.
+
+## Files changed
+
+- `docs/10-deployment/vps-operations.md`
+- `docs/10-deployment/vps-preflight-evidence.md`
+- `app/backend/scripts/verify_deployment_contract.py`
+- `app/backend/tests/test_deployment_contracts.py`
+- `.superpowers/sdd/deployment-task-6-report.md`
+
+## Test commands and results
+
+- `python -m pytest --noconftest tests/test_deployment_contracts.py`
+  - Result: `8 passed in 0.83s`
+- `python app/backend/scripts/verify_deployment_contract.py --json`
+  - Result: `{"valid": true, "violations": []}`
+- `ruff check app/backend/scripts/verify_deployment_contract.py app/backend/tests/test_deployment_contracts.py`
+  - Result: passed
+- `ruff format --check app/backend/scripts/verify_deployment_contract.py app/backend/tests/test_deployment_contracts.py`
+  - Result: passed after formatting the validator file once with `ruff format`
+- Docs sanity check:
+  - Command: inline Python check for required markers plus pending evidence rows
+  - Result: `docs sanity ok: 20 pending rows`
+- `git diff --check`
+  - Result: passed (only CRLF normalization warnings from git)
+
+## Notes
+
+- An initial run of `python -m pytest tests/test_deployment_contracts.py`
+  loaded the repository `conftest.py` and failed in this local environment
+  because `cryptography` is not installed. The focused Task 6 file itself passed
+  cleanly with `--noconftest`, which avoids unrelated backend fixture loading.
+- No live provisioning, VPS mutation, Dokploy installation, DNS change, GHCR
+  login, R2 check, backup/restore proof, or runtime proof was performed or is
+  claimed by this task.

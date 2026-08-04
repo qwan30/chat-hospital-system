@@ -1,4 +1,4 @@
-"""Contracts for immutable public data vendored with the backend."""
+"""Public-source provenance and explicit local-artifact integrity contracts."""
 
 from .registry import (
     PublicDataSource,

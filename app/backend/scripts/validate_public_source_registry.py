@@ -1,4 +1,4 @@
-"""Validate public datasets committed directly to the repository."""
+"""Validate an explicitly selected public-source registry and its local artifacts."""
 
 from __future__ import annotations
 
@@ -24,25 +24,25 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--data-root",
         type=Path,
-        default=BACKEND_ROOT / "data",
-        help="backend data root containing the public registry and artifacts",
+        required=True,
+        help="root directory that contains the explicitly registered local artifacts",
     )
     parser.add_argument(
         "--registry",
         type=Path,
-        help="registry path; defaults to <data-root>/public/sources.json",
+        required=True,
+        help="path to a source registry; no repository-wide default is assumed",
     )
     args = parser.parse_args(argv)
-    registry_path = args.registry or args.data_root / "public" / "sources.json"
     validation_error, validate = _load_validator()
 
     try:
-        results = validate(args.data_root, registry_path)
+        results = validate(args.data_root, args.registry)
     except (validation_error, OSError, TypeError, ValueError) as error:
-        print(f"invalid vendored public data: {error}", file=sys.stderr)
+        print(f"invalid public-source registry: {error}", file=sys.stderr)
         return 2
 
-    print(f"vendored public data is valid: {len(results)} artifact(s)")
+    print(f"public-source registry is valid: {len(results)} local artifact(s)")
     return 0
 
 

@@ -35,21 +35,6 @@ def test_public_knowledge_is_quarantined_and_has_no_patient_identity():
     assert all(artifact.patient_id is None for artifact in manifest.quarantined_public_artifacts)
 
 
-def test_vendored_public_evaluation_data_is_approved_but_not_patient_data():
-    manifest = build_corpus_manifest(DATA_ROOT)
-
-    approved = manifest.approved_public_artifacts
-    assert len(approved) == 5
-    assert all(artifact.kind == "public_evaluation_dataset" for artifact in approved)
-    assert all(artifact.patient_id is None for artifact in approved)
-    assert all(artifact.license_status == "CC-BY-4.0" for artifact in approved)
-    assert all(artifact.provenance_status == "pinned-public-source" for artifact in approved)
-    assert all(artifact.canonical_relative_path.startswith("public/medquad/sample/2_GARD_QA/") for artifact in approved)
-    assert not {artifact.canonical_relative_path for artifact in approved} & {
-        artifact.canonical_relative_path for artifact in manifest.quarantined_public_artifacts
-    }
-
-
 def test_manifest_is_deterministic_and_excludes_nested_duplicate_files():
     first = build_corpus_manifest(DATA_ROOT)
     second = build_corpus_manifest(DATA_ROOT)

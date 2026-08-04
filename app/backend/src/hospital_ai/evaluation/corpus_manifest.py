@@ -12,17 +12,14 @@ from uuid import UUID
 
 from pydantic import BaseModel, root_validator, validator
 
-from hospital_ai.data_sources.registry import load_source_registry, validate_vendored_sources
-
 _SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
 _MRN_RE = re.compile(r"patient_MRN(\d{4})_")
 _PATIENT_KINDS = {"patient_document", "patient_lab"}
-_PUBLIC_KINDS = {"public_guideline", "public_drug", "public_evaluation_dataset"}
+_PUBLIC_KINDS = {"public_guideline", "public_drug"}
 _CANONICAL_DOCUMENTS = "patients_documents"
 _CANONICAL_LABS = "patients_labs"
 _INGESTION_METADATA = "metadata/ingestion_metadata.jsonl"
 _PATIENT_SEED = "metadata/generated_patients_seed.csv"
-_PUBLIC_REGISTRY = "public/sources.json"
 
 
 class CorpusManifestValidationError(ValueError):
@@ -64,7 +61,6 @@ class SourceArtifact(BaseModel):
         "patient_lab",
         "public_guideline",
         "public_drug",
-        "public_evaluation_dataset",
         "duplicate",
     ]
     patient_id: UUID | None = None
@@ -111,7 +107,6 @@ class CorpusManifestV2(BaseModel):
     schema_version: Literal["2.0"] = "2.0"
     corpus_version: str = "synthetic-100-v2"
     artifacts: tuple[SourceArtifact, ...] = ()
-    approved_public_artifacts: tuple[SourceArtifact, ...] = ()
     quarantined_public_artifacts: tuple[SourceArtifact, ...] = ()
     excluded_duplicate_artifacts: tuple[SourceArtifact, ...] = ()
 
@@ -134,7 +129,6 @@ def _mime_type_for_path(relative_path: str) -> str:
         ".csv": "text/csv",
         ".md": "text/markdown",
         ".jsonl": "application/x-ndjson",
-        ".xml": "application/xml",
     }.get(suffix, "application/octet-stream")
 
 
@@ -255,35 +249,6 @@ def _public_artifact(relative_path: str, path: Path) -> SourceArtifact:
     )
 
 
-def _approved_public_artifacts(data_root: Path) -> tuple[SourceArtifact, ...]:
-    registry_path = data_root / _PUBLIC_REGISTRY
-    validate_vendored_sources(data_root, registry_path)
-    registry = load_source_registry(registry_path)
-    artifacts: list[SourceArtifact] = []
-
-    for source in registry.sources:
-        for artifact in source.artifacts:
-            path = data_root / artifact.vendored_path
-            artifacts.append(
-                SourceArtifact(
-                    source_sha256=_source_hash(path),
-                    canonical_relative_path=artifact.vendored_path,
-                    kind="public_evaluation_dataset",
-                    patient_id=None,
-                    mime_type=artifact.media_type,
-                    document_type="evaluation_fixture",
-                    generator=f"vendored:{source.source_id}",
-                    generator_version=source.upstream.commit_sha,
-                    provenance_status="pinned-public-source",
-                    license_status=source.license.spdx_id,
-                    access_tags=("approved", "evaluation-only", "public"),
-                    locator=EvidenceLocator(source_path=artifact.vendored_path),
-                )
-            )
-
-    return tuple(sorted(artifacts, key=lambda item: item.canonical_relative_path))
-
-
 def _validate_canonical_inventory(data_root: Path) -> tuple[list[Path], list[Path]]:
     documents = sorted((data_root / _CANONICAL_DOCUMENTS).glob("*.pdf"))
     labs = sorted((data_root / _CANONICAL_LABS).glob("*.csv"))
@@ -314,8 +279,6 @@ def build_corpus_manifest(data_root: Path) -> CorpusManifestV2:
     if len({artifact.patient_id for artifact in artifacts}) != 100:
         raise CorpusManifestValidationError("canonical patient artifacts must represent exactly 100 patients")
 
-    approved = _approved_public_artifacts(root)
-
     public_paths = sorted(
         [_relative_path(root, path) for path in (root / "guidelines").rglob("*") if path.is_file()]
         + [_relative_path(root, root / "drugs" / "drug_interaction_matrix.csv")]
@@ -325,17 +288,14 @@ def build_corpus_manifest(data_root: Path) -> CorpusManifestV2:
     quarantined = tuple(_public_artifact(relative_path, root / relative_path) for relative_path in public_paths)
 
     canonical_by_hash = {
-        artifact.source_sha256: artifact.canonical_relative_path for artifact in artifacts + approved + quarantined
+        artifact.source_sha256: artifact.canonical_relative_path for artifact in artifacts + quarantined
     }
-    reserved_paths = (
-        set(canonical_paths) | set(public_paths) | {artifact.canonical_relative_path for artifact in approved}
-    )
     duplicate_artifacts: list[SourceArtifact] = []
     for path in sorted(root.rglob("*")):
         if not path.is_file():
             continue
         relative_path = _relative_path(root, path)
-        if relative_path in reserved_paths:
+        if relative_path in canonical_paths or relative_path in public_paths:
             continue
         source_sha256 = _source_hash(path)
         duplicate_of = canonical_by_hash.get(source_sha256)
@@ -362,7 +322,6 @@ def build_corpus_manifest(data_root: Path) -> CorpusManifestV2:
 
     return CorpusManifestV2(
         artifacts=artifacts,
-        approved_public_artifacts=approved,
         quarantined_public_artifacts=quarantined,
         excluded_duplicate_artifacts=tuple(duplicate_artifacts),
     )

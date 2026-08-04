@@ -112,7 +112,6 @@ jobs:
           IMAGE_REF: ${{ steps.release.outputs.image_ref }}
         run: |
           set -euo pipefail
-          docker manifest inspect "$IMAGE_REF" > /dev/null
           MANIFEST_JSON=$(docker buildx imagetools inspect "$IMAGE_REF" --format '{{json .Manifest}}')
           DIGEST=$(jq -er '.digest | select(test("^sha256:[0-9a-f]{64}$"))' <<<"$MANIFEST_JSON")
           if [[ ! "$DIGEST" =~ ^sha256:[0-9a-f]{64}$ ]]; then
@@ -143,6 +142,7 @@ jobs:
         run: |
           set -euo pipefail
           payload=$(jq -cn \
+            --arg action "deploy" \
             --arg environment "$TARGET_ENVIRONMENT" \
             --arg image "$IMAGE_REF" \
             --arg image_tag "$IMAGE_TAG" \
@@ -150,7 +150,7 @@ jobs:
             --arg repository "$REPOSITORY" \
             --arg workflow_run_id "$WORKFLOW_RUN_ID" \
             --arg staging_smoke_run_id "$STAGING_SMOKE_RUN_ID" \
-            '{"action":"deploy",environment:$environment,image:$image,image_tag:$image_tag,source_sha:$source_sha,repository:$repository,workflow_run_id:$workflow_run_id,staging_smoke_run_id:$staging_smoke_run_id}')
+            '{action:$action,environment:$environment,image:$image,image_tag:$image_tag,source_sha:$source_sha,repository:$repository,workflow_run_id:$workflow_run_id,staging_smoke_run_id:$staging_smoke_run_id}')
           curl --fail-with-body --silent --show-error --retry 2 --max-time 30 \
             -X POST -H 'Content-Type: application/json' \
             --data "$payload" "$DOKPLOY_DEPLOY_HOOK_URL"

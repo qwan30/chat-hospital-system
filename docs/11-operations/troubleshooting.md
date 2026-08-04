@@ -1,92 +1,96 @@
 # Troubleshooting Guide
 
-> Project: HOSP-AI-001 · Version: 1.0 · Owner: DevOps Lead · Last Updated: 2026-06-14  
+> Project: HOSP-AI-001 · Version: 2.1 · Owner: DevOps Lead · Last Updated: 2026-08-04
 
 ## 1. Backend Issues
 
 ### API returns 500
-1. Check logs for trace_id
-2. Verify DB: `poetry run alembic current`
-3. Verify Redis: `redis-cli PING`
-4. Verify Ollama: `curl localhost:11434/api/tags`
-5. Check disk: `df -h`
 
-### Chat returns "no evidence" for everything
-1. Check embedding provider is `ollama` (not `deterministic`)
-2. Verify documents indexed: `SELECT status, count(*) FROM documents GROUP BY status`
-3. Check evidence threshold not too high (>0.5)
-4. Run RAG eval: `poetry run python scripts/run_rag_eval.py`
+1. Inspect backend logs and trace ID.
+2. Check database revision with `docker compose -f infra/docker-compose.yml exec backend alembic current`.
+3. Check Redis with `docker compose -f infra/docker-compose.yml exec redis redis-cli PING`.
+4. Validate `HOSPITAL_AI_CHAT_PROVIDER` and provider credentials.
+5. Check disk and memory pressure.
 
-### Migrations fail
-1. `poetry run alembic current` → check state
-2. If stuck: `poetry run alembic stamp <revision>`
-3. Fresh start: drop DB → create → `alembic upgrade head` → `seed_dev.py`
+### Chat returns no evidence
 
-## 2. Frontend Issues
+1. Verify the embedding provider and API key.
+2. Confirm documents reached the indexed state.
+3. Inspect `document-indexing` queue depth and failures.
+4. Check retrieval threshold and run the deterministic RAG evaluation.
 
-### CORS errors
-1. Verify `HOSPITAL_AI_CORS_ORIGINS` includes frontend origin
-2. Check frontend API base URL config
+## 2. Dokploy and Traefik
 
-### No data in pages
-1. Check browser console for API errors
-2. Verify JWT present + valid
-3. Check Network tab for 401/403
-4. Verify user permissions: `SELECT * FROM patient_permissions WHERE user_id='<uuid>'`
+### 502 Bad Gateway
 
-## 3. LLM / Ollama
+Check container health, backend logs, route target, and port `8000`. Confirm the deployed image matches the release record digest.
 
-### Ollama not responding
+### TLS or route failure
+
+Inspect Traefik certificate renewal, DNS, route mapping, and Let's Encrypt limits.
+
+## 3. Gemini and DeepSeek
+
+Check provider status, API key validity, quota/balance, and outbound network connectivity. Reduce concurrency or context size only after identifying provider throttling or latency as the cause.
+
+## 4. R2 Storage
+
+### Upload or download failure
+
+Check endpoint, bucket, credentials, object key, network connectivity, and provider status. When the R2 backend is selected, there is **no automatic local-document failover**. Do not assume `storage-data` contains a complete recoverable copy.
+
+For confirmed loss or corruption, restore from the independently maintained off-host backup into a separate bucket or prefix, validate checksums, and then perform the approved recovery cutover.
+
+## 5. HMS JWKS Authentication
+
+When authentication fails, check HMS IdP status, DNS, TLS, issuer, audience, algorithm configuration, and the JWKS endpoint. The service fails closed when validation cannot be completed. Restore the configured RS256/JWKS path; do not change signing algorithms during an outage.
+
+## 6. RQ Worker
+
+The worker consumes `document-indexing` and `cdss-analysis`.
+
 ```bash
-curl http://localhost:11434/api/tags  # Check
-systemctl restart ollama              # Restart
-ollama list                           # Models
+for queue in document-indexing cdss-analysis; do
+  docker compose -f infra/docker-compose.yml exec -T redis \
+    redis-cli LLEN "rq:queue:${queue}"
+done
+
+for queue in document-indexing cdss-analysis; do
+  docker compose -f infra/docker-compose.yml exec -T worker \
+    python -c "from redis import Redis; from rq.registry import FailedJobRegistry; r=Redis.from_url('redis://redis:6379/0'); print('${queue}', FailedJobRegistry('${queue}', connection=r).count)"
+done
 ```
 
-### Too slow / OOM
-1. Use smaller model: `HOSPITAL_AI_CHAT_MODEL=qwen2.5:3b`
-2. Limit concurrency
-3. `ollama ps` → check resource usage
+If jobs are stuck, inspect worker logs, job payloads, provider errors, and Redis connectivity before retrying or restarting.
 
-## 4. Database
+## 7. Resource Exhaustion
 
-### Connection pool exhausted
-1. `SELECT count(*) FROM pg_stat_activity`
-2. Increase pool size in DB URL
-3. Check for connection leaks
-
-### pgvector not working
-1. `SELECT * FROM pg_extension WHERE extname='vector'`
-2. `SELECT * FROM pg_indexes WHERE tablename='document_chunks'`
-3. `REINDEX INDEX <index_name>`
-
-## 5. RQ Worker
-
-### Jobs stuck
 ```bash
-rq info --url redis://localhost:6379/0          # Status
-rq info --url redis://localhost:6379/0 --failed # Failed jobs
+df -h
+free -h
+docker stats --no-stream
+docker system df
 ```
 
-### Worker not processing
-1. `ps aux | grep run_worker`
-2. Check Redis: `redis-cli PING`
-3. Check worker logs
-4. Kill + restart worker process
+Identify the actual consumer. Preserve current and rollback image digests. Remove only expired backups, disposable logs, stopped containers, or confirmed unused images after review.
 
-## 6. Quick Diagnostics
+## 8. Quick Diagnostics
 
 ```bash
-curl localhost:8000/api/v1/health         # API
-curl localhost:11434/api/tags              # Ollama
-redis-cli PING                             # Redis
-poetry run alembic current                 # Database
-rq info --url redis://localhost:6379/0    # Queue
-df -h                                      # Disk
-free -m                                    # Memory
+curl --fail --show-error --connect-timeout 10 --max-time 20 https://<PLACEHOLDER_DOMAIN>/api/v1/health
+docker compose -f infra/docker-compose.yml exec redis redis-cli PING
+docker compose -f infra/docker-compose.yml exec backend alembic current
+docker compose -f infra/docker-compose.yml logs --tail=100 backend worker
+df -h
+free -h
+docker stats --no-stream
+docker system df
 ```
 
 ## Change Log
+
 | Version | Date | Author | Change |
-|---------|------|--------|--------|
-| 1.0 | 2026-06-14 | Agent | Troubleshooting: backend, frontend, LLM, DB, worker, diagnostics |
+|---|---|---|---|
+| 1.0 | 2026-06-14 | Agent | Initial troubleshooting guide |
+| 2.0 | 2026-08-04 | Agent | Dokploy/R2/provider update |
+| 2.1 | 2026-08-04 | Agent | Correct queue, R2, JWKS, and disk procedures |

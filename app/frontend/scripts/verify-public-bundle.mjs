@@ -1,7 +1,9 @@
+import { spawn } from "node:child_process";
 import { access, mkdtemp, mkdir, readdir, readFile, rm, writeFile } from "node:fs/promises";
 import { constants as fsConstants } from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { pathToFileURL } from "node:url";
 
 const DEFAULT_TARGET = path.resolve(import.meta.dirname, "..", ".vercel", "output");
 const BACKEND_ONLY_MARKERS = [
@@ -68,6 +70,38 @@ export async function scanPublicBundle(targetDir = DEFAULT_TARGET) {
     fileCount: files.length,
     violations,
   };
+}
+
+async function runCli(targetDir, options = {}) {
+  const frontendRoot = path.resolve(import.meta.dirname, "..");
+  const cliScriptPath = path.relative(frontendRoot, path.resolve(import.meta.dirname, "verify-public-bundle.mjs"));
+
+  return new Promise((resolve, reject) => {
+    const child = spawn(process.execPath, [cliScriptPath, targetDir], {
+      cwd: frontendRoot,
+      stdio: ["ignore", "pipe", "pipe"],
+      ...options,
+    });
+
+    let stdout = "";
+    let stderr = "";
+
+    child.stdout.on("data", (chunk) => {
+      stdout += chunk.toString();
+    });
+    child.stderr.on("data", (chunk) => {
+      stderr += chunk.toString();
+    });
+    child.on("error", reject);
+    child.on("close", (code, signal) => {
+      resolve({
+        code,
+        signal,
+        stdout,
+        stderr,
+      });
+    });
+  });
 }
 
 async function runSelfTest() {
@@ -138,6 +172,26 @@ async function runSelfTest() {
       }
     }
 
+    const failingCliDir = path.join(tempRoot, "failing-cli");
+    await mkdir(failingCliDir, { recursive: true });
+    await writeFile(
+      path.join(failingCliDir, "env.js"),
+      "window.__ENV__='HOSPITAL_AI_DATABASE_URL=leak';",
+      "utf8",
+    );
+
+    const cliSmokeResult = await runCli(failingCliDir);
+    const cliOutput = `${cliSmokeResult.stdout}\n${cliSmokeResult.stderr}`;
+    if (cliSmokeResult.code !== 2) {
+      throw new Error(`Scanner self-test failed: CLI smoke test exited ${cliSmokeResult.code} instead of 2.`);
+    }
+    if (!cliOutput.includes(path.resolve(failingCliDir))) {
+      throw new Error("Scanner self-test failed: CLI smoke test did not report the scanned path.");
+    }
+    if (!cliOutput.includes("HOSPITAL_AI_DATABASE_URL")) {
+      throw new Error("Scanner self-test failed: CLI smoke test did not report the offending marker.");
+    }
+
     let missingFailed = false;
     try {
       await scanPublicBundle(path.join(tempRoot, "missing"));
@@ -156,6 +210,7 @@ async function runSelfTest() {
       safeResult,
       failingNameResult,
       failingValueResult,
+      cliSmokeResult,
     };
   } finally {
     await rm(tempRoot, { recursive: true, force: true });
@@ -183,7 +238,15 @@ export async function main(argv = process.argv.slice(2)) {
   return result;
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+function isDirectExecution(entryArg = process.argv[1]) {
+  if (!entryArg) {
+    return false;
+  }
+
+  return import.meta.url === pathToFileURL(path.resolve(entryArg)).href;
+}
+
+if (isDirectExecution()) {
   main().catch((error) => {
     console.error(error instanceof Error ? error.message : String(error));
     process.exit(1);

@@ -1,6 +1,7 @@
 # Deployment Task 5 Report
 
 Date: 2026-08-03
+Last updated: 2026-08-04
 Branch: `feat/deployment-tasks-5-6`
 Base: `062ed94`
 
@@ -56,9 +57,9 @@ Focused tests:
 Scanner checks:
 
 - `node scripts/verify-public-bundle.mjs --self-test`
-  - Result: pass
+  - Original 2026-08-03 claim is superseded by the 2026-08-04 Windows CLI fix evidence below.
 - `node scripts/verify-public-bundle.mjs .vercel/output`
-  - Result: pass after local build
+  - Original 2026-08-03 claim is superseded by the 2026-08-04 Windows CLI fix evidence below.
 
 Frontend verification:
 
@@ -78,13 +79,27 @@ Frontend verification:
 
 ## Result
 
-Task 5 implementation is complete and locally verified.
+Task 5 implementation is complete for the repository-side contract, with the
+Windows CLI evidence refreshed on 2026-08-04. No external deployment is
+claimed.
 
 ## Review-fix evidence
 
-- Reviewer finding addressed: the public-bundle scanner now fails on backend-only database and Redis names as well as backend connection-value markers.
-- Scanner marker coverage preserved for backend-only R2, LLM, HMS, and JWT names while adding explicit `HOSPITAL_AI_DATABASE_URL`, `HOSPITAL_AI_REDIS_URL`, and broad `redis://` value detection.
-- `docs/10-deployment/env-variables.md` is now internally consistent with the actual local frontend port `8082` in both the Core table and the `.env` template, while preserving the documented local `/api` -> `/api/v1`, preview, production, and explicit CORS allowlist contract.
+- Final-review Critical issue addressed on 2026-08-04: the CLI entrypoint is no
+  longer a silent no-op on Windows. Direct execution now uses a resolved
+  `pathToFileURL(path.resolve(process.argv[1]))` comparison, so
+  `node scripts/verify-public-bundle.mjs ...` actually runs cross-platform.
+- The dependency-free self-test now includes a real subprocess smoke test of
+  the documented CLI path from `app/frontend`, pointed at a temporary failing
+  bundle containing `HOSPITAL_AI_DATABASE_URL`. The self-test asserts child
+  exit code `2` and output containing both the scanned path and offending
+  marker.
+- Recursive scanning, backend-only name/value marker detection, and explicit
+  missing-target failure behavior are preserved.
+- Earlier 2026-08-03 scanner claims were stale on Windows because the direct
+  CLI entrypoint check did not execute there. The fresh 2026-08-04 results
+  below supersede those two CLI lines only. Other 2026-08-03 Task 5 evidence in
+  this report was not re-run by this final-review worker.
 
 Focused review-fix verification:
 
@@ -96,9 +111,29 @@ Focused review-fix verification:
     - backend-only DB/Redis value markers are detected
     - backend-only R2/LLM/HMS/JWT name markers remain detected
     - missing-target failure remains explicit
-- Reviewer repro:
-  - command: temporary failing fixture with `HOSPITAL_AI_DATABASE_URL`, `HOSPITAL_AI_REDIS_URL`, `postgresql+asyncpg://...`, and `redis://...` scanned via `node scripts/verify-public-bundle.mjs <temp-dir>`
-  - expected/result: exit code `2` with the scanned path and offending markers reported
+    - documented CLI path is exercised in a real child process and fails with
+      exit code `2`, the scanned path, and `HOSPITAL_AI_DATABASE_URL`
+- `node scripts/verify-public-bundle.mjs .vercel/output`
+  - Result: pass
+  - Fresh output: `Public bundle scan passed:
+    D:\projects\chatbot-hospital-system\app\frontend\.vercel\output (413
+    files)`
+- Manual reviewer repro from `app/frontend`
+  - Command shape: `node scripts/verify-public-bundle.mjs <temp-dir>`
+  - Fixture: temporary failing directory containing `env.js` with
+    `HOSPITAL_AI_DATABASE_URL=leak`
+  - Result: exit code `2`
+  - Output included:
+    - scanned temp directory path
+    - offending marker `HOSPITAL_AI_DATABASE_URL`
+
+Additional scope note:
+
+- This final-review worker changed only
+  `app/frontend/scripts/verify-public-bundle.mjs` and
+  `.superpowers/sdd/deployment-task-5-report.md`.
+- No build was re-run here; the existing `.vercel/output` directory was scanned
+  exactly as requested.
 
 Final contract correction:
 

@@ -54,11 +54,20 @@ jobs:
       - name: Validate vendored artifact integrity offline
         run: python scripts/validate_vendored_public_data.py
 
-      - name: Run public-data and corpus-manifest contracts
+      - name: Run public-data contracts without global DB fixtures
         env:
           PYTHONPATH: src
         run: >-
           python -m pytest
           tests/data_sources/test_vendored_public_data.py
+          --confcutdir=tests/data_sources
+          -v --tb=short
+
+      - name: Run corpus-manifest contracts without global DB fixtures
+        env:
+          PYTHONPATH: src
+        run: >-
+          python -m pytest
           tests/evaluation/test_corpus_manifest.py
+          --confcutdir=tests/evaluation
           -v --tb=short

@@ -588,6 +588,20 @@ jobs:
     timeout-minutes: 5
     needs: [changes]
     if: ${{ needs.changes.outputs.infra == 'true' || github.event_name != 'pull_request' }}
+    env:
+      BACKEND_IMAGE: ghcr.io/example/hospital-ai-backend:sha-0000000
+      POSTGRES_PASSWORD: synthetic-only
+      HOSPITAL_AI_R2_ENDPOINT: https://r2.example.invalid
+      HOSPITAL_AI_R2_BUCKET: synthetic-bucket
+      HOSPITAL_AI_R2_ACCESS_KEY_ID: synthetic-only
+      HOSPITAL_AI_R2_SECRET_ACCESS_KEY: synthetic-only
+      HOSPITAL_AI_GEMINI_API_KEY: synthetic-only
+      HOSPITAL_AI_OPENAI_API_KEY: synthetic-only
+      HOSPITAL_AI_JWT_ISSUER: https://issuer.example.invalid
+      HOSPITAL_AI_JWT_AUDIENCE: synthetic-audience
+      HOSPITAL_AI_JWKS_URL: https://issuer.example.invalid/.well-known/jwks.json
+      HOSPITAL_AI_JWT_HMAC_SECRET: synthetic-only
+      HOSPITAL_AI_HMS_API_KEY: synthetic-only
 
     steps:
       - name: Checkout

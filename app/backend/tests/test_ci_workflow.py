@@ -1,4 +1,5 @@
 import os
+from pathlib import Path
 
 import yaml
 
@@ -45,6 +46,26 @@ def test_ci_workflow_parsing_and_structure():
 
 def _step_by_name(job: dict, name: str) -> dict:
     return next(step for step in job.get("steps", []) if step.get("name") == name)
+
+
+def test_compose_validation_uses_synthetic_required_backend_image():
+    workflow_path = Path(__file__).resolve().parents[3] / ".github" / "workflows" / "ci.yml"
+    workflow = yaml.safe_load(workflow_path.read_text(encoding="utf-8"))
+    validation_job = workflow["jobs"]["validate-observability"]
+
+    assert validation_job.get("env", {}).get("BACKEND_IMAGE") == ("ghcr.io/example/hospital-ai-backend:sha-0000000")
+    assert _step_by_name(validation_job, "Validate docker-compose.yml")["run"] == (
+        "docker compose -f infra/docker-compose.yml config --quiet"
+    )
+    assert _step_by_name(validation_job, "Validate docker-compose.observability.yml")["run"] == (
+        "docker compose -f infra/docker-compose.yml -f infra/docker-compose.observability.yml config --quiet"
+    )
+    assert set(workflow["jobs"]["docker-push"]["needs"]) == {
+        "backend-test",
+        "backend-migration",
+        "frontend-test",
+        "validate-observability",
+    }
 
 
 def test_ai_evaluation_ci_uses_source_backed_runner_and_publishes_artifacts():

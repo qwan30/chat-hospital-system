@@ -12,7 +12,7 @@
 5. Check disk: `df -h`
 
 ### Chat returns "no evidence" for everything
-1. Check embedding provider is `ollama` (not `deterministic`)
+1. Check embedding provider is `gemini` (not `deterministic`)
 2. Verify documents indexed: `SELECT status, count(*) FROM documents GROUP BY status`
 3. Check evidence threshold not too high (>0.5)
 4. Run RAG eval locally or via container.

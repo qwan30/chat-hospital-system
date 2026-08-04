@@ -109,7 +109,50 @@ missing, the requested rollback fails closed before any external request is
 made. A 2xx response means the rollback handoff was accepted; it does not
 claim that the running service has recovered.
 
-## Required environment secrets
+## Release record
+
+The CD workflow automatically records a structured release record in the GitHub Actions step summary. This record serves as canonical evidence for a deployment:
+
+| Field | Source |
+|---|---|
+| Environment | Workflow input or derived from trigger |
+| Git SHA | Full 40-character commit SHA |
+| Image Reference | `ghcr.io/<repository-owner>/hospital-ai-backend:sha-<short-sha>` |
+| Image Digest | SHA-256 digest from `docker manifest inspect` |
+| Migration Revision | Recorded by operator after external verification |
+| Smoke Test | Recorded by staging smoke test job or operator |
+| Workflow Run | GitHub Actions run ID |
+| Timestamp | UTC timestamp at record creation |
+
+The migration revision and smoke test fields are initially recorded as pending external verification because they depend on Dokploy completing the deployment asynchronously. Operators must record the finalized values in their deployment evidence log after completion.
+
+## Staging smoke test
+
+The `smoke-test` job in the CD workflow runs automatically after a successful staging deployment handoff:
+
+- It runs only for staging deployments where the deploy hook was actually called.
+- It waits 30 seconds for deployment to propagate, then retries the health check with exponential backoff (30s, 60s, 120s, 240s, 480s) up to 5 attempts.
+- It validates the target endpoint at `<DOKPLOY_APP_URL>/api/v1/health`.
+- The job is advisory (`continue-on-error: true`) and records success or failure directly in the GitHub Actions step summary without failing the pipeline.
+
+## Production promotion
+
+Production promotion remains strictly manual until staging smoke tests pass:
+
+1. CI builds, tests, scans, and pushes an immutable GHCR image (`sha-<short-sha>`).
+2. CD auto-deploys to staging (if the deploy hook is configured).
+3. The staging smoke test runs and records its validation result.
+4. An operator verifies staging health, authentication, R2 document access, background worker job completion, Gemini API connectivity, and SSE chat streaming.
+5. The operator records the migration revision and smoke test result in the release evidence.
+6. The operator manually dispatches the CD workflow with `environment=production`, supplying the validated immutable tag and source SHA.
+7. The production environment enforces GitHub environment protection rules requiring explicit manual approval.
+8. Upon approval, the production deploy hook fires and the operator records production verification evidence separately.
+
+`latest`, branch names, or floating tags are never accepted as release identities.
+
+## Required environment secrets and variables
+
+### Required environment secrets
 
 Store these as GitHub Actions environment secrets, not repository files or
 workflow literals:
@@ -125,6 +168,16 @@ No hook URL, token, API key, SSH credential, registry credential, or backend
 runtime secret belongs in Git. Backend runtime credentials remain configured
 only in the backend/worker Dokploy environment. The workflow uses GitHub's
 environment-scoped secret value only at request time and does not print it.
+
+### Required environment variables
+
+Configure these as GitHub Actions environment variables (not secrets):
+
+| Environment | Variable | Use |
+|---|---|---|
+| `staging` | `DOKPLOY_APP_URL` | Staging application base URL for smoke test health checks |
+
+**Note on GHCR access:** The CI workflow uses `GITHUB_TOKEN` for GHCR image pushes (automatic for same-organization repositories). If the container registry or repository is private, Dokploy requires a read-only GHCR token or registry credential configured externally within its deployment controls.
 
 ## Verification boundary
 

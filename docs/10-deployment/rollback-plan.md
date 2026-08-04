@@ -40,6 +40,11 @@ Never use `latest`, an unqualified branch name, or another floating tag as a
 rollback target. Verify that the requested image exists in GHCR and record its
 full reference before changing Dokploy.
 
+Rollback changes the immutable image reference for backend and worker together;
+it does not rebuild on the VPS and does not use the source clone. The selected
+image must remain compatible with the already-applied database schema, and the
+migration revision must be recorded with the rollback evidence.
+
 The Task 2 rollback handoff is a separate contract from the normal deploy
 handoff. The rollback workflow must pass the validated immutable backend image
 reference and environment to a separately configured Dokploy rollback hook

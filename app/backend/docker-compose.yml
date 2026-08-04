@@ -1,3 +1,6 @@
+# Developer-only local Compose file. Not for Dokploy/VPS deployment.
+# Task 7 staging uses infra/docker-compose.yml with a GitHub-built GHCR image.
+
 services:
   postgres:
     image: pgvector/pgvector:pg15

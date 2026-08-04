@@ -26,12 +26,55 @@ REQUIRED_FILES = (
     ".github/workflows/cd.yml",
     ".github/workflows/rollback.yml",
     "infra/docker-compose.yml",
+    "infra/docker-compose.local-build.yml",
+    "docker-compose.yml",
+    "app/backend/docker-compose.yml",
+    "app/backend/.dockerignore",
     "docs/10-deployment/deployment-guide.md",
     "docs/10-deployment/env-variables.md",
     "docs/10-deployment/ci-cd.md",
     "docs/10-deployment/release-checklist.md",
     "docs/10-deployment/vps-operations.md",
     "docs/10-deployment/vps-preflight-evidence.md",
+)
+
+LOCAL_ONLY_COMPOSE_FILES = (
+    "docker-compose.yml",
+    "app/backend/docker-compose.yml",
+)
+LOCAL_ONLY_COMPOSE_MARKER = "Developer-only local Compose file. Not for Dokploy/VPS deployment."
+
+BACKEND_IMAGE_EXPRESSION = "${BACKEND_IMAGE:?BACKEND_IMAGE must be set to an immutable GHCR image reference}"
+IMMUTABLE_BACKEND_IMAGE_PATTERN = re.compile(
+    r"^ghcr\.io/[^/:\s]+/hospital-ai-backend:sha-[0-9a-f]{7}$"
+    r"|^ghcr\.io/[^/:\s]+/hospital-ai-backend@sha256:[0-9a-f]{64}$"
+)
+TASK_7_MEMORY_LIMITS = {
+    "postgres": "768m",
+    "redis": "256m",
+    "backend": "768m",
+    "worker": "1024m",
+}
+TASK_7_WORKER_HEALTHCHECK = 'healthcheck:\n      test: ["CMD", "python", "-c", "import os; os.kill(1, 0)"]'
+TASK_7_DOCKERIGNORE_ENTRIES = (
+    ".git",
+    ".venv/",
+    "venv/",
+    "__pycache__/",
+    ".pytest_cache/",
+    ".ruff_cache/",
+    ".mypy_cache/",
+    "tests/",
+    "data/",
+    "local_storage/",
+    "uploads/",
+    "*.log",
+    "coverage/",
+    "htmlcov/",
+    "dist/",
+    "build/",
+    "docs/",
+    ".env*",
 )
 
 EVIDENCE_PENDING_STATUS = "PENDING — operator evidence required"
@@ -53,6 +96,12 @@ REQUIRED_PREFLIGHT_CHECKS = (
     "Dokploy domain and HTTPS route",
     "GitHub source connection",
     "GHCR candidate image access",
+    "Candidate image pulled",
+    "Migration revision recorded",
+    "Backend and worker use same image",
+    "Container health after rollout",
+    "Container memory evidence",
+    "Synthetic runtime smoke",
     "Secret key presence only",
     "Vercel `VITE_API_URL` route",
     "Backend CORS allowlist for Vercel origin",
@@ -267,6 +316,142 @@ def _has_public_mapping(compose: str, container_port: str) -> bool:
     return bool(mapping.search(compose))
 
 
+def _compose_service_block(compose: str, service: str) -> str:
+    pattern = rf"(?ms)^  {re.escape(service)}:\n(?P<body>.*?)(?=^  [A-Za-z0-9_-]+:\n|\Z)"
+    match = re.search(pattern, compose)
+    return match.group("body") if match else ""
+
+
+def _validate_local_compose_boundaries(files: dict[str, str], violations: list[ContractViolation]) -> None:
+    for relative_path in LOCAL_ONLY_COMPOSE_FILES:
+        _require(
+            files[relative_path],
+            LOCAL_ONLY_COMPOSE_MARKER,
+            relative_path,
+            violations,
+            code="local_compose_boundary",
+        )
+
+
+def _validate_task_7_compose_contract(
+    compose: str,
+    local_build: str,
+    dockerignore: str,
+    violations: list[ContractViolation],
+) -> None:
+    if re.search(r"(?m)^    build:\s*$", compose):
+        violations.append(
+            ContractViolation(
+                "production_build",
+                "production Compose must not contain a backend build stanza",
+                "infra/docker-compose.yml",
+            )
+        )
+
+    service_images: dict[str, str] = {}
+    for service in ("backend", "worker"):
+        block = _compose_service_block(compose, service)
+        match = re.search(r"(?m)^\s+image:\s*(.+?)\s*$", block)
+        if match:
+            service_images[service] = match.group(1)
+        if not match or match.group(1) != BACKEND_IMAGE_EXPRESSION:
+            violations.append(
+                ContractViolation(
+                    "required_backend_image",
+                    f"{service} must require BACKEND_IMAGE with the immutable image expression",
+                    "infra/docker-compose.yml",
+                )
+            )
+
+    if len(service_images) == 2 and service_images["backend"] != service_images["worker"]:
+        violations.append(
+            ContractViolation(
+                "image_mismatch",
+                "backend and worker must use the identical BACKEND_IMAGE expression",
+                "infra/docker-compose.yml",
+            )
+        )
+
+    if any(needle in compose for needle in ("latest", "IMAGE_TAG", "IMAGE_PREFIX", "${BACKEND_IMAGE:-")):
+        violations.append(
+            ContractViolation(
+                "floating_backend_image",
+                "production Compose must not contain a floating backend image fallback",
+                "infra/docker-compose.yml",
+            )
+        )
+
+    for service, memory_limit in TASK_7_MEMORY_LIMITS.items():
+        block = _compose_service_block(compose, service)
+        if f"mem_limit: {memory_limit}" not in block:
+            violations.append(
+                ContractViolation(
+                    "missing_memory_limit",
+                    f"{service} must declare mem_limit: {memory_limit}",
+                    "infra/docker-compose.yml",
+                )
+            )
+
+    worker_block = _compose_service_block(compose, "worker")
+    if TASK_7_WORKER_HEALTHCHECK not in worker_block:
+        violations.append(
+            ContractViolation(
+                "missing_worker_healthcheck",
+                "worker must expose a process-liveness healthcheck for rollout gating",
+                "infra/docker-compose.yml",
+            )
+        )
+
+    for service in ("backend", "worker"):
+        block = _compose_service_block(local_build, service)
+        if not re.search(r"(?m)^\s+build:\s*$", block):
+            violations.append(
+                ContractViolation(
+                    "missing_local_build_override",
+                    f"local build override is missing a build stanza for {service}",
+                    "infra/docker-compose.local-build.yml",
+                )
+            )
+    for needle in ("context: ../app/backend", "dockerfile: Dockerfile"):
+        if needle not in local_build:
+            violations.append(
+                ContractViolation(
+                    "missing_local_build_override",
+                    f"local build override is missing: {needle}",
+                    "infra/docker-compose.local-build.yml",
+                )
+            )
+    if local_build.count("hospital-ai-backend:local") < 2:
+        violations.append(
+            ContractViolation(
+                "missing_local_build_override",
+                "local build override must use hospital-ai-backend:local for backend and worker",
+                "infra/docker-compose.local-build.yml",
+            )
+        )
+
+    for entry in TASK_7_DOCKERIGNORE_ENTRIES:
+        if entry not in dockerignore:
+            violations.append(
+                ContractViolation(
+                    "dockerignore_contract",
+                    f"backend .dockerignore is missing: {entry}",
+                    "app/backend/.dockerignore",
+                )
+            )
+
+
+def _validate_backend_image_reference(reference: str, violations: list[ContractViolation]) -> None:
+    if not IMMUTABLE_BACKEND_IMAGE_PATTERN.fullmatch(reference):
+        violations.append(
+            ContractViolation(
+                "invalid_backend_image",
+                "backend image must be an immutable GHCR sha-<7-hex> tag or sha256 digest",
+                "BACKEND_IMAGE",
+            )
+        )
+
+
 def _frontend_secret_leaks(root: Path) -> list[str]:
     ignored_parts = {".git", "node_modules", ".next", "dist", "coverage", "__pycache__"}
     frontend_root = root / "app/frontend"
@@ -291,7 +476,7 @@ def _frontend_secret_leaks(root: Path) -> list[str]:
     return leaks
 
 
-def validate_deployment_contract(root: Path | None = None) -> list[ContractViolation]:
+def validate_deployment_contract(root: Path | None = None, backend_image: str | None = None) -> list[ContractViolation]:
     """Return deterministic repository contract violations."""
 
     repo_root = find_repo_root(root)
@@ -299,6 +484,8 @@ def validate_deployment_contract(root: Path | None = None) -> list[ContractViola
     files = {relative: _read(repo_root, relative, violations) for relative in REQUIRED_FILES}
 
     compose = files["infra/docker-compose.yml"]
+    local_build = files["infra/docker-compose.local-build.yml"]
+    dockerignore = files["app/backend/.dockerignore"]
     cd_workflow = files[".github/workflows/cd.yml"]
     rollback_workflow = files[".github/workflows/rollback.yml"]
     deployment_guide = files["docs/10-deployment/deployment-guide.md"]
@@ -308,6 +495,7 @@ def validate_deployment_contract(root: Path | None = None) -> list[ContractViola
     vps_ops = files["docs/10-deployment/vps-operations.md"]
     vps_evidence = files["docs/10-deployment/vps-preflight-evidence.md"]
 
+    _validate_local_compose_boundaries(files, violations)
     for forbidden in ("\n  nginx:", "\n  ollama:", "HOSPITAL_AI_OLLAMA_BASE_URL", "localhost:11434"):
         _forbid(compose, forbidden, "infra/docker-compose.yml", violations)
     _require(compose, 'expose:\n      - "8000"', "infra/docker-compose.yml", violations)
@@ -328,6 +516,9 @@ def validate_deployment_contract(root: Path | None = None) -> list[ContractViola
                     "public_port", f"public host mapping for port {port} is forbidden", "infra/docker-compose.yml"
                 )
             )
+    _validate_task_7_compose_contract(compose, local_build, dockerignore, violations)
+    if backend_image is not None:
+        _validate_backend_image_reference(backend_image, violations)
 
     for workflow_path, workflow in (
         (".github/workflows/cd.yml", cd_workflow),
@@ -427,7 +618,9 @@ def validate_deployment_contract(root: Path | None = None) -> list[ContractViola
         "ss -ltnp",
         "docker --version",
         "docker compose version",
-        'docker manifest inspect "ghcr.io/<GHCR_NAMESPACE>/<IMAGE_NAME>:sha-<CANDIDATE_SHA>"',
+        'docker manifest inspect "ghcr.io/<GHCR_NAMESPACE>/<IMAGE_NAME>:sha-<CANDIDATE_SHORT_SHA>"',
+        'python "<absolute-path-to-repository>/app/backend/scripts/verify_deployment_contract.py" '
+        '--backend-image "$BACKEND_IMAGE"',
         'curl --fail --silent --show-error "https://<API_DOMAIN>/api/v1/health"',
     ):
         _require(vps_ops, needle, "docs/10-deployment/vps-operations.md", violations)
@@ -446,6 +639,12 @@ def validate_deployment_contract(root: Path | None = None) -> list[ContractViola
     _require(
         vps_evidence,
         "<CANDIDATE_SHA>",
+        "docs/10-deployment/vps-preflight-evidence.md",
+        violations,
+    )
+    _require(
+        vps_evidence,
+        "<CANDIDATE_SHORT_SHA>",
         "docs/10-deployment/vps-preflight-evidence.md",
         violations,
     )
@@ -478,6 +677,10 @@ def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--repo-root", type=Path, help="repository root; defaults to auto-detection")
     parser.add_argument("--json", action="store_true", help="emit machine-readable JSON")
+    parser.add_argument(
+        "--backend-image",
+        help="candidate BACKEND_IMAGE to validate as an immutable GHCR tag or digest",
+    )
     return parser
 
 
@@ -485,7 +688,7 @@ def main(argv: list[str] | None = None) -> int:
     args = _parser().parse_args(argv)
     try:
         repo_root = find_repo_root(args.repo_root)
-        violations = validate_deployment_contract(repo_root)
+        violations = validate_deployment_contract(repo_root, args.backend_image)
     except (FileNotFoundError, OSError) as exc:
         violations = [ContractViolation("invalid_repository", str(exc), str(args.repo_root or ""))]
 

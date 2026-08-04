@@ -28,6 +28,18 @@ workflow can derive the same tag from the successful `workflow_run.head_sha`.
 The image digest is the strongest immutable identity when it is available;
 the `sha-<short-sha>` tag is the required human-readable handoff identity.
 
+The published image is scanned by Trivy for HIGH and CRITICAL findings before
+the release handoff artifact is written. A finding or scan failure fails the
+`docker-push` job and the CI summary; only the separate frontend E2E advisory
+remains non-blocking.
+
+The image is the only normal release artifact. Dokploy must set
+`BACKEND_IMAGE` to the exact tag or digest from the handoff. The one-off
+`alembic upgrade head` container, backend service, and worker service must all
+use that same candidate image. The VPS source clone is not a normal build
+input; `git pull`, `docker compose build`, and the local build override are
+developer-only operations.
+
 ## Deployment handoff
 
 `.github/workflows/cd.yml` sends a JSON POST to the selected environment's
@@ -64,6 +76,16 @@ rejected before the hook is called.
 Dokploy's webhook and auto-deploy configuration is external to this
 repository; configure it in Dokploy according to the [Dokploy auto-deploy
 documentation](https://docs.dokploy.com/docs/core/auto-deploy).
+
+## Migration and runtime evidence order
+
+The external Dokploy procedure verifies the immutable candidate and required
+key names, pulls the candidate image, runs `alembic upgrade head` as a one-off
+container, replaces backend and worker with the same image, waits for health,
+and runs synthetic/de-identified smoke checks for auth, R2, worker processing,
+Gemini, and SSE. Record the migration revision, image digest, source SHA, and
+runtime results together. A 2xx hook response does not prove any of these
+runtime steps.
 
 ## Rollback handoff
 

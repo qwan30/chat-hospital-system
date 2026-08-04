@@ -2,7 +2,7 @@
 
 > Project: AI-Powered Hospital Knowledge Assistant  
 > Project Code: HOSP-AI-001  
-> Version: 2.2
+> Version: 2.3
 > Status: In Sync  
 > Owner: DevOps / SRE / Tech Lead  
 > Last Updated: 2026-08-04
@@ -47,7 +47,7 @@ flowchart TD
 Dokploy/Traefik is the only public ingress for the VPS stack. PostgreSQL,
 Redis, the worker, and the backend port are private Compose services; no
 application Nginx service is required. The frontend remains on Vercel and
-sets `VITE_API_URL=https://api.<domain>`.
+sets `VITE_API_URL=https://api.<domain>/api/v1`.
 
 ---
 
@@ -64,6 +64,11 @@ For development, testing, and system demonstrations on standard laptops with a 1
 | **PyMuPDF / OCR** | CPU mode | PyMuPDF for text extraction; optional PaddleOCR for scanned documents (~10-15s per page on CPU). |
 | **Local LLM (optional)** | Ollama Qwen2.5 3B/7B Q4 Quantized | Local-only developer option; not installed on the Dokploy VPS. |
 | **TanStack Start Frontend**| Local dev server | Disable heavy compiler source mapping. |
+
+The repository's root and backend Compose files are pre-existing local
+development stacks and are explicitly marked `Not for Dokploy/VPS deployment`.
+For the Task 7 full local backend/worker stack, use the `infra` base file with
+the developer-only `infra/docker-compose.local-build.yml` override shown below.
 
 ---
 
@@ -101,9 +106,59 @@ HOSPITAL_AI_JWKS_URL
 HOSPITAL_AI_CORS_ORIGINS
 ```
 
-Set `BACKEND_IMAGE` to an immutable GHCR tag or digest for a release. The
-Compose `latest` fallback is only for local validation and must not be used as
-the release identity.
+Set `BACKEND_IMAGE` to an immutable GHCR tag or digest for a release. A
+floating tag is not a release identity.
+
+## 6. Task 7 GitHub-to-Dokploy image flow
+
+The normal staging control plane has one image construction authority:
+
+1. GitHub Actions runs backend tests, the migration check, frontend checks,
+   infrastructure checks, and the image scan.
+2. GitHub Actions builds `app/backend/Dockerfile`, publishes the backend image
+   to GHCR, and records the source SHA, `sha-<7-hex>` tag, image digest, and
+   workflow run ID.
+3. The CD workflow verifies the exact image reference and sends it to the
+   selected Dokploy deploy hook.
+4. Dokploy injects that exact value as `BACKEND_IMAGE` and runs the VPS stack.
+
+The VPS source clone is not a build input for this release path. Do not use
+`git pull`, `docker compose build`, or the local build override on the staging
+VPS. The developer-only local path is explicit:
+
+```powershell
+$env:BACKEND_IMAGE = "hospital-ai-backend:local"
+docker compose -f infra/docker-compose.yml -f infra/docker-compose.local-build.yml build backend worker
+```
+
+The 4 GB VPS profile has these initial service ceilings:
+
+| Service | `mem_limit` |
+|---|---:|
+| PostgreSQL | `768m` |
+| Redis | `256m` |
+| Backend | `768m` |
+| Worker | `1024m` |
+
+The combined ceiling is `2.75 GiB`, leaving headroom for the OS, Dokploy,
+Traefik, image pulls, and the one-off migration. Limits are guardrails, not
+proof of healthy runtime behavior; capture actual RAM, swap, disk, and
+`docker stats` evidence.
+
+For each candidate, Dokploy performs the controlled order below:
+
+1. Verify the immutable image tag or digest and required environment key names.
+2. Pull the candidate image and dependent base images.
+3. Run `alembic upgrade head` in a one-off backend container using the candidate
+   image.
+4. Start or replace backend and worker with the same image reference.
+5. Wait for container health and query `https://<API_DOMAIN>/api/v1/health`.
+6. Run synthetic/de-identified auth, R2, worker, Gemini, and SSE smoke checks.
+7. Record migration revision, runtime results, image digest, and source SHA.
+
+A successful GitHub hook response is only a handoff acknowledgement. The
+staging route remains `UNVERIFIED` until an operator records candidate-specific
+Dokploy/VPS evidence.
 
 ---
 
@@ -114,3 +169,4 @@ the release identity.
 | 2.0 | 2026-06-07 | Agent | Split into dedicated deployment guide and architecture-linked diagrams |
 | 2.1 | 2026-06-14 | Agent | Corrected services: Celery → RQ, PaddleOCR → PyMuPDF, removed Neo4j, Ollama-only → LLM Manager multi-provider |
 | 2.2 | 2026-08-04 | Agent | Freeze Vercel + Dokploy/Traefik + R2 + Gemini deployment contract; remove VPS Nginx/Ollama assumptions |
+| 2.3 | 2026-08-04 | Agent | Route Task 7 through GitHub-built immutable GHCR images and separate local builds from the VPS contract |

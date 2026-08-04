@@ -1,4 +1,5 @@
 import os
+from pathlib import Path
 
 import yaml
 
@@ -45,6 +46,49 @@ def test_ci_workflow_parsing_and_structure():
 
 def _step_by_name(job: dict, name: str) -> dict:
     return next(step for step in job.get("steps", []) if step.get("name") == name)
+
+
+def test_compose_validation_uses_synthetic_required_backend_image():
+    workflow_path = Path(__file__).resolve().parents[3] / ".github" / "workflows" / "ci.yml"
+    workflow_text = workflow_path.read_text(encoding="utf-8")
+    workflow = yaml.safe_load(workflow_text)
+    validation_job = workflow["jobs"]["validate-observability"]
+
+    assert "- 'infra/docker-compose.local-build.yml'" in workflow_text
+    assert "- 'app/backend/docker-compose.yml'" in workflow_text
+    assert "- 'app/backend/.dockerignore'" in workflow_text
+    assert validation_job.get("env", {}).get("BACKEND_IMAGE") == ("ghcr.io/example/hospital-ai-backend:sha-0000000")
+    assert _step_by_name(validation_job, "Validate docker-compose.yml")["run"] == (
+        "docker compose -f infra/docker-compose.yml config --quiet"
+    )
+    assert _step_by_name(validation_job, "Validate docker-compose.observability.yml")["run"] == (
+        "docker compose -f infra/docker-compose.yml -f infra/docker-compose.observability.yml config --quiet"
+    )
+    assert (
+        '--backend-image "$BACKEND_IMAGE"'
+        in _step_by_name(validation_job, "Validate repository deployment contract")["run"]
+    )
+    assert set(workflow["jobs"]["docker-push"]["needs"]) == {
+        "backend-test",
+        "backend-migration",
+        "frontend-test",
+        "validate-observability",
+    }
+
+
+def test_docker_image_scan_is_a_blocking_release_gate():
+    workflow_path = Path(__file__).resolve().parents[3] / ".github" / "workflows" / "ci.yml"
+    workflow_text = workflow_path.read_text(encoding="utf-8")
+    workflow = yaml.safe_load(workflow_text)
+    docker_push = workflow["jobs"]["docker-push"]
+    scan = _step_by_name(docker_push, "Scan backend image (Trivy)")
+    summary = _step_by_name(workflow["jobs"]["ci-summary"], "Check results")["run"]
+
+    assert scan.get("continue-on-error") is not True
+    assert scan["with"]["exit-code"] == 1
+    assert 'if [[ "$job" == "frontend-test" ]]' in summary
+    assert "FRONTEND_FAILED" in summary
+    assert "DOCKER_FAILED" not in summary
 
 
 def test_ai_evaluation_ci_uses_source_backed_runner_and_publishes_artifacts():

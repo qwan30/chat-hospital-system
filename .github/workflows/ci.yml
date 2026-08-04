@@ -100,9 +100,12 @@ jobs:
               - '.github/workflows/cd.yml'
             infra:
               - 'infra/docker-compose.yml'
+              - 'infra/docker-compose.local-build.yml'
               - 'infra/docker-compose.observability.yml'
               - 'infra/observability/**'
               - 'app/backend/Dockerfile'
+              - 'app/backend/docker-compose.yml'
+              - 'app/backend/.dockerignore'
               - 'app/backend/scripts/verify_deployment_contract.py'
               - 'app/frontend/Dockerfile'
               - 'docker-compose.yml'
@@ -588,6 +591,20 @@ jobs:
     timeout-minutes: 5
     needs: [changes]
     if: ${{ needs.changes.outputs.infra == 'true' || github.event_name != 'pull_request' }}
+    env:
+      BACKEND_IMAGE: ghcr.io/example/hospital-ai-backend:sha-0000000
+      POSTGRES_PASSWORD: synthetic-only
+      HOSPITAL_AI_R2_ENDPOINT: https://r2.example.invalid
+      HOSPITAL_AI_R2_BUCKET: synthetic-bucket
+      HOSPITAL_AI_R2_ACCESS_KEY_ID: synthetic-only
+      HOSPITAL_AI_R2_SECRET_ACCESS_KEY: synthetic-only
+      HOSPITAL_AI_GEMINI_API_KEY: synthetic-only
+      HOSPITAL_AI_OPENAI_API_KEY: synthetic-only
+      HOSPITAL_AI_JWT_ISSUER: https://issuer.example.invalid
+      HOSPITAL_AI_JWT_AUDIENCE: synthetic-audience
+      HOSPITAL_AI_JWKS_URL: https://issuer.example.invalid/.well-known/jwks.json
+      HOSPITAL_AI_JWT_HMAC_SECRET: synthetic-only
+      HOSPITAL_AI_HMS_API_KEY: synthetic-only
 
     steps:
       - name: Checkout
@@ -603,7 +620,7 @@ jobs:
         run: docker compose -f infra/docker-compose.yml -f infra/docker-compose.observability.yml config --quiet
 
       - name: Validate repository deployment contract
-        run: python app/backend/scripts/verify_deployment_contract.py
+        run: python app/backend/scripts/verify_deployment_contract.py --backend-image "$BACKEND_IMAGE"
 
   # ═══════════════════════════════════════════════════════════════════
   # Job 7: Docker build, Trivy scan & push to GHCR
@@ -689,14 +706,13 @@ jobs:
       # ── Scan backend image with Trivy ──
       - name: Scan backend image (Trivy)
         id: trivy-scan
-        continue-on-error: true
         uses: aquasecurity/trivy-action@v0.36.0
         with:
           image-ref: ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}-backend@${{ steps.backend-image.outputs.digest }}
           format: sarif
           output: trivy-backend.sarif
           severity: CRITICAL,HIGH
-          exit-code: 0
+          exit-code: 1
 
       - name: Upload backend Trivy results
         if: always() && steps.trivy-scan.outcome != 'skipped' && hashFiles('trivy-backend.sarif') != ''
@@ -764,21 +780,21 @@ jobs:
           )
 
           FAILED=0
-          DOCKER_FAILED=0
+          FRONTEND_FAILED=0
           for job in "${!jobs[@]}"; do
             result="${jobs[$job]}"
             icon="✅"
             if [[ "$result" == "failure" ]]; then
-              if [[ "$job" == "docker-push" || "$job" == "frontend-test" ]]; then icon="⚠️"; DOCKER_FAILED=1; else icon="❌"; FAILED=1; fi
+              if [[ "$job" == "frontend-test" ]]; then icon="⚠️"; FRONTEND_FAILED=1; else icon="❌"; FAILED=1; fi
               fi
             if [[ "$result" == "cancelled" ]]; then icon="⚠️"; fi
             echo "| $job | $icon $result |" >> "$GITHUB_STEP_SUMMARY"
           done
 
           if [[ $FAILED -eq 1 ]]; then
-            if [[ $DOCKER_FAILED -eq 1 ]]; then
+            if [[ $FRONTEND_FAILED -eq 1 ]]; then
               echo "" >> "$GITHUB_STEP_SUMMARY"
-              echo "⚠️ Docker/Trivy & Frontend E2E: advisory — does not block merge" >> "$GITHUB_STEP_SUMMARY"
+              echo "⚠️ Frontend E2E: advisory — does not block merge" >> "$GITHUB_STEP_SUMMARY"
             fi
 
             # The release lane requests every evaluation component and holds a
@@ -799,8 +815,8 @@ jobs:
             echo "❌ **Some jobs failed.** Check the logs above." >> "$GITHUB_STEP_SUMMARY"
             exit 1
           fi
-          if [[ $DOCKER_FAILED -eq 1 ]]; then
+          if [[ $FRONTEND_FAILED -eq 1 ]]; then
             echo "" >> "$GITHUB_STEP_SUMMARY"
-            echo "⚠️ **Docker/Trivy advisory step failed — all other checks passed.**" >> "$GITHUB_STEP_SUMMARY"
+            echo "⚠️ **Frontend E2E advisory step failed — all other checks passed.**" >> "$GITHUB_STEP_SUMMARY"
           fi
           echo "✅ **All CI jobs passed.** Ready for deployment." >> "$GITHUB_STEP_SUMMARY"

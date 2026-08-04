@@ -19,6 +19,10 @@ REQUIRED_DEPLOYMENT_PATHS = [
     ".github/workflows/cd.yml",
     ".github/workflows/rollback.yml",
     "infra/docker-compose.yml",
+    "infra/docker-compose.local-build.yml",
+    "docker-compose.yml",
+    "app/backend/docker-compose.yml",
+    "app/backend/.dockerignore",
     "docs/10-deployment/deployment-guide.md",
     "docs/10-deployment/env-variables.md",
     "docs/10-deployment/ci-cd.md",
@@ -38,7 +42,7 @@ VERIFIED_CANDIDATE_SHA_ROW = (
 )
 PENDING_SECRET_KEY_ROW = (
     "| PENDING — operator evidence required | Secret key presence only | "
-    "`printf '%s\\n' HOSPITAL_AI_DATABASE_URL HOSPITAL_AI_REDIS_URL "
+    "`printf '%s\\n' POSTGRES_PASSWORD "
     "HOSPITAL_AI_GEMINI_API_KEY HOSPITAL_AI_R2_ENDPOINT HOSPITAL_AI_R2_BUCKET "
     "HOSPITAL_AI_R2_ACCESS_KEY_ID HOSPITAL_AI_R2_SECRET_ACCESS_KEY "
     "HOSPITAL_AI_JWT_ISSUER HOSPITAL_AI_JWKS_URL HOSPITAL_AI_JWT_AUDIENCE` | "
@@ -69,9 +73,12 @@ def _copy_deployment_contract_fixture(tmp_path: Path) -> None:
         shutil.copy2(REPO_ROOT / relative, target)
 
 
-def _run_validator(repo_root: Path) -> subprocess.CompletedProcess[str]:
+def _run_validator(repo_root: Path, backend_image: str | None = None) -> subprocess.CompletedProcess[str]:
+    command = [sys.executable, str(DEPLOYMENT_VALIDATOR), "--repo-root", str(repo_root), "--json"]
+    if backend_image is not None:
+        command.extend(["--backend-image", backend_image])
     return subprocess.run(
-        [sys.executable, str(DEPLOYMENT_VALIDATOR), "--repo-root", str(repo_root), "--json"],
+        command,
         capture_output=True,
         text=True,
         check=False,
@@ -169,6 +176,109 @@ def test_deployment_files_match_settings_environment_names():
     assert "HOSPITAL_AI_R2_BUCKET" in deployment_docs
 
 
+def test_task_7_production_compose_is_image_only_and_bounded():
+    production = (REPO_ROOT / "infra" / "docker-compose.yml").read_text(encoding="utf-8")
+
+    assert "\n    build:" not in production
+    assert "BACKEND_IMAGE:?" in production
+    assert production.count("image: ${BACKEND_IMAGE:?") == 2
+    assert "postgres:\n    image: pgvector/pgvector:pg16\n    mem_limit: 768m" in production
+    assert "redis:\n    image: redis:7-alpine\n    mem_limit: 256m" in production
+    assert "mem_limit: 768m" in production
+    assert "mem_limit: 1024m" in production
+    assert 'test: ["CMD", "python", "-c", "import os; os.kill(1, 0)"]' in production
+
+
+def test_task_7_legacy_compose_files_are_explicitly_local_only():
+    marker = "Developer-only local Compose file. Not for Dokploy/VPS deployment."
+
+    for relative in ("docker-compose.yml", "app/backend/docker-compose.yml"):
+        compose = (REPO_ROOT / relative).read_text(encoding="utf-8")
+        assert marker in compose
+        assert "build:" in compose
+
+
+@pytest.mark.parametrize(
+    ("mutator", "expected_code"),
+    [
+        (
+            lambda text: text.replace(
+                "    image: ${BACKEND_IMAGE:?",
+                "    build:\n      context: ../app/backend\n    image: ${BACKEND_IMAGE:?",
+                1,
+            ),
+            "production_build",
+        ),
+        (
+            lambda text: text.replace(
+                "    image: ${BACKEND_IMAGE:?BACKEND_IMAGE must be set to an immutable GHCR image reference}",
+                "    image: ghcr.io/example/hospital-ai-backend:sha-0000000",
+                1,
+            ),
+            "required_backend_image",
+        ),
+        (
+            lambda text: text.replace(
+                "    image: ${BACKEND_IMAGE:?BACKEND_IMAGE must be set to an immutable GHCR image reference}",
+                "    image: ${BACKEND_IMAGE:-ghcr.io/example/hospital-ai-backend:latest}",
+                1,
+            ),
+            "floating_backend_image",
+        ),
+        (lambda text: text.replace("    mem_limit: 768m\n", "", 1), "missing_memory_limit"),
+    ],
+)
+def test_task_7_validator_rejects_production_contract_mutations(tmp_path, mutator, expected_code):
+    _copy_deployment_contract_fixture(tmp_path)
+    compose_path = tmp_path / "infra" / "docker-compose.yml"
+    compose_path.write_text(mutator(compose_path.read_text(encoding="utf-8")), encoding="utf-8")
+
+    result = _run_validator(tmp_path)
+
+    assert result.returncode == 2
+    payload = json.loads(result.stdout)
+    assert any(item["code"] == expected_code for item in payload["violations"])
+
+
+def test_task_7_validator_rejects_unmarked_legacy_local_compose(tmp_path):
+    _copy_deployment_contract_fixture(tmp_path)
+    compose_path = tmp_path / "docker-compose.yml"
+    compose_path.write_text(
+        compose_path.read_text(encoding="utf-8").replace(
+            "# Developer-only local Compose file. Not for Dokploy/VPS deployment.\n", ""
+        ),
+        encoding="utf-8",
+    )
+
+    result = _run_validator(tmp_path)
+
+    assert result.returncode == 2
+    payload = json.loads(result.stdout)
+    assert any(item["code"] == "local_compose_boundary" for item in payload["violations"])
+
+
+def test_task_7_validator_rejects_missing_worker_healthcheck(tmp_path):
+    _copy_deployment_contract_fixture(tmp_path)
+    compose_path = tmp_path / "infra" / "docker-compose.yml"
+    compose = compose_path.read_text(encoding="utf-8")
+    healthcheck = (
+        "    healthcheck:\n"
+        '      test: ["CMD", "python", "-c", "import os; os.kill(1, 0)"]\n'
+        "      interval: 30s\n"
+        "      timeout: 10s\n"
+        "      retries: 3\n"
+        "      start_period: 20s\n"
+    )
+    assert compose.count(healthcheck) == 1
+    compose_path.write_text(compose.replace(healthcheck, "", 1), encoding="utf-8")
+
+    result = _run_validator(tmp_path)
+
+    assert result.returncode == 2
+    payload = json.loads(result.stdout)
+    assert any(item["code"] == "missing_worker_healthcheck" for item in payload["violations"])
+
+
 def test_backend_dockerfile_uses_cloud_run_port_contract():
     dockerfile = (REPO_ROOT / "app" / "backend" / "Dockerfile").read_text(encoding="utf-8")
 
@@ -193,6 +303,26 @@ def test_deployment_contract_validator_accepts_current_repository():
     validator = _load_deployment_validator()
 
     assert validator.validate_deployment_contract(REPO_ROOT) == []
+
+
+@pytest.mark.parametrize(
+    ("backend_image", "expected_valid"),
+    [
+        ("ghcr.io/example/hospital-ai-backend:sha-0000000", True),
+        ("ghcr.io/example/hospital-ai-backend@sha256:" + "0" * 64, True),
+        ("ghcr.io/example/hospital-ai-backend:latest", False),
+        ("ghcr.io/example/hospital-ai-backend:sha-000000", False),
+        ("docker.io/example/hospital-ai-backend:sha-0000000", False),
+    ],
+)
+def test_deployment_contract_validator_checks_supplied_backend_image(backend_image, expected_valid):
+    validator = _load_deployment_validator()
+
+    violations = validator.validate_deployment_contract(REPO_ROOT, backend_image)
+
+    assert bool(violations) is (not expected_valid)
+    if not expected_valid:
+        assert any(item.code == "invalid_backend_image" for item in violations)
 
 
 def test_deployment_contract_cli_reports_invalid_fixture(tmp_path):

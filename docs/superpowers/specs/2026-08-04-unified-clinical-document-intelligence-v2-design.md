@@ -387,7 +387,7 @@ Magic-byte MIME validation is authoritative over a client-provided content type.
 
 The UI may present editing as replacing the current text, but the database must never physically overwrite the original machine OCR. Raw OCR, corrected text, page geometry, revision sets, and derived generations are separate lineage records.
 
-“Save” creates an immutable `document_page_revision` and updates only the mutable draft head’s page selection. “Submit” freezes a `document_revision_set`. “Approve” creates a `document_index_generation` in `building`; the document’s approved revision pointer and active generation pointer are changed only when the new generation is active. The prior active generation is marked `superseded` after that successful activation transaction.
+“Save” creates an immutable `document_page_revision` and updates only the mutable draft head’s page selection. “Submit” freezes a `document_revision_set`. “Approve” is an approval decision on the frozen set: it atomically advances `approved_revision_set_id` to that set, marks the set `approved`, creates a `document_index_generation` in `building`, and leaves the current serving generation unchanged until activation. The prior serving generation and its still-serving approved revision set are marked `superseded` only after the replacement generation activates successfully.
 
 ```text
 Machine OCR revision v1
@@ -442,7 +442,15 @@ Historical revisions remain read-only.
 - `content_sha256`
 - immutable `version`
 
-`document_page_revisions.status` is intrinsic immutable lineage metadata for that page revision only. It is never derived from `document_revision_sets.status`, never used as the approval state of a revision set, and unchanged page revisions may be selected by multiple different revision sets over time.
+`document_page_revisions.status` is intrinsic immutable lineage metadata for that page revision only. It is never derived from `document_revision_sets.status`, never used as the approval state of a revision set, and unchanged page revisions may be selected by multiple different revision sets over time. The meanings are independent and normative:
+
+- `machine_draft`: the immutable page revision created directly from machine OCR or native extraction at creation time;
+- `human_draft`: an immutable page revision created from a human correction or restore-as-new action before any explicit page-level review outcome is recorded;
+- `approved`: an explicit page-level review outcome for that exact page revision;
+- `rejected`: an explicit page-level review outcome for that exact page revision;
+- `superseded`: assigned only when a newer child page revision replaces that page revision in lineage.
+
+Allowed page-revision transitions are limited to explicit page-level review and lineage replacement, for example `machine_draft → approved|rejected|superseded`, `human_draft → approved|rejected|superseded`, and `approved|rejected → superseded` when a child revision later replaces that row. Revision-set selection, revision-set approval, and generation activation never rewrite or derive page-revision status.
 
 #### `document_revision_sets`
 
@@ -451,7 +459,7 @@ A document-wide revision set pins one selected page revision for every page so i
 - `id`
 - `document_id`
 - `revision_number`
-- `status`: `submitted | building | approved | rejected | superseded`
+- `status`: `submitted | approved | rejected | superseded`
 - `created_by_user_id`
 - `created_at`
 - `approved_by_user_id`
@@ -461,21 +469,20 @@ A document-wide revision set pins one selected page revision for every page so i
 `document_revision_sets.status` is independent of page revision status and follows this lifecycle only:
 
 - `submitted` when `POST /api/v1/documents/{document_id}/draft/submit` freezes the current draft selection;
-- `building` when approval is accepted and generation work starts;
-- `approved` only when that revision set's generation becomes the document's active generation;
+- `approved` when the approval decision commits and `approved_revision_set_id` advances to that revision set, even while its replacement generation is still `building`;
 - `rejected` only on an explicit reject action;
 - `superseded` only when a newer approved revision set becomes active for the same document.
 
-Allowed transitions are `submitted → building`, `submitted → rejected`, `building → approved`, `building → rejected`, and `approved → superseded`. Restore does not mutate one of these immutable lifecycle outcomes back to an earlier state; it creates a new child revision selection that then follows the same lifecycle independently.
+Allowed transitions are `submitted → approved`, `submitted → rejected`, `approved → superseded`, and `superseded → approved` only as the atomic rollback exception described below. Restore does not mutate one of these immutable lifecycle outcomes back to an earlier state; it creates a new child revision selection that then follows the same lifecycle independently. Revision-set state is therefore separate from generation state: generation progress remains `building | active | failed | superseded` and controls retrieval serving independently.
 
 #### `documents` revision and generation pointers
 
 The document stores two independent pointers:
 
-- `approved_revision_set_id`: the frozen revision set approved for use;
+- `approved_revision_set_id`: the most recently approved frozen revision set selected by an approval or rollback decision;
 - `active_index_generation_id`: the generation currently serving retrieval, graph, timeline, and chat.
 
-Neither pointer is a substitute for the other. A revision set can be approved before its generation is active, and a failed build must leave `active_index_generation_id` unchanged.
+Neither pointer is a substitute for the other. A revision set can be approved before its generation is active, and a failed build must leave `active_index_generation_id` unchanged. Active retrieval must always be backed by the revision set referenced by the active generation, and that revision set must itself be in `approved` status. During a replacement build there may therefore be both (a) the newly approved revision set referenced by `approved_revision_set_id` and (b) an older still-serving approved revision set referenced by `active_index_generation_id`; the displaced approved revision set becomes `superseded` only when the replacement generation activates or a rollback explicitly displaces it.
 
 #### `document_draft_heads`
 
@@ -524,7 +531,7 @@ An index generation is an independently buildable projection of exactly one froz
 
 Generation activation is an atomic compare-and-swap of `active_index_generation_id`. A failed generation remains `failed`; it must not change the old active pointer, delete active rows, or mix rows from different generations. Retry creates a new `building` generation for the same revision set and records the retry audit lineage.
 
-Rollback is also an atomic generation-state swap. Selecting a previously verified target generation for rollback must, in one transaction, set `active_index_generation_id` to that target generation, mark the target generation `active`, and mark the previously serving generation `superseded`. Pointer-only rollback means no rebuild, deletion, rewrite, or history mutation of derived rows, revision rows, or audit lineage.
+Rollback is also an atomic generation-state and revision-authority swap. A valid rollback target must belong to the same document, have a complete previously verified generation record, point to an intact frozen revision set, and retain the derived rows required to serve retrieval without rebuild. Selecting that target generation for rollback must, in one transaction, set `active_index_generation_id` to the target generation, set `approved_revision_set_id` to the target generation's `revision_set_id`, mark the target generation `active`, mark the previously serving generation `superseded`, transition the target revision set back to `approved` when it had been `superseded`, and transition the displaced approved revision set to `superseded` as appropriate. No derived rows, revision history, or audit lineage are deleted, rewritten, or backfilled during rollback.
 
 #### `ocr_blocks`, `ocr_lines`, and `ocr_spans`
 
@@ -559,15 +566,17 @@ Every draft write includes `If-Match: <lock_version>` and an `Idempotency-Key`. 
 
 ### 7.5 Downstream invalidation
 
-Approving a new revision set performs an atomic generation transition:
+Approving a new revision set performs an approval decision followed by an atomic generation transition:
 
-1. create a `building` generation linked to the approved revision set;
-2. create new derived rows linked only to that generation;
-3. run all required stages and record stage results and hashes;
-4. atomically set `active_index_generation_id` to the new generation and then mark the prior active generation `superseded`;
-5. preserve the previous active generation if any stage fails.
+1. atomically advance `approved_revision_set_id` to the submitted target revision set and mark that set `approved`;
+2. create a `building` generation linked to that approved revision set;
+3. create new derived rows linked only to that generation;
+4. run all required stages and record stage results and hashes;
+5. atomically set `active_index_generation_id` to the new generation, mark that generation `active`, and then mark the prior active generation `superseded`;
+6. mark the displaced previously serving approved revision set `superseded` only when the replacement generation becomes active;
+7. preserve the previous active generation if any stage fails.
 
-The linked revision-set lifecycle is separate but synchronized with activation: submit creates a `submitted` revision set, approval acceptance changes that set to `building`, successful activation changes that set to `approved`, explicit rejection changes it to `rejected`, and activation of a newer approved set changes the older approved set to `superseded`.
+The linked revision-set lifecycle is separate but synchronized with activation: submit creates a `submitted` revision set, approval changes that set to `approved` and advances `approved_revision_set_id`, generation progress remains on the linked `document_index_generations` row, explicit rejection changes a submitted set to `rejected`, activation of a newer approved set changes the older serving approved set to `superseded`, and rollback may move a superseded set back to `approved` only inside the atomic rollback transaction above.
 
 ---
 
@@ -907,7 +916,7 @@ Every write API requires `Idempotency-Key`; `PATCH` draft page and `POST` draft 
 | `GET /api/v1/documents/{document_id}/revision-sets/{revision_set_id}` | Returns the selected historical or current revision set, page revisions, geometry alignment status, approval data, and only the evidence the caller is authorized to inspect for that revision path. |
 | `PATCH /api/v1/documents/{document_id}/draft/pages/{page_number}` | Saves a new immutable page revision and conditionally advances `document_draft_heads`; requires `If-Match` and returns `201`. |
 | `POST /api/v1/documents/{document_id}/draft/submit` | Freezes the current page selection as a revision set; requires `If-Match`, records the submit audit event, and returns `201`. |
-| `POST /api/v1/documents/{document_id}/revision-sets/{revision_set_id}/approve` | Requires `document_revision.approve`, validates the revision set and generation state transition, changes the revision set to `building`, creates a `building` generation, and returns `202`; production rejects `editor_id == approver_id`. |
+| `POST /api/v1/documents/{document_id}/revision-sets/{revision_set_id}/approve` | Requires `document_revision.approve`, validates the revision-set and generation preconditions, atomically advances `approved_revision_set_id` to that revision set, marks the set `approved`, creates a linked `building` generation, and returns `202`; production rejects `editor_id == approver_id`. |
 | `POST /api/v1/documents/{document_id}/revision-sets/{revision_set_id}/reject` | Requires `document_revision.reject`, records the reason and audit event, and returns `200`. |
 | `POST /api/v1/documents/{document_id}/revision-sets/{revision_set_id}/restore` | Requires `document_revision.restore`, creates a new child revision selection rather than mutating history, and returns `202` if generation work is queued. |
 | `POST /api/v1/documents/{document_id}/index-generations/{generation_id}/retry` | Requires retry authorization, validates the existing generation state, creates a new `building` generation linked to the same revision set, preserves the old active pointer, and returns `202`. |
@@ -1170,7 +1179,8 @@ Every capability is additionally gated by patient permission. The default grants
 
 In production, `editor_id != approver_id` is mandatory. `ALLOW_SELF_APPROVAL_FOR_SYNTHETIC_DATA=true` is effective only when `demo_mode=true` and the document is explicitly marked synthetic. Real data is never automatically approved.
 
-- all source, revision, chunk, graph, timeline, and citation endpoints enforce patient scope and active-generation scope;
+- historical source and revision endpoints enforce patient permission plus the relevant role/capability grants;
+- active-generation scope applies to retrieval-derived chunks/evidence, graph reads, timeline reads, and grounded chat only;
 - R2 is private;
 - presigned URLs use short expiry;
 - raw OCR and historical revisions are treated as patient data;
@@ -1242,7 +1252,7 @@ Migration is ordered and gated:
 
 1. Add the revision, upload, OCR geometry, graph provenance, and generation schema.
 2. Backfill machine revision v1 from current `DocumentPage.ocr_text` values without deleting source documents or page images.
-3. Create approved revision-set candidates and draft heads; do not automatically approve real data.
+3. Create submitted revision-set candidates and draft heads; do not automatically approve real data.
 4. Attach legacy chunks and graph rows to a legacy active generation only after their source and patient lineage is verified.
 5. Run backfill, citation, retrieval, wrong-patient, and superseded-generation parity checks.
 6. Preserve the legacy read path until those checks pass and the active-generation filters return equivalent results for legacy synthetic documents.
@@ -1250,7 +1260,7 @@ Migration is ordered and gated:
 8. Replace direct page/chunk deletion with generation supersession and atomic pointer/state rollback.
 9. Update chat citations and evidence UI before enabling revision switching.
 
-Rollback is pointer-only in the sense that it performs no rebuild, deletion, or rewrite of stored data. The rollback transaction must atomically move `active_index_generation_id` to a previously verified target generation, mark that target generation `active`, and mark the previously serving generation `superseded`. It does not delete a generation, rewrite revision history, mutate derived rows, or auto-approve real data. Only synthetic/demo records that explicitly satisfy the migration policy may be approved by migration automation.
+Rollback is pointer-only in the sense that it performs no rebuild, deletion, or rewrite of stored data. The rollback transaction must atomically move `active_index_generation_id` to a previously verified target generation, move `approved_revision_set_id` to that target generation's revision set, mark the target generation `active`, mark the previously serving generation `superseded`, restore the target revision set to `approved` when it had been `superseded`, and supersede the displaced approved revision set as appropriate. It does not delete a generation, rewrite revision history, mutate derived rows, or auto-approve real data. Only synthetic/demo records that explicitly satisfy the migration policy may be approved by migration automation.
 
 ---
 
@@ -1260,7 +1270,7 @@ The feature is complete only when all of the following are demonstrated:
 
 1. One versioned logical corpus drives OCR, RAG, Graph RAG, timeline, chat, and benchmark cases.
 2. Original PDF/image bytes are stored in private R2 with application-level immutable version keys.
-3. Raw machine OCR is never destroyed.
+3. Raw machine OCR is never overwritten, discarded, or destroyed by ordinary editing, approval, re-indexing, retry, or rollback. Only an authorized retention hard-delete operating under the explicit deletion policy may remove source, revision, or derived data, and it must preserve the required non-PHI audit tombstone.
 4. The UI provides revision dropdown, author, timestamp, status, diff, restore-as-new, and approval.
 5. Only approved revision sets become active retrieval and graph evidence.
 6. Vietnamese handwriting and English handwriting routes are benchmarked locally and selected by evidence, not model popularity.

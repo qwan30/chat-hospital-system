@@ -33,7 +33,7 @@ def _registry_payload(*, artifact_path: str, size_bytes: int, sha256: str) -> di
                     {
                         "upstream_path": "sample.txt",
                         "upstream_blob_sha": "b" * 40,
-                        "vendored_path": artifact_path,
+                        "local_path": artifact_path,
                         "media_type": "text/plain",
                         "size_bytes": size_bytes,
                         "sha256": sha256,
@@ -45,7 +45,7 @@ def _registry_payload(*, artifact_path: str, size_bytes: int, sha256: str) -> di
 
 
 def test_generic_registry_validates_an_isolated_temporary_artifact(tmp_path: Path) -> None:
-    from hospital_ai.data_sources.registry import validate_vendored_sources
+    from hospital_ai.data_sources.registry import validate_source_registry
 
     data_root = tmp_path / "data"
     artifact = data_root / "qualification" / "sample.txt"
@@ -65,14 +65,14 @@ def test_generic_registry_validates_an_isolated_temporary_artifact(tmp_path: Pat
         encoding="utf-8",
     )
 
-    validated = validate_vendored_sources(data_root, registry_path)
+    validated = validate_source_registry(data_root, registry_path)
 
     assert len(validated) == 1
     assert validated[0].path == artifact.resolve()
 
 
 def test_registry_rejects_path_traversal_without_touching_files(tmp_path: Path) -> None:
-    from hospital_ai.data_sources.registry import VendoredDataValidationError, load_source_registry
+    from hospital_ai.data_sources.registry import SourceRegistryValidationError, load_source_registry
 
     registry_path = tmp_path / "sources.json"
     registry_path.write_text(
@@ -86,10 +86,71 @@ def test_registry_rejects_path_traversal_without_touching_files(tmp_path: Path) 
         encoding="utf-8",
     )
 
-    with pytest.raises(VendoredDataValidationError, match="relative|traversal"):
+    with pytest.raises(SourceRegistryValidationError, match="relative|traversal"):
         load_source_registry(registry_path)
 
     assert not (tmp_path.parent / "outside.txt").exists()
+
+
+def test_registry_requires_timezone_aware_retrieval_timestamp(tmp_path: Path) -> None:
+    from hospital_ai.data_sources.registry import SourceRegistryValidationError, load_source_registry
+
+    payload = _registry_payload(
+        artifact_path="qualification/sample.txt",
+        size_bytes=1,
+        sha256="0" * 64,
+    )
+    payload["sources"][0]["retrieved_at"] = "2026-08-04T00:00:00"
+    registry_path = tmp_path / "sources.json"
+    registry_path.write_text(json.dumps(payload), encoding="utf-8")
+
+    with pytest.raises(SourceRegistryValidationError, match="timezone"):
+        load_source_registry(registry_path)
+
+
+def test_registry_requires_https_license_url(tmp_path: Path) -> None:
+    from hospital_ai.data_sources.registry import SourceRegistryValidationError, load_source_registry
+
+    payload = _registry_payload(
+        artifact_path="qualification/sample.txt",
+        size_bytes=1,
+        sha256="0" * 64,
+    )
+    payload["sources"][0]["license"]["license_url"] = "http://example.test/license"
+    registry_path = tmp_path / "sources.json"
+    registry_path.write_text(json.dumps(payload), encoding="utf-8")
+
+    with pytest.raises(SourceRegistryValidationError, match="HTTPS"):
+        load_source_registry(registry_path)
+
+
+def test_registry_api_uses_generic_source_naming() -> None:
+    from hospital_ai.data_sources.registry import (
+        SourceArtifact,
+        SourceRegistryValidationError,
+        ValidatedSourceArtifact,
+        validate_source_registry,
+    )
+
+    assert SourceArtifact.__name__ == "SourceArtifact"
+    assert ValidatedSourceArtifact.__name__ == "ValidatedSourceArtifact"
+    assert SourceRegistryValidationError.__name__ == "SourceRegistryValidationError"
+    assert callable(validate_source_registry)
+
+    registry_source = (BACKEND_ROOT / "src" / "hospital_ai" / "data_sources" / "registry.py").read_text(
+        encoding="utf-8"
+    )
+    assert "Vendored" not in registry_source
+    assert "committed to the repository" not in registry_source
+
+
+def test_validator_cli_requires_explicit_paths() -> None:
+    scripts = BACKEND_ROOT / "scripts"
+    cli = (scripts / "validate_public_source_registry.py").read_text(encoding="utf-8")
+
+    assert cli.count("required=True") == 2
+    assert "public/sources.json" not in cli
+    assert not (scripts / "validate_vendored_public_data.py").exists()
 
 
 def test_public_qualification_sources_are_not_canonical_patient_corpus() -> None:

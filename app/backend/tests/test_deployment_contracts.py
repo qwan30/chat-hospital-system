@@ -71,9 +71,12 @@ def _copy_deployment_contract_fixture(tmp_path: Path) -> None:
         shutil.copy2(REPO_ROOT / relative, target)
 
 
-def _run_validator(repo_root: Path) -> subprocess.CompletedProcess[str]:
+def _run_validator(repo_root: Path, backend_image: str | None = None) -> subprocess.CompletedProcess[str]:
+    command = [sys.executable, str(DEPLOYMENT_VALIDATOR), "--repo-root", str(repo_root), "--json"]
+    if backend_image is not None:
+        command.extend(["--backend-image", backend_image])
     return subprocess.run(
-        [sys.executable, str(DEPLOYMENT_VALIDATOR), "--repo-root", str(repo_root), "--json"],
+        command,
         capture_output=True,
         text=True,
         check=False,
@@ -249,6 +252,26 @@ def test_deployment_contract_validator_accepts_current_repository():
     validator = _load_deployment_validator()
 
     assert validator.validate_deployment_contract(REPO_ROOT) == []
+
+
+@pytest.mark.parametrize(
+    ("backend_image", "expected_valid"),
+    [
+        ("ghcr.io/example/hospital-ai-backend:sha-0000000", True),
+        ("ghcr.io/example/hospital-ai-backend@sha256:" + "0" * 64, True),
+        ("ghcr.io/example/hospital-ai-backend:latest", False),
+        ("ghcr.io/example/hospital-ai-backend:sha-000000", False),
+        ("docker.io/example/hospital-ai-backend:sha-0000000", False),
+    ],
+)
+def test_deployment_contract_validator_checks_supplied_backend_image(backend_image, expected_valid):
+    validator = _load_deployment_validator()
+
+    violations = validator.validate_deployment_contract(REPO_ROOT, backend_image)
+
+    assert bool(violations) is (not expected_valid)
+    if not expected_valid:
+        assert any(item.code == "invalid_backend_image" for item in violations)
 
 
 def test_deployment_contract_cli_reports_invalid_fixture(tmp_path):

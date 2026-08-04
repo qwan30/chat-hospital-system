@@ -594,12 +594,17 @@ bun run dev
 ```
 UI: http://localhost:3000 (Vite dev server; the Docker image serves on **8082**)
 
-### 4. Full Production Stack
+### 4. Full Local Docker Stack
 ```bash
-docker compose -f infra/docker-compose.yml up -d
-# With observability:
-docker compose -f infra/docker-compose.yml -f infra/docker-compose.observability.yml up -d
+export BACKEND_IMAGE=hospital-ai-backend:local
+docker compose -f infra/docker-compose.yml -f infra/docker-compose.local-build.yml up -d
+# Optional local observability:
+docker compose -f infra/docker-compose.yml -f infra/docker-compose.local-build.yml -f infra/docker-compose.observability.yml up -d
 ```
+
+Staging uses the GitHub-built immutable GHCR image through Dokploy. Set
+`BACKEND_IMAGE` to the approved `sha-<7-hex>` tag or digest in Dokploy; do not
+build the backend from a VPS source clone.
 
 ### Demo Accounts
 

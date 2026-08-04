@@ -154,16 +154,22 @@ running; do not put credentials in the command history or this repository.
 
 ```bash
 export BACKEND_IMAGE="ghcr.io/<GHCR_NAMESPACE>/hospital-ai-backend:sha-<CANDIDATE_SHA>"
+python "<absolute-path-to-repository>/app/backend/scripts/verify_deployment_contract.py" --backend-image "$BACKEND_IMAGE"
 docker manifest inspect "$BACKEND_IMAGE"
 docker compose -f "<absolute-path-to-infra/docker-compose.yml>" pull postgres redis backend worker
+docker compose -f "<absolute-path-to-infra/docker-compose.yml>" up -d --wait postgres redis
 docker compose -f "<absolute-path-to-infra/docker-compose.yml>" run --rm --no-deps backend alembic upgrade head
-docker compose -f "<absolute-path-to-infra/docker-compose.yml>" up -d postgres redis backend worker
+docker compose -f "<absolute-path-to-infra/docker-compose.yml>" up -d --wait backend worker
 docker compose -f "<absolute-path-to-infra/docker-compose.yml>" ps
 docker stats --no-stream
 curl --fail --silent --show-error "https://<API_DOMAIN>/api/v1/health"
 ```
 
-The migration container, backend, and worker must resolve to the same
+Run the repository validator from an approved checkout before changing
+Dokploy; the checkout is validation input only, not a VPS build input. The
+`--wait` steps ensure PostgreSQL and Redis are healthy before the migration and
+that backend and worker are started only after migration completes. The
+migration container, backend, and worker must resolve to the same
 `BACKEND_IMAGE`. Record the migration revision, image digest, source SHA,
 container health, public health result, synthetic/de-identified smoke result,
 RAM, swap, disk, and `docker stats` output in the evidence table. Dokploy may

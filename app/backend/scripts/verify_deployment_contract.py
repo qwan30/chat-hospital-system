@@ -37,6 +37,10 @@ REQUIRED_FILES = (
 )
 
 BACKEND_IMAGE_EXPRESSION = "${BACKEND_IMAGE:?BACKEND_IMAGE must be set to an immutable GHCR image reference}"
+IMMUTABLE_BACKEND_IMAGE_PATTERN = re.compile(
+    r"^ghcr\.io/[^/:\s]+/hospital-ai-backend:sha-[0-9a-f]{7}$"
+    r"|^ghcr\.io/[^/:\s]+/hospital-ai-backend@sha256:[0-9a-f]{64}$"
+)
 TASK_7_MEMORY_LIMITS = {
     "postgres": "768m",
     "redis": "256m",
@@ -407,6 +411,17 @@ def _validate_task_7_compose_contract(
             )
 
 
+def _validate_backend_image_reference(reference: str, violations: list[ContractViolation]) -> None:
+    if not IMMUTABLE_BACKEND_IMAGE_PATTERN.fullmatch(reference):
+        violations.append(
+            ContractViolation(
+                "invalid_backend_image",
+                "backend image must be an immutable GHCR sha-<7-hex> tag or sha256 digest",
+                "BACKEND_IMAGE",
+            )
+        )
+
+
 def _frontend_secret_leaks(root: Path) -> list[str]:
     ignored_parts = {".git", "node_modules", ".next", "dist", "coverage", "__pycache__"}
     frontend_root = root / "app/frontend"
@@ -431,7 +446,7 @@ def _frontend_secret_leaks(root: Path) -> list[str]:
     return leaks
 
 
-def validate_deployment_contract(root: Path | None = None) -> list[ContractViolation]:
+def validate_deployment_contract(root: Path | None = None, backend_image: str | None = None) -> list[ContractViolation]:
     """Return deterministic repository contract violations."""
 
     repo_root = find_repo_root(root)
@@ -471,6 +486,8 @@ def validate_deployment_contract(root: Path | None = None) -> list[ContractViola
                 )
             )
     _validate_task_7_compose_contract(compose, local_build, dockerignore, violations)
+    if backend_image is not None:
+        _validate_backend_image_reference(backend_image, violations)
 
     for workflow_path, workflow in (
         (".github/workflows/cd.yml", cd_workflow),
@@ -571,6 +588,8 @@ def validate_deployment_contract(root: Path | None = None) -> list[ContractViola
         "docker --version",
         "docker compose version",
         'docker manifest inspect "ghcr.io/<GHCR_NAMESPACE>/<IMAGE_NAME>:sha-<CANDIDATE_SHA>"',
+        'python "<absolute-path-to-repository>/app/backend/scripts/verify_deployment_contract.py" '
+        '--backend-image "$BACKEND_IMAGE"',
         'curl --fail --silent --show-error "https://<API_DOMAIN>/api/v1/health"',
     ):
         _require(vps_ops, needle, "docs/10-deployment/vps-operations.md", violations)
@@ -621,6 +640,10 @@ def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--repo-root", type=Path, help="repository root; defaults to auto-detection")
     parser.add_argument("--json", action="store_true", help="emit machine-readable JSON")
+    parser.add_argument(
+        "--backend-image",
+        help="candidate BACKEND_IMAGE to validate as an immutable GHCR tag or digest",
+    )
     return parser
 
 
@@ -628,7 +651,7 @@ def main(argv: list[str] | None = None) -> int:
     args = _parser().parse_args(argv)
     try:
         repo_root = find_repo_root(args.repo_root)
-        violations = validate_deployment_contract(repo_root)
+        violations = validate_deployment_contract(repo_root, args.backend_image)
     except (FileNotFoundError, OSError) as exc:
         violations = [ContractViolation("invalid_repository", str(exc), str(args.repo_root or ""))]
 

@@ -100,9 +100,11 @@ jobs:
               - '.github/workflows/cd.yml'
             infra:
               - 'infra/docker-compose.yml'
+              - 'infra/docker-compose.local-build.yml'
               - 'infra/docker-compose.observability.yml'
               - 'infra/observability/**'
               - 'app/backend/Dockerfile'
+              - 'app/backend/.dockerignore'
               - 'app/backend/scripts/verify_deployment_contract.py'
               - 'app/frontend/Dockerfile'
               - 'docker-compose.yml'
@@ -617,7 +619,7 @@ jobs:
         run: docker compose -f infra/docker-compose.yml -f infra/docker-compose.observability.yml config --quiet
 
       - name: Validate repository deployment contract
-        run: python app/backend/scripts/verify_deployment_contract.py
+        run: python app/backend/scripts/verify_deployment_contract.py --backend-image "$BACKEND_IMAGE"
 
   # ═══════════════════════════════════════════════════════════════════
   # Job 7: Docker build, Trivy scan & push to GHCR

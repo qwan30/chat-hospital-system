@@ -50,15 +50,22 @@ def _step_by_name(job: dict, name: str) -> dict:
 
 def test_compose_validation_uses_synthetic_required_backend_image():
     workflow_path = Path(__file__).resolve().parents[3] / ".github" / "workflows" / "ci.yml"
-    workflow = yaml.safe_load(workflow_path.read_text(encoding="utf-8"))
+    workflow_text = workflow_path.read_text(encoding="utf-8")
+    workflow = yaml.safe_load(workflow_text)
     validation_job = workflow["jobs"]["validate-observability"]
 
+    assert "- 'infra/docker-compose.local-build.yml'" in workflow_text
+    assert "- 'app/backend/.dockerignore'" in workflow_text
     assert validation_job.get("env", {}).get("BACKEND_IMAGE") == ("ghcr.io/example/hospital-ai-backend:sha-0000000")
     assert _step_by_name(validation_job, "Validate docker-compose.yml")["run"] == (
         "docker compose -f infra/docker-compose.yml config --quiet"
     )
     assert _step_by_name(validation_job, "Validate docker-compose.observability.yml")["run"] == (
         "docker compose -f infra/docker-compose.yml -f infra/docker-compose.observability.yml config --quiet"
+    )
+    assert (
+        '--backend-image "$BACKEND_IMAGE"'
+        in _step_by_name(validation_job, "Validate repository deployment contract")["run"]
     )
     assert set(workflow["jobs"]["docker-push"]["needs"]) == {
         "backend-test",

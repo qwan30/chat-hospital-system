@@ -65,6 +65,11 @@ For development, testing, and system demonstrations on standard laptops with a 1
 | **Local LLM (optional)** | Ollama Qwen2.5 3B/7B Q4 Quantized | Local-only developer option; not installed on the Dokploy VPS. |
 | **TanStack Start Frontend**| Local dev server | Disable heavy compiler source mapping. |
 
+The repository's root and backend Compose files are pre-existing local
+development stacks and are explicitly marked `Not for Dokploy/VPS deployment`.
+For the Task 7 full local backend/worker stack, use the `infra` base file with
+the developer-only `infra/docker-compose.local-build.yml` override shown below.
+
 ---
 
 ## 4. Environment Security Notes

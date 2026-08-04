@@ -532,7 +532,7 @@ This is the **Clean Architecture dependency rule** implemented through conventio
 │   │   └── rollback.yml        # Manual rollback with confirmation gate
 │   └── dependabot.yml          # Automated dependency updates (npm, pip, GHA)
 ├── infra/
-│   ├── docker-compose.yml           # Production stack (5 services)
+│   ├── docker-compose.yml           # Dokploy production stack (4 services)
 │   ├── docker-compose.observability.yml  # Grafana, Prometheus, Loki, Tempo
 │   ├── nginx/default.conf           # Reverse proxy with SSE streaming
 │   └── observability/              # Prometheus, Tempo, Loki, Grafana configs

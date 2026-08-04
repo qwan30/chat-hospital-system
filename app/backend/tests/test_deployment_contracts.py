@@ -20,6 +20,8 @@ REQUIRED_DEPLOYMENT_PATHS = [
     ".github/workflows/rollback.yml",
     "infra/docker-compose.yml",
     "infra/docker-compose.local-build.yml",
+    "docker-compose.yml",
+    "app/backend/docker-compose.yml",
     "app/backend/.dockerignore",
     "docs/10-deployment/deployment-guide.md",
     "docs/10-deployment/env-variables.md",
@@ -40,7 +42,7 @@ VERIFIED_CANDIDATE_SHA_ROW = (
 )
 PENDING_SECRET_KEY_ROW = (
     "| PENDING — operator evidence required | Secret key presence only | "
-    "`printf '%s\\n' HOSPITAL_AI_DATABASE_URL HOSPITAL_AI_REDIS_URL "
+    "`printf '%s\\n' POSTGRES_PASSWORD "
     "HOSPITAL_AI_GEMINI_API_KEY HOSPITAL_AI_R2_ENDPOINT HOSPITAL_AI_R2_BUCKET "
     "HOSPITAL_AI_R2_ACCESS_KEY_ID HOSPITAL_AI_R2_SECRET_ACCESS_KEY "
     "HOSPITAL_AI_JWT_ISSUER HOSPITAL_AI_JWKS_URL HOSPITAL_AI_JWT_AUDIENCE` | "
@@ -184,6 +186,16 @@ def test_task_7_production_compose_is_image_only_and_bounded():
     assert "redis:\n    image: redis:7-alpine\n    mem_limit: 256m" in production
     assert "mem_limit: 768m" in production
     assert "mem_limit: 1024m" in production
+    assert 'test: ["CMD", "python", "-c", "import os; os.kill(1, 0)"]' in production
+
+
+def test_task_7_legacy_compose_files_are_explicitly_local_only():
+    marker = "Developer-only local Compose file. Not for Dokploy/VPS deployment."
+
+    for relative in ("docker-compose.yml", "app/backend/docker-compose.yml"):
+        compose = (REPO_ROOT / relative).read_text(encoding="utf-8")
+        assert marker in compose
+        assert "build:" in compose
 
 
 @pytest.mark.parametrize(
@@ -226,6 +238,45 @@ def test_task_7_validator_rejects_production_contract_mutations(tmp_path, mutato
     assert result.returncode == 2
     payload = json.loads(result.stdout)
     assert any(item["code"] == expected_code for item in payload["violations"])
+
+
+def test_task_7_validator_rejects_unmarked_legacy_local_compose(tmp_path):
+    _copy_deployment_contract_fixture(tmp_path)
+    compose_path = tmp_path / "docker-compose.yml"
+    compose_path.write_text(
+        compose_path.read_text(encoding="utf-8").replace(
+            "# Developer-only local Compose file. Not for Dokploy/VPS deployment.\n", ""
+        ),
+        encoding="utf-8",
+    )
+
+    result = _run_validator(tmp_path)
+
+    assert result.returncode == 2
+    payload = json.loads(result.stdout)
+    assert any(item["code"] == "local_compose_boundary" for item in payload["violations"])
+
+
+def test_task_7_validator_rejects_missing_worker_healthcheck(tmp_path):
+    _copy_deployment_contract_fixture(tmp_path)
+    compose_path = tmp_path / "infra" / "docker-compose.yml"
+    compose = compose_path.read_text(encoding="utf-8")
+    healthcheck = (
+        "    healthcheck:\n"
+        '      test: ["CMD", "python", "-c", "import os; os.kill(1, 0)"]\n'
+        "      interval: 30s\n"
+        "      timeout: 10s\n"
+        "      retries: 3\n"
+        "      start_period: 20s\n"
+    )
+    assert compose.count(healthcheck) == 1
+    compose_path.write_text(compose.replace(healthcheck, "", 1), encoding="utf-8")
+
+    result = _run_validator(tmp_path)
+
+    assert result.returncode == 2
+    payload = json.loads(result.stdout)
+    assert any(item["code"] == "missing_worker_healthcheck" for item in payload["violations"])
 
 
 def test_backend_dockerfile_uses_cloud_run_port_contract():

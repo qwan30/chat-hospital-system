@@ -4,7 +4,11 @@
 
 **Goal:** Make staging use one immutable backend image built by GitHub Actions, published to GHCR, and consumed by Dokploy without building from the VPS source clone.
 
-**Architecture:** infra/docker-compose.yml is the image-only Dokploy contract. GitHub Actions tests, builds, scans, and publishes ghcr.io/<owner>/hospital-ai-backend:sha-<7-lowercase-hex>; the existing CD workflow hands that exact identity to Dokploy. infra/docker-compose.local-build.yml is the only build-enabled Compose file and is developer-only.
+**Execution status (2026-08-04):** Repository-side implementation complete on
+`feat/deployment-task-7-ghcr-dokploy`. Focused verification is green; external
+Dokploy/VPS/GHCR runtime evidence remains pending and no deployment is claimed.
+
+**Architecture:** infra/docker-compose.yml is the image-only Dokploy contract. GitHub Actions tests, builds, scans, and publishes ghcr.io/<owner>/hospital-ai-backend:sha-<7-lowercase-hex>; the existing CD workflow hands that exact identity to Dokploy. infra/docker-compose.local-build.yml is the only build-enabled Compose file added for the Task 7 deployment contract and is developer-only. The pre-existing root and backend Compose files remain explicitly local-only and are never Dokploy/VPS inputs.
 
 **Tech Stack:** Docker Compose, Docker Buildx, GitHub Actions, GHCR, Dokploy hooks, Python 3.11, pytest, Ruff, Markdown deployment contracts, GitNexus.
 
@@ -14,7 +18,9 @@
 - infra/docker-compose.yml contains no build stanza and requires an explicit BACKEND_IMAGE value.
 - Backend and worker resolve to the same immutable BACKEND_IMAGE reference.
 - Release tags use sha-<7-lowercase-hex> or an immutable digest; latest is never a release identity.
-- The local build override is infra/docker-compose.local-build.yml; the VPS staging runbook never uses it.
+- The Task 7 local build override is infra/docker-compose.local-build.yml; the
+  pre-existing root/backend Compose files are explicitly local-only; the VPS
+  staging runbook never uses any of these build-enabled files.
 - The deployed frontend API base is https://<api-host>/api/v1; local development keeps VITE_API_URL=/api through the Vite proxy.
 - Gemini remains the default provider; DeepSeek is explicit configuration, not automatic fallback; Ollama is not part of the VPS stack.
 - Memory ceilings are PostgreSQL 768m, Redis 256m, backend 768m, and worker 1024m.
@@ -33,8 +39,10 @@
 | app/backend/scripts/verify_deployment_contract.py | Deterministic repository validator for Task 7 invariants. |
 | infra/docker-compose.yml | Dokploy production/staging stack using an explicit immutable image and service memory ceilings. |
 | infra/docker-compose.local-build.yml | Developer-only Compose override that adds the backend build context and local image name. |
+| docker-compose.yml; app/backend/docker-compose.yml | Pre-existing local development stacks; explicitly marked local-only and excluded from Dokploy/VPS deployment. |
 | app/backend/.dockerignore | Keeps the GitHub Docker build context limited to runtime inputs. |
 | .github/workflows/ci.yml | Supplies a synthetic image to Compose validation while preserving the GitHub image pipeline. |
+| .github/workflows/security-scan.yml | Scans the current default-branch immutable short-SHA image instead of an obsolete floating path. |
 | app/backend/tests/test_ci_workflow.py | Structural regression test for the synthetic Compose validation image. |
 | docs/10-deployment/deployment-guide.md | Control plane, local override, API base, memory budget, and migration sequence. |
 | docs/10-deployment/ci-cd.md | Image, digest, source SHA, workflow ID, and Dokploy hook semantics. |
@@ -50,7 +58,7 @@
 
 **Files:**
 - Modify: app/backend/tests/test_deployment_contracts.py
-- Test fixture inputs: infra/docker-compose.yml, infra/docker-compose.local-build.yml, app/backend/.dockerignore
+- Test fixture inputs: infra/docker-compose.yml, infra/docker-compose.local-build.yml, docker-compose.yml, app/backend/docker-compose.yml, app/backend/.dockerignore
 
 **Interfaces:**
 - Consumes: the existing _copy_deployment_contract_fixture, _run_validator, and temporary repository fixture pattern.
@@ -235,7 +243,7 @@ Replace backend and worker image values with this identical required expression:
 image: ${BACKEND_IMAGE:?BACKEND_IMAGE must be set to an immutable GHCR image reference}
 ~~~
 
-Remove the production backend build block and comments describing a latest or other fallback. Keep expose 8000, the /api/v1/health healthcheck, the shared storage volume, and the real worker entrypoint.
+Remove the production backend build block and comments describing a latest or other fallback. Keep expose 8000, the /api/v1/health healthcheck, the shared storage volume, the real worker entrypoint, and add a worker process-liveness healthcheck for `--wait` rollout gating.
 
 - [ ] Step 2: Add explicit service memory ceilings.
 
@@ -384,7 +392,7 @@ env:
   BACKEND_IMAGE: ghcr.io/example/hospital-ai-backend:sha-0000000
 ~~~
 
-Do not add registry credentials, runtime secrets, a build step, docker compose build, or a floating tag. docker-push remains the only image construction/publication path.
+Do not add registry credentials, runtime secrets, a build step, docker compose build, or a floating tag. Keep the Trivy HIGH/CRITICAL scan blocking, and keep docker-push as the only image construction/publication path.
 
 - [ ] Step 4: Run the CI structural tests in GREEN.
 
@@ -438,7 +446,7 @@ Retain the existing immutable tag, digest, source SHA, artifact, workflow ID, st
 Add a section after GHCR access in vps-operations.md with this order:
 
 ~~~bash
-export BACKEND_IMAGE="ghcr.io/<GHCR_NAMESPACE>/hospital-ai-backend:sha-<CANDIDATE_SHA>"
+export BACKEND_IMAGE="ghcr.io/<GHCR_NAMESPACE>/hospital-ai-backend:sha-<CANDIDATE_SHORT_SHA>"
 docker manifest inspect "$BACKEND_IMAGE"
 docker compose -f "<absolute-path-to-infra/docker-compose.yml>" pull postgres redis backend worker
 docker compose -f "<absolute-path-to-infra/docker-compose.yml>" run --rm --no-deps backend alembic upgrade head
@@ -448,7 +456,7 @@ docker stats --no-stream
 curl --fail --silent --show-error "https://<API_DOMAIN>/api/v1/health"
 ~~~
 
-Explain that Dokploy normally performs the equivalent pull/migration/rollout, migration and both application services use the same candidate image, docker compose build and the local override are developer-only, and the operator records migration revision, health, smoke, RAM/swap/disk, and docker stats against the candidate SHA. Commands use placeholders and do not prove external state.
+Explain that Dokploy normally performs the equivalent pull/migration/rollout, migration and both application services use the same candidate image, worker health is process-gated, docker compose build and the local override are developer-only, and the operator records migration revision, health, smoke, RAM/swap/disk, and docker stats against the full candidate SHA plus its seven-character image suffix. Commands use placeholders and do not prove external state.
 
 - [ ] Step 4: Align rollback and release checklist language.
 
@@ -520,10 +528,14 @@ Expected result: all selected tests pass. Preserve any unrelated existing failur
 ~~~powershell
 git diff --check
 rg -n "(sk-[A-Za-z0-9]{20,}|ghp_[A-Za-z0-9]{20,}|AKIA[0-9A-Z]{16}|BEGIN (RSA|OPENSSH|EC) PRIVATE KEY|password\s*[:=]\s*[^<\s]+)" app/backend/.dockerignore infra docs/10-deployment .github/workflows app/backend/scripts/verify_deployment_contract.py
-rg -n "latest|build:|docker compose.*build|git pull|VITE_API_URL" infra/docker-compose.yml infra/docker-compose.local-build.yml docs/10-deployment .github/workflows/ci.yml
+rg -n "latest|build:|docker compose.*build|git pull|VITE_API_URL" infra/docker-compose.yml infra/docker-compose.local-build.yml docker-compose.yml app/backend/docker-compose.yml docs/10-deployment .github/workflows/ci.yml
 ~~~
 
-Review every hit manually. Production Compose has no build or latest; only local override has build; workflow publication remains SHA-tagged; docs may mention latest only as a forbidden release identity; deployed API examples include /api/v1.
+Review every hit manually. Production Compose has no build or latest; the Task 7
+local override and the two explicitly marked pre-existing local Compose files
+may contain build; workflow publication remains SHA-tagged; docs may mention
+latest only as a forbidden release identity; deployed API examples include
+/api/v1.
 
 - [ ] Step 5: Run GitNexus detect_changes before each implementation commit and before the final commit.
 
@@ -546,11 +558,11 @@ Do not push, open a PR, merge, or claim a live deployment. Report branch, commit
 ## Plan Self-Review
 
 - Spec R1 is covered by Tasks 1–3: required immutable image, no production build, same backend/worker image, private ports, and no floating default.
-- Spec R2 is covered by Task 3: explicit local override and developer-only command.
-- Spec R3 is covered by Tasks 4–5: existing GitHub image pipeline remains authoritative, Compose CI receives a synthetic image, and CD/handoff remains immutable.
-- Spec R4 is covered by Task 5: pull, one-off migration, same-image rollout, health, smoke, and candidate evidence sequence.
+- Spec R2 is covered by Task 3: explicit local override and developer-only command; pre-existing root/backend Compose files are marked local-only and validated as non-Dokploy inputs.
+- Spec R3 is covered by Tasks 4–5: existing GitHub image pipeline remains authoritative, Compose CI receives a synthetic image, Trivy HIGH/CRITICAL findings block the image job, and CD/handoff remains immutable.
+- Spec R4 is covered by Task 5: pull, one-off migration, same-image rollout, backend/worker health (including worker process liveness), smoke, and candidate evidence sequence.
 - Spec R5 is covered by Tasks 1–3 and Task 5: exact memory ceilings, build-context exclusions, and no default observability overlay.
 - Spec R6 is covered by Task 5 and existing validator tests: Gemini default, explicit DeepSeek, no Ollama, /api/v1, explicit CORS, and frontend secret isolation.
 - Spec R7 is covered by Task 5 report and every verification step: no repository check claims external runtime proof.
 - Placeholder scan: no unresolved planning markers remain; angle-bracket values appear only in documented operator commands where environment-specific values are required.
-- Type and naming consistency: the existing validator entry point remains validate_deployment_contract(root: Path | None) -> list[ContractViolation]; helper names and violation codes are defined in Task 2 and used consistently in Tasks 1 and 6.
+- Type and naming consistency: the validator entry point remains `validate_deployment_contract(root: Path | None, backend_image: str | None = None) -> list[ContractViolation]`; helper names and violation codes are defined in Task 2 and used consistently in Tasks 1 and 6.

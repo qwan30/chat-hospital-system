@@ -28,6 +28,11 @@ workflow can derive the same tag from the successful `workflow_run.head_sha`.
 The image digest is the strongest immutable identity when it is available;
 the `sha-<short-sha>` tag is the required human-readable handoff identity.
 
+The published image is scanned by Trivy for HIGH and CRITICAL findings before
+the release handoff artifact is written. A finding or scan failure fails the
+`docker-push` job and the CI summary; only the separate frontend E2E advisory
+remains non-blocking.
+
 The image is the only normal release artifact. Dokploy must set
 `BACKEND_IMAGE` to the exact tag or digest from the handoff. The one-off
 `alembic upgrade head` container, backend service, and worker service must all

@@ -100,6 +100,12 @@ It adds the backend Docker build context without changing the production
 Compose contract. Documentation must show that local builds use an explicit
 local image name such as `hospital-ai-backend:local`.
 
+The repository also retains the pre-existing `docker-compose.yml` and
+`app/backend/docker-compose.yml` for local development workflows. They may
+contain `build:` stanzas, but both are explicitly marked developer-only and
+are not Dokploy/VPS deployment inputs. The Task 7 override is the only
+build-enabled Compose file added for this deployment contract.
+
 The VPS staging runbook must never instruct an operator to use this override.
 
 ### R3. GitHub owns image construction
@@ -110,6 +116,7 @@ Keep the existing CI image pipeline as the image construction authority:
   must pass before image publication;
 - the image is tagged with the source commit's immutable `sha-<7-hex>` tag;
 - the image is scanned before it is handed off;
+- the HIGH/CRITICAL image scan is blocking for the `docker-push` release job;
 - the release artifact records source SHA, image tag, image digest, repository,
   and workflow run ID;
 - the CD workflow verifies the exact image reference before calling Dokploy;
@@ -129,7 +136,8 @@ Dokploy release procedure must perform the following order:
 2. pull the candidate image and dependent base images;
 3. run `alembic upgrade head` as a one-off backend container;
 4. start or replace backend and worker using the same image reference;
-5. wait for container health and query the public HTTPS health endpoint;
+5. wait for PostgreSQL, Redis, backend, and worker health (the worker uses a
+   process-liveness healthcheck) and query the public HTTPS health endpoint;
 6. run synthetic/de-identified smoke tests for auth, R2, worker processing,
    Gemini, and SSE;
 7. record the migration revision and runtime results against the candidate SHA.
@@ -215,7 +223,14 @@ must not mark the following as completed without operator evidence:
 - Backend and worker resolve to the same `BACKEND_IMAGE`.
 - PostgreSQL, Redis, and backend have no public host-port mappings.
 - Memory ceilings are present for all four VPS services.
-- The local build override is the only Compose file that adds a backend build.
+- The worker has a process-liveness healthcheck so Compose `--wait` can gate
+  worker rollout state, not just container creation.
+- The production Compose file has no build key; the Task 7 local override is
+  the only build-enabled Compose file added for this deployment contract.
+  Pre-existing root/backend Compose files remain explicitly local-only and are
+  not valid Dokploy/VPS inputs.
+- A HIGH/CRITICAL Trivy finding fails the image release job and prevents the
+  release handoff artifact from being produced.
 - `.dockerignore` excludes the specified non-runtime content.
 - Deployment validator tests include a passing contract and failing fixtures
   for production `build:`, missing required image input, floating release input,

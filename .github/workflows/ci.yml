@@ -104,6 +104,7 @@ jobs:
               - 'infra/docker-compose.observability.yml'
               - 'infra/observability/**'
               - 'app/backend/Dockerfile'
+              - 'app/backend/docker-compose.yml'
               - 'app/backend/.dockerignore'
               - 'app/backend/scripts/verify_deployment_contract.py'
               - 'app/frontend/Dockerfile'
@@ -705,14 +706,13 @@ jobs:
       # ── Scan backend image with Trivy ──
       - name: Scan backend image (Trivy)
         id: trivy-scan
-        continue-on-error: true
         uses: aquasecurity/trivy-action@v0.36.0
         with:
           image-ref: ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}-backend@${{ steps.backend-image.outputs.digest }}
           format: sarif
           output: trivy-backend.sarif
           severity: CRITICAL,HIGH
-          exit-code: 0
+          exit-code: 1
 
       - name: Upload backend Trivy results
         if: always() && steps.trivy-scan.outcome != 'skipped' && hashFiles('trivy-backend.sarif') != ''
@@ -780,21 +780,21 @@ jobs:
           )
 
           FAILED=0
-          DOCKER_FAILED=0
+          FRONTEND_FAILED=0
           for job in "${!jobs[@]}"; do
             result="${jobs[$job]}"
             icon="✅"
             if [[ "$result" == "failure" ]]; then
-              if [[ "$job" == "docker-push" || "$job" == "frontend-test" ]]; then icon="⚠️"; DOCKER_FAILED=1; else icon="❌"; FAILED=1; fi
+              if [[ "$job" == "frontend-test" ]]; then icon="⚠️"; FRONTEND_FAILED=1; else icon="❌"; FAILED=1; fi
               fi
             if [[ "$result" == "cancelled" ]]; then icon="⚠️"; fi
             echo "| $job | $icon $result |" >> "$GITHUB_STEP_SUMMARY"
           done
 
           if [[ $FAILED -eq 1 ]]; then
-            if [[ $DOCKER_FAILED -eq 1 ]]; then
+            if [[ $FRONTEND_FAILED -eq 1 ]]; then
               echo "" >> "$GITHUB_STEP_SUMMARY"
-              echo "⚠️ Docker/Trivy & Frontend E2E: advisory — does not block merge" >> "$GITHUB_STEP_SUMMARY"
+              echo "⚠️ Frontend E2E: advisory — does not block merge" >> "$GITHUB_STEP_SUMMARY"
             fi
 
             # The release lane requests every evaluation component and holds a
@@ -815,8 +815,8 @@ jobs:
             echo "❌ **Some jobs failed.** Check the logs above." >> "$GITHUB_STEP_SUMMARY"
             exit 1
           fi
-          if [[ $DOCKER_FAILED -eq 1 ]]; then
+          if [[ $FRONTEND_FAILED -eq 1 ]]; then
             echo "" >> "$GITHUB_STEP_SUMMARY"
-            echo "⚠️ **Docker/Trivy advisory step failed — all other checks passed.**" >> "$GITHUB_STEP_SUMMARY"
+            echo "⚠️ **Frontend E2E advisory step failed — all other checks passed.**" >> "$GITHUB_STEP_SUMMARY"
           fi
           echo "✅ **All CI jobs passed.** Ready for deployment." >> "$GITHUB_STEP_SUMMARY"

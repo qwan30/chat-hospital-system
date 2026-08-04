@@ -27,6 +27,8 @@ REQUIRED_FILES = (
     ".github/workflows/rollback.yml",
     "infra/docker-compose.yml",
     "infra/docker-compose.local-build.yml",
+    "docker-compose.yml",
+    "app/backend/docker-compose.yml",
     "app/backend/.dockerignore",
     "docs/10-deployment/deployment-guide.md",
     "docs/10-deployment/env-variables.md",
@@ -35,6 +37,12 @@ REQUIRED_FILES = (
     "docs/10-deployment/vps-operations.md",
     "docs/10-deployment/vps-preflight-evidence.md",
 )
+
+LOCAL_ONLY_COMPOSE_FILES = (
+    "docker-compose.yml",
+    "app/backend/docker-compose.yml",
+)
+LOCAL_ONLY_COMPOSE_MARKER = "Developer-only local Compose file. Not for Dokploy/VPS deployment."
 
 BACKEND_IMAGE_EXPRESSION = "${BACKEND_IMAGE:?BACKEND_IMAGE must be set to an immutable GHCR image reference}"
 IMMUTABLE_BACKEND_IMAGE_PATTERN = re.compile(
@@ -47,6 +55,7 @@ TASK_7_MEMORY_LIMITS = {
     "backend": "768m",
     "worker": "1024m",
 }
+TASK_7_WORKER_HEALTHCHECK = 'healthcheck:\n      test: ["CMD", "python", "-c", "import os; os.kill(1, 0)"]'
 TASK_7_DOCKERIGNORE_ENTRIES = (
     ".git",
     ".venv/",
@@ -313,6 +322,17 @@ def _compose_service_block(compose: str, service: str) -> str:
     return match.group("body") if match else ""
 
 
+def _validate_local_compose_boundaries(files: dict[str, str], violations: list[ContractViolation]) -> None:
+    for relative_path in LOCAL_ONLY_COMPOSE_FILES:
+        _require(
+            files[relative_path],
+            LOCAL_ONLY_COMPOSE_MARKER,
+            relative_path,
+            violations,
+            code="local_compose_boundary",
+        )
+
+
 def _validate_task_7_compose_contract(
     compose: str,
     local_build: str,
@@ -371,6 +391,16 @@ def _validate_task_7_compose_contract(
                     "infra/docker-compose.yml",
                 )
             )
+
+    worker_block = _compose_service_block(compose, "worker")
+    if TASK_7_WORKER_HEALTHCHECK not in worker_block:
+        violations.append(
+            ContractViolation(
+                "missing_worker_healthcheck",
+                "worker must expose a process-liveness healthcheck for rollout gating",
+                "infra/docker-compose.yml",
+            )
+        )
 
     for service in ("backend", "worker"):
         block = _compose_service_block(local_build, service)
@@ -465,6 +495,7 @@ def validate_deployment_contract(root: Path | None = None, backend_image: str | 
     vps_ops = files["docs/10-deployment/vps-operations.md"]
     vps_evidence = files["docs/10-deployment/vps-preflight-evidence.md"]
 
+    _validate_local_compose_boundaries(files, violations)
     for forbidden in ("\n  nginx:", "\n  ollama:", "HOSPITAL_AI_OLLAMA_BASE_URL", "localhost:11434"):
         _forbid(compose, forbidden, "infra/docker-compose.yml", violations)
     _require(compose, 'expose:\n      - "8000"', "infra/docker-compose.yml", violations)
@@ -587,7 +618,7 @@ def validate_deployment_contract(root: Path | None = None, backend_image: str | 
         "ss -ltnp",
         "docker --version",
         "docker compose version",
-        'docker manifest inspect "ghcr.io/<GHCR_NAMESPACE>/<IMAGE_NAME>:sha-<CANDIDATE_SHA>"',
+        'docker manifest inspect "ghcr.io/<GHCR_NAMESPACE>/<IMAGE_NAME>:sha-<CANDIDATE_SHORT_SHA>"',
         'python "<absolute-path-to-repository>/app/backend/scripts/verify_deployment_contract.py" '
         '--backend-image "$BACKEND_IMAGE"',
         'curl --fail --silent --show-error "https://<API_DOMAIN>/api/v1/health"',
@@ -608,6 +639,12 @@ def validate_deployment_contract(root: Path | None = None, backend_image: str | 
     _require(
         vps_evidence,
         "<CANDIDATE_SHA>",
+        "docs/10-deployment/vps-preflight-evidence.md",
+        violations,
+    )
+    _require(
+        vps_evidence,
+        "<CANDIDATE_SHORT_SHA>",
         "docs/10-deployment/vps-preflight-evidence.md",
         violations,
     )

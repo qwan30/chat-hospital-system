@@ -1,5 +1,7 @@
 # Docker Compose for the AI-Powered Hospital Knowledge Assistant
+# Developer-only local Compose file. Not for Dokploy/VPS deployment.
 # Local Lite stack (16GB RAM) — doc 07 §3
+# Task 7 staging uses infra/docker-compose.yml with a GitHub-built GHCR image.
 # Usage: docker compose up --build
 
 services:

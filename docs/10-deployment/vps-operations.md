@@ -16,7 +16,8 @@ material, access tokens, or provider-specific values into this repository.
 
 Record the deployment candidate before touching a VPS or Dokploy project:
 
-- Candidate SHA: `<CANDIDATE_SHA>`
+- Candidate SHA (full 40-hex commit): `<CANDIDATE_SHA>`
+- Candidate image short SHA (first 7 lowercase hex): `<CANDIDATE_SHORT_SHA>`
 - CI Run ID: `<CI_RUN_ID>`
 - VPS hostname: `<VPS_HOST>`
 - Dokploy domain: `https://<DOKPLOY_DOMAIN>`
@@ -131,7 +132,7 @@ place credentials in the command history or this repository.
 
 ```bash
 git ls-remote "git@github.com:<GITHUB_ORG>/<REPO>.git" HEAD
-docker manifest inspect "ghcr.io/<GHCR_NAMESPACE>/<IMAGE_NAME>:sha-<CANDIDATE_SHA>"
+docker manifest inspect "ghcr.io/<GHCR_NAMESPACE>/<IMAGE_NAME>:sha-<CANDIDATE_SHORT_SHA>"
 ```
 
 Expected evidence:
@@ -153,7 +154,7 @@ candidate image and the following order. Replace every placeholder before
 running; do not put credentials in the command history or this repository.
 
 ```bash
-export BACKEND_IMAGE="ghcr.io/<GHCR_NAMESPACE>/hospital-ai-backend:sha-<CANDIDATE_SHA>"
+export BACKEND_IMAGE="ghcr.io/<GHCR_NAMESPACE>/hospital-ai-backend:sha-<CANDIDATE_SHORT_SHA>"
 python "<absolute-path-to-repository>/app/backend/scripts/verify_deployment_contract.py" --backend-image "$BACKEND_IMAGE"
 docker manifest inspect "$BACKEND_IMAGE"
 docker compose -f "<absolute-path-to-infra/docker-compose.yml>" pull postgres redis backend worker
@@ -168,13 +169,15 @@ curl --fail --silent --show-error "https://<API_DOMAIN>/api/v1/health"
 Run the repository validator from an approved checkout before changing
 Dokploy; the checkout is validation input only, not a VPS build input. The
 `--wait` steps ensure PostgreSQL and Redis are healthy before the migration and
-that backend and worker are started only after migration completes. The
-migration container, backend, and worker must resolve to the same
-`BACKEND_IMAGE`. Record the migration revision, image digest, source SHA,
-container health, public health result, synthetic/de-identified smoke result,
-RAM, swap, disk, and `docker stats` output in the evidence table. Dokploy may
-execute the same sequence through its UI or deploy hook; a hook acknowledgement
-alone is not deployment or runtime proof.
+that backend and worker are started only after migration completes. The worker
+has a process-liveness healthcheck, so `--wait` also gates the worker's running
+state instead of merely starting the container. The migration container,
+backend, and worker must resolve to the same `BACKEND_IMAGE`. Record the
+migration revision, image digest, source SHA, container health, public health
+result, synthetic/de-identified smoke result, RAM, swap, disk, and `docker
+stats` output in the evidence table. Dokploy may execute the same sequence
+through its UI or deploy hook; a hook acknowledgement alone is not deployment
+or runtime proof.
 
 ### 2.8 Secret injection contract
 
@@ -182,8 +185,7 @@ Verify secret key names only. Do not print values.
 
 ```bash
 printf '%s\n' \
-  HOSPITAL_AI_DATABASE_URL \
-  HOSPITAL_AI_REDIS_URL \
+  POSTGRES_PASSWORD \
   HOSPITAL_AI_GEMINI_API_KEY \
   HOSPITAL_AI_R2_ENDPOINT \
   HOSPITAL_AI_R2_BUCKET \

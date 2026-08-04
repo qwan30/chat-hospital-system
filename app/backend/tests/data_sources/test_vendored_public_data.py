@@ -140,6 +140,17 @@ def test_github_actions_do_not_download_public_datasets() -> None:
     assert violations == []
 
 
+def test_backend_container_includes_only_vendored_public_data() -> None:
+    dockerfile = (BACKEND_ROOT / "Dockerfile").read_text(encoding="utf-8")
+    dockerignore = (BACKEND_ROOT / ".dockerignore").read_text(encoding="utf-8")
+
+    assert "COPY data/public/ data/public/" in dockerfile
+    assert "data/*" in dockerignore
+    assert "!data/public/" in dockerignore
+    assert "!data/public/**" in dockerignore
+    assert "\ndata/\n" not in f"\n{dockerignore}"
+
+
 def test_misleading_legacy_dataset_scripts_are_absent() -> None:
     scripts = BACKEND_ROOT / "scripts"
 

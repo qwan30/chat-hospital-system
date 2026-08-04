@@ -58,7 +58,8 @@ Cloudflare, the VPS, or an LLM provider.
 
 ## 4. Staging/demo promotion gates
 
-- [ ] Task 4 repository deployment-contract validator returns `0`.
+- [ ] Repository deployment-contract validator returns `0`, including the
+      candidate `--backend-image` immutable-reference check.
 - [ ] CI backend, migration, frontend, observability, and image scan gates pass.
 - [ ] CI release artifact records the source SHA, image tag, and image digest.
 - [ ] Production Compose is image-only, requires `BACKEND_IMAGE`, and uses the

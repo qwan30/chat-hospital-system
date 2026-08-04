@@ -2,7 +2,7 @@
 
 > Project: AI-Powered Hospital Knowledge Assistant  
 > Project Code: HOSP-AI-001  
-> Version: 2.2
+> Version: 2.3
 > Status: In Sync  
 > Owner: DevOps / SRE / Tech Lead  
 > Last Updated: 2026-08-04

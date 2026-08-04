@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+import React from "react";
 import { describe, expect, it, vi, beforeAll, afterAll, beforeEach, afterEach } from "vitest";
 import { render, waitFor } from "@testing-library/react";
 import { AuthProvider, useAuth } from "./auth-context";
@@ -79,6 +80,7 @@ describe("AuthProvider / useAuth", () => {
 
   afterEach(() => {
     vi.unstubAllGlobals();
+    vi.unstubAllEnvs();
     captured = null;
   });
 
@@ -166,6 +168,103 @@ describe("AuthProvider / useAuth", () => {
       expect(captured!.apiUrl).toBe("http://custom:3000/api");
     });
     expect(getMockStore()["hospital_ai_api_url"]).toBe("http://custom:3000/api");
+  });
+
+  it("ignores stale localStorage API URL when build-time VITE_API_URL exists", async () => {
+    vi.stubEnv("VITE_API_URL", "https://api.example.com/api/v1");
+    vi.resetModules();
+    mockLocalStorage({ hospital_ai_api_url: "http://stale.local/api/v1" });
+    let callCount = 0;
+    mockFetchWith(() => {
+      callCount++;
+      if (callCount === 1) {
+        return Promise.resolve({
+          ok: true,
+          status: 200,
+          json: () => Promise.resolve({ access_token: "issued-jwt", token_type: "bearer" }),
+        });
+      }
+      return Promise.resolve({
+        ok: true,
+        status: 200,
+        json: () =>
+          Promise.resolve({
+            id: "u1",
+            email: "doctor@example.test",
+            full_name: "Doctor",
+            role: "doctor",
+            is_active: true,
+          }),
+      });
+    });
+
+    const authModule = await import("./auth-context");
+    let dynamicCaptured: ReturnType<typeof authModule.useAuth> | null = null;
+
+    function DynamicCapture() {
+      dynamicCaptured = authModule.useAuth();
+      return null;
+    }
+
+    render(
+      <authModule.AuthProvider>
+        <DynamicCapture />
+      </authModule.AuthProvider>,
+    );
+
+    await waitFor(() => {
+      expect(dynamicCaptured).not.toBeNull();
+      expect(dynamicCaptured!.hydrated).toBe(true);
+      expect(dynamicCaptured!.apiUrl).toBe("https://api.example.com/api/v1");
+    });
+
+    await dynamicCaptured!.login("doctor@example.test", "demo");
+    const fetchMock = vi.mocked(fetch);
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      1,
+      "https://api.example.com/api/v1/auth/token",
+      expect.anything(),
+    );
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      2,
+      "https://api.example.com/api/v1/auth/me",
+      expect.anything(),
+    );
+    expect(vi.mocked(localStorage.setItem)).not.toHaveBeenCalled();
+  });
+
+  it("never writes bearer tokens to localStorage during login", async () => {
+    mockLocalStorage();
+    let callCount = 0;
+    mockFetchWith(() => {
+      callCount++;
+      if (callCount === 1) {
+        return Promise.resolve({
+          ok: true,
+          status: 200,
+          json: () => Promise.resolve({ access_token: "issued-jwt", token_type: "bearer" }),
+        });
+      }
+      return Promise.resolve({
+        ok: true,
+        status: 200,
+        json: () =>
+          Promise.resolve({
+            id: "u1",
+            email: "doctor@example.test",
+            full_name: "Doctor",
+            role: "doctor",
+            is_active: true,
+          }),
+      });
+    });
+
+    renderCapture();
+    await waitFor(() => expect(captured).not.toBeNull());
+
+    await expect(captured!.login("doctor@example.test", "demo")).resolves.toBe(true);
+    expect(getMockStore()).not.toHaveProperty("hospital_ai_token");
+    expect(Object.values(getMockStore())).not.toContain("issued-jwt");
   });
 
   // --- 7. Login failure ---

@@ -1,141 +1,227 @@
-# Dokploy/VPS staging-demo operations
+# VPS / Dokploy preflight operations contract
 
-> Profile: 4 GB RAM / 45 GB disk
-> Scope: Vercel frontend plus Dokploy-managed VPS backend stack
-> Data: synthetic or de-identified only
-> Status: Runbook; no live provisioning or backup verification is claimed
+> Scope: operator-run preflight for a Vercel frontend plus Dokploy-managed API
+> and worker deployment
+> Data policy: synthetic or de-identified data only
+> Evidence status: external state remains UNVERIFIED until an operator records
+> candidate-specific evidence in `vps-preflight-evidence.md`
 > Last updated: 2026-08-04
 
-This document is the day-two operating contract for a staging/demo VPS. It is
-not a production-readiness, clinical-safety, or HIPAA certification.
+This document is a repository-side operating contract only. Repository validation is static only; it does not prove live VPS, Dokploy, DNS, GHCR, R2, HTTPS, backup, restore, or runtime health state.
 
-## 1. Service boundary
+Use placeholders only. Do not paste secrets, real domains, private IPs, SSH key
+material, access tokens, or provider-specific values into this repository.
 
-Dokploy/Traefik owns the public HTTPS ingress. The backend is addressed through
-the configured Traefik route; PostgreSQL, Redis, the worker, and the backend
-container port remain private. Keep host port publishing disabled for those
-services. The frontend remains on Vercel and must call the approved API origin.
+## 1. Candidate identity and change boundary
 
-The VPS image is selected by an immutable GHCR `sha-<short-sha>` tag or digest.
-The Compose `latest` fallback is for local validation only and is not a
-staging/demo release identity.
+Record the deployment candidate before touching a VPS or Dokploy project:
 
-## 2. 4 GB / 45 GB preflight
+- Candidate SHA: `<CANDIDATE_SHA>`
+- CI Run ID: `<CI_RUN_ID>`
+- VPS hostname: `<VPS_HOST>`
+- Dokploy domain: `https://<DOKPLOY_DOMAIN>`
+- Backend API domain: `https://<API_DOMAIN>`
+- Frontend origin on Vercel: `https://<VERCEL_FRONTEND_ORIGIN>`
 
-Run the following checks as an operator before first installation, every
-release, and after an incident. These commands are intentionally placeholders
-for the actual operator host and route.
+The expected frontend-to-backend route contract is:
 
 ```bash
-# OPERATOR-RUN: resource and swap checks.
+VITE_API_URL=https://<API_DOMAIN>/api/v1
+HOSPITAL_AI_CORS_ORIGINS=https://<VERCEL_FRONTEND_ORIGIN>
+```
+
+Do not treat a template, screenshot placeholder, or repository check as proof that the route is live. The route remains UNVERIFIED until an operator captures candidate-specific evidence.
+
+## 2. Safe operator commands
+
+Run the following commands from an operator workstation or the target VPS, as
+noted. These are read-only or narrowly scoped verification commands. They do
+not provision infrastructure, rotate secrets, or make destructive firewall or
+container changes.
+
+### 2.1 OS, RAM, disk, and swap
+
+Run on the target VPS:
+
+```bash
+cat /etc/os-release
+uname -a
 free -h
 df -h "<VPS_DATA_MOUNT>"
 swapon --show
+```
 
-# OPERATOR-RUN: confirm only the intended public listeners exist.
+Expected evidence:
+
+- OS family and version are captured exactly as reported by the host.
+- RAM and disk headroom are sufficient for one image pull plus normal staging
+  workload.
+- Swap state is recorded exactly as observed; if swap is disabled, record that
+  explicitly instead of assuming it exists.
+
+### 2.2 SSH key access
+
+Run from the operator workstation:
+
+```bash
+ssh -o BatchMode=yes -i "<SSH_PRIVATE_KEY_PATH>" "<VPS_USER>@<VPS_HOST>" "echo ssh-key-auth-ok"
+```
+
+Expected evidence:
+
+- Key-based access succeeds without prompting for a password.
+- The operator records only the success/failure result and target identity.
+- Do not commit private key paths that reveal user-specific workstation layout
+  if that is sensitive in your environment.
+
+### 2.3 Firewall policy and listener review
+
+Run on the target VPS:
+
+```bash
+ufw status numbered
 ss -ltnp
+ss -ltn "( sport = :22 or sport = :80 or sport = :443 or sport = :3000 )"
+```
 
-# OPERATOR-RUN: inspect service resource use and health.
-docker stats --no-stream
-docker compose -f "<absolute-path-to-infra/docker-compose.yml>" ps
+Expected evidence:
+
+- Firewall policy is recorded as observed.
+- Listener review explicitly covers ports `22`, `80`, `443`, and `3000`.
+- Any public exposure of port `3000` is recorded with operator justification.
+- Unexpected listeners are treated as a blocker, not silently accepted.
+
+### 2.4 Docker and Compose versions
+
+Run on the target VPS:
+
+```bash
+docker --version
+docker compose version
+docker info --format '{{.ServerVersion}}'
+```
+
+Expected evidence:
+
+- Docker Engine version is captured verbatim.
+- Docker Compose plugin version is captured verbatim.
+- The operator records the exact version strings instead of "latest" or
+  "installed".
+
+### 2.5 Dokploy installation and domain
+
+Run on the target VPS or an operator workstation, depending on access method:
+
+```bash
+docker ps --format '{{.Names}} {{.Status}}' | grep -i dokploy
+curl --fail --silent --show-error --head "https://<DOKPLOY_DOMAIN>"
+```
+
+Expected evidence:
+
+- Dokploy presence is recorded as observed; absence remains a blocker.
+- The Dokploy domain and HTTPS response are recorded as operator evidence only.
+- Do not claim that Dokploy is installed or routable unless the operator has
+  actually captured the result.
+
+### 2.6 GitHub source and GHCR image access
+
+Run with operator-approved credentials already present in the session. Do not
+place credentials in the command history or this repository.
+
+```bash
+git ls-remote "git@github.com:<GITHUB_ORG>/<REPO>.git" HEAD
+docker manifest inspect "ghcr.io/<GHCR_NAMESPACE>/<IMAGE_NAME>:sha-<CANDIDATE_SHA>"
+```
+
+Expected evidence:
+
+- GitHub connectivity to the intended repository is confirmed for the exact
+  deployment source.
+- GHCR lookup resolves the candidate image tag or digest intended for the VPS.
+- Failure to authenticate is recorded as UNVERIFIED, not papered over by the
+  presence of a CI workflow.
+
+### 2.7 Secret injection contract
+
+Verify secret key names only. Do not print values.
+
+```bash
+printf '%s\n' \
+  HOSPITAL_AI_DATABASE_URL \
+  HOSPITAL_AI_REDIS_URL \
+  HOSPITAL_AI_GEMINI_API_KEY \
+  HOSPITAL_AI_R2_ENDPOINT \
+  HOSPITAL_AI_R2_BUCKET \
+  HOSPITAL_AI_R2_ACCESS_KEY_ID \
+  HOSPITAL_AI_R2_SECRET_ACCESS_KEY \
+  HOSPITAL_AI_JWT_ISSUER \
+  HOSPITAL_AI_JWKS_URL \
+  HOSPITAL_AI_JWT_AUDIENCE
+```
+
+Operator checkpoint:
+
+- In Dokploy, verify that the required secret keys exist for the backend and
+  worker without exposing their values.
+- Record only key presence, secret source owner, and timestamp.
+- Repository validation does not prove that secrets were injected correctly.
+
+### 2.8 Vercel-to-API route
+
+Check the expected browser route contract and the backend health path using
+placeholder values only:
+
+```bash
+printf '%s\n' "VITE_API_URL=https://<API_DOMAIN>/api/v1"
+printf '%s\n' "HOSPITAL_AI_CORS_ORIGINS=https://<VERCEL_FRONTEND_ORIGIN>"
 curl --fail --silent --show-error "https://<API_DOMAIN>/api/v1/health"
 ```
 
-Record free disk, used RAM, swap activity, listening ports, image digests,
-container health, and the backup/restore-test identifiers. Stop the operation
-if disk headroom is insufficient for a database dump plus image pull, swap is
-thrashing, an unexpected public listener exists, or a required service is
-unhealthy. Keep enough headroom for one image replacement and temporary backup
-artifacts; the 45 GB disk is not a backup repository.
+Expected evidence:
 
-## 3. Release and rollback operations
+- The Vercel build-time API base includes the explicit `/api/v1` suffix.
+- The backend CORS origin is an explicit allowlist entry for the frontend
+  origin; wildcard CORS is not acceptable.
+- Health-route success, if any, is operator-captured runtime evidence and must
+  stay outside repository-only proof claims.
 
-1. Confirm the release is staging/demo-only and contains no real patient data.
-2. Confirm the CI artifact is an immutable tag or digest and that its migration
-   is expand/contract compatible.
-3. Confirm an encrypted PostgreSQL backup and a recoverable R2 object version
-   or export exist. Their existence and restore-test result must be recorded;
-   neither is configured by this repository.
-4. Confirm the required backend/worker secrets are present in Dokploy and not
-   in Git or Vercel client variables.
-5. Use the normal Dokploy deploy handoff for a release. Production promotion is
-   outside this runbook and must remain manually approved and environment-gated.
-6. After Dokploy reports completion, check the Traefik HTTPS health route,
-   container health, worker queue activity, and a small synthetic document/chat
-   flow. A webhook acknowledgement alone is not a deployment proof.
-7. For a rollback, use the separate Task 2 Dokploy rollback hook and pass the
-   approved immutable image reference. Require manual approval; do not switch
-   to a floating tag or bypass the migration-safety check.
+## 3. Operator preflight checklist
 
-See [`rollback-plan.md`](rollback-plan.md) for the full image, database, and
-object recovery procedures.
+Treat the following as a blocking preflight sequence:
 
-## 4. Backup, retention, and restore controls
+1. Record `<CANDIDATE_SHA>` and `<CI_RUN_ID>`.
+2. Confirm synthetic or de-identified data usage only.
+3. Capture OS, version, RAM, disk, and swap evidence.
+4. Prove SSH key access without disclosing key material.
+5. Capture firewall and listener evidence for `22/80/443/3000`.
+6. Capture Docker Engine and Docker Compose versions.
+7. Capture Dokploy presence and domain evidence.
+8. Capture GitHub repository reachability and GHCR candidate-image reachability.
+9. Confirm required secret key names are present in Dokploy without exposing
+   values.
+10. Capture the exact Vercel-to-API route contract:
+    `VITE_API_URL=https://<API_DOMAIN>/api/v1` and
+    `HOSPITAL_AI_CORS_ORIGINS=https://<VERCEL_FRONTEND_ORIGIN>`.
 
-Before the VPS is used for a demo, the operator must configure and evidence:
+If any step is missing, the deployment remains UNVERIFIED and should not be
+described as provisioned, ready, healthy, or externally validated.
 
-| Control | Required contract | Evidence to retain |
-|---|---|---|
-| PostgreSQL backup | Custom-format dump, encrypted off-host, checksum recorded | Backup ID, revision, destination, checksum |
-| PostgreSQL retention | At least 14 daily, 8 weekly, and 12 monthly copies unless an approved policy says otherwise | Retention policy and pruning log |
-| PostgreSQL restore test | Monthly and after backup-policy changes, with synthetic data | Test date, restored revision, validation result |
-| R2 retention | Encryption plus versioning or equivalent recoverable retention and lifecycle policy | Bucket policy, object version, checksum |
-| R2 restore test | Monthly and after retention changes; verify metadata and application readability | Object key/version, checksum, result |
-| Secret rotation | Rotate database, R2, provider, and auth secrets through Dokploy/secret manager; revoke old values after a controlled check | Rotation ticket and verification result |
+## 4. What this contract does not prove
 
-Use placeholders only and follow the procedures in `rollback-plan.md`. Never
-store plaintext dumps, decrypted exports, credentials, or signed URLs in this
-repository. No backup or restore success is implied by the presence of a
-runbook.
+This repository does not claim that any of the following have been completed or
+verified:
 
-## 5. Resource-aware observability
+- VPS provisioning
+- Dokploy installation completion
+- DNS cutover
+- GHCR credential setup
+- Cloudflare R2 configuration
+- secret correctness
+- HTTPS certificate issuance
+- backup creation
+- restore success
+- runtime health or load behavior
 
-Observability is opt-in. Measure the base stack first; do not enable the full
-observability overlay on a 4 GB VPS until RAM, disk, CPU, and swap behavior have
-been recorded under a representative synthetic workload. If enabled, add one
-component at a time, cap retention, and re-run the preflight checks. A resource
-alert is a reason to disable the overlay, not to expand public exposure.
-
-The minimum operating signal set is:
-
-- Traefik route and TLS health;
-- backend health and 5xx/error rate;
-- PostgreSQL/Redis/worker container health;
-- queue age and failed-job count;
-- free disk, RAM, swap, and container restart count;
-- backup age, checksum, retention state, and latest restore-test result; and
-- R2 object/index status for the synthetic demo corpus.
-
-Do not put secrets, access tokens, document contents, or patient identifiers in
-logs, metrics labels, screenshots, or incident tickets.
-
-## 6. Incident response and escalation
-
-On an incident, freeze promotion, capture the exact image digest and migration
-revision, check the public health route and private service health, and preserve
-logs before restarting anything. Disable the Traefik route when the application
-could leak data or corrupt writes. Do not expose a private service port as a
-diagnostic shortcut.
-
-```text
-Level 1: staging/demo operator — triage, preserve evidence, freeze promotion
-  └── Level 2: technical lead — approve image rollback or data restore
-        └── Level 3: security/data owner — access incident, retention, and key rotation
-```
-
-Escalate immediately for suspected unauthorized access, missing or untested
-backups, corruption, repeated health-check failure, disk exhaustion, or RAM /
-swap exhaustion. Resume the route only after the incident owner records the
-validation result and approval.
-
-## 7. Change boundaries
-
-This profile is a staging/demo contract. It does not authorize live Dokploy,
-VPS, DNS, R2, database, provider, or secret provisioning. It does not approve
-production traffic, real PHI, clinical use, or regulatory certification.
-
-## Change log
-
-| Version | Date | Change |
-|---|---|---|
-| 1.0 | 2026-08-04 | Added the 4 GB / 45 GB Dokploy/VPS day-two operations runbook. |
+Those checks require operator-captured evidence outside the repository and must
+remain explicitly UNVERIFIED until recorded.

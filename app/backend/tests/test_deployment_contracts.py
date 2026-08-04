@@ -8,10 +8,49 @@ import sys
 from pathlib import Path
 from types import SimpleNamespace
 
+import pytest
+
 from hospital_ai.workers import run_worker
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 DEPLOYMENT_VALIDATOR = REPO_ROOT / "app" / "backend" / "scripts" / "verify_deployment_contract.py"
+REQUIRED_DEPLOYMENT_PATHS = [
+    ".github/workflows/ci.yml",
+    ".github/workflows/cd.yml",
+    ".github/workflows/rollback.yml",
+    "infra/docker-compose.yml",
+    "docs/10-deployment/deployment-guide.md",
+    "docs/10-deployment/env-variables.md",
+    "docs/10-deployment/ci-cd.md",
+    "docs/10-deployment/release-checklist.md",
+    "docs/10-deployment/vps-operations.md",
+    "docs/10-deployment/vps-preflight-evidence.md",
+]
+PENDING_CANDIDATE_SHA_ROW = (
+    "| PENDING — operator evidence required | Candidate SHA pinned | "
+    "`git rev-parse --verify <CANDIDATE_SHA>` | Candidate commit resolves exactly once | "
+    "`<operator-recorded-value>` | `<YYYY-MM-DDThh:mm:ssZ>` | `<owner>` |"
+)
+VERIFIED_CANDIDATE_SHA_ROW = (
+    "| VERIFIED | Candidate SHA pinned | `git rev-parse --verify <CANDIDATE_SHA>` | "
+    "Candidate commit resolves exactly once | `<operator-recorded-value>` | "
+    "`<YYYY-MM-DDThh:mm:ssZ>` | `<owner>` |"
+)
+PENDING_SECRET_KEY_ROW = (
+    "| PENDING — operator evidence required | Secret key presence only | "
+    "`printf '%s\\n' HOSPITAL_AI_DATABASE_URL HOSPITAL_AI_REDIS_URL "
+    "HOSPITAL_AI_GEMINI_API_KEY HOSPITAL_AI_R2_ENDPOINT HOSPITAL_AI_R2_BUCKET "
+    "HOSPITAL_AI_R2_ACCESS_KEY_ID HOSPITAL_AI_R2_SECRET_ACCESS_KEY "
+    "HOSPITAL_AI_JWT_ISSUER HOSPITAL_AI_JWKS_URL HOSPITAL_AI_JWT_AUDIENCE` | "
+    "Required key names are present in Dokploy; no secret values are exposed | "
+    "`<operator-recorded-value>` | `<YYYY-MM-DDThh:mm:ssZ>` | `<owner>` |"
+)
+MALFORMED_SECRET_KEY_ROW = (
+    "| PENDING — operator evidence required | Secret key presence only | "
+    "`printf '%s\\n' HOSPITAL_AI_DATABASE_URL` | malformed row | "
+    "`<operator-recorded-value>` |"
+)
+FRONTEND_SECRET_PROOF_MARKER = "HOSPITAL_AI_DATABASE_URL"
 
 
 def _load_deployment_validator():
@@ -21,6 +60,22 @@ def _load_deployment_validator():
     sys.modules[spec.name] = module
     spec.loader.exec_module(module)
     return module
+
+
+def _copy_deployment_contract_fixture(tmp_path: Path) -> None:
+    for relative in REQUIRED_DEPLOYMENT_PATHS:
+        target = tmp_path / relative
+        target.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(REPO_ROOT / relative, target)
+
+
+def _run_validator(repo_root: Path) -> subprocess.CompletedProcess[str]:
+    return subprocess.run(
+        [sys.executable, str(DEPLOYMENT_VALIDATOR), "--repo-root", str(repo_root), "--json"],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
 
 
 def test_worker_entrypoint_builds_all_supported_queues(monkeypatch):
@@ -141,20 +196,7 @@ def test_deployment_contract_validator_accepts_current_repository():
 
 
 def test_deployment_contract_cli_reports_invalid_fixture(tmp_path):
-    required_paths = [
-        ".github/workflows/ci.yml",
-        ".github/workflows/cd.yml",
-        ".github/workflows/rollback.yml",
-        "infra/docker-compose.yml",
-        "docs/10-deployment/deployment-guide.md",
-        "docs/10-deployment/env-variables.md",
-        "docs/10-deployment/ci-cd.md",
-        "docs/10-deployment/release-checklist.md",
-    ]
-    for relative in required_paths:
-        target = tmp_path / relative
-        target.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copy2(REPO_ROOT / relative, target)
+    _copy_deployment_contract_fixture(tmp_path)
 
     compose_path = tmp_path / "infra" / "docker-compose.yml"
     compose_path.write_text(
@@ -163,15 +205,126 @@ def test_deployment_contract_cli_reports_invalid_fixture(tmp_path):
         ),
         encoding="utf-8",
     )
-
-    result = subprocess.run(
-        [sys.executable, str(DEPLOYMENT_VALIDATOR), "--repo-root", str(tmp_path), "--json"],
-        capture_output=True,
-        text=True,
-        check=False,
+    env_docs_path = tmp_path / "docs" / "10-deployment" / "env-variables.md"
+    env_docs_path.write_text(
+        env_docs_path.read_text(encoding="utf-8").replace(
+            "HOSPITAL_AI_CORS_ORIGINS=https://app.example.com",
+            "HOSPITAL_AI_CORS_ORIGINS=*",
+        ),
+        encoding="utf-8",
     )
+    evidence_path = tmp_path / "docs" / "10-deployment" / "vps-preflight-evidence.md"
+    evidence_path.write_text(
+        evidence_path.read_text(encoding="utf-8").replace(
+            "| PENDING — operator evidence required | Vercel `VITE_API_URL` route |",
+            "| VERIFIED | Vercel `VITE_API_URL` route |",
+        ),
+        encoding="utf-8",
+    )
+
+    result = _run_validator(tmp_path)
 
     assert result.returncode == 2
     payload = json.loads(result.stdout)
     assert payload["valid"] is False
     assert any(item["code"] == "public_port" for item in payload["violations"])
+    assert any(item["code"] == "wildcard_cors" for item in payload["violations"])
+    assert any(item["code"] == "invalid_preflight_status" for item in payload["violations"])
+    assert any(item["code"] == "pending_preflight_row_required" for item in payload["violations"])
+
+
+def test_deployment_contract_cli_rejects_frontend_secret_leak_fixture(tmp_path):
+    _copy_deployment_contract_fixture(tmp_path)
+
+    proof_source = REPO_ROOT / "app" / "frontend" / "src" / "lib" / "api-client.ts"
+    proof_target = tmp_path / "app" / "frontend" / "src" / "proof-secret.ts"
+    proof_target.parent.mkdir(parents=True, exist_ok=True)
+    proof_target.write_text(
+        f"{proof_source.read_text(encoding='utf-8')}\nexport const proofSecret = '{FRONTEND_SECRET_PROOF_MARKER}';\n",
+        encoding="utf-8",
+    )
+
+    result = _run_validator(tmp_path)
+
+    assert result.returncode == 2
+    payload = json.loads(result.stdout)
+    assert payload["valid"] is False
+    assert any(
+        item["code"] == "frontend_secret_leak"
+        and "proof-secret.ts" in item["message"]
+        and FRONTEND_SECRET_PROOF_MARKER in item["message"]
+        for item in payload["violations"]
+    )
+
+
+@pytest.mark.parametrize(
+    ("mutator", "expected_codes"),
+    [
+        (
+            lambda text: text.replace(
+                PENDING_CANDIDATE_SHA_ROW,
+                f"{PENDING_CANDIDATE_SHA_ROW}\n{VERIFIED_CANDIDATE_SHA_ROW}",
+            ),
+            {"invalid_preflight_status", "duplicate_preflight_check"},
+        ),
+        (
+            lambda text: text.replace(
+                "| PENDING — operator evidence required | CI Run ID recorded |",
+                "| PENDING — operator evidence required | Candidate SHA pinned |",
+            ),
+            {"duplicate_preflight_check", "missing_preflight_row"},
+        ),
+        (
+            lambda text: text.replace(
+                PENDING_SECRET_KEY_ROW,
+                MALFORMED_SECRET_KEY_ROW,
+            ),
+            {"invalid_preflight_row", "missing_preflight_row"},
+        ),
+    ],
+)
+def test_deployment_contract_cli_rejects_invalid_preflight_rows(tmp_path, mutator, expected_codes):
+    _copy_deployment_contract_fixture(tmp_path)
+
+    evidence_path = tmp_path / "docs" / "10-deployment" / "vps-preflight-evidence.md"
+    evidence_path.write_text(mutator(evidence_path.read_text(encoding="utf-8")), encoding="utf-8")
+
+    result = _run_validator(tmp_path)
+
+    assert result.returncode == 2
+    payload = json.loads(result.stdout)
+    actual_codes = {item["code"] for item in payload["violations"]}
+    assert expected_codes.issubset(actual_codes)
+
+
+@pytest.mark.parametrize(
+    ("relative_path", "original", "replacement"),
+    [
+        (
+            "docs/10-deployment/env-variables.md",
+            "HOSPITAL_AI_CORS_ORIGINS=https://app.example.com",
+            "HOSPITAL_AI_CORS_ORIGINS=*",
+        ),
+        (
+            "docs/10-deployment/vps-operations.md",
+            "HOSPITAL_AI_CORS_ORIGINS=https://<VERCEL_FRONTEND_ORIGIN>",
+            "HOSPITAL_AI_CORS_ORIGINS=*",
+        ),
+        (
+            "docs/10-deployment/vps-preflight-evidence.md",
+            "printf '%s\\n' \"HOSPITAL_AI_CORS_ORIGINS=https://<VERCEL_FRONTEND_ORIGIN>\"",
+            "printf '%s\\n' \"HOSPITAL_AI_CORS_ORIGINS=*\"",
+        ),
+    ],
+)
+def test_deployment_contract_cli_rejects_wildcard_cors_in_task_6_docs(tmp_path, relative_path, original, replacement):
+    _copy_deployment_contract_fixture(tmp_path)
+
+    target = tmp_path / relative_path
+    target.write_text(target.read_text(encoding="utf-8").replace(original, replacement), encoding="utf-8")
+
+    result = _run_validator(tmp_path)
+
+    assert result.returncode == 2
+    payload = json.loads(result.stdout)
+    assert any(item["code"] == "wildcard_cors" and item["path"] == relative_path for item in payload["violations"])

@@ -2,16 +2,38 @@
  * Centralized API client with JWT auth header injection.
  * All frontend data access goes through this module.
  *
- * Backend base URL is configured via VITE_API_URL env var (defaults to
- * http://localhost:8000/api/v1). In dev, Vite proxies /api -> backend.
+ * Backend base URL is configured via VITE_API_URL env var. When unset, the
+ * browser uses /api and Vite rewrites that local path to /api/v1.
  */
 
 const DEFAULT_API_URL = "/api";
+const BUILD_TIME_API_URL = ((import.meta.env.VITE_API_URL as string | undefined) ?? "").trim();
+
+function normalizeBaseUrl(url: string): string {
+  return url.trim().replace(/\/+$/, "");
+}
+
+function getBuildTimeApiUrl(): string {
+  return BUILD_TIME_API_URL;
+}
+
+export function resolveApiUrl(buildTimeApiUrl = BUILD_TIME_API_URL, storedApiUrl = ""): string {
+  const buildTime = buildTimeApiUrl.trim();
+  if (buildTime) return normalizeBaseUrl(buildTime);
+  const stored = storedApiUrl.trim();
+  if (stored) return normalizeBaseUrl(stored);
+  return DEFAULT_API_URL;
+}
+
+export function getStoredApiUrl(): string {
+  const buildTimeApiUrl = getBuildTimeApiUrl();
+  if (buildTimeApiUrl) return normalizeBaseUrl(buildTimeApiUrl);
+  if (typeof window === "undefined") return DEFAULT_API_URL;
+  return resolveApiUrl("", localStorage.getItem("hospital_ai_api_url") || "");
+}
 
 function getBaseUrl(): string {
-  // SSR needs absolute URL; browser uses relative /api → Vite proxy → backend
-  if (typeof window === "undefined") return "http://localhost:8000/api/v1";
-  return (import.meta.env.VITE_API_URL as string) || DEFAULT_API_URL;
+  return normalizeBaseUrl(getStoredApiUrl());
 }
 
 let memoryToken: string | null = null;
@@ -66,8 +88,7 @@ export async function apiFetch<T>(
   init: RequestInit = {},
   opts: ApiClientOptions = {},
 ): Promise<T> {
-  const baseUrl = opts.baseUrl || getBaseUrl();
-  const normalizedBase = baseUrl.replace(/\/+$/, "");
+  const baseUrl = normalizeBaseUrl(opts.baseUrl || getBaseUrl());
 
   // Map p-001..p-012 and ar-001..ar-099 to backend UUIDs in the request path
   const mappedPath = path
@@ -80,7 +101,7 @@ export async function apiFetch<T>(
       return "90000000-0000-0000-0000-" + num.toString().padStart(12, "0");
     });
 
-  const url = `${normalizedBase}${mappedPath}`;
+  const url = `${baseUrl}${mappedPath}`;
   const token = getToken();
 
   const headers: Record<string, string> = {
@@ -184,12 +205,12 @@ export async function apiFetch<T>(
 
 /** Fetch protected binary content while preserving the in-memory bearer token policy. */
 export async function apiFetchBlob(path: string, opts: ApiClientOptions = {}): Promise<Blob> {
-  const baseUrl = opts.baseUrl || getBaseUrl();
+  const baseUrl = normalizeBaseUrl(opts.baseUrl || getBaseUrl());
   const token = getToken();
   const headers: Record<string, string> = {};
   if (token) headers.Authorization = `Bearer ${token}`;
 
-  const response = await fetch(`${baseUrl.replace(/\/+$/, "")}${path}`, { headers });
+  const response = await fetch(`${baseUrl}${path}`, { headers });
   if (!response.ok) {
     throw new ApiError(response.status, "BLOB_FETCH_FAILED", response.statusText);
   }
@@ -229,12 +250,8 @@ export function clearToken(): void {
   memoryToken = null;
 }
 
-export function getStoredApiUrl(): string {
-  if (typeof window === "undefined") return DEFAULT_API_URL;
-  return localStorage.getItem("hospital_ai_api_url") || DEFAULT_API_URL;
-}
-
 export function persistApiUrl(url: string): void {
   if (typeof window === "undefined") return;
+  if (getBuildTimeApiUrl()) return;
   localStorage.setItem("hospital_ai_api_url", url);
 }

@@ -40,6 +40,29 @@ describe("streamChat", () => {
     vi.unstubAllGlobals();
   });
 
+  it("posts to the exact provided API base and preserves the bearer header", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(
+        mockOkResponse(['data: {"type":"done","query_id":"q1","validation":"passed"}\n']),
+      );
+    vi.stubGlobal("fetch", fetchMock);
+
+    await streamChat("/api", "token123", { question: "Hi" });
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/chat/stream",
+      expect.objectContaining({
+        method: "POST",
+        headers: expect.objectContaining({
+          Accept: "text/event-stream",
+          Authorization: "Bearer token123",
+          "Content-Type": "application/json",
+        }),
+      }),
+    );
+  });
+
   it("parses token SSE event and calls onEvent callback", async () => {
     const sse =
       'data: {"type":"token","content":"Hello"}\n' +

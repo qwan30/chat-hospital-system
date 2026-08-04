@@ -91,3 +91,26 @@ Review-fix verification:
   - Result: passed
 - Docs sanity
   - Result: `docs sanity ok: 20 pending rows`
+
+Final-review frontend-secret fix - 2026-08-04
+
+- Mirrored the backend validator's frontend denylist to the same backend-only
+  markers used by `app/frontend/scripts/verify-public-bundle.mjs` for DB,
+  Redis, R2, LLM, HMS, JWT, and postgres/redis/ollama leak detection, while
+  keeping the existing allowlist for the scanner source itself.
+- Added a focused invalid fixture that copies a frontend source file to
+  `app/frontend/src/proof-secret.ts`, injects `HOSPITAL_AI_DATABASE_URL`, and
+  asserts `--json` exits `2` with `frontend_secret_leak`.
+
+Final-review fix verification:
+
+- `python -m pytest --noconftest tests/test_deployment_contracts.py`
+  - Result: `15 passed in 6.61s`
+- `python app/backend/scripts/verify_deployment_contract.py --json`
+  - Result: `{"valid": true, "violations": []}`
+- `ruff check app/backend/scripts/verify_deployment_contract.py app/backend/tests/test_deployment_contracts.py`
+  - Result: passed
+- `ruff format --check app/backend/scripts/verify_deployment_contract.py app/backend/tests/test_deployment_contracts.py`
+  - Result: `2 files already formatted`
+- `git diff --check`
+  - Result: exit `0`; Git reported only existing LF→CRLF working-copy warnings

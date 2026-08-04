@@ -69,6 +69,23 @@ FORBIDDEN_CORS_CONTRACTS = (
 FRONTEND_SECRET_SCAN_ALLOWLIST = {
     Path("app/frontend/scripts/verify-public-bundle.mjs"),
 }
+FRONTEND_BACKEND_ONLY_MARKERS = (
+    "HOSPITAL_AI_DATABASE_URL",
+    "HOSPITAL_AI_REDIS_URL",
+    "HOSPITAL_AI_GEMINI_API_KEY",
+    "HOSPITAL_AI_OPENAI_API_KEY",
+    "HOSPITAL_AI_R2_ACCESS_KEY_ID",
+    "HOSPITAL_AI_R2_SECRET_ACCESS_KEY",
+    "HOSPITAL_AI_JWT_HMAC_SECRET",
+    "HOSPITAL_AI_JWKS_URL",
+    "HOSPITAL_AI_HMS_API_KEY",
+    "GEMINI_API_KEY",
+    "OPENAI_API_KEY",
+    "HMS_JWT_SECRET",
+    "postgresql+asyncpg://",
+    "redis://",
+    "http://localhost:11434",
+)
 
 
 def find_repo_root(start: Path | None = None) -> Path:
@@ -251,13 +268,6 @@ def _has_public_mapping(compose: str, container_port: str) -> bool:
 
 
 def _frontend_secret_leaks(root: Path) -> list[str]:
-    forbidden = (
-        "HOSPITAL_AI_GEMINI_API_KEY",
-        "HOSPITAL_AI_OPENAI_API_KEY",
-        "HOSPITAL_AI_R2_ACCESS_KEY_ID",
-        "HOSPITAL_AI_R2_SECRET_ACCESS_KEY",
-        "HOSPITAL_AI_JWT_HMAC_SECRET",
-    )
     ignored_parts = {".git", "node_modules", ".next", "dist", "coverage", "__pycache__"}
     frontend_root = root / "app/frontend"
     if not frontend_root.is_dir():
@@ -275,7 +285,7 @@ def _frontend_secret_leaks(root: Path) -> list[str]:
             content = path.read_text(encoding="utf-8")
         except (UnicodeDecodeError, OSError):
             continue
-        for secret_name in forbidden:
+        for secret_name in FRONTEND_BACKEND_ONLY_MARKERS:
             if secret_name in content:
                 leaks.append(f"{path.relative_to(root)} contains {secret_name}")
     return leaks

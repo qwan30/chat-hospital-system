@@ -50,6 +50,7 @@ MALFORMED_SECRET_KEY_ROW = (
     "`printf '%s\\n' HOSPITAL_AI_DATABASE_URL` | malformed row | "
     "`<operator-recorded-value>` |"
 )
+FRONTEND_SECRET_PROOF_MARKER = "HOSPITAL_AI_DATABASE_URL"
 
 
 def _load_deployment_validator():
@@ -230,6 +231,30 @@ def test_deployment_contract_cli_reports_invalid_fixture(tmp_path):
     assert any(item["code"] == "wildcard_cors" for item in payload["violations"])
     assert any(item["code"] == "invalid_preflight_status" for item in payload["violations"])
     assert any(item["code"] == "pending_preflight_row_required" for item in payload["violations"])
+
+
+def test_deployment_contract_cli_rejects_frontend_secret_leak_fixture(tmp_path):
+    _copy_deployment_contract_fixture(tmp_path)
+
+    proof_source = REPO_ROOT / "app" / "frontend" / "src" / "lib" / "api-client.ts"
+    proof_target = tmp_path / "app" / "frontend" / "src" / "proof-secret.ts"
+    proof_target.parent.mkdir(parents=True, exist_ok=True)
+    proof_target.write_text(
+        f"{proof_source.read_text(encoding='utf-8')}\nexport const proofSecret = '{FRONTEND_SECRET_PROOF_MARKER}';\n",
+        encoding="utf-8",
+    )
+
+    result = _run_validator(tmp_path)
+
+    assert result.returncode == 2
+    payload = json.loads(result.stdout)
+    assert payload["valid"] is False
+    assert any(
+        item["code"] == "frontend_secret_leak"
+        and "proof-secret.ts" in item["message"]
+        and FRONTEND_SECRET_PROOF_MARKER in item["message"]
+        for item in payload["violations"]
+    )
 
 
 @pytest.mark.parametrize(

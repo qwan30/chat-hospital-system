@@ -24,6 +24,10 @@ on:
         description: "Full source SHA that produced the image"
         required: true
         type: string
+      staging-smoke-run-id:
+        description: "Successful staging CD run ID reviewed before production promotion"
+        required: false
+        type: string
 
 permissions:
   contents: read
@@ -50,6 +54,7 @@ jobs:
       TARGET_ENVIRONMENT: ${{ github.event_name == 'workflow_dispatch' && inputs.environment || 'staging' }}
       INPUT_IMAGE_TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.image-tag || '' }}
       INPUT_SOURCE_SHA: ${{ github.event_name == 'workflow_dispatch' && inputs.source-sha || '' }}
+      INPUT_STAGING_SMOKE_RUN_ID: ${{ github.event_name == 'workflow_dispatch' && inputs.staging-smoke-run-id || '' }}
       DOKPLOY_DEPLOY_HOOK_URL: ${{ secrets.DOKPLOY_DEPLOY_HOOK_URL }}
 
     steps:
@@ -61,9 +66,11 @@ jobs:
           if [[ "${{ github.event_name }}" == "workflow_run" ]]; then
             SOURCE_SHA="${{ github.event.workflow_run.head_sha }}"
             IMAGE_TAG="sha-${SOURCE_SHA:0:7}"
+            STAGING_SMOKE_RUN_ID=""
           else
             SOURCE_SHA="$INPUT_SOURCE_SHA"
             IMAGE_TAG="$INPUT_IMAGE_TAG"
+            STAGING_SMOKE_RUN_ID="$INPUT_STAGING_SMOKE_RUN_ID"
           fi
 
           if [[ ! "$SOURCE_SHA" =~ ^[0-9a-f]{40}$ ]]; then
@@ -78,12 +85,17 @@ jobs:
             echo "::error::image-tag does not match the supplied source-sha"
             exit 1
           fi
+          if [[ "$TARGET_ENVIRONMENT" == "production" && ! "$STAGING_SMOKE_RUN_ID" =~ ^[0-9]+$ ]]; then
+            echo "::error::staging-smoke-run-id must identify the successful staging CD run reviewed for production"
+            exit 1
+          fi
 
           IMAGE_REF="ghcr.io/${{ github.repository_owner }}/hospital-ai-backend:${IMAGE_TAG}"
           {
             echo "source_sha=$SOURCE_SHA"
             echo "image_tag=$IMAGE_TAG"
             echo "image_ref=$IMAGE_REF"
+            echo "staging_smoke_run_id=$STAGING_SMOKE_RUN_ID"
           } >> "$GITHUB_OUTPUT"
 
       - name: Verify image exists in GHCR
@@ -100,9 +112,21 @@ jobs:
           IMAGE_REF: ${{ steps.release.outputs.image_ref }}
         run: |
           set -euo pipefail
-          DIGEST=$(docker manifest inspect "$IMAGE_REF" | grep -m1 '"digest":' | cut -d'"' -f4 || echo "unknown")
-          echo "Verified $IMAGE_REF with digest $DIGEST"
+          MANIFEST_JSON=$(docker buildx imagetools inspect "$IMAGE_REF" --format '{{json .Manifest}}')
+          DIGEST=$(jq -er '.digest | select(test("^sha256:[0-9a-f]{64}$"))' <<<"$MANIFEST_JSON")
+          if [[ ! "$DIGEST" =~ ^sha256:[0-9a-f]{64}$ ]]; then
+            echo "::error::registry returned an invalid manifest digest for $IMAGE_REF"
+            exit 1
+          fi
+          echo "Verified $IMAGE_REF with manifest digest $DIGEST"
           echo "digest=$DIGEST" >> "$GITHUB_OUTPUT"
+
+      - name: Require production deploy hook
+        if: env.TARGET_ENVIRONMENT == 'production' && env.DOKPLOY_DEPLOY_HOOK_URL == ''
+        shell: bash
+        run: |
+          echo "::error::DOKPLOY_DEPLOY_HOOK_URL is required for production"
+          exit 1
 
       - name: Trigger Dokploy deployment hook
         id: deploy
@@ -112,12 +136,21 @@ jobs:
           IMAGE_REF: ${{ steps.release.outputs.image_ref }}
           IMAGE_TAG: ${{ steps.release.outputs.image_tag }}
           SOURCE_SHA: ${{ steps.release.outputs.source_sha }}
+          STAGING_SMOKE_RUN_ID: ${{ steps.release.outputs.staging_smoke_run_id }}
           REPOSITORY: ${{ github.repository }}
           WORKFLOW_RUN_ID: ${{ github.run_id }}
         run: |
           set -euo pipefail
-          payload=$(printf '{"action":"deploy","environment":"%s","image":"%s","image_tag":"%s","source_sha":"%s","repository":"%s","workflow_run_id":"%s"}' \
-            "$TARGET_ENVIRONMENT" "$IMAGE_REF" "$IMAGE_TAG" "$SOURCE_SHA" "$REPOSITORY" "$WORKFLOW_RUN_ID")
+          payload=$(jq -cn \
+            --arg action "deploy" \
+            --arg environment "$TARGET_ENVIRONMENT" \
+            --arg image "$IMAGE_REF" \
+            --arg image_tag "$IMAGE_TAG" \
+            --arg source_sha "$SOURCE_SHA" \
+            --arg repository "$REPOSITORY" \
+            --arg workflow_run_id "$WORKFLOW_RUN_ID" \
+            --arg staging_smoke_run_id "$STAGING_SMOKE_RUN_ID" \
+            '{action:$action,environment:$environment,image:$image,image_tag:$image_tag,source_sha:$source_sha,repository:$repository,workflow_run_id:$workflow_run_id,staging_smoke_run_id:$staging_smoke_run_id}')
           curl --fail-with-body --silent --show-error --retry 2 --max-time 30 \
             -X POST -H 'Content-Type: application/json' \
             --data "$payload" "$DOKPLOY_DEPLOY_HOOK_URL"
@@ -125,16 +158,21 @@ jobs:
           echo "deployed=true" >> "$GITHUB_OUTPUT"
 
       - name: Record release evidence
+        if: steps.deploy.outputs.deployed == 'true'
         shell: bash
         env:
           IMAGE_REF: ${{ steps.release.outputs.image_ref }}
-          IMAGE_TAG: ${{ steps.release.outputs.image_tag }}
           SOURCE_SHA: ${{ steps.release.outputs.source_sha }}
           DIGEST: ${{ steps.verify.outputs.digest }}
+          STAGING_SMOKE_RUN_ID: ${{ steps.release.outputs.staging_smoke_run_id }}
           WORKFLOW_RUN_ID: ${{ github.run_id }}
         run: |
           set -euo pipefail
           TIMESTAMP=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+          STAGING_EVIDENCE="N/A — current run is staging"
+          if [[ "$TARGET_ENVIRONMENT" == "production" ]]; then
+            STAGING_EVIDENCE="https://github.com/${{ github.repository }}/actions/runs/${STAGING_SMOKE_RUN_ID}"
+          fi
           {
             echo "## Release Record"
             echo "| Field | Value |"
@@ -143,18 +181,12 @@ jobs:
             echo "| Git SHA | $SOURCE_SHA |"
             echo "| Image Reference | $IMAGE_REF |"
             echo "| Image Digest | $DIGEST |"
+            echo "| Staging smoke evidence | $STAGING_EVIDENCE |"
             echo "| Migration Revision | ⏳ Pending external verification |"
             echo "| Smoke Test | ⏳ Pending external verification |"
             echo "| Workflow Run | $WORKFLOW_RUN_ID |"
             echo "| Timestamp | $TIMESTAMP |"
           } >> "$GITHUB_STEP_SUMMARY"
-
-      - name: Require production deploy hook
-        if: env.TARGET_ENVIRONMENT == 'production' && env.DOKPLOY_DEPLOY_HOOK_URL == ''
-        shell: bash
-        run: |
-          echo "::error::DOKPLOY_DEPLOY_HOOK_URL is required for production"
-          exit 1
 
       - name: Record pending external handoff
         if: env.DOKPLOY_DEPLOY_HOOK_URL == ''
@@ -180,43 +212,55 @@ jobs:
       (github.event_name == 'workflow_dispatch' && inputs.environment == 'staging' || github.event_name == 'workflow_run') &&
       needs.handoff.outputs.deployed == 'true'
     runs-on: ubuntu-latest
-    continue-on-error: true
+    timeout-minutes: 10
+    environment:
+      name: staging
+      url: ${{ vars.DOKPLOY_APP_URL }}
+    env:
+      DOKPLOY_APP_URL: ${{ vars.DOKPLOY_APP_URL }}
     steps:
       - name: Health check
         shell: bash
         run: |
           set -euo pipefail
+          if [[ ! "$DOKPLOY_APP_URL" =~ ^https?://[^[:space:]]+$ ]]; then
+            echo "::error::staging DOKPLOY_APP_URL must be a non-empty HTTP(S) base URL"
+            exit 1
+          fi
+          BASE_URL="${DOKPLOY_APP_URL%/}"
+          HEALTH_URL="$BASE_URL/api/v1/health"
+
           echo "Waiting 30s before initial check..."
           sleep 30
-          
+
           MAX_RETRIES=5
           ATTEMPT=1
           DELAY=30
-          
-          while [ $ATTEMPT -le $MAX_RETRIES ]; do
+
+          while [ "$ATTEMPT" -le "$MAX_RETRIES" ]; do
             echo "Attempt $ATTEMPT of $MAX_RETRIES..."
-            if curl -f -s "${{ vars.DOKPLOY_APP_URL }}/api/v1/health"; then
-              echo "Health check passed!"
+            if curl --fail --silent --show-error --connect-timeout 10 --max-time 20 "$HEALTH_URL"; then
               {
                 echo "## Smoke Test Results"
-                echo "✅ Staging environment is healthy!"
-                echo "- Endpoint: ${{ vars.DOKPLOY_APP_URL }}/api/v1/health"
+                echo "✅ Staging environment is healthy."
+                echo "- Endpoint: $HEALTH_URL"
+                echo "- Source workflow run: ${{ github.run_id }}"
               } >> "$GITHUB_STEP_SUMMARY"
               exit 0
             fi
-            
-            if [ $ATTEMPT -lt $MAX_RETRIES ]; then
+
+            if [ "$ATTEMPT" -lt "$MAX_RETRIES" ]; then
               echo "Health check failed. Retrying in $DELAY seconds..."
-              sleep $DELAY
+              sleep "$DELAY"
               DELAY=$((DELAY * 2))
             fi
             ATTEMPT=$((ATTEMPT + 1))
           done
-          
+
           echo "::error::Health check failed after $MAX_RETRIES attempts"
           {
             echo "## Smoke Test Results"
             echo "❌ Staging environment health check failed."
-            echo "- Endpoint: ${{ vars.DOKPLOY_APP_URL }}/api/v1/health"
+            echo "- Endpoint: $HEALTH_URL"
           } >> "$GITHUB_STEP_SUMMARY"
           exit 1

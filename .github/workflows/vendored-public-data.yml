@@ -3,6 +3,8 @@ name: Vendored Public Data
 on:
   pull_request:
     paths:
+      - "app/backend/.dockerignore"
+      - "app/backend/Dockerfile"
       - "app/backend/data/public/**"
       - "app/backend/src/hospital_ai/data_sources/**"
       - "app/backend/src/hospital_ai/evaluation/corpus_manifest.py"
@@ -14,6 +16,8 @@ on:
     branches:
       - main
     paths:
+      - "app/backend/.dockerignore"
+      - "app/backend/Dockerfile"
       - "app/backend/data/public/**"
       - "app/backend/src/hospital_ai/data_sources/**"
       - "app/backend/src/hospital_ai/evaluation/corpus_manifest.py"

@@ -8,6 +8,7 @@ from hospital_ai.core.security import new_trace_id
 from hospital_ai.db.models import Document, User
 from hospital_ai.schemas.document_graph import DocumentGraphRead
 from hospital_ai.services.capabilities import CapabilityService
+from hospital_ai.services.clinical_timeline import ClinicalTimelineService
 from hospital_ai.services.graph_query import GraphFilters, GraphQueryService
 from hospital_ai.services.permissions import PermissionService
 
@@ -74,6 +75,5 @@ async def get_document_graph(
 async def get_document_timeline(
     document_id: UUID, session: AsyncSession = Depends(get_session), current_user: User = Depends(get_current_user)
 ):
-    _ = await require_document_read(document_id, session, current_user)
-    # Placeholder for timeline response
-    return {"events": []}
+    document = await require_document_read(document_id, session, current_user)
+    return await ClinicalTimelineService(session).document_timeline(document, current_user, {})

@@ -48,6 +48,7 @@ __all__ = [
 ]
 from hospital_ai.services.drug_check import DrugCheckService, DrugWarning
 from hospital_ai.services.embeddings import EmbeddingService
+from hospital_ai.services.evidence_scope import ActiveEvidenceScope
 from hospital_ai.services.graph_rag import extract_entities_and_relations_nlp, find_related_entities
 from hospital_ai.services.guardrails import get_input_guardrail, get_output_guardrail
 from hospital_ai.services.memory import MemoryService
@@ -367,7 +368,11 @@ class ChatService:
                     )
                     if graph_ctx.related_chunk_ids:
                         existing_ids = {e.chunk_id for e in evidence}
-                        graph_only_ids = graph_ctx.related_chunk_ids - existing_ids
+                        allowed_graph_ids = await ActiveEvidenceScope(self.session).authorized_chunk_id_set(
+                            user_id=user.id,
+                            patient_id=patient_id,
+                        )
+                        graph_only_ids = (graph_ctx.related_chunk_ids & allowed_graph_ids) - existing_ids
                         # Add graph-discovered chunks to evidence (with lower score)
                         if graph_only_ids:
                             graph_evidence = await retrieval_svc.get_chunks_by_ids(

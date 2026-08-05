@@ -44,6 +44,7 @@ from hospital_ai.services.chat_utils import (
     meets_evidence_threshold,
 )
 from hospital_ai.services.embeddings import EmbeddingService
+from hospital_ai.services.evidence_scope import ActiveEvidenceScope
 from hospital_ai.services.guardrails import get_input_guardrail, get_output_guardrail
 from hospital_ai.services.llm import LLMManager
 from hospital_ai.services.llm.base import LLMMessage
@@ -840,7 +841,11 @@ async def chat_stream(
                     )
                     if graph_ctx.related_chunk_ids:
                         existing_ids = {e.chunk_id for e in evidence}
-                        graph_only_ids = graph_ctx.related_chunk_ids - existing_ids
+                        allowed_graph_ids = await ActiveEvidenceScope(session).authorized_chunk_id_set(
+                            user_id=current_user.id,
+                            patient_id=effective_patient_id,
+                        )
+                        graph_only_ids = (graph_ctx.related_chunk_ids & allowed_graph_ids) - existing_ids
                         if graph_only_ids:
                             graph_evidence = await retrieval_svc.get_chunks_by_ids(
                                 list(graph_only_ids)[: payload.top_k],

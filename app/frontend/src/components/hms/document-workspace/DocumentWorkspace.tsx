@@ -1,6 +1,13 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { getDocument, getDocumentPage, getDocumentFacts } from "@/lib/api/documents";
-import { listRevisionSets, restoreRevision, submitDraft, approveRevisionSet } from "@/lib/api/document-revisions";
+import {
+  listRevisionSets,
+  restoreRevision,
+  submitDraft,
+  approveRevisionSet,
+  getDraftPage,
+  getRevisionPage,
+} from "@/lib/api/document-revisions";
 import { useState, useRef } from "react";
 import { WorkspaceToolbar } from "./WorkspaceToolbar";
 import { RevisionSelector } from "./RevisionSelector";
@@ -26,7 +33,7 @@ export function DocumentWorkspace({ documentId }: { documentId: string }) {
     queryKey: ["document-revision-sets", documentId],
     queryFn: () => listRevisionSets(documentId),
   });
-  
+
   const [selectedRevisionId, setSelectedRevisionId] = useState<string | null>(null);
   const [selectedPage, setSelectedPage] = useState(1);
 
@@ -38,6 +45,17 @@ export function DocumentWorkspace({ documentId }: { documentId: string }) {
   const factsQuery = useQuery({
     queryKey: ["document-facts", documentId],
     queryFn: () => getDocumentFacts(documentId),
+  });
+
+  const revisionPageQuery = useQuery({
+    queryKey: ["document-revision-page", documentId, selectedRevisionId, selectedPage],
+    queryFn: async () => {
+      if (selectedRevisionId === "draft" || !selectedRevisionId) {
+        return getDraftPage(documentId, selectedPage);
+      }
+      return getRevisionPage(documentId, selectedRevisionId, selectedPage);
+    },
+    retry: false,
   });
 
   const restoreMutation = useMutation({
@@ -54,7 +72,7 @@ export function DocumentWorkspace({ documentId }: { documentId: string }) {
       toast.success("Revision restored");
       queryClient.invalidateQueries({ queryKey: ["document-revision-sets", documentId] });
       setSelectedRevisionId(null);
-    }
+    },
   });
 
   const submitMutation = useMutation({
@@ -63,38 +81,52 @@ export function DocumentWorkspace({ documentId }: { documentId: string }) {
       toast.success("Draft submitted successfully");
       queryClient.invalidateQueries({ queryKey: ["document-revision-sets", documentId] });
       setSelectedRevisionId(res.revision_set_id);
-    }
+    },
   });
 
   const approveMutation = useMutation({
     mutationFn: () => {
       if (!selectedRevisionId) return Promise.reject(new Error("No revision to approve"));
-      return approveRevisionSet(documentId, selectedRevisionId, {}, { idempotencyKey: crypto.randomUUID() });
+      return approveRevisionSet(
+        documentId,
+        selectedRevisionId,
+        {},
+        { idempotencyKey: crypto.randomUUID() },
+      );
     },
     onSuccess: () => {
       toast.success("Revision approved. Generation started.");
       queryClient.invalidateQueries({ queryKey: ["document-revision-sets", documentId] });
-    }
+    },
   });
 
-  const isHistorical = selectedRevisionId && selectedRevisionId !== "draft" && !revisionsQuery.data?.find(r => r.revision_set_id === selectedRevisionId && r.status === "draft");
-  
-  const revision = revisionsQuery.data?.find(r => r.revision_set_id === selectedRevisionId) || { id: selectedRevisionId, status: "draft" };
+  const isHistorical =
+    selectedRevisionId &&
+    selectedRevisionId !== "draft" &&
+    !revisionsQuery.data?.find(
+      (r) => r.revision_set_id === selectedRevisionId && r.status === "draft",
+    );
+
+  const revision = revisionsQuery.data?.find((r) => r.revision_set_id === selectedRevisionId) || {
+    id: selectedRevisionId,
+    status: "draft",
+  };
 
   // Calculate geometry from facts
-  const geometry: BoundingBox[] = factsQuery.data?.facts
-    .filter(f => f.source_page === selectedPage && f.bounding_box)
-    .map(f => ({
-      id: f.id,
-      ...f.bounding_box!,
-      alignment_status: f.status === "aligned" ? "aligned" : "stale"
-    })) || [];
-  
+  const geometry: BoundingBox[] =
+    factsQuery.data?.facts
+      .filter((f) => f.source_page === selectedPage && f.bounding_box)
+      .map((f) => ({
+        id: f.id,
+        ...f.bounding_box!,
+        alignment_status: f.status === "aligned" ? "aligned" : "stale",
+      })) || [];
+
   const exactBoxes = geometry.filter((item) => item.alignment_status === "aligned");
   const staleCount = geometry.length - exactBoxes.length;
 
   const originalText = pageQuery.data?.ocr_text || "";
-  const correctedText = originalText; // We would ideally have the corrected text fetched too if historical
+  const correctedText = revisionPageQuery.data?.text || originalText;
   const confidence = pageQuery.data?.ocr_confidence;
 
   const handleCompare = () => {
@@ -120,14 +152,22 @@ export function DocumentWorkspace({ documentId }: { documentId: string }) {
             onSelect={setSelectedRevisionId}
           />
           <PageNavigator page={selectedPage} onPageChange={setSelectedPage} />
-          
+
           {!isHistorical && (
-            <Button size="sm" onClick={() => submitMutation.mutate()} disabled={submitMutation.isPending}>
+            <Button
+              size="sm"
+              onClick={() => submitMutation.mutate()}
+              disabled={submitMutation.isPending}
+            >
               Submit Draft
             </Button>
           )}
           {revision?.status === "submitted" && (
-            <Button size="sm" onClick={() => approveMutation.mutate()} disabled={approveMutation.isPending}>
+            <Button
+              size="sm"
+              onClick={() => approveMutation.mutate()}
+              disabled={approveMutation.isPending}
+            >
               Approve
             </Button>
           )}
@@ -151,7 +191,10 @@ export function DocumentWorkspace({ documentId }: { documentId: string }) {
               <TabsTrigger value="diff">Diff</TabsTrigger>
             </TabsList>
 
-            <TabsContent value="corrected" className="flex-1 flex flex-col mt-0 h-full overflow-hidden">
+            <TabsContent
+              value="corrected"
+              className="flex-1 flex flex-col mt-0 h-full overflow-hidden"
+            >
               {isHistorical ? (
                 <div className="flex-1 p-4 border rounded overflow-auto whitespace-pre-wrap font-mono text-sm">
                   {correctedText}
@@ -167,9 +210,9 @@ export function DocumentWorkspace({ documentId }: { documentId: string }) {
               )}
             </TabsContent>
             <TabsContent value="raw" className="flex-1 flex flex-col mt-0 h-full overflow-hidden">
-               <div className="flex-1 p-4 border rounded overflow-auto whitespace-pre-wrap font-mono text-sm">
-                 {originalText}
-               </div>
+              <div className="flex-1 p-4 border rounded overflow-auto whitespace-pre-wrap font-mono text-sm">
+                {originalText}
+              </div>
             </TabsContent>
             <TabsContent value="diff" className="flex-1 flex flex-col mt-0 h-full overflow-hidden">
               <div className="flex-1 border rounded overflow-auto">
@@ -180,10 +223,7 @@ export function DocumentWorkspace({ documentId }: { documentId: string }) {
 
           {isHistorical && (
             <div className="mt-4 pt-4 border-t">
-              <Button
-                onClick={() => restoreMutation.mutate()}
-                disabled={restoreMutation.isPending}
-              >
+              <Button onClick={() => restoreMutation.mutate()} disabled={restoreMutation.isPending}>
                 {restoreMutation.isPending ? "Restoring..." : "Restore as new revision"}
               </Button>
             </div>

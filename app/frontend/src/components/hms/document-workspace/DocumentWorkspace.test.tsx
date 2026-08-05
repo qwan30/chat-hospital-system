@@ -19,7 +19,12 @@ vi.mock("@/lib/api/document-revisions", () => ({
 vi.mock("@/lib/api/documents", () => ({
   getDocument: vi.fn().mockResolvedValue({ id: "doc-1", mime_type: "application/pdf" }),
   getDocumentBlob: vi.fn().mockResolvedValue(new Blob(["mock"], { type: "application/pdf" })),
-  getDocumentPage: vi.fn().mockResolvedValue({ id: "page-1", document_id: "doc-1", page_number: 1, ocr_text: "test text" }),
+  getDocumentPage: vi.fn().mockResolvedValue({
+    id: "page-1",
+    document_id: "doc-1",
+    page_number: 1,
+    ocr_text: "test text",
+  }),
   getDocumentFacts: vi.fn().mockResolvedValue({ document_id: "doc-1", facts: [] }),
 }));
 

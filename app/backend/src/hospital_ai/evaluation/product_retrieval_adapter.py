@@ -60,10 +60,11 @@ class ProductRetrievalAdapter:
         )
         self.retrieval_mode = retrieval_mode
 
-    async def evaluate(self, case: EvalCaseV2, context: EvaluationCaseContext) -> CaseObservation:
+    async def evaluate(self, case: Any, context: EvaluationCaseContext) -> CaseObservation:
         """Materialize one case and return only evidence actually retrieved."""
 
-        if case.patient_id not in context.actor.allowed_patient_ids:
+        patient_id = context.patient_id or getattr(case, 'patient_id', '')
+        if patient_id not in context.actor.allowed_patient_ids:
             return CaseObservation(
                 refused=True,
                 sync_safety_outcome="refused",
@@ -111,14 +112,14 @@ class ProductRetrievalAdapter:
                 if self.retrieval_mode == "vector":
                     results = await retrieval.search(
                         user_id=context.actor.actor_id,
-                        patient_id=case.patient_id,
+                        patient_id=patient_id,
                         query_embedding=query_embedding,
                         top_k=top_k,
                     )
                 elif self.retrieval_mode in ("bm25", "hybrid"):
                     results = await retrieval.hybrid_search(
                         user_id=context.actor.actor_id,
-                        patient_id=case.patient_id,
+                        patient_id=patient_id,
                         query_embedding=query_embedding,
                         query_text=case.question,
                         top_k=top_k,
@@ -127,7 +128,7 @@ class ProductRetrievalAdapter:
                 else:  # graph mode
                     base_results = await retrieval.hybrid_search(
                         user_id=context.actor.actor_id,
-                        patient_id=case.patient_id,
+                        patient_id=patient_id,
                         query_embedding=query_embedding,
                         query_text=case.question,
                         top_k=top_k,
@@ -140,12 +141,12 @@ class ProductRetrievalAdapter:
                         graph_ctx = await find_related_entities(
                             session,
                             graph_nodes,
-                            patient_id=case.patient_id,
+                            patient_id=patient_id,
                         )
                         graph_chunks = await retrieval.get_chunks_by_ids(
                             list(graph_ctx.related_chunk_ids),
                             user_id=context.actor.actor_id,
-                            patient_id=case.patient_id,
+                            patient_id=patient_id,
                         )
                         seen_ids = {r.chunk_id for r in base_results}
                         combined = list(base_results)

@@ -103,7 +103,7 @@ class OcrEvaluationSummary(BaseModel):
         frozen = True
 
 
-EvaluationComponent = Literal["corpus", "ocr", "retrieval", "graph", "chat", "harness"]
+EvaluationComponent = Literal["corpus", "ocr", "retrieval", "graph", "chat", "harness", "timeline", "stream"]
 ResultStatus = Literal["passed", "failed", "skipped"]
 RunStatus = Literal["passed", "failed", "skipped", "invalid"]
 ScalarValue = Union[StrictBool, StrictInt, StrictFloat, str]

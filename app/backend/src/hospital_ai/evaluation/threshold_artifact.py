@@ -8,7 +8,7 @@ from datetime import datetime
 from hashlib import sha256
 from typing import Any, Optional
 
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 
 class ReleaseGateError(ValueError):
@@ -34,8 +34,7 @@ class ThresholdArtifact(BaseModel):
     artifact_hash: str
     frozen: bool = True
 
-    class Config:
-        frozen = True
+    model_config = ConfigDict(frozen=True)
 
 
 def _canonical_payload(

@@ -6,7 +6,7 @@ from collections.abc import Sequence
 from pathlib import Path
 from typing import Any, Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class BlockingEvaluationError(Exception):
@@ -17,17 +17,16 @@ class TimelineMetricResult(BaseModel):
     event_recall: float
     evidence_identity_accuracy: float
     superseded_retrieval_count: int
+    chronological_sort_correctness: bool
 
-    class Config:
-        frozen = True
+    model_config = ConfigDict(frozen=True)
 
 
 class StreamMetricResult(BaseModel):
     sequence_correctness: bool
     interrupt_handling_correctness: bool
 
-    class Config:
-        frozen = True
+    model_config = ConfigDict(frozen=True)
 
 
 class UnifiedMetricsSummary(BaseModel):
@@ -50,8 +49,7 @@ class GateResult(BaseModel):
     passed: bool
     reason: Optional[str] = None
 
-    class Config:
-        frozen = True
+    model_config = ConfigDict(frozen=True)
 
 
 class UnifiedEvaluationRunReport(BaseModel):
@@ -84,7 +82,12 @@ def evaluate_timeline_metrics(expected: Sequence[Any], observed: Sequence[Any]) 
     """Calculate recall, evidence identity accuracy, and superseded retrieval count for timelines."""
     expected_count = len(expected)
     if not expected_count:
-        return TimelineMetricResult(event_recall=1.0, evidence_identity_accuracy=1.0, superseded_retrieval_count=0)
+        return TimelineMetricResult(
+            event_recall=1.0,
+            evidence_identity_accuracy=1.0,
+            superseded_retrieval_count=0,
+            chronological_sort_correctness=True,
+        )
 
     observed_by_id = {str(_get_val(obs, "event_id", "")): obs for obs in observed}
     matched_events = 0
@@ -104,10 +107,21 @@ def evaluate_timeline_metrics(expected: Sequence[Any], observed: Sequence[Any]) 
 
     recall = matched_events / expected_count
     identity_acc = matched_identity / expected_count
+
+    sort_correct = True
+    if len(observed) > 1:
+        for i in range(1, len(observed)):
+            prev_date = _get_val(observed[i - 1], "clinical_date")
+            curr_date = _get_val(observed[i], "clinical_date")
+            if prev_date and curr_date and prev_date > curr_date:
+                sort_correct = False
+                break
+
     return TimelineMetricResult(
         event_recall=recall,
         evidence_identity_accuracy=identity_acc,
         superseded_retrieval_count=superseded_count,
+        chronological_sort_correctness=sort_correct,
     )
 
 

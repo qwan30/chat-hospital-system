@@ -250,6 +250,12 @@ jobs:
       - name: Verify API contracts
         run: python scripts/verify_contracts.py
 
+      - name: Verify CDI V2 release contracts
+        run: python scripts/verify_cdi_v2_release.py --mode source
+
+      - name: Run CDI V2 normative acceptance
+        run: python -m pytest tests/cdi_v2/test_normative_acceptance.py -q
+
       # ── Artifacts ──
       - name: Upload test results
         if: always()
@@ -321,10 +327,10 @@ jobs:
           HOSPITAL_AI_DATABASE_URL: "postgresql+asyncpg://hospital_ai:hospital_ai@localhost:5432/hospital_ai_test"
         run: alembic upgrade head
 
-      - name: Check migration-model alignment (advisory)
+      - name: Check migration-model alignment
         env:
           HOSPITAL_AI_DATABASE_URL: "postgresql+asyncpg://hospital_ai:hospital_ai@localhost:5432/hospital_ai_test"
-        run: alembic check || true
+        run: alembic check
 
   # ═══════════════════════════════════════════════════════════════════
   # Job 4b: Backend — RAG Evaluation
@@ -564,11 +570,8 @@ jobs:
           VITE_API_URL: http://localhost:8000/api/v1
         run: bun run build
 
-      # E2E tests need a running backend (not yet in CI infra).
-      # Run them as advisory — they don't block merge.
-      # TODO: Add backend service container to this job (gh#123).
-      - name: E2E tests deferred (backend unavailable)
-        run: echo "Playwright E2E is deferred until the CI job provides a backend service (gh#123)."
+      - name: Run CDI V2 Playwright E2E journey
+        run: bun run test:e2e -- cdi-v2-document-intelligence.spec.ts
 
       # ── Artifacts ──
       - name: Upload Playwright reports
@@ -785,17 +788,13 @@ jobs:
             result="${jobs[$job]}"
             icon="✅"
             if [[ "$result" == "failure" ]]; then
-              if [[ "$job" == "frontend-test" ]]; then icon="⚠️"; FRONTEND_FAILED=1; else icon="❌"; FAILED=1; fi
-              fi
+              icon="❌"; FAILED=1
+            fi
             if [[ "$result" == "cancelled" ]]; then icon="⚠️"; fi
             echo "| $job | $icon $result |" >> "$GITHUB_STEP_SUMMARY"
           done
 
           if [[ $FAILED -eq 1 ]]; then
-            if [[ $FRONTEND_FAILED -eq 1 ]]; then
-              echo "" >> "$GITHUB_STEP_SUMMARY"
-              echo "⚠️ Frontend E2E: advisory — does not block merge" >> "$GITHUB_STEP_SUMMARY"
-            fi
 
             # The release lane requests every evaluation component and holds a
             # sentinel gate that needs two independent human reviewers. Until
@@ -814,9 +813,5 @@ jobs:
             echo "" >> "$GITHUB_STEP_SUMMARY"
             echo "❌ **Some jobs failed.** Check the logs above." >> "$GITHUB_STEP_SUMMARY"
             exit 1
-          fi
-          if [[ $FRONTEND_FAILED -eq 1 ]]; then
-            echo "" >> "$GITHUB_STEP_SUMMARY"
-            echo "⚠️ **Frontend E2E advisory step failed — all other checks passed.**" >> "$GITHUB_STEP_SUMMARY"
           fi
           echo "✅ **All CI jobs passed.** Ready for deployment." >> "$GITHUB_STEP_SUMMARY"

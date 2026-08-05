@@ -182,7 +182,7 @@ async def main() -> None:
         # 1. Core users, patients, and basic permissions
         await seed_synthetic_data(session)
         admin = await session.get(User, ADMIN_ID)
-        doctor = await session.get(User, DOCTOR_ID)  # noqa: F841
+        await session.get(User, DOCTOR_ID)
 
         # 1b. Grant Bob Synthetic permissions for local dev.
         #     Bob is intentionally excluded from migrations.py to keep security tests intact.

@@ -1,24 +1,24 @@
 {
   "schema_version": "1.1",
-  "feature_slug": "portfolio-hardening-2026-06",
+  "feature_slug": "unified-cdi-v2",
   "mode": "standard_feature",
-  "active_skill": "khuym:compounding",
-  "phase": "compounding-complete",
-  "phase_number": 8,
+  "active_skill": "khuym:reviewing",
+  "phase": "review",
+  "phase_number": 6,
   "epic_id": "",
   "approved_gates": {
     "context": true,
     "work_shape": true,
     "phase_plan": true,
     "execution": true,
-    "review": true
+    "review": false
   },
   "active_beads": [],
   "active_workers": [],
   "blockers": [],
-  "focus": "C:\\Users\\NITRO\\.gemini\\antigravity-ide\\brain\\5507f115-418c-4ab0-b569-3598b736f83e\\walkthrough.md",
-  "summary": "Completed full interactive browser click-flow verification of all 7 roles, resolved critical privilege leaks, route guard leakage on /audit, and implemented security auditor mapping.",
-  "next_action": "User review of bugs_and_bad_cases.md and walkthrough.md for final sign-off.",
+  "focus": "C:\\Users\\NITRO\\.gemini\\antigravity\\brain\\69440009-a7e6-42bd-8bcd-1bff357d7c78\\walkthrough.md",
+  "summary": "Completed full implementation of Unified Corpus V3 and Clinical Document Intelligence V2, including direct R2 upload flow, OCR review workspace, timeline panels, and schema alignments. Resolved final CI migration failures and reviewer UX findings.",
+  "next_action": "User review of the final walkthrough.md and validation before merge.",
   "deferred_beads": [],
   "last_compounding_run": {
     "feature": "portfolio-hardening-2026-06",
@@ -26,5 +26,5 @@
     "learnings_file": "history/learnings/critical-patterns.md",
     "critical_promotions": 0
   },
-  "last_updated": "2026-06-22T00:20:00+07:00"
+  "last_updated": "2026-08-05T22:13:00+07:00"
 }

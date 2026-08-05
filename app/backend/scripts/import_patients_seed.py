@@ -67,7 +67,7 @@ async def import_patients(file_path: str, dry_run: bool = False):
     perms_added = 0
 
     async for session in get_session():
-        for i, row in enumerate(rows):  # noqa: B007
+        for row in rows:
             mrn = row["mrn"].strip()
             name = row["full_name"].strip()
             dob_str = (row.get("dob") or "").strip()

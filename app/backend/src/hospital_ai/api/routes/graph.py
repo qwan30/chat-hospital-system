@@ -13,7 +13,7 @@ from hospital_ai.api.deps import get_current_user, get_request_ip, get_session
 from hospital_ai.core.security import new_trace_id
 from hospital_ai.db.models import Document, DocumentChunk, DocumentPage, Patient, User
 from hospital_ai.schemas.graph import GraphDataResponse, GraphEdge, GraphMetadata, GraphNode, GraphPath, GraphPathStep
-from hospital_ai.services.graph_rag import GraphEntity, GraphRelation
+from hospital_ai.db.clinical_graph import GraphEntity, GraphRelationAssertion as GraphRelation
 from hospital_ai.services.permissions import PermissionService
 from hospital_ai.services.retrieval import RetrievalService
 

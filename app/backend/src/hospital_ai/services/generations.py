@@ -1,4 +1,5 @@
 from __future__ import annotations
+from typing import Optional
 
 import uuid
 from dataclasses import dataclass
@@ -47,7 +48,7 @@ class GenerationService:
         return doc
 
     async def activate(
-        self, generation_id: uuid.UUID, expected_active_generation_id: uuid.UUID | None = None
+        self, generation_id: uuid.UUID, expected_active_generation_id: Optional[uuid.UUID] = None
     ) -> ActivationResult:
         generation = await self._require_complete_build(generation_id)
         document = await self._lock_document(generation.document_id)
@@ -91,7 +92,7 @@ class GenerationService:
         document_id: uuid.UUID,
         target_generation_id: uuid.UUID,
         actor_id: uuid.UUID,
-        expected_active_generation_id: uuid.UUID | None = None,
+        expected_active_generation_id: Optional[uuid.UUID] = None,
         reason: str = "",
     ) -> ActivationResult:
         document = await self._lock_document(document_id)

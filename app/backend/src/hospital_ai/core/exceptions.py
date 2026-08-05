@@ -10,6 +10,7 @@ Architecture principle (Clean Architecture / Dependency Rule):
     without importing the web framework. The presentation layer
     (api/) catches them and decides how to present them to clients.
 """
+from __future__ import annotations
 
 from typing import Any, Optional
 

@@ -1,6 +1,6 @@
 """Tests for BM25 scorer and Reciprocal Rank Fusion."""
-
 from __future__ import annotations
+
 
 import uuid
 

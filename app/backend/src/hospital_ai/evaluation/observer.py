@@ -1,6 +1,6 @@
 """Internal-only observation contracts for deterministic RAG certification."""
-
 from __future__ import annotations
+
 
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field

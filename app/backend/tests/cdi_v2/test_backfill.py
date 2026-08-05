@@ -1,10 +1,11 @@
-import uuid
-
+from __future__ import annotations
 import pytest
+import uuid
+from datetime import datetime, UTC
 
-from hospital_ai.db.migrations import DOCTOR_ID, PATIENT_ALICE_ID, PATIENT_BOB_ID
-from hospital_ai.db.models import Document, DocumentChunk, DocumentPage, User
-from hospital_ai.migrations.cdi_v2_backfill import BackfillPolicy, CdiV2Backfill
+from hospital_ai.db.models import Document, DocumentPage, DocumentChunk, User
+from hospital_ai.db.migrations import PATIENT_ALICE_ID, PATIENT_BOB_ID, DOCTOR_ID
+from hospital_ai.migrations.cdi_v2_backfill import CdiV2Backfill, BackfillPolicy, BackfillBlocked
 
 
 @pytest.fixture
@@ -112,7 +113,6 @@ async def legacy_document(session, setup_doctor):
 @pytest.fixture
 async def wrong_patient_chunk(session, legacy_document):
     from sqlalchemy import select
-
     res = await session.execute(select(DocumentPage).where(DocumentPage.document_id == legacy_document.id))
     pages = list(res.scalars().all())
     chunk = DocumentChunk(

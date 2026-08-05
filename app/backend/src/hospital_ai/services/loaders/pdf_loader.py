@@ -1,6 +1,6 @@
 """PDF document loader using PyMuPDF (fitz) with table-aware extraction."""
-
 from __future__ import annotations
+
 
 import logging
 from pathlib import Path

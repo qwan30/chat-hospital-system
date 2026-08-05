@@ -1,4 +1,4 @@
-from __future__ import annotations
+from typing import Optional
 
 import uuid
 from datetime import datetime
@@ -29,10 +29,10 @@ class RevisionSetRead(BaseModel):
     revision_number: int
     status: str
     created_by_user_id: uuid.UUID
-    created_at: datetime | None = None
-    submitted_at: datetime | None = None
-    approved_by_user_id: uuid.UUID | None = None
-    approved_at: datetime | None = None
+    created_at: Optional[datetime] = None
+    submitted_at: Optional[datetime] = None
+    approved_by_user_id: Optional[uuid.UUID] = None
+    approved_at: Optional[datetime] = None
 
 
 class ApproveRevisionRequest(BaseModel):

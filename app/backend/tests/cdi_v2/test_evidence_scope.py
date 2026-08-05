@@ -1,16 +1,16 @@
-import uuid
-from datetime import UTC, datetime
-
+from __future__ import annotations
 import pytest
-from sqlalchemy import select
+import uuid
+from datetime import datetime, UTC
 
+from sqlalchemy import select
+from hospital_ai.db.models import Document, DocumentPage, DocumentChunk, User, Patient
 from hospital_ai.db.clinical_documents import (
-    DocumentIndexGeneration,
-    DocumentPageRevision,
     DocumentRevisionSet,
+    DocumentPageRevision,
+    DocumentIndexGeneration,
 )
-from hospital_ai.db.migrations import DOCTOR_ID, PATIENT_ALICE_ID
-from hospital_ai.db.models import Document, DocumentChunk, DocumentPage, User
+from hospital_ai.db.migrations import PATIENT_ALICE_ID, PATIENT_BOB_ID, DOCTOR_ID
 from hospital_ai.services.evidence_scope import ActiveEvidenceScope
 
 
@@ -150,7 +150,7 @@ async def test_evidence_scope_includes_only_active_generation_chunks(session, se
     doc, active_chunk, superseded_chunk = seeded_scope_data
     scope = ActiveEvidenceScope(session)
     subq = scope.authorized_chunk_ids(user_id=DOCTOR_ID, patient_id=PATIENT_ALICE_ID)
-
+    
     res = await session.execute(select(DocumentChunk.id).where(DocumentChunk.id.in_(subq)))
     chunk_ids = set(res.scalars().all())
 

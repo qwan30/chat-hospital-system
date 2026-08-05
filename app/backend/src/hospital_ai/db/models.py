@@ -670,3 +670,4 @@ class Notification(TimestampMixin, Base):
 
 
 from hospital_ai.db import clinical_documents as _clinical_documents  # noqa: E402,F401
+from hospital_ai.db import clinical_graph as _clinical_graph  # noqa: E402,F401

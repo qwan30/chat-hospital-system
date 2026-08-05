@@ -25,7 +25,7 @@ class StorageObjectHead:
     key: str
     byte_size: int
     etag: str
-    content_type: str | None
+    content_type: Optional[str]
 
 
 @dataclass(frozen=True)
@@ -187,7 +187,7 @@ class LocalStorageService:
 
 
 class R2StorageService:
-    def __init__(self, settings: Settings, *, client: Any | None = None) -> None:
+    def __init__(self, settings: Settings, *, client: Optional[Any] = None) -> None:
         self.settings = settings
         missing = [
             name

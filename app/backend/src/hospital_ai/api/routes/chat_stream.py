@@ -4,6 +4,7 @@ Provides token-by-token streaming responses using the LLM provider
 abstraction layer, inspired by kotaemon's generator-based streaming.
 """
 
+
 import asyncio
 import json
 import logging
@@ -833,9 +834,8 @@ async def chat_stream(
                 from hospital_ai.services.chat import extract_entities_and_relations_nlp, find_related_entities
 
                 query_entities, _ = await extract_entities_and_relations_nlp(payload.question)
-                entity_names = [entity.name for entity in query_entities]
-
-                if entity_names:
+                if query_entities:
+                    entity_names = [e.normalized_label for e in query_entities]
                     graph_ctx = await find_related_entities(
                         session, entity_names, max_hops=2, patient_id=effective_patient_id
                     )

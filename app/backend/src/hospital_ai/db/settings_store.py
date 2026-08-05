@@ -7,8 +7,8 @@ Every setting is stored as a ``SystemSetting`` row keyed by the config
 field name (e.g. ``chat_provider``).  CRUD helpers expose the simple
 get/put/list/delete operations that the settings API route needs.
 """
-
 from __future__ import annotations
+
 
 import json
 import uuid

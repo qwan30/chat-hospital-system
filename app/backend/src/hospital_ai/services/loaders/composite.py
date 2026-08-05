@@ -2,8 +2,8 @@
 
 Inspired by kotaemon's composite_loader.py pattern.
 """
-
 from __future__ import annotations
+
 
 import logging
 from pathlib import Path

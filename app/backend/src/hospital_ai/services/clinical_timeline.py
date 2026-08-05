@@ -1,3 +1,4 @@
+from __future__ import annotations
 import uuid
 from dataclasses import dataclass
 from datetime import date, datetime
@@ -11,7 +12,7 @@ from hospital_ai.db.models import Document, User
 @dataclass(frozen=True)
 class TimelineEventProjection:
     event_type: str
-    clinical_date: date | None
+    clinical_date: Optional[date]
     recorded_at: datetime
     evidence_ids: tuple[uuid.UUID, ...]
     confidence: float

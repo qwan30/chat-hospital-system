@@ -1,3 +1,5 @@
+from __future__ import annotations
+from typing import Optional
 """Isolated adapter that observes the real product retrieval service.
 
 The adapter intentionally owns a disposable SQLite schema.  It materializes
@@ -6,7 +8,6 @@ only canonical source artifacts referenced by a case, then converts the
 evaluation runner to validate.
 """
 
-from __future__ import annotations
 
 import csv
 import hashlib
@@ -48,7 +49,7 @@ class ProductRetrievalAdapter:
     def __init__(
         self,
         source_root: Path,
-        evidence_threshold: float | None = None,
+        evidence_threshold: Optional[float] = None,
         retrieval_mode: str = "vector",
     ) -> None:
         if retrieval_mode not in {"vector", "bm25", "hybrid", "graph"}:
@@ -169,7 +170,7 @@ class ProductRetrievalAdapter:
 
     @staticmethod
     def _unique_locators(locators: tuple[EvidenceLocator, ...]) -> tuple[EvidenceLocator, ...]:
-        seen: set[tuple[str, int | None, int | None, str | None]] = set()
+        seen: set[tuple[str, Optional[int], Optional[int], Optional[str]]] = set()
         output = []
         for locator in locators:
             key = (locator.source_path, locator.page_number, locator.row_number, locator.record_id)

@@ -1,6 +1,7 @@
+from __future__ import annotations
+from typing import Optional
 """Pure, deterministic metrics used by the AI evaluation harness."""
 
-from __future__ import annotations
 
 import math
 import re
@@ -146,7 +147,7 @@ def critical_field_accuracy(expected: Mapping[str, object], actual: Mapping[str,
 _NUMERIC_RE = re.compile(r"^[+-]?(?:\d+(?:\.\d*)?|\.\d+)$")
 
 
-def _numeric_value(value: object) -> float | None:
+def _numeric_value(value: object) -> Optional[float]:
     normalized = str(value).strip().replace(",", "")
     if not _NUMERIC_RE.fullmatch(normalized):
         return None

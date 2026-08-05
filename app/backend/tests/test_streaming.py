@@ -4,6 +4,7 @@ Verifies that the streaming API emits tokens, citations, metadata,
 and done events in the expected order.  Uses the stub LLM provider
 and deterministic embeddings for reproducibility.
 """
+from __future__ import annotations
 
 import uuid
 

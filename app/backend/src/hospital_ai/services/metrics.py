@@ -3,8 +3,8 @@
 Records timing breakdowns, calculates time/cost savings, and
 provides summary aggregations for the metrics dashboard.
 """
-
 from __future__ import annotations
+
 
 import uuid
 from dataclasses import dataclass

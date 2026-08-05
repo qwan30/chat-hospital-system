@@ -1,4 +1,5 @@
 from __future__ import annotations
+from typing import Optional
 
 import asyncio
 import importlib.util
@@ -86,7 +87,7 @@ def _config(
     suite: str = "smoke",
     lane: str = "deterministic",
     components: tuple[str, ...] = ("corpus", "retrieval", "graph", "chat"),
-    environment: dict[str, str] | None = None,
+    environment: dict[str, Optional[str]] = None,
 ) -> EvaluationConfig:
     return EvaluationConfig(
         suite=suite,

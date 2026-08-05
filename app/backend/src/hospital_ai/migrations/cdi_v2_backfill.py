@@ -5,21 +5,21 @@ import logging
 import subprocess
 import uuid
 from dataclasses import dataclass, field
-from datetime import UTC, datetime
+from datetime import datetime, UTC
 from typing import Any, Optional
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from hospital_ai.db.models import Document, DocumentPage, DocumentChunk
 from hospital_ai.db.clinical_documents import (
-    DocumentDraftHead,
-    DocumentIndexGeneration,
     DocumentPageRevision,
-    DocumentRevisionPage,
+    DocumentDraftHead,
     DocumentRevisionSet,
+    DocumentRevisionPage,
+    DocumentIndexGeneration,
 )
-from hospital_ai.db.models import Document, DocumentChunk, DocumentPage
-from hospital_ai.services.graph_rag import GraphEntity
+from hospital_ai.db.clinical_graph import LegacyGraphEntity
 
 logger = logging.getLogger(__name__)
 
@@ -102,9 +102,7 @@ class CdiV2Backfill:
             if chunk.page_id not in page_ids:
                 failure_codes.add("orphan_chunk")
 
-        res_entities = await self.session.execute(
-            select(GraphEntity).where(GraphEntity.source_document_id == document_id)
-        )
+        res_entities = await self.session.execute(select(LegacyGraphEntity).where(LegacyGraphEntity.source_document_id == document_id))
         entities = list(res_entities.scalars().all())
         for entity in entities:
             if entity.source_chunk_id not in chunk_ids:
@@ -160,9 +158,7 @@ class CdiV2Backfill:
             await self.session.flush()
         return new_revs
 
-    async def _upsert_draft_head(
-        self, document: Document, page_revisions: list[DocumentPageRevision]
-    ) -> DocumentDraftHead:
+    async def _upsert_draft_head(self, document: Document, page_revisions: list[DocumentPageRevision]) -> DocumentDraftHead:
         head = await self.session.get(DocumentDraftHead, document.id)
         if head:
             return head
@@ -239,9 +235,7 @@ class CdiV2Backfill:
             self.session.add(gen)
             await self.session.flush()
 
-            res_chunks = await self.session.execute(
-                select(DocumentChunk).where(DocumentChunk.document_id == document.id)
-            )
+            res_chunks = await self.session.execute(select(DocumentChunk).where(DocumentChunk.document_id == document.id))
             for chunk in res_chunks.scalars().all():
                 chunk.generation_id = gen.id
                 chunk.revision_set_id = submitted.id
@@ -294,20 +288,14 @@ class CdiV2Backfill:
                 if not gen or gen.state != "active":
                     superseded_generation_count += 1
 
-            docs_output.append(
-                {
-                    "document_id": str(doc.id),
-                    "source_sha256": doc.indexed_source_sha256,
-                    "approved_revision_set_id": str(doc.approved_revision_set_id)
-                    if doc.approved_revision_set_id
-                    else None,
-                    "active_index_generation_id": str(doc.active_index_generation_id)
-                    if doc.active_index_generation_id
-                    else None,
-                    "passed_lineage": lineage.passed,
-                    "failure_codes": lineage.failure_codes,
-                }
-            )
+            docs_output.append({
+                "document_id": str(doc.id),
+                "source_sha256": doc.indexed_source_sha256,
+                "approved_revision_set_id": str(doc.approved_revision_set_id) if doc.approved_revision_set_id else None,
+                "active_index_generation_id": str(doc.active_index_generation_id) if doc.active_index_generation_id else None,
+                "passed_lineage": lineage.passed,
+                "failure_codes": lineage.failure_codes,
+            })
 
         try:
             git_sha = subprocess.check_output(["git", "rev-parse", "HEAD"], stderr=subprocess.DEVNULL).decode().strip()

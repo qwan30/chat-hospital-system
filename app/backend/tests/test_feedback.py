@@ -8,6 +8,7 @@ Covers:
 - Nonexistent query rejection (404)
 - UserFeedback model constraints
 """
+from __future__ import annotations
 
 import pytest
 from sqlalchemy import select

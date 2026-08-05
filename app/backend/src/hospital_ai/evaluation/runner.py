@@ -1,6 +1,6 @@
 """Deterministic AI evaluation orchestration with explicit adapter boundaries."""
-
 from __future__ import annotations
+
 
 import asyncio
 import hashlib
@@ -488,8 +488,8 @@ def _run_id(config: EvaluationConfig, started_at: str) -> str:
 async def run_evaluation_async(
     config: EvaluationConfig,
     *,
-    adapters: Mapping[str, EvaluationAdapter] | None = None,
-    isolation: EvaluatorIsolationConfig | None = None,
+    adapters: Mapping[str, Optional[EvaluationAdapter]] = None,
+    isolation: Optional[EvaluatorIsolationConfig] = None,
     ocr_probe: Callable[[], OcrEngineStatus] = probe_image_ocr_engine,
 ) -> EvaluationRun:
     started_at = config.clock()
@@ -680,8 +680,8 @@ async def run_evaluation_async(
 def run_evaluation(
     config: EvaluationConfig,
     *,
-    adapters: Mapping[str, EvaluationAdapter] | None = None,
-    isolation: EvaluatorIsolationConfig | None = None,
+    adapters: Mapping[str, Optional[EvaluationAdapter]] = None,
+    isolation: Optional[EvaluatorIsolationConfig] = None,
     ocr_probe: Callable[[], OcrEngineStatus] = probe_image_ocr_engine,
 ) -> EvaluationRun:
     """Synchronous boundary for scripts; async callers must use run_evaluation_async."""

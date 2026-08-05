@@ -4,8 +4,8 @@ Uses the graph RAG entity/relation tables to detect potential
 drug–drug, drug–condition, and drug–allergy interactions from
 indexed clinical documents.
 """
-
 from __future__ import annotations
+
 
 import uuid
 from dataclasses import dataclass
@@ -14,10 +14,8 @@ from typing import Optional
 from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from hospital_ai.db.models import Document
+from hospital_ai.db.clinical_graph import GraphEntity, GraphRelationAssertion, GraphRelationEvidence
 from hospital_ai.services.graph_rag import (
-    GraphEntity,
-    GraphRelation,
     extract_entities_and_relations_nlp,
 )
 
@@ -95,7 +93,7 @@ class DrugCheckService:
             return []
 
         entities, _ = await extract_entities_and_relations_nlp(query_text)
-        drug_names = [e.name for e in entities if e.entity_type == "drug"]
+        drug_names = [e.normalized_label for e in entities if e.entity_type == "drug"]
 
         if not drug_names:
             return []
@@ -103,8 +101,8 @@ class DrugCheckService:
         # Find graph entities for these drugs within the patient's documents
         result = await self.session.execute(
             select(GraphEntity).where(
-                GraphEntity.name.in_(drug_names),
-                GraphEntity.source_document_id.in_(select(Document.id).where(Document.patient_id == patient_id)),
+                GraphEntity.normalized_label.in_(drug_names),
+                GraphEntity.patient_id == patient_id,
             )
         )
         patient_drug_entities = list(result.scalars().all())
@@ -113,34 +111,35 @@ class DrugCheckService:
             return []
 
         drug_entity_ids = {e.id for e in patient_drug_entities}
-        drug_id_to_name = {e.id: e.name for e in patient_drug_entities}
+        drug_id_to_name = {e.id: e.normalized_label for e in patient_drug_entities}
 
         # Find relations involving these drugs
         result = await self.session.execute(
-            select(GraphRelation).where(
+            select(GraphRelationAssertion, GraphRelationEvidence.chunk_id).join(GraphRelationEvidence).where(
                 or_(
-                    GraphRelation.source_entity_id.in_(drug_entity_ids),
-                    GraphRelation.target_entity_id.in_(drug_entity_ids),
-                )
+                    GraphRelationAssertion.subject_entity_id.in_(drug_entity_ids),
+                    GraphRelationAssertion.object_entity_id.in_(drug_entity_ids),
+                ),
+                GraphRelationAssertion.patient_id == patient_id,
             )
         )
-        relations = list(result.scalars().all())
+        relations_and_chunks = result.all()
 
-        if not relations:
+        if not relations_and_chunks:
             return []
 
         # Resolve target entities
         related_entity_ids: set[uuid.UUID] = set()
-        for rel in relations:
-            related_entity_ids.add(rel.source_entity_id)
-            related_entity_ids.add(rel.target_entity_id)
+        for rel, _ in relations_and_chunks:
+            related_entity_ids.add(rel.subject_entity_id)
+            related_entity_ids.add(rel.object_entity_id)
         related_entity_ids -= drug_entity_ids
 
         entity_name_map = dict(drug_id_to_name)
         if related_entity_ids:
             result = await self.session.execute(select(GraphEntity).where(GraphEntity.id.in_(related_entity_ids)))
             for entity in result.scalars().all():
-                entity_name_map[entity.id] = entity.name
+                entity_name_map[entity.id] = entity.normalized_label
 
         # Build warnings
         severity_order = ["critical", "high", "medium", "low"]
@@ -149,14 +148,14 @@ class DrugCheckService:
         warnings: list[DrugWarning] = []
         seen: set[tuple] = set()
 
-        for rel in relations:
+        for rel, chunk_id in relations_and_chunks:
             # Determine which end is the drug
-            if rel.source_entity_id in drug_entity_ids:
-                drug_id = rel.source_entity_id
-                other_id = rel.target_entity_id
+            if rel.subject_entity_id in drug_entity_ids:
+                drug_id = rel.subject_entity_id
+                other_id = rel.object_entity_id
             else:
-                drug_id = rel.target_entity_id
-                other_id = rel.source_entity_id
+                drug_id = rel.object_entity_id
+                other_id = rel.subject_entity_id
 
             drug_name = entity_name_map.get(drug_id, "unknown")
             other_name = entity_name_map.get(other_id, "unknown")
@@ -178,7 +177,7 @@ class DrugCheckService:
                     interacting_entity=other_name,
                     interaction_type=rel.relation_type,
                     severity=severity,
-                    evidence_chunk_id=rel.source_chunk_id,
+                    evidence_chunk_id=chunk_id,
                     message=_build_message(drug_name, other_name, rel.relation_type),
                 )
             )

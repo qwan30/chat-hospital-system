@@ -1,6 +1,6 @@
 """Ollama LLM provider — local models via Ollama API."""
-
 from __future__ import annotations
+
 
 import json
 from collections.abc import AsyncIterator

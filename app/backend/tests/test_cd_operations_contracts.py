@@ -1,3 +1,4 @@
+from __future__ import annotations
 from pathlib import Path
 
 from hospital_ai.workers.run_worker import WORKER_QUEUE_NAMES

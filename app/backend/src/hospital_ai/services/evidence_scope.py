@@ -1,4 +1,5 @@
 from __future__ import annotations
+from typing import Optional
 
 import uuid
 from collections.abc import Collection
@@ -37,7 +38,7 @@ class ActiveEvidenceScope:
         *,
         user_id: uuid.UUID,
         patient_id: uuid.UUID,
-        document_ids: Collection[uuid.UUID] | None = None,
+        document_ids: Optional[Collection[uuid.UUID]] = None,
     ):
         stmt = (
             select(DocumentChunk.id)

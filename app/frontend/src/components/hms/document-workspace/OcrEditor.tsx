@@ -4,19 +4,29 @@ import { saveDraftPage } from "@/lib/api/document-revisions";
 import { ApiError } from "@/lib/api-client";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-
+import { Input } from "@/components/ui/input";
+import { useRef } from "react";
 interface OcrEditorProps {
   documentId: string;
   page: number;
   initialText?: string;
   lockVersion?: number;
   revision?: any;
+  onCompare?: () => void;
 }
 
-export function OcrEditor({ documentId, page, initialText = "", lockVersion: initialLockVersion, revision }: OcrEditorProps) {
+export function OcrEditor({
+  documentId,
+  page,
+  initialText = "",
+  lockVersion: initialLockVersion,
+  revision,
+}: OcrEditorProps) {
   const [text, setText] = useState(initialText);
+  const [reason, setReason] = useState("");
   const [conflict, setConflict] = useState(false);
   const isHistorical = revision && revision.status !== "draft";
+  const idempotencyKeyRef = useRef(crypto.randomUUID());
 
   useEffect(() => {
     setText(initialText);
@@ -26,17 +36,21 @@ export function OcrEditor({ documentId, page, initialText = "", lockVersion: ini
   const saveMutation = useMutation({
     mutationFn: (newText: string) => {
       return saveDraftPage(
-        documentId, 
-        page, 
-        { text: newText, parent_revision_id: revision?.id || "" }, 
-        { idempotencyKey: crypto.randomUUID(), lockVersion: initialLockVersion }
+        documentId,
+        page,
+        { corrected_text: newText, parent_revision_id: revision?.id || "", edit_reason: reason || "Updated text" },
+        { idempotencyKey: idempotencyKeyRef.current, lockVersion: initialLockVersion },
       );
+    },
+    onSuccess: () => {
+      idempotencyKeyRef.current = crypto.randomUUID();
+      setReason("");
     },
     onError: (error) => {
       if (error instanceof ApiError && error.status === 409) {
         setConflict(true);
       }
-    }
+    },
   });
 
   const handleSave = () => {
@@ -52,11 +66,19 @@ export function OcrEditor({ documentId, page, initialText = "", lockVersion: ini
         readOnly={isHistorical}
       />
       {conflict ? (
-        <Button variant="outline">Compare with latest</Button>
+        <Button variant="outline" onClick={() => onCompare?.()}>Compare with latest</Button>
       ) : (
-        <Button onClick={handleSave} disabled={isHistorical || saveMutation.isPending}>
-          Save draft
-        </Button>
+        <div className="flex flex-col gap-2">
+          <Input 
+            placeholder="Edit reason" 
+            value={reason} 
+            onChange={e => setReason(e.target.value)}
+            disabled={isHistorical || saveMutation.isPending}
+          />
+          <Button onClick={handleSave} disabled={isHistorical || saveMutation.isPending}>
+            Save draft
+          </Button>
+        </div>
       )}
     </div>
   );

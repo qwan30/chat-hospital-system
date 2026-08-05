@@ -24,12 +24,13 @@ export function GeometryOverlay({
           <Alert variant="destructive" className="bg-destructive/10 backdrop-blur">
             <AlertCircle className="h-4 w-4" />
             <AlertDescription>
-              {staleCount} {staleCount === 1 ? "annotation is" : "annotations are"} stale and cannot be exactly aligned.
+              {staleCount} {staleCount === 1 ? "annotation is" : "annotations are"} stale and cannot
+              be exactly aligned.
             </AlertDescription>
           </Alert>
         </div>
       )}
-      
+
       {boxes.map((box, i) => (
         <div
           key={box.id || i}

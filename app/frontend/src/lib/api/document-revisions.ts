@@ -2,9 +2,9 @@ import { apiFetch } from "../api-client";
 import { mutationHeaders } from "../idempotency";
 
 export interface DraftPageWrite {
-  text: string;
+  corrected_text: string;
   parent_revision_id: string;
-  edit_reason?: string;
+  edit_reason: string;
 }
 
 export interface DraftPageRead {

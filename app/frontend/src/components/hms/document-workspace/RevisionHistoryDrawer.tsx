@@ -31,9 +31,7 @@ export function RevisionHistoryDrawer({
       <SheetContent className="w-[400px] sm:w-[540px]">
         <SheetHeader>
           <SheetTitle>Revision History</SheetTitle>
-          <SheetDescription>
-            View past edits and status changes for this document.
-          </SheetDescription>
+          <SheetDescription>View past edits and status changes for this document.</SheetDescription>
         </SheetHeader>
         <ScrollArea className="h-[calc(100vh-120px)] mt-4">
           <div className="flex flex-col gap-4 pr-4">
@@ -68,7 +66,7 @@ export function RevisionHistoryDrawer({
                     </span>
                   )}
                 </div>
-                
+
                 <div className="grid grid-cols-2 gap-2 text-xs text-muted-foreground mt-2">
                   <div className="flex items-center gap-1">
                     <User className="h-3 w-3" />
@@ -76,9 +74,12 @@ export function RevisionHistoryDrawer({
                   </div>
                   {rev.created_at && (
                     <div className="flex items-center gap-1 text-right justify-end">
-                      {new Intl.DateTimeFormat('en-US', {
-                        month: 'short', day: 'numeric', year: 'numeric',
-                        hour: 'numeric', minute: 'numeric'
+                      {new Intl.DateTimeFormat("en-US", {
+                        month: "short",
+                        day: "numeric",
+                        year: "numeric",
+                        hour: "numeric",
+                        minute: "numeric",
                       }).format(new Date(rev.created_at))}
                     </div>
                   )}

@@ -20,11 +20,17 @@ describe("OcrEditor", () => {
   it("shows a compare action on stale If-Match without losing local text", async () => {
     const user = userEvent.setup();
     vi.mocked(saveDraftPage).mockRejectedValue(new ApiError(409, "CONFLICT", "Draft changed"));
-    
+
     render(
       <QueryClientProvider client={queryClient}>
-        <OcrEditor documentId="doc-1" page={1} initialText="local correction" lockVersion={3} revision={{id: "rev-1", text: "old text", status: "draft"}} />
-      </QueryClientProvider>
+        <OcrEditor
+          documentId="doc-1"
+          page={1}
+          initialText="local correction"
+          lockVersion={3}
+          revision={{ id: "rev-1", text: "old text", status: "draft" }}
+        />
+      </QueryClientProvider>,
     );
 
     await user.click(screen.getByRole("button", { name: "Save draft" }));

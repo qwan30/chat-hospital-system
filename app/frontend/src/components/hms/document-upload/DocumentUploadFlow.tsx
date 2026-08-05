@@ -26,6 +26,7 @@ export function DocumentUploadFlow({
   const [state, setState] = useState<UploadUiState>({ kind: "idle" });
   const key = useRef<string>(crypto.randomUUID());
   const isMounted = useRef<boolean>(true);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     return () => {
@@ -94,12 +95,18 @@ export function DocumentUploadFlow({
       let nextState = uploadResultToUiState(result);
       if (nextState.kind === "quarantined" || nextState.kind === "rejected") {
         setFile(null);
-        nextState = { ...nextState, checksum: sha256, mime: file.type || "application/octet-stream" };
+        if (fileInputRef.current) fileInputRef.current.value = "";
+        nextState = {
+          ...nextState,
+          checksum: sha256,
+          mime: file.type || "application/octet-stream",
+        };
       }
       setState(nextState);
 
       if (nextState.kind === "finalized") {
         setFile(null);
+        if (fileInputRef.current) fileInputRef.current.value = "";
         navigate({ to: "/documents/$documentId", params: { documentId: result.document_id } });
       } else if (nextState.kind === "verified") {
         let isFinal = false;
@@ -107,12 +114,10 @@ export function DocumentUploadFlow({
           await new Promise((resolve) => setTimeout(resolve, 2000));
           if (!isMounted.current) return;
           const projection = await getDocument(result.document_id);
-          if (
-            projection.status === "review_required" ||
-            projection.status === "ready"
-          ) {
+          if (projection.status === "review_required" || projection.status === "ready") {
             isFinal = true;
             setFile(null);
+            if (fileInputRef.current) fileInputRef.current.value = "";
             navigate({ to: "/documents/$documentId", params: { documentId: result.document_id } });
           } else if (
             projection.status === "quarantined" ||
@@ -121,6 +126,7 @@ export function DocumentUploadFlow({
           ) {
             isFinal = true;
             setFile(null);
+            if (fileInputRef.current) fileInputRef.current.value = "";
             setState({
               kind: projection.status === "quarantined" ? "quarantined" : "rejected",
               reason: projection.ocr_error || "Processing failed",
@@ -140,12 +146,13 @@ export function DocumentUploadFlow({
 
   return (
     <div className="space-y-6">
-      <form onSubmit={runUpload} className="space-y-4">
+      <form id="upload-form" onSubmit={runUpload} className="space-y-4">
         <div className="space-y-2">
           <Label htmlFor="file-upload">Clinical document</Label>
           <Input
             id="file-upload"
             type="file"
+            ref={fileInputRef}
             onChange={handleFileChange}
             disabled={
               state.kind !== "idle" && state.kind !== "quarantined" && state.kind !== "rejected"
@@ -162,7 +169,14 @@ export function DocumentUploadFlow({
           Upload document
         </Button>
       </form>
-      <UploadStatePanel state={state} onReset={() => setState({ kind: "idle" })} />
+      <UploadStatePanel
+        state={state}
+        onReset={() => {
+          setState({ kind: "idle" });
+          setFile(null);
+          if (fileInputRef.current) fileInputRef.current.value = "";
+        }}
+      />
     </div>
   );
 }

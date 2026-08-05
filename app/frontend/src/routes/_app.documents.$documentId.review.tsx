@@ -97,9 +97,13 @@ function Page() {
               {activeFact?.bounding_box && (
                 <GeometryOverlay
                   boxes={[
-                    { id: activeFact.id, ...activeFact.bounding_box, alignment_status: "aligned" },
+                    {
+                      id: activeFact.id,
+                      ...activeFact.bounding_box,
+                      alignment_status: activeFact.status === "aligned" ? "aligned" : "stale",
+                    },
                   ]}
-                  staleCount={0}
+                  staleCount={activeFact.status === "aligned" ? 0 : 1}
                 />
               )}
             </DocumentPreview>

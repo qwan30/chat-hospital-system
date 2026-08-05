@@ -61,10 +61,14 @@ export function DocumentWorkspace({ documentId }: { documentId: string }) {
   const restoreMutation = useMutation({
     mutationFn: () => {
       if (!selectedRevisionId) return Promise.reject(new Error("No revision"));
+      const pageRevisionId = revisionPageQuery.data?.page_revision_id;
+      if (!pageRevisionId) {
+        return Promise.reject(new Error("The selected page revision is not loaded."));
+      }
       return restoreRevision(
         documentId,
         selectedRevisionId,
-        { revision_id: selectedRevisionId },
+        { revision_id: pageRevisionId },
         { idempotencyKey: crypto.randomUUID() },
       );
     },
@@ -214,6 +218,7 @@ export function DocumentWorkspace({ documentId }: { documentId: string }) {
                   revision={revision}
                   initialText={originalText}
                   lockVersion={revisionPageQuery.data?.lock_version}
+                  parentRevisionId={revisionPageQuery.data?.page_revision_id}
                   onCompare={handleCompare}
                 />
               )}

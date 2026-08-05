@@ -47,6 +47,13 @@ export function UploadStatePanel({
           <span>Verifying upload...</span>
         </div>
       )}
+      {state.kind === "verified" && (
+        <div className="flex items-center gap-2 text-emerald-600">
+          <CheckCircle className="h-4 w-4" />
+          <span>Upload verified</span>
+          {state.reason && <span className="text-sm">({state.reason})</span>}
+        </div>
+      )}
       {state.kind === "quarantined" && (
         <div className="flex flex-col gap-2 text-destructive">
           <div className="flex items-center gap-2">

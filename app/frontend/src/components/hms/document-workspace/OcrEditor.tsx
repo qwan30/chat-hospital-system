@@ -11,6 +11,7 @@ interface OcrEditorProps {
   page: number;
   initialText?: string;
   lockVersion?: number;
+  parentRevisionId?: string;
   revision?: any;
   onCompare?: () => void;
 }
@@ -20,33 +21,37 @@ export function OcrEditor({
   page,
   initialText = "",
   lockVersion: initialLockVersion,
+  parentRevisionId,
   revision,
   onCompare,
 }: OcrEditorProps) {
   const [text, setText] = useState(initialText);
   const [reason, setReason] = useState("");
   const [conflict, setConflict] = useState(false);
+  const [currentLockVersion, setCurrentLockVersion] = useState(initialLockVersion);
   const isHistorical = revision && revision.status !== "draft";
   const idempotencyKeyRef = useRef(crypto.randomUUID());
 
   useEffect(() => {
     setText(initialText);
     setConflict(false);
-  }, [initialText]);
+    setCurrentLockVersion(initialLockVersion);
+  }, [initialText, initialLockVersion]);
 
   const saveMutation = useMutation({
     mutationFn: (newText: string) => {
-      if (initialLockVersion === undefined) {
-        return Promise.reject(new Error("The latest page lock version is not loaded."));
+      if (currentLockVersion === undefined || !parentRevisionId) {
+        return Promise.reject(new Error("The latest page revision is not loaded."));
       }
       return saveDraftPage(
         documentId,
         page,
-        { corrected_text: newText, parent_revision_id: revision?.id || "", edit_reason: reason },
-        { idempotencyKey: idempotencyKeyRef.current, lockVersion: initialLockVersion },
+        { corrected_text: newText, parent_revision_id: parentRevisionId, edit_reason: reason },
+        { idempotencyKey: idempotencyKeyRef.current, lockVersion: currentLockVersion },
       );
     },
-    onSuccess: () => {
+    onSuccess: (savedPage) => {
+      setCurrentLockVersion(savedPage.lock_version);
       idempotencyKeyRef.current = crypto.randomUUID();
       setReason("");
     },
@@ -65,7 +70,8 @@ export function OcrEditor({
     isHistorical ||
     saveMutation.isPending ||
     reason.trim().length === 0 ||
-    initialLockVersion === undefined;
+    currentLockVersion === undefined ||
+    !parentRevisionId;
 
   return (
     <div className="flex flex-col gap-4">

@@ -1,16 +1,36 @@
 /**
  * @vitest-environment jsdom
  */
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { cleanup, render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { DocumentWorkspace } from "./DocumentWorkspace";
 import { GeometryOverlay } from "./GeometryOverlay";
-import { restoreRevision } from "@/lib/api/document-revisions";
+import {
+  restoreRevision,
+  getRevisionPage,
+  getDraftPage,
+  submitDraft,
+} from "@/lib/api/document-revisions";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import "@testing-library/jest-dom/vitest";
 
 vi.mock("@/lib/api/document-revisions", () => ({
   restoreRevision: vi.fn(),
+  getRevisionPage: vi.fn().mockResolvedValue({
+    page_revision_id: "page-revision-1",
+    lock_version: 7,
+    page_number: 1,
+    text: "historical",
+    status: "approved",
+  }),
+  getDraftPage: vi.fn().mockResolvedValue({
+    page_revision_id: "draft-page-revision-1",
+    lock_version: 3,
+    page_number: 1,
+    text: "draft",
+    status: "draft",
+  }),
+  submitDraft: vi.fn(),
   listRevisionSets: vi
     .fn()
     .mockResolvedValue([{ revision_set_id: "rev-1", revision_number: 1, status: "approved" }]),
@@ -34,6 +54,10 @@ beforeEach(() => {
   URL.revokeObjectURL = vi.fn();
 });
 
+afterEach(() => {
+  cleanup();
+});
+
 const queryClient = new QueryClient();
 
 describe("DocumentWorkspace", () => {
@@ -51,14 +75,45 @@ describe("DocumentWorkspace", () => {
 
     // Wait for the revision UI to switch to historical view
     const restoreBtn = await screen.findByRole("button", { name: "Restore as new revision" });
+    await waitFor(() => expect(getRevisionPage).toHaveBeenCalled());
     fireEvent.click(restoreBtn);
 
     await waitFor(() => {
       expect(restoreRevision).toHaveBeenCalledWith(
         "doc-1",
         "rev-1",
+        { revision_id: "page-revision-1" },
         expect.any(Object),
-        expect.any(Object),
+      );
+    });
+  });
+
+  it("submits the loaded draft with its current lock version", async () => {
+    vi.mocked(submitDraft).mockResolvedValue({
+      revision_set_id: "set-1",
+      document_id: "doc-1",
+      revision_number: 2,
+      status: "submitted",
+      created_by_user_id: "user-1",
+      created_at: null,
+      submitted_at: null,
+      approved_by_user_id: null,
+      approved_at: null,
+    });
+    render(
+      <QueryClientProvider client={new QueryClient()}>
+        <DocumentWorkspace documentId="doc-1" />
+      </QueryClientProvider>,
+    );
+
+    const submit = await screen.findByRole("button", { name: "Submit Draft" });
+    await waitFor(() => expect(submit).not.toBeDisabled());
+    fireEvent.click(submit);
+
+    await waitFor(() => {
+      expect(submitDraft).toHaveBeenCalledWith(
+        "doc-1",
+        expect.objectContaining({ lockVersion: 3 }),
       );
     });
   });

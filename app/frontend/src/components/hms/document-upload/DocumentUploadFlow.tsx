@@ -51,7 +51,10 @@ export function DocumentUploadFlow({
       case "verified":
         return { kind: "verified", reason: result.reason };
       default:
-        return { kind: "uploaded_unverified", reason: result.reason };
+        return {
+          kind: "rejected",
+          reason: `Unsupported upload lifecycle state: ${result.state}`,
+        };
     }
   };
 

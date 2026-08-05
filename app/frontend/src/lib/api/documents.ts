@@ -280,6 +280,14 @@ export function putPresignedObject(
   onProgress: (percent: number) => void,
 ): Promise<void> {
   return new Promise((resolve, reject) => {
+    const immutableHeader = Object.entries(upload.required_headers || {}).find(
+      ([name]) => name.toLowerCase() === "if-none-match",
+    )?.[1];
+    if (immutableHeader !== "*") {
+      reject(new Error("Immutable upload requires If-None-Match: *"));
+      return;
+    }
+
     const xhr = new XMLHttpRequest();
     const url = upload.presigned_url || upload.upload_url;
     if (!url) return reject(new Error("No upload URL provided"));

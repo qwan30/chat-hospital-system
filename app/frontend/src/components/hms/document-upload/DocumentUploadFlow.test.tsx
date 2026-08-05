@@ -99,4 +99,32 @@ describe("DocumentUploadFlow", () => {
       ).not.toBeNull();
     });
   });
+
+  it("fails closed when finalization returns an unknown lifecycle state", async () => {
+    const user = userEvent.setup();
+    const sessionMock = {
+      document_id: "doc-1",
+      upload_id: "up-1",
+      required_headers: { "Content-Type": "application/pdf", "If-None-Match": "*" },
+      state: "pending_upload",
+      object_key: "key-1",
+      presigned_url: "https://r2.example.com/upload",
+    };
+    vi.mocked(createUploadSession).mockResolvedValue(sessionMock);
+    vi.mocked(putPresignedObject).mockResolvedValue();
+    vi.mocked(finalizeUpload).mockResolvedValue({
+      id: "res-1",
+      document_id: "doc-1",
+      state: "unexpected_state",
+    });
+
+    render(<DocumentUploadFlow patientId="patient-1" />);
+    await completeUpload(user, syntheticPdf);
+
+    await waitFor(() => {
+      expect(screen.getByText("Upload rejected")).not.toBeNull();
+      expect(screen.getByText(/Unsupported upload lifecycle state/)).not.toBeNull();
+    });
+    expect(mockNavigate).not.toHaveBeenCalled();
+  });
 });

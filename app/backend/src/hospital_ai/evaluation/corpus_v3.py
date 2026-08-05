@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import Literal, Optional
 from uuid import UUID
 
-from pydantic import BaseModel, root_validator
+from pydantic import BaseModel, ConfigDict, root_validator
 
 from hospital_ai.evaluation.benchmark import EvidenceLocator, ExpectedFact
 
@@ -23,8 +23,7 @@ class SourceObjectRef(BaseModel):
     rendering_hash: Optional[str] = None
     mime_type: str = "application/pdf"
 
-    class Config:
-        frozen = True
+    model_config = ConfigDict(frozen=True)
 
 
 class ArtifactRef(BaseModel):
@@ -32,8 +31,7 @@ class ArtifactRef(BaseModel):
     sha256: str
     path: Optional[str] = None
 
-    class Config:
-        frozen = True
+    model_config = ConfigDict(frozen=True)
 
 
 class ExpectedGraph(BaseModel):
@@ -41,8 +39,7 @@ class ExpectedGraph(BaseModel):
     required_edges: tuple[tuple[str, str, str], ...] = ()
     evidence: tuple[EvidenceLocator, ...] = ()
 
-    class Config:
-        frozen = True
+    model_config = ConfigDict(frozen=True)
 
 
 class ExpectedTimelineEvent(BaseModel):
@@ -52,8 +49,7 @@ class ExpectedTimelineEvent(BaseModel):
     evidence_locators: tuple[EvidenceLocator, ...] = ()
     superseded: bool = False
 
-    class Config:
-        frozen = True
+    model_config = ConfigDict(frozen=True)
 
 
 class EvalCaseV3(BaseModel):
@@ -69,8 +65,7 @@ class EvalCaseV3(BaseModel):
     graph: Optional[ExpectedGraph] = None
     timeline_expectations: tuple[ExpectedTimelineEvent, ...] = ()
 
-    class Config:
-        frozen = True
+    model_config = ConfigDict(frozen=True)
 
 
 class PermissionScenario(BaseModel):
@@ -79,8 +74,7 @@ class PermissionScenario(BaseModel):
     allowed_patient_ids: tuple[str, ...] = ()
     expected_outcome: Literal["allow", "refuse", "unauthorized"] = "allow"
 
-    class Config:
-        frozen = True
+    model_config = ConfigDict(frozen=True)
 
 
 class UnifiedCorpusItemV3(BaseModel):
@@ -98,8 +92,7 @@ class UnifiedCorpusItemV3(BaseModel):
     questions: tuple[EvalCaseV3, ...] = ()
     permissions: tuple[PermissionScenario, ...] = ()
 
-    class Config:
-        frozen = True
+    model_config = ConfigDict(frozen=True)
 
 
 class UnifiedCorpusV3(BaseModel):
@@ -138,8 +131,7 @@ class UnifiedCorpusV3(BaseModel):
                 )
         return values
 
-    class Config:
-        frozen = True
+    model_config = ConfigDict(frozen=True)
 
 
 def load_corpus_v3(manifest_path: Path) -> UnifiedCorpusV3:

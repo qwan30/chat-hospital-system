@@ -9,7 +9,6 @@ from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
 from hospital_ai.db.models import Base, DocumentChunk, User
 from hospital_ai.evaluation.adapter_foundation import EvaluationCaseContext, EvidenceResolutionError
-from hospital_ai.evaluation.benchmark import EvalCaseV2
 from hospital_ai.evaluation.product_retrieval_adapter import ProductRetrievalAdapter
 from hospital_ai.evaluation.runner import CaseObservation
 from hospital_ai.services.validated_stream import ValidatedSentenceStreamer
@@ -23,12 +22,13 @@ class ProductStreamAdapter:
 
     async def evaluate(
         self,
-        case: EvalCaseV2,
+        case: Any,
         context: EvaluationCaseContext,
         simulate_interrupt: bool = False,
         simulate_error: bool = False,
     ) -> CaseObservation:
-        if case.patient_id not in context.actor.allowed_patient_ids:
+        patient_id = context.patient_id or getattr(case, 'patient_id', '')
+        if patient_id not in context.actor.allowed_patient_ids:
             return CaseObservation(
                 refused=True,
                 sync_safety_outcome="refused",

@@ -10,7 +10,6 @@ from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
 from hospital_ai.db.models import Base, Document, User
 from hospital_ai.evaluation.adapter_foundation import EvaluationCaseContext, EvidenceResolutionError
-from hospital_ai.evaluation.benchmark import EvalCaseV2
 from hospital_ai.evaluation.product_retrieval_adapter import ProductRetrievalAdapter
 from hospital_ai.evaluation.runner import CaseObservation
 from hospital_ai.services.clinical_timeline import ClinicalTimelineService
@@ -23,9 +22,10 @@ class ProductTimelineAdapter:
         self._retrieval_adapter = ProductRetrievalAdapter(source_root)
 
     async def evaluate(
-        self, case: EvalCaseV2, context: EvaluationCaseContext, filters: Optional[dict[str, Any]] = None
+        self, case: Any, context: EvaluationCaseContext, filters: Optional[dict[str, Any]] = None
     ) -> CaseObservation:
-        if case.patient_id not in context.actor.allowed_patient_ids:
+        patient_id = context.patient_id or getattr(case, 'patient_id', '')
+        if patient_id not in context.actor.allowed_patient_ids:
             raise EvidenceResolutionError("evaluation actor is not authorized for the requested patient timeline")
 
         locators = self._retrieval_adapter._unique_locators(
@@ -50,7 +50,7 @@ class ProductTimelineAdapter:
                     raise EvidenceResolutionError("evaluation actor was not materialized")
 
                 docs = list(
-                    (await session.execute(select(Document).where(Document.patient_id == case.patient_id))).scalars()
+                    (await session.execute(select(Document).where(Document.patient_id == patient_id))).scalars()
                 )
                 timeline_service = ClinicalTimelineService(session)
                 events = []

@@ -41,7 +41,8 @@ class ProductChatAdapter:
     def __init__(self, source_root: Path) -> None:
         self._retrieval_adapter = ProductRetrievalAdapter(source_root)
 
-    async def evaluate(self, case: EvalCaseV2, context: EvaluationCaseContext) -> CaseObservation:
+    async def evaluate(self, case: Any, context: EvaluationCaseContext) -> CaseObservation:
+        patient_id = context.patient_id or getattr(case, 'patient_id', '')
         locators = self._retrieval_adapter._unique_locators(
             case.allowed_evidence + case.forbidden_evidence + case.absence_checked_evidence
         )
@@ -68,7 +69,7 @@ class ProductChatAdapter:
                 try:
                     response = await ChatService(session, self._settings(len(locators))).answer(
                         user=user,
-                        patient_id=case.patient_id,
+                        patient_id=patient_id,
                         question=case.question,
                         top_k=max(1, len(locators)),
                         trace_id=f"evaluation-{case.case_id}",

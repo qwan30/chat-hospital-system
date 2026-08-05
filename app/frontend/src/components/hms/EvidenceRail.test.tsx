@@ -141,6 +141,7 @@ describe("EvidenceRail & evidenceLabel", () => {
       page: 3,
       revision: "rev-7",
       alignedBoundingBox: { x: 10, y: 20, width: 100, height: 50 },
+      alignedGeometryStatus: "aligned",
     };
 
     render(<EvidenceRail items={[navItem]} />);
@@ -151,5 +152,28 @@ describe("EvidenceRail & evidenceLabel", () => {
     expect(href).toContain("page=3");
     expect(href).toContain("revision=rev-7");
     expect(href).toContain("bbox=");
+  });
+
+  it("does not navigate to stale geometry as if it were exact evidence", () => {
+    const staleItem: EvidenceItem = {
+      id: "ev-stale",
+      evidence_id: "stable-evidence-1",
+      n: 1,
+      title: "Stale geometry",
+      source: "OCR",
+      date: "2026-04-01",
+      snippet: "The alignment was invalidated.",
+      relevance: 0.8,
+      document_id: "doc-stale",
+      page: 2,
+      alignedBoundingBox: { x: 1, y: 2, width: 3, height: 4 },
+      alignedGeometryStatus: "stale",
+    };
+
+    render(<EvidenceRail items={[staleItem]} />);
+
+    const href = screen.getByRole("link", { name: /open document/i }).getAttribute("href") || "";
+    expect(href).toContain("page=2");
+    expect(href).not.toContain("bbox=");
   });
 });

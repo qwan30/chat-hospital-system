@@ -52,10 +52,13 @@ describe("createUploadSession and finalizeUpload", () => {
       document_id: "doc-1",
       state: "finalized",
     });
-    await finalizeUpload("doc-1", "upl-1");
+    await finalizeUpload("doc-1", "upl-1", { idempotencyKey: "finalize-key-1" });
     expect(apiFetch).toHaveBeenCalledWith(
       "/documents/doc-1/uploads/upl-1/finalize",
-      expect.objectContaining({ method: "POST" }),
+      expect.objectContaining({
+        method: "POST",
+        headers: { "Idempotency-Key": "finalize-key-1" },
+      }),
     );
   });
 });

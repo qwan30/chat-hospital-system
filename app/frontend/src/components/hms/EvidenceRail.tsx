@@ -36,6 +36,8 @@ export interface BoundingBox {
 
 export interface EvidenceItem {
   id: string;
+  /** Stable backend evidence identity; `id` remains the compatibility alias. */
+  evidence_id?: string;
   n: number;
   title: string;
   source: string;
@@ -52,6 +54,11 @@ export interface EvidenceItem {
   offsets?: string | { start?: number; end?: number };
   alignedBoundingBox?: BoundingBox | string;
   alignedGeometryStatus?: string | boolean;
+  revision_set_id?: string;
+  page_revision_id?: string;
+  start_offset?: number;
+  end_offset?: number;
+  bounding_boxes?: BoundingBox[] | string;
 }
 
 export interface EvidenceRailProps {
@@ -73,12 +80,27 @@ export function EvidenceRail({ items, selectedMessageId }: EvidenceRailProps) {
   const buildSearch = (item: EvidenceItem): Record<string, unknown> | undefined => {
     const params: Record<string, unknown> = {};
     if (item.page !== undefined) params.page = item.page;
-    if (item.revision) params.revision = item.revision;
-    if (item.alignedBoundingBox) {
+    if (item.revision || item.revision_set_id) {
+      params.revision = item.revision ?? item.revision_set_id;
+    }
+    if (item.page_revision_id) params.page_revision_id = item.page_revision_id;
+    if (item.start_offset !== undefined) params.start_offset = item.start_offset;
+    if (item.end_offset !== undefined) params.end_offset = item.end_offset;
+    if (item.offsets) params.offsets = formatOffsets(item.offsets);
+    const geometryStatus = String(item.alignedGeometryStatus ?? "").toLowerCase();
+    const geometryIsAligned =
+      item.alignedGeometryStatus === true || geometryStatus.includes("aligned");
+    if (item.alignedBoundingBox && geometryIsAligned) {
       params.bbox =
         typeof item.alignedBoundingBox === "string"
           ? item.alignedBoundingBox
           : JSON.stringify(item.alignedBoundingBox);
+    }
+    if (item.bounding_boxes && geometryIsAligned) {
+      params.bbox =
+        typeof item.bounding_boxes === "string"
+          ? item.bounding_boxes
+          : JSON.stringify(item.bounding_boxes);
     }
     return Object.keys(params).length > 0 ? params : undefined;
   };
@@ -103,9 +125,11 @@ export function EvidenceRail({ items, selectedMessageId }: EvidenceRailProps) {
         </div>
         <div className="space-y-3 overflow-y-auto pr-1">
           {displayedItems.map((it, index) => {
+            const evidenceId = it.evidence_id ?? it.id;
+            const stableKey = `${selectedMessageId || it.messageId || "default"}:${evidenceId}`;
             const label = evidenceLabel(
               selectedMessageId || it.messageId || "default",
-              it.id,
+              evidenceId,
               index,
             );
             const isLong = it.snippet.length > SNIPPET_PREVIEW_LENGTH;
@@ -117,7 +141,7 @@ export function EvidenceRail({ items, selectedMessageId }: EvidenceRailProps) {
               it.score !== undefined ? Math.round(it.score * 100) : Math.round(it.relevance * 100);
 
             return (
-              <Card key={it.id} className="p-3">
+              <Card key={stableKey} className="p-3">
                 <div className="flex items-start gap-2">
                   <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-citation/10 font-mono text-[10px] font-semibold text-citation">
                     {selectedMessageId ? label.display : `[${it.n}]`}

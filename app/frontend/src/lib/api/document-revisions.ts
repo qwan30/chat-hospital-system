@@ -27,9 +27,7 @@ export interface RevisionSetRead {
   approved_at: string | null;
 }
 
-export interface ApproveRevisionRequest {
-  demo_mode?: boolean;
-}
+export type ApproveRevisionRequest = Record<string, never>;
 
 export interface RejectRevisionRequest {
   reason?: string;
@@ -45,11 +43,16 @@ export interface GenerationAcceptedRead {
   state: string;
 }
 
+export interface StrongMutationOptions {
+  idempotencyKey: string;
+  lockVersion: number;
+}
+
 export async function saveDraftPage(
   documentId: string,
   pageNumber: number,
   payload: DraftPageWrite,
-  options: { idempotencyKey: string; lockVersion?: number },
+  options: StrongMutationOptions,
 ): Promise<DraftPageRead> {
   return apiFetch<DraftPageRead>(`/documents/${documentId}/draft/pages/${pageNumber}`, {
     method: "PATCH",
@@ -60,7 +63,7 @@ export async function saveDraftPage(
 
 export async function submitDraft(
   documentId: string,
-  options: { idempotencyKey: string; lockVersion?: number },
+  options: StrongMutationOptions,
 ): Promise<RevisionSetRead> {
   return apiFetch<RevisionSetRead>(`/documents/${documentId}/draft/submit`, {
     method: "POST",

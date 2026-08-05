@@ -52,12 +52,7 @@ describe("document-revisions client", () => {
 
   it("sends Idempotency-Key without If-Match on approveRevisionSet when lockVersion is omitted", async () => {
     vi.mocked(apiFetch).mockResolvedValue({ generation_id: "gen-1", state: "started" });
-    await approveRevisionSet(
-      "doc-1",
-      "set-1",
-      { demo_mode: false },
-      { idempotencyKey: "approve-1" },
-    );
+    await approveRevisionSet("doc-1", "set-1", {}, { idempotencyKey: "approve-1" });
 
     expect(apiFetch).toHaveBeenCalledWith(
       "/documents/doc-1/revision-sets/set-1/approve",

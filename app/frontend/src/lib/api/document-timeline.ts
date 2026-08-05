@@ -1,9 +1,11 @@
 import { apiFetch } from "../api-client";
 
 export interface TimelineEventProjection {
+  event_id?: string | null;
   event_type: string;
   clinical_date: string | null;
-  recorded_at: string;
+  recorded_date: string;
+  recorded_at?: string;
   evidence_ids: string[];
   confidence: number;
   reviewer_state: string;
@@ -20,7 +22,7 @@ export interface DocumentTimelineFilters {
 }
 
 export interface DocumentTimelineResponse {
-  document_id: string;
+  document_id?: string;
   events: TimelineEventProjection[];
 }
 

@@ -44,7 +44,11 @@ describe("streamChat", () => {
     const fetchMock = vi
       .fn()
       .mockResolvedValue(
-        mockOkResponse(['data: {"type":"done","query_id":"q1","validation":"passed"}\n']),
+        mockOkResponse([
+          'data: {"type":"status","stage":"retrieving"}\n' +
+            'data: {"type":"metadata","confidence":"high","model":"test"}\n' +
+            'data: {"type":"done","query_id":"q1","validation":"passed"}\n',
+        ]),
       );
     vi.stubGlobal("fetch", fetchMock);
 
@@ -65,6 +69,8 @@ describe("streamChat", () => {
 
   it("parses token SSE event and calls onEvent callback", async () => {
     const sse =
+      'data: {"type":"status","stage":"retrieving"}\n' +
+      'data: {"type":"metadata","confidence":"high","model":"test"}\n' +
       'data: {"type":"token","sequence":1,"validation_mode":"sentence_buffered","content":"Hello"}\n' +
       'data: {"type":"done","query_id":"q1","validation":"passed"}\n';
 
@@ -85,6 +91,8 @@ describe("streamChat", () => {
 
   it("accumulates multiple token events into result.answer", async () => {
     const sse =
+      'data: {"type":"status","stage":"retrieving"}\n' +
+      'data: {"type":"metadata","confidence":"high","model":"test"}\n' +
       'data: {"type":"token","sequence":1,"validation_mode":"sentence_buffered","content":"Hello"}\n' +
       'data: {"type":"token","sequence":2,"validation_mode":"sentence_buffered","content":" world"}\n' +
       'data: {"type":"done","query_id":"q1","validation":"passed"}\n';
@@ -106,6 +114,8 @@ describe("streamChat", () => {
       },
     ];
     const sse =
+      'data: {"type":"status","stage":"retrieving"}\n' +
+      'data: {"type":"metadata","confidence":"high","model":"test"}\n' +
       `data: ${JSON.stringify({ type: "citations", data: citations })}\n` +
       'data: {"type":"done","query_id":"q1","validation":"passed"}\n';
 
@@ -125,6 +135,7 @@ describe("streamChat", () => {
     const sse =
       'data: {"type":"status","stage":"retrieving"}\n' +
       'data: {"type":"status","stage":"validating_citations"}\n' +
+      'data: {"type":"metadata","confidence":"high","model":"test"}\n' +
       'data: {"type":"done","query_id":"q1","validation":"passed"}\n';
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(mockOkResponse([sse])));
 
@@ -138,6 +149,8 @@ describe("streamChat", () => {
 
   it("sets error field on error event", async () => {
     const sse =
+      'data: {"type":"status","stage":"retrieving"}\n' +
+      'data: {"type":"metadata","confidence":"high","model":"test"}\n' +
       'data: {"type":"error","message":"LLM timeout"}\n' +
       'data: {"type":"done","query_id":"q1","validation":"failed"}\n';
 
@@ -178,6 +191,8 @@ describe("streamChat", () => {
 
   it("rejects out-of-order validated chunks", async () => {
     const sse =
+      'data: {"type":"status","stage":"retrieving"}\n' +
+      'data: {"type":"metadata","confidence":"high","model":"test"}\n' +
       'data: {"type":"token","sequence":2,"content":"bad","validation_mode":"sentence_buffered"}\n';
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(mockOkResponse([sse])));
     await expect(streamChat("http://api", null, { question: "test" })).rejects.toThrow(
@@ -187,6 +202,8 @@ describe("streamChat", () => {
 
   it("rejects tokens without sentence_buffered validation mode", async () => {
     const sse =
+      'data: {"type":"status","stage":"retrieving"}\n' +
+      'data: {"type":"metadata","confidence":"high","model":"test"}\n' +
       'data: {"type":"token","sequence":1,"content":"bad","validation_mode":"unvalidated"}\n';
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(mockOkResponse([sse])));
     await expect(streamChat("http://api", null, { question: "test" })).rejects.toThrow(
@@ -196,6 +213,10 @@ describe("streamChat", () => {
 
   it("captures graph explanation events", async () => {
     const sse =
+      'data: {"type":"status","stage":"retrieving"}\n' +
+      'data: {"type":"metadata","confidence":"high","model":"test"}\n' +
+      'data: {"type":"token","sequence":1,"validation_mode":"sentence_buffered","content":"Answer"}\n' +
+      'data: {"type":"citations","data":[]}\n' +
       'data: {"type":"graph_explanation","data":{"rationale":"Path from drug to condition","paths":[]}}\n' +
       'data: {"type":"done","query_id":"q1","validation":"passed","persistence_status":"completed"}\n';
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(mockOkResponse([sse])));
@@ -214,15 +235,73 @@ describe("streamChat", () => {
   });
 
   it("distinguishes completed, interrupted, and error states", async () => {
-    const sseCompleted = 'data: {"type":"done","query_id":"q1","persistence_status":"completed"}\n';
+    const sseCompleted =
+      'data: {"type":"status","stage":"retrieving"}\n' +
+      'data: {"type":"metadata","confidence":"high","model":"test"}\n' +
+      'data: {"type":"done","query_id":"q1","persistence_status":"completed"}\n';
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(mockOkResponse([sseCompleted])));
     let result = await streamChat("http://api", "token", { question: "test" });
     expect(result.status).toBe("completed");
 
     const sseInterrupted =
+      'data: {"type":"status","stage":"retrieving"}\n' +
+      'data: {"type":"metadata","confidence":"high","model":"test"}\n' +
       'data: {"type":"token","sequence":1,"content":"hello","validation_mode":"sentence_buffered"}\n';
-    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(mockOkResponse([sseInterrupted])));
+    const sseInterruptedWithTerminal =
+      sseInterrupted + 'data: {"type":"done","query_id":"q2","persistence_status":"interrupted"}\n';
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(mockOkResponse([sseInterruptedWithTerminal])));
     result = await streamChat("http://api", "token", { question: "test" });
     expect(result.status).toBe("interrupted");
+  });
+
+  it("rejects a token before metadata", async () => {
+    const sse =
+      'data: {"type":"status","stage":"retrieving"}\n' +
+      'data: {"type":"token","sequence":1,"content":"bad","validation_mode":"sentence_buffered"}\n' +
+      'data: {"type":"done","query_id":"q1"}\n';
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(mockOkResponse([sse])));
+
+    await expect(streamChat("http://api", null, { question: "test" })).rejects.toThrow(
+      "Invalid SSE event order: token requires metadata",
+    );
+  });
+
+  it("rejects an event after done", async () => {
+    const sse =
+      'data: {"type":"status","stage":"retrieving"}\n' +
+      'data: {"type":"metadata","confidence":"high","model":"test"}\n' +
+      'data: {"type":"done","query_id":"q1"}\n' +
+      'data: {"type":"citations","data":[]}\n';
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(mockOkResponse([sse])));
+
+    await expect(streamChat("http://api", null, { question: "test" })).rejects.toThrow(
+      "Invalid SSE event after done",
+    );
+  });
+
+  it("rejects a stream that closes without done", async () => {
+    const sse =
+      'data: {"type":"status","stage":"retrieving"}\n' +
+      'data: {"type":"metadata","confidence":"high","model":"test"}\n';
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(mockOkResponse([sse])));
+
+    await expect(streamChat("http://api", null, { question: "test" })).rejects.toThrow(
+      "Invalid SSE stream: missing done event",
+    );
+  });
+
+  it("accepts the canonical status, metadata, token, citations, graph, done order", async () => {
+    const sse =
+      'data: {"type":"status","stage":"retrieving"}\n' +
+      'data: {"type":"metadata","confidence":"high","model":"test"}\n' +
+      'data: {"type":"token","sequence":1,"validation_mode":"sentence_buffered","content":"Answer"}\n' +
+      'data: {"type":"citations","data":[]}\n' +
+      'data: {"type":"graph_explanation","data":{"rationale":"supported"}}\n' +
+      'data: {"type":"done","query_id":"q1","validation":"passed"}\n';
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(mockOkResponse([sse])));
+
+    const result = await streamChat("http://api", null, { question: "test" });
+    expect(result.answer).toBe("Answer");
+    expect(result.status).toBe("completed");
   });
 });

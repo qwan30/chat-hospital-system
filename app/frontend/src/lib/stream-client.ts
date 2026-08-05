@@ -17,6 +17,13 @@ export interface StreamCitation {
   page: number;
   score: number;
   content?: string;
+  chunk_id?: string;
+  revision_set_id?: string | null;
+  page_revision_id?: string | null;
+  start_offset?: number | null;
+  end_offset?: number | null;
+  bounding_boxes?: unknown;
+  alignment_status?: string | null;
 }
 
 export interface StreamResult {
@@ -36,6 +43,10 @@ export type StreamStatusStage =
   | "preparing_answer"
   | "validating_citations"
   | "complete";
+
+type StreamPhase = "status" | "tokens" | "citations" | "graph" | "done";
+
+const VALIDATED_TOKEN_MODES = new Set(["sentence_buffered", "chitchat"]);
 
 export type StreamCallback = (event: {
   type: "token" | "citations" | "metadata" | "status" | "done" | "error" | "graph_explanation";
@@ -151,6 +162,9 @@ export async function streamChat(
     const decoder = new TextDecoder();
     let buffer = "";
     let lastSequence = 0;
+    let phase: StreamPhase = "status";
+    let sawMetadata = false;
+    let sawDone = false;
     const result: StreamResult = {
       answer: "",
       citations: [],
@@ -158,6 +172,119 @@ export async function streamChat(
       queryId: "",
       validation: "unknown",
       status: "interrupted",
+    };
+
+    const processLine = (line: string): void => {
+      if (!line.startsWith("data: ")) return;
+      const jsonStr = line.slice(6).trim();
+      if (!jsonStr) return;
+
+      let data: { [key: string]: unknown };
+      try {
+        data = JSON.parse(jsonStr);
+      } catch {
+        throw new Error("Invalid SSE event payload");
+      }
+
+      if (typeof data !== "object" || data === null || typeof data.type !== "string") {
+        throw new Error("Invalid SSE event payload");
+      }
+      if (sawDone) {
+        throw new Error("Invalid SSE event after done");
+      }
+
+      switch (data.type) {
+        case "status": {
+          if (phase !== "status") {
+            throw new Error("Invalid SSE event order: status must precede metadata");
+          }
+          onEvent?.({ type: "status", stage: data.stage as StreamStatusStage });
+          break;
+        }
+        case "metadata": {
+          if (phase !== "status" || sawMetadata) {
+            throw new Error("Invalid SSE event order: metadata must follow status exactly once");
+          }
+          const conf = typeof data.confidence === "string" ? data.confidence : "low";
+          const mod = typeof data.model === "string" ? data.model : undefined;
+          sawMetadata = true;
+          phase = "tokens";
+          result.confidence = conf;
+          result.model = mod;
+          onEvent?.({ type: "metadata", confidence: conf, model: mod });
+          break;
+        }
+        case "token": {
+          if (phase === "status" || !sawMetadata) {
+            throw new Error("Invalid SSE event order: token requires metadata");
+          }
+          if (phase !== "tokens") {
+            throw new Error("Invalid SSE event order: token must precede citations");
+          }
+          const seq = Number(data.sequence);
+          if (
+            !Number.isInteger(seq) ||
+            !VALIDATED_TOKEN_MODES.has(String(data.validation_mode)) ||
+            seq !== lastSequence + 1
+          ) {
+            throw new Error("Invalid SSE token sequence");
+          }
+          lastSequence = seq;
+          const contentStr = typeof data.content === "string" ? data.content : "";
+          result.answer += contentStr;
+          onEvent?.({ type: "token", sequence: seq, content: contentStr });
+          break;
+        }
+        case "citations": {
+          if (phase !== "tokens") {
+            throw new Error("Invalid SSE event order: citations must follow tokens");
+          }
+          const citationsList = Array.isArray(data.data) ? (data.data as StreamCitation[]) : [];
+          phase = "citations";
+          result.citations = citationsList;
+          onEvent?.({ type: "citations", citations: citationsList });
+          break;
+        }
+        case "graph_explanation": {
+          if (phase !== "tokens" && phase !== "citations") {
+            throw new Error("Invalid SSE event order: graph explanation is terminal metadata");
+          }
+          phase = "graph";
+          result.graphExplanation = data.data;
+          onEvent?.({ type: "graph_explanation", graphExplanation: data.data });
+          break;
+        }
+        case "done": {
+          if (!sawMetadata || phase === "status") {
+            throw new Error("Invalid SSE event order: done requires metadata");
+          }
+          phase = "done";
+          sawDone = true;
+          result.queryId = typeof data.query_id === "string" ? data.query_id : "";
+          result.validation = typeof data.validation === "string" ? data.validation : "unknown";
+          const permStatus =
+            typeof data.persistence_status === "string"
+              ? (data.persistence_status as "completed" | "interrupted" | "error")
+              : "completed";
+          result.status = permStatus;
+          onEvent?.({
+            type: "done",
+            queryId: result.queryId,
+            validation: result.validation,
+            status: result.status,
+          });
+          break;
+        }
+        case "error": {
+          const msg = typeof data.message === "string" ? data.message : "Stream error";
+          result.error = msg;
+          result.status = "error";
+          onEvent?.({ type: "error", message: msg });
+          break;
+        }
+        default:
+          throw new Error(`Unsupported SSE event type: ${data.type}`);
+      }
     };
 
     while (true) {
@@ -174,80 +301,12 @@ export async function streamChat(
       buffer = lines.pop() || "";
 
       for (const line of lines) {
-        if (!line.startsWith("data: ")) continue;
-        const jsonStr = line.slice(6).trim();
-        if (!jsonStr) continue;
-
-        let data: { [key: string]: unknown };
-        try {
-          data = JSON.parse(jsonStr);
-        } catch {
-          continue;
-        }
-
-        if (typeof data !== "object" || data === null) continue;
-
-        switch (data.type) {
-          case "token": {
-            const seq = Number(data.sequence);
-            if (data.validation_mode !== "sentence_buffered" || seq !== lastSequence + 1) {
-              throw new Error("Invalid SSE token sequence");
-            }
-            lastSequence = seq;
-            const contentStr = typeof data.content === "string" ? data.content : "";
-            result.answer += contentStr;
-            onEvent?.({ type: "token", sequence: seq, content: contentStr });
-            break;
-          }
-          case "citations": {
-            const citationsList = Array.isArray(data.data) ? (data.data as StreamCitation[]) : [];
-            result.citations = citationsList;
-            onEvent?.({ type: "citations", citations: citationsList });
-            break;
-          }
-          case "metadata": {
-            const conf = typeof data.confidence === "string" ? data.confidence : "low";
-            const mod = typeof data.model === "string" ? data.model : undefined;
-            result.confidence = conf;
-            result.model = mod;
-            onEvent?.({ type: "metadata", confidence: conf, model: mod });
-            break;
-          }
-          case "status": {
-            onEvent?.({ type: "status", stage: data.stage as StreamStatusStage });
-            break;
-          }
-          case "graph_explanation": {
-            result.graphExplanation = data.data;
-            onEvent?.({ type: "graph_explanation", graphExplanation: data.data });
-            break;
-          }
-          case "done": {
-            result.queryId = typeof data.query_id === "string" ? data.query_id : "";
-            result.validation = typeof data.validation === "string" ? data.validation : "unknown";
-            const permStatus =
-              typeof data.persistence_status === "string"
-                ? (data.persistence_status as "completed" | "interrupted" | "error")
-                : "completed";
-            result.status = permStatus;
-            onEvent?.({
-              type: "done",
-              queryId: result.queryId,
-              validation: result.validation,
-              status: result.status,
-            });
-            break;
-          }
-          case "error": {
-            const msg = typeof data.message === "string" ? data.message : "Stream error";
-            result.error = msg;
-            result.status = "error";
-            onEvent?.({ type: "error", message: msg });
-            break;
-          }
-        }
+        processLine(line);
       }
     }
+
+    if (buffer) processLine(buffer);
+    if (!sawDone) throw new Error("Invalid SSE stream: missing done event");
 
     return result;
   } catch (error) {

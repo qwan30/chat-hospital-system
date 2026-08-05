@@ -29,8 +29,6 @@ export interface ChatMessageData {
 
 export interface MarkdownRendererProps {
   content: string;
-  allowHtml?: boolean;
-  allowedProtocols?: string[];
   renderCitation?: (id: string, n?: number) => ReactNode;
   citations?: ChatCitationRef[];
   evidenceById?: Record<
@@ -41,18 +39,15 @@ export interface MarkdownRendererProps {
 
 export function MarkdownRenderer({
   content,
-  allowHtml = false,
-  allowedProtocols = ["http", "https"],
   renderCitation,
   citations,
   evidenceById,
 }: MarkdownRendererProps) {
-  const sanitized = content
-    .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, "")
-    .replace(/<iframe\b[^<]*(?:(?!<\/iframe>)<[^<]*)*<\/iframe>/gi, "")
-    .replace(/<[^>]+>/g, "");
-
-  const parts = sanitized.split(/(\[[a-zA-Z0-9_-]+\])/g);
+  // Assistant output is rendered as React text. This intentionally does not
+  // parse HTML or Markdown links, so hostile markup and unsafe URL schemes can
+  // never become executable DOM nodes. Citation replacement is the only
+  // structured rendering performed here, and only known evidence gets a chip.
+  const parts = content.split(/(\[[a-zA-Z0-9_-]+\])/g);
 
   return (
     <div className="whitespace-pre-wrap leading-relaxed">
@@ -93,14 +88,7 @@ export function MarkdownRenderer({
               );
             }
           }
-          return (
-            <CitationChip
-              key={index}
-              n={!isNaN(nVal) ? nVal : 1}
-              sourceId={rawId}
-              className="mx-0.5"
-            />
-          );
+          return <span key={index}>{part}</span>;
         }
         return <span key={index}>{part}</span>;
       })}
@@ -128,8 +116,6 @@ export function ChatMessage({
       <div className="space-y-3">
         <MarkdownRenderer
           content={msg.content}
-          allowHtml={false}
-          allowedProtocols={["http", "https"]}
           citations={msg.citations}
           evidenceById={msg.evidenceById}
           renderCitation={(id, n) => {
@@ -150,7 +136,7 @@ export function ChatMessage({
                 return <CitationChip n={cit.n} sourceId={cit.sourceId} />;
               }
             }
-            return <CitationChip n={n ?? 1} sourceId={id} />;
+            return <span>{`[${id}]`}</span>;
           }}
         />
         <GraphExplanationPanel explanation={msg.graphExplanation} />

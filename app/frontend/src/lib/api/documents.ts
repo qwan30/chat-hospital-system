@@ -57,6 +57,12 @@ export interface EvidenceRead {
   chunk_id: string;
   score: number;
   content: string | null;
+  revision_set_id?: string | null;
+  page_revision_id?: string | null;
+  start_offset?: number | null;
+  end_offset?: number | null;
+  bounding_boxes?: unknown;
+  alignment_status?: string | null;
   metadata: Record<string, unknown>;
 }
 
@@ -250,11 +256,11 @@ export const createUploadSession = async (
 export const finalizeUpload = async (
   documentId: string,
   uploadId: string,
-  options?: { idempotencyKey?: string },
+  options: { idempotencyKey: string },
 ): Promise<UploadFinalizeResult> => {
   return apiFetch<UploadFinalizeResult>(`/documents/${documentId}/uploads/${uploadId}/finalize`, {
     method: "POST",
-    headers: options?.idempotencyKey ? { "Idempotency-Key": options.idempotencyKey } : undefined,
+    headers: { "Idempotency-Key": options.idempotencyKey },
   });
 };
 

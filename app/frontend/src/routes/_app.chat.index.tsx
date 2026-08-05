@@ -218,6 +218,13 @@ function GlobalChat() {
           page: c.page || 1,
           score: c.score || (c as any).relevance || 0.5,
           content: c.content || (c as any).snippet || "",
+          chunk_id: c.chunk_id,
+          revision_set_id: c.revision_set_id,
+          page_revision_id: c.page_revision_id,
+          start_offset: c.start_offset,
+          end_offset: c.end_offset,
+          bounding_boxes: c.bounding_boxes,
+          alignment_status: c.alignment_status,
         })),
         citations: m.citations.map((c, idx) => ({
           n: idx + 1,
@@ -518,6 +525,7 @@ function GlobalChat() {
           ids.add(c.evidence_id);
           items.push({
             id: c.evidence_id,
+            evidence_id: c.evidence_id,
             n: globalIndex++, // assign a global numbering for the Evidence Rail
             title: c.document_title || "Unknown Document",
             source: `Page ${c.page || 1}`,
@@ -525,6 +533,16 @@ function GlobalChat() {
             snippet: c.content || "",
             relevance: c.score ?? 0.5,
             document_id: c.document_id,
+            page: c.page,
+            revision: c.revision_set_id ?? undefined,
+            page_revision_id: c.page_revision_id ?? undefined,
+            start_offset: c.start_offset ?? undefined,
+            end_offset: c.end_offset ?? undefined,
+            alignedBoundingBox: c.bounding_boxes as
+              | string
+              | { x?: number; y?: number; width?: number; height?: number }
+              | undefined,
+            alignedGeometryStatus: c.alignment_status ?? undefined,
           });
         }
       });

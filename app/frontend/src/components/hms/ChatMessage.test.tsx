@@ -139,18 +139,25 @@ describe("ChatMessage", () => {
 describe("MarkdownRenderer & GraphExplanationPanel in ChatMessage", () => {
   it("sanitizes Assistant Markdown and disables executable HTML", () => {
     const unsafeContent = `Hello <script>alert("XSS")</script><img src="x" onerror="alert('XSS')">**bold text**`;
-    render(
-      <MarkdownRenderer
-        content={unsafeContent}
-        allowHtml={false}
-        allowedProtocols={["http", "https"]}
-      />,
-    );
+    render(<MarkdownRenderer content={unsafeContent} />);
 
     expect(screen.getByText(/bold text/)).toBeInTheDocument();
     expect(document.querySelector("script")).toBeNull();
     const imgs = document.querySelectorAll("img");
     imgs.forEach((img) => expect(img.getAttribute("onerror")).toBeNull());
+  });
+
+  it("renders hostile markup, encoded protocols, nested tags, and citation-like text as inert text", () => {
+    const hostileContent =
+      '<scr<script>ipt>alert("xss")</scr<script>ipt> [open](java&#x73;cript:alert(1)) ' +
+      '<div><img src="x" onerror="alert(1)"></div> [not-a-citation]';
+
+    const { container } = render(<MarkdownRenderer content={hostileContent} />);
+
+    expect(container.textContent).toContain("<div>");
+    expect(container.textContent).toContain("java&#x73;cript:alert(1)");
+    expect(container.textContent).toContain("[not-a-citation]");
+    expect(document.querySelector("script, iframe, img, a")).toBeNull();
   });
 
   it("UI displays 'validated sentence streaming' and never raw token streaming when streaming status or mode is active", () => {
@@ -195,6 +202,32 @@ describe("MarkdownRenderer & GraphExplanationPanel in ChatMessage", () => {
     expect(screen.getByText(/contraindicates/i)).toBeInTheDocument();
   });
 
+  it("renders untrusted graph explanation fields as inert bounded text", () => {
+    expect(() =>
+      render(
+        <ChatMessage
+          msg={msg({
+            role: "assistant",
+            content: "Grounded answer",
+            graphExplanation: {
+              summary: { html: "<script>alert(1)</script>" },
+              paths: [
+                {
+                  from: { label: "unsafe" },
+                  relation: "<img src=x onerror=alert(1)>",
+                  to: "Diagnosis",
+                  evidence: { evidence_id: "e1" },
+                },
+              ],
+            },
+          })}
+        />,
+      ),
+    ).not.toThrow();
+    expect(document.querySelector("script, img")).toBeNull();
+    expect(screen.getByText("Unknown")).toBeInTheDocument();
+  });
+
   it("MarkdownRenderer supports renderCitation prop for inline citations", () => {
     const renderCitation = vi.fn((id, n) => (
       <span key={id} data-testid="custom-citation">{`[Cit-${n}]`}</span>
@@ -202,8 +235,6 @@ describe("MarkdownRenderer & GraphExplanationPanel in ChatMessage", () => {
     render(
       <MarkdownRenderer
         content="Evidence found in [doc-1] and [doc-2]."
-        allowHtml={false}
-        allowedProtocols={["http", "https"]}
         renderCitation={renderCitation}
       />,
     );

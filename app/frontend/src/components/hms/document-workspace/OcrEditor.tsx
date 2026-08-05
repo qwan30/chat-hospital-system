@@ -36,6 +36,9 @@ export function OcrEditor({
 
   const saveMutation = useMutation({
     mutationFn: (newText: string) => {
+      if (initialLockVersion === undefined) {
+        return Promise.reject(new Error("The latest page lock version is not loaded."));
+      }
       return saveDraftPage(
         documentId,
         page,
@@ -58,7 +61,11 @@ export function OcrEditor({
     saveMutation.mutate(text);
   };
 
-  const isSaveDisabled = isHistorical || saveMutation.isPending || reason.trim().length === 0;
+  const isSaveDisabled =
+    isHistorical ||
+    saveMutation.isPending ||
+    reason.trim().length === 0 ||
+    initialLockVersion === undefined;
 
   return (
     <div className="flex flex-col gap-4">

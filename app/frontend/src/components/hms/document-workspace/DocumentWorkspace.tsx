@@ -76,7 +76,13 @@ export function DocumentWorkspace({ documentId }: { documentId: string }) {
   });
 
   const submitMutation = useMutation({
-    mutationFn: () => submitDraft(documentId, { idempotencyKey: crypto.randomUUID() }),
+    mutationFn: () => {
+      const lockVersion = revisionPageQuery.data?.lock_version;
+      if (lockVersion === undefined) {
+        return Promise.reject(new Error("The latest draft lock version is not loaded."));
+      }
+      return submitDraft(documentId, { idempotencyKey: crypto.randomUUID(), lockVersion });
+    },
     onSuccess: (res) => {
       toast.success("Draft submitted successfully");
       queryClient.invalidateQueries({ queryKey: ["document-revision-sets", documentId] });
@@ -157,7 +163,9 @@ export function DocumentWorkspace({ documentId }: { documentId: string }) {
             <Button
               size="sm"
               onClick={() => submitMutation.mutate()}
-              disabled={submitMutation.isPending}
+              disabled={
+                submitMutation.isPending || revisionPageQuery.data?.lock_version === undefined
+              }
             >
               Submit Draft
             </Button>
@@ -205,6 +213,7 @@ export function DocumentWorkspace({ documentId }: { documentId: string }) {
                   page={selectedPage}
                   revision={revision}
                   initialText={originalText}
+                  lockVersion={revisionPageQuery.data?.lock_version}
                   onCompare={handleCompare}
                 />
               )}

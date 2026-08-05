@@ -16,20 +16,17 @@ export interface DocumentGraphFilters {
 }
 
 export interface GraphMentionRead {
-  id: string;
   entity_id: string;
-  document_id: string;
   generation_id: string;
   source_active_generation_id: string;
-  text: string;
+  normalized_label: string;
+  entity_type: string;
   confidence: number;
 }
 
 export interface GraphAssertionRead {
   id: string;
-  subject_entity_id: string;
-  relation: string;
-  object_entity_id: string;
+  relation_type: string;
   evidence_ids: string[];
 }
 
@@ -54,11 +51,11 @@ export interface DocumentGraphEdge {
 }
 
 export interface DocumentGraphRead {
-  document_id: string;
-  nodes: DocumentGraphNode[];
-  edges: DocumentGraphEdge[];
   mentions: GraphMentionRead[];
   assertions: GraphAssertionRead[];
+  document_id?: string;
+  nodes?: DocumentGraphNode[];
+  edges?: DocumentGraphEdge[];
   metadata?: Record<string, unknown>;
 }
 

@@ -22,7 +22,12 @@ from hospital_ai.db.clinical_documents import (
 from hospital_ai.db.models import Document, DocumentChunk, DocumentPage
 from hospital_ai.services.chunking import ChunkingService
 from hospital_ai.services.embeddings import EmbeddingService
-from hospital_ai.services.generations import GENERATION_STAGES, ActivationResult, GenerationService
+from hospital_ai.services.generations import (
+    GENERATION_STAGES,
+    ActivationResult,
+    GenerationService,
+    calculate_generation_hash,
+)
 from hospital_ai.services.ocr import OcrPage
 
 logger = logging.getLogger(__name__)
@@ -100,18 +105,9 @@ class StageRunner:
                 )
                 db_page = res.scalar_one_or_none()
                 if not db_page:
-                    db_page = DocumentPage(
-                        id=uuid.uuid4(),
-                        document_id=doc.id,
-                        page_number=rev_p.page_number,
-                        ocr_text=page_rev.corrected_text,
-                        ocr_confidence=page_rev.confidence,
+                    raise ValueError(
+                        f"Missing compatibility page {rev_p.page_number}; staged generation cannot create legacy rows."
                     )
-                    self.session.add(db_page)
-                    await self.session.flush()
-                else:
-                    db_page.ocr_text = page_rev.corrected_text
-                    db_page.ocr_confidence = page_rev.confidence
                 page_map[rev_p.page_number] = (db_page, page_rev)
 
             chunks = ChunkingService().chunk_pages(pages_for_chunking)
@@ -159,9 +155,20 @@ class StageRunner:
             return StageOutput(sha256=sha256, row_count=len(chunks))
 
         elif stage == "lexical_index":
-            from hospital_ai.workers.jobs import _populate_tsvectors
+            from sqlalchemy import text
 
-            await _populate_tsvectors(self.session, doc.id)
+            bind = self.session.get_bind()
+            if bind.dialect.name == "postgresql":
+                await self.session.execute(
+                    text("""
+                        UPDATE document_chunks
+                        SET search_vector = to_tsvector('english', content)
+                        WHERE document_id = :document_id
+                          AND generation_id = :generation_id
+                          AND search_vector IS NULL
+                    """),
+                    {"document_id": doc.id, "generation_id": generation.id},
+                )
             sha256 = hashlib.sha256(f"{generation.id}:lexical".encode()).hexdigest()
             return StageOutput(sha256=sha256, row_count=1)
 
@@ -182,8 +189,9 @@ class StageRunner:
                     entities, relations = await extract_entities_and_relations_nlp(chunk.content)
                     extraction = GraphExtraction(entities=entities, relations=relations)
                     await graph_service.index_chunk(generation.id, chunk, extraction)
-                except Exception as e:
-                    logger.debug("Graph extraction failed for chunk %s: %s", chunk.id, e)
+                except Exception:
+                    logger.exception("Graph extraction failed for chunk %s", chunk.id)
+                    raise
 
             sha256 = hashlib.sha256(f"{generation.id}:graph".encode()).hexdigest()
             return StageOutput(sha256=sha256, row_count=len(chunks))
@@ -214,35 +222,59 @@ class GenerationBuilder:
         return gen
 
     async def _generation_hash(self, generation_id: uuid.UUID) -> str:
-        res = await self.session.execute(
-            select(GenerationStageResult.output_sha256)
-            .where(GenerationStageResult.generation_id == generation_id)
-            .order_by(GenerationStageResult.stage)
-        )
-        hashes = [h or "" for h in res.scalars().all()]
-        return (
-            hashlib.sha256(val.encode("utf-8") for val in hashes if val).hexdigest()
-            if any(hashes)
-            else hashlib.sha256(str(generation_id).encode("utf-8")).hexdigest()
-        )
+        hashes_by_stage: dict[str, Optional[str]] = {stage: None for stage in GENERATION_STAGES}
+        for stage, output_sha256 in (
+            await self.session.execute(
+                select(GenerationStageResult.stage, GenerationStageResult.output_sha256).where(
+                    GenerationStageResult.generation_id == generation_id
+                )
+            )
+        ).all():
+            if stage in hashes_by_stage:
+                hashes_by_stage[stage] = output_sha256
+        hashes: list[str] = []
+        for stage in GENERATION_STAGES:
+            output_sha256 = hashes_by_stage[stage]
+            if output_sha256:
+                hashes.append(output_sha256)
+        return calculate_generation_hash(hashes)
 
     async def _record_stage(
-        self, generation_id: uuid.UUID, stage: str, output_sha256: str, row_count: int, status: str
+        self,
+        generation_id: uuid.UUID,
+        stage: str,
+        output_sha256: Optional[str],
+        row_count: int,
+        status: str,
+        *,
+        error_code: Optional[str] = None,
+        error_detail: Optional[str] = None,
     ) -> None:
-        row = GenerationStageResult(
-            id=uuid.uuid4(),
-            generation_id=generation_id,
-            stage=stage,
-            status=status,
-            output_sha256=output_sha256,
-            completed_at=datetime.now(UTC) if status == "completed" else None,
+        row = await self.session.scalar(
+            select(GenerationStageResult).where(
+                GenerationStageResult.generation_id == generation_id,
+                GenerationStageResult.stage == stage,
+            )
         )
-        self.session.add(row)
+        if row is None:
+            row = GenerationStageResult(
+                id=uuid.uuid4(),
+                generation_id=generation_id,
+                stage=stage,
+            )
+            self.session.add(row)
+        row.status = status
+        row.output_sha256 = output_sha256
+        row.started_at = row.started_at or datetime.now(UTC)
+        row.completed_at = datetime.now(UTC) if status == "completed" else None
+        row.error_code = error_code
+        row.error_detail = error_detail
         await self.session.flush()
 
     async def build(
         self, generation_id: uuid.UUID, custom_metadata: Optional[dict[str, Any]] = None
     ) -> ActivationResult:
+        current_stage: Optional[str] = None
         try:
             generation = await self._lock_building_generation(generation_id)
             revision_set = await self.session.get(DocumentRevisionSet, generation.revision_set_id)
@@ -250,6 +282,7 @@ class GenerationBuilder:
                 raise ValueError(f"Revision set {generation.revision_set_id} not found")
 
             for stage in GENERATION_STAGES:
+                current_stage = stage
                 output = await self.stage_runner.run(stage, generation, revision_set, custom_metadata=custom_metadata)
                 await self._record_stage(generation.id, stage, output.sha256, output.row_count, "completed")
                 await self.session.commit()
@@ -258,15 +291,12 @@ class GenerationBuilder:
                 if not generation:
                     raise ValueError(f"Generation {generation_id} missing after stage {stage}")
                 revision_set = await self.session.get(DocumentRevisionSet, generation.revision_set_id)
+                if not revision_set:
+                    raise ValueError(f"Revision set {generation.revision_set_id} missing after stage {stage}")
+                current_stage = None
 
             # Compute hash
-            res = await self.session.execute(
-                select(GenerationStageResult.output_sha256)
-                .where(GenerationStageResult.generation_id == generation.id)
-                .order_by(GenerationStageResult.stage)
-            )
-            combined_hash_input = "".join(str(h) for h in res.scalars().all())
-            generation.generation_sha256 = hashlib.sha256(combined_hash_input.encode("utf-8")).hexdigest()
+            generation.generation_sha256 = await self._generation_hash(generation.id)
             await self.session.commit()
 
             doc = await self.session.get(Document, generation.document_id)
@@ -278,6 +308,16 @@ class GenerationBuilder:
         except Exception as exc:
             logger.exception("Failed building generation %s: %s", generation_id, exc)
             await self.session.rollback()
+            if current_stage is not None:
+                await self._record_stage(
+                    generation_id,
+                    current_stage,
+                    None,
+                    0,
+                    "failed",
+                    error_code="STAGE_FAILED",
+                    error_detail=str(exc),
+                )
             await GenerationService(self.session).fail(generation_id, "STAGE_FAILED", str(exc))
             raise
 

@@ -4,10 +4,12 @@ import uuid
 from datetime import UTC, datetime
 
 import pytest
+from sqlalchemy import select
 
+from hospital_ai.core.errors import ConflictError
 from hospital_ai.db.clinical_documents import DocumentIndexGeneration, DocumentRevisionSet, GenerationStageResult
 from hospital_ai.db.migrations import DOCTOR_ID, PATIENT_ALICE_ID
-from hospital_ai.db.models import Document, User
+from hospital_ai.db.models import AuditLog, Document, User
 
 
 @pytest.fixture
@@ -120,8 +122,55 @@ async def test_rollback_swaps_both_authority_pointers_atomically(gens_fixture) -
         target_generation_id=generation_a.id,
         actor_id=admin_id,
         expected_active_generation_id=generation_b.id,
+        reason="Restore prior generation",
     )
     assert result.active_generation_id == generation_a.id
     assert result.approved_revision_set_id == generation_a.revision_set_id
     assert generation_b.state == "superseded"
     assert generation_a.state == "active"
+
+    audit = await session.scalar(
+        select(AuditLog).where(
+            AuditLog.action == "document_generation.rollback",
+            AuditLog.object_id == generation_a.id,
+        )
+    )
+    assert audit is not None
+    assert audit.actor_user_id == admin_id
+    assert audit.outcome == "allowed"
+
+
+@pytest.mark.asyncio
+async def test_rollback_requires_cas_actor_and_reason(gens_fixture) -> None:
+    session, generation_a, generation_b, admin_id = gens_fixture
+    from hospital_ai.services.generations import GenerationService
+
+    with pytest.raises(ConflictError, match="expected active"):
+        await GenerationService(session).rollback(
+            document_id=generation_b.document_id,
+            target_generation_id=generation_a.id,
+            actor_id=admin_id,
+            expected_active_generation_id=None,
+            reason="",
+        )
+
+    with pytest.raises(ValueError, match="reason"):
+        await GenerationService(session).rollback(
+            document_id=generation_b.document_id,
+            target_generation_id=generation_a.id,
+            actor_id=admin_id,
+            expected_active_generation_id=generation_a.id,
+            reason="",
+        )
+
+
+@pytest.mark.asyncio
+async def test_activation_requires_complete_hashed_stage_results(gens_fixture) -> None:
+    session, generation_a, generation_b, _ = gens_fixture
+    from hospital_ai.services.generations import GenerationService
+
+    with pytest.raises(ConflictError, match="incomplete"):
+        await GenerationService(session).activate(
+            generation_b.id,
+            expected_active_generation_id=generation_a.id,
+        )

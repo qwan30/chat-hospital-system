@@ -4,6 +4,7 @@ import uuid
 from datetime import UTC, datetime
 
 import pytest
+from sqlalchemy import select
 
 from hospital_ai.db.clinical_documents import (
     DocumentIndexGeneration,
@@ -12,7 +13,7 @@ from hospital_ai.db.clinical_documents import (
     DocumentRevisionSet,
 )
 from hospital_ai.db.migrations import DOCTOR_ID, PATIENT_ALICE_ID
-from hospital_ai.db.models import Document, User
+from hospital_ai.db.models import AuditLog, Document, DocumentPage, User
 
 
 @pytest.fixture
@@ -36,6 +37,15 @@ async def worker_fixture(session_and_settings):
     )
     session.add(doc)
     await session.flush()
+
+    legacy_page = DocumentPage(
+        id=uuid.uuid4(),
+        document_id=doc.id,
+        page_number=1,
+        ocr_text="legacy page must remain unchanged",
+        ocr_confidence=0.5,
+    )
+    session.add(legacy_page)
 
     rev = DocumentPageRevision(
         document_id=doc.id,
@@ -86,6 +96,24 @@ async def worker_fixture(session_and_settings):
 
 
 @pytest.mark.asyncio
+async def test_chunk_stage_does_not_mutate_legacy_page(worker_fixture) -> None:
+    session, settings, doc, gen = worker_fixture
+    from hospital_ai.workers.generation_jobs import GenerationBuilder
+
+    revision_set = await session.get(DocumentRevisionSet, gen.revision_set_id)
+    page = await session.scalar(
+        select(DocumentPage).where(DocumentPage.document_id == doc.id, DocumentPage.page_number == 1)
+    )
+    assert revision_set is not None
+    assert page is not None
+
+    await GenerationBuilder.from_settings(session, settings).stage_runner.run("chunks", gen, revision_set)
+    await session.refresh(page)
+    assert page.ocr_text == "legacy page must remain unchanged"
+    await session.rollback()
+
+
+@pytest.mark.asyncio
 async def test_generation_builder_build_and_activate(worker_fixture) -> None:
     session, settings, doc, gen = worker_fixture
     from hospital_ai.workers.generation_jobs import GenerationBuilder
@@ -95,6 +123,19 @@ async def test_generation_builder_build_and_activate(worker_fixture) -> None:
 
     await session.refresh(doc)
     await session.refresh(gen)
+    legacy_page = await session.scalar(
+        select(DocumentPage).where(DocumentPage.document_id == doc.id, DocumentPage.page_number == 1)
+    )
     assert gen.state == "active"
     assert doc.active_index_generation_id == gen.id
     assert result.active_generation_id == gen.id
+    assert legacy_page is not None
+    assert legacy_page.ocr_text == "Clinical content here."
+    activation_audit = await session.scalar(
+        select(AuditLog).where(
+            AuditLog.action == "document_generation.activate",
+            AuditLog.object_id == gen.id,
+        )
+    )
+    assert activation_audit is not None
+    assert activation_audit.outcome == "allowed"

@@ -25,7 +25,7 @@ DOCUMENT_UPLOAD_STATES = frozenset(
     {"pending_upload", "uploaded_unverified", "quarantined", "verified", "finalized", "rejected"}
 )
 PAGE_REVISION_STATES = frozenset({"machine_draft", "human_draft", "approved", "rejected", "superseded"})
-REVISION_SET_STATES = frozenset({"submitted", "approved", "rejected", "superseded"})
+REVISION_SET_STATES = frozenset({"submitted", "build_authorized", "approved", "rejected", "superseded"})
 GENERATION_STATES = frozenset({"building", "active", "failed", "superseded"})
 ALIGNMENT_STATES = frozenset({"aligned", "partially_aligned", "stale"})
 
@@ -102,7 +102,7 @@ class DocumentRevisionSet(Base):
     __tablename__ = "document_revision_sets"
     __table_args__ = (
         CheckConstraint(
-            "status in ('submitted','approved','rejected','superseded')",
+            "status in ('submitted','build_authorized','approved','rejected','superseded')",
             name="ck_document_revision_sets_status",
         ),
         UniqueConstraint("document_id", "revision_number", name="uq_document_revision_set_number"),

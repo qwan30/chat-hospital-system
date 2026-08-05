@@ -41,7 +41,7 @@ async def worker_fixture(session_and_settings):
         document_id=doc.id,
         page_number=1,
         revision_number=1,
-        revision_type="machine_initial",
+        revision_type="machine_ocr",
         raw_text_snapshot="Clinical content here.",
         corrected_text="Clinical content here.",
         confidence=0.99,

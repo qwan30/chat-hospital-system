@@ -44,11 +44,11 @@ async def seeded_document(session_and_settings):
         document_id=doc.id,
         page_number=1,
         revision_number=1,
-        revision_type="machine_initial",
+        revision_type="machine_ocr",
         raw_text_snapshot="initial text",
         corrected_text="initial text",
         confidence=0.95,
-        status="machine_initial",
+        status="machine_draft",
         created_by_user_id=doctor.id,
         content_sha256="a" * 64,
         version=1,
@@ -156,3 +156,4 @@ async def test_submit_reject_and_restore(session_and_settings, seeded_document) 
         ),
     )
     assert restored.lock_version == 2
+    assert restored.status == "human_draft"

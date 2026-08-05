@@ -219,7 +219,7 @@ async def approve_revision_set(
     try:
         res = await RevisionService(session).approve(
             revision_set_id=revision_set_id,
-            command=ApproveRevisionCommand(actor_id=current_user.id, demo_mode=payload.demo_mode),
+            command=ApproveRevisionCommand(actor_id=current_user.id),
             commit=False,
             enqueue=False,
         )
@@ -352,7 +352,7 @@ async def restore_revision(
     try:
         res = await RevisionService(session).restore(
             document_id=document_id,
-            page_number=1,  # defaulted for test / endpoint contract
+            page_number=aggregate.page_revision.page_number,
             command=RestoreCommand(revision_id=payload.revision_id, actor_id=current_user.id, reason=payload.reason),
             commit=False,
         )

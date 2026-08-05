@@ -10,6 +10,7 @@ from hospital_ai.api.routes import (
     dashboard,
     documents,
     document_uploads,
+    document_revisions,
     feedback,
     graph,
     hms,
@@ -34,6 +35,7 @@ api_router.include_router(auth.router, prefix="/auth", tags=["auth"])
 api_router.include_router(patients.router, prefix="/patients", tags=["patients"])
 api_router.include_router(documents.router, prefix="/documents", tags=["documents"])
 api_router.include_router(document_uploads.router, prefix="/documents", tags=["documents"])
+api_router.include_router(document_revisions.router, prefix="/documents", tags=["documents"])
 api_router.include_router(chat.router, prefix="/chat", tags=["chat"])
 api_router.include_router(chat_stream.router, prefix="/chat", tags=["chat-stream"])
 api_router.include_router(rag_trace.router, prefix="/chat", tags=["rag-trace"])

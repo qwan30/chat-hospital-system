@@ -21,7 +21,7 @@ from hospital_ai.schemas.chat import ChatResponse, DrugWarningSchema
 from hospital_ai.services.audit import AuditService
 
 # Re-export shared utilities for backward compatibility
-from hospital_ai.services.chat_utils import (  # noqa: F401
+from hospital_ai.services.chat_utils import (
     CITATION_PATTERN,
     MAX_HISTORY_MESSAGES,
     ChatGenerator,
@@ -33,6 +33,19 @@ from hospital_ai.services.chat_utils import (  # noqa: F401
     meets_evidence_threshold,
     to_evidence_schema,
 )
+
+__all__ = [
+    "CITATION_PATTERN",
+    "MAX_HISTORY_MESSAGES",
+    "ChatGenerator",
+    "build_grounded_prompt",
+    "build_stub_answer",
+    "citations_are_valid",
+    "confidence_from_score",
+    "extract_citation_ids",
+    "meets_evidence_threshold",
+    "to_evidence_schema",
+]
 from hospital_ai.services.drug_check import DrugCheckService, DrugWarning
 from hospital_ai.services.embeddings import EmbeddingService
 from hospital_ai.services.graph_rag import extract_entities_and_relations_nlp, find_related_entities

@@ -94,6 +94,7 @@ class GenerationService:
         actor_id: uuid.UUID,
         expected_active_generation_id: Optional[uuid.UUID] = None,
         reason: str = "",
+        commit: bool = True,
     ) -> ActivationResult:
         document = await self._lock_document(document_id)
         if (
@@ -131,11 +132,12 @@ class GenerationService:
 
         document.status = "ready"
         document.index_generation += 1
-        await self.session.commit()
+        if commit:
+            await self.session.commit()
         return ActivationResult(active_generation_id=target.id, approved_revision_set_id=target.revision_set_id)
 
     async def retry(
-        self, document_id: uuid.UUID, generation_id: uuid.UUID, actor_id: uuid.UUID
+        self, document_id: uuid.UUID, generation_id: uuid.UUID, actor_id: uuid.UUID, *, commit: bool = True
     ) -> DocumentIndexGeneration:
         orig = await self.session.get(DocumentIndexGeneration, generation_id)
         if not orig or orig.document_id != document_id:
@@ -148,6 +150,8 @@ class GenerationService:
             revision_set_sha256=orig.revision_set_sha256,
         )
         self.session.add(new_gen)
-        await self.session.commit()
-        await self.session.refresh(new_gen)
+        await self.session.flush()
+        if commit:
+            await self.session.commit()
+            await self.session.refresh(new_gen)
         return new_gen

@@ -6,7 +6,9 @@ import uuid
 
 import pytest
 from fastapi import Request
+from sqlalchemy import select
 
+from hospital_ai.db.clinical_documents import IdempotencyRecord
 from hospital_ai.db.migrations import DOCTOR_ID, PATIENT_ALICE_ID
 from hospital_ai.db.models import User
 
@@ -120,10 +122,24 @@ async def test_finalize_upload_session(session_and_settings, monkeypatch: pytest
         document_id=created.document_id,
         upload_id=created.upload_id,
         request=_request(),
+        idempotency_key="finalize-1",
         session=session,
         current_user=doctor,
     )
     assert res.state == "finalized"
+
+    replay = await upload_routes.finalize_upload_session(
+        document_id=created.document_id,
+        upload_id=created.upload_id,
+        request=_request(),
+        idempotency_key="finalize-1",
+        session=session,
+        current_user=doctor,
+    )
+    assert replay.id == res.id
+    record = await session.scalar(select(IdempotencyRecord).where(IdempotencyRecord.scope.like("upload.finalize.%")))
+    assert record is not None
+    assert record.state == "completed"
 
 
 def test_routes_registered_in_router() -> None:

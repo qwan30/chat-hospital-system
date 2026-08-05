@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 
 
@@ -24,13 +25,17 @@ class QueryFeatures:
 
 
 def classify_query(question: str) -> QueryFeatures:
-    question = question.lower()
+    question = question.casefold()
     return QueryFeatures(
-        no_patient_evidence=False,
-        temporal="after" in question or "before" in question or "when" in question,
-        relation_or_interaction="interact" in question or "cause" in question,
-        exact_value_or_code="exact" in question or "value" in question or "code" in question,
-        multi_document=False,
+        no_patient_evidence=bool(
+            re.search(r"\bwithout\s+(?:patient\s+)?evidence\b|\bno\s+patient\s+evidence\b", question)
+        ),
+        temporal=bool(re.search(r"\b(after|before|when|during|timeline|history)\b", question)),
+        relation_or_interaction=bool(
+            re.search(r"\b(interact|interaction|cause|caused|relationship|related)\b", question)
+        ),
+        exact_value_or_code=bool(re.search(r"\b(exact|value|code|dose|number|date)\b", question)),
+        multi_document=bool(re.search(r"\b(compare|between|across|multiple|both|each|trend)\b", question)),
     )
 
 

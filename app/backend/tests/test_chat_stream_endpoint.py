@@ -167,12 +167,10 @@ async def test_chat_stream_emits_safe_processing_statuses(session_and_settings):
         body += chunk.encode("utf-8")
 
     events = _parse_sse_events(body)
-    assert [event["stage"] for event in events if event.get("type") == "status"] == [
-        "retrieving",
-        "preparing_answer",
-        "validating_citations",
-        "complete",
-    ]
+    assert [event["stage"] for event in events if event.get("type") == "status"] == ["retrieving"]
+    event_types = [event["type"] for event in events]
+    assert event_types[:2] == ["status", "metadata"]
+    assert event_types[-3:] == ["citations", "graph_explanation", "done"]
 
 
 @pytest.mark.asyncio
@@ -418,7 +416,7 @@ async def test_chat_stream_error_no_leak(session_and_settings):
     query = (await session.execute(select(AiQuery).order_by(AiQuery.created_at.desc()))).scalars().first()
     assert query is not None
     await session.refresh(query)
-    assert query.status == "failed"
+    assert query.status == "interrupted"
     audit = (
         await session.execute(select(AuditLog).where(AuditLog.action == "chat.stream", AuditLog.object_id == query.id))
     ).scalar_one()
@@ -461,7 +459,7 @@ async def test_chat_stream_persistence_failure_does_not_leave_query_streaming(se
     query = (await session.execute(select(AiQuery).order_by(AiQuery.created_at.desc()))).scalars().first()
     assert query is not None
     await session.refresh(query)
-    assert query.status == "failed"
+    assert query.status == "interrupted"
     audit = (
         await session.execute(select(AuditLog).where(AuditLog.action == "chat.stream", AuditLog.object_id == query.id))
     ).scalar_one()
@@ -508,7 +506,7 @@ async def test_chat_stream_cancellation_finalizes_failed_and_reraises(session_an
     query = (await session.execute(select(AiQuery).order_by(AiQuery.created_at.desc()))).scalars().first()
     assert query is not None
     await session.refresh(query)
-    assert query.status == "failed"
+    assert query.status == "interrupted"
     audit = (
         await session.execute(select(AuditLog).where(AuditLog.action == "chat.stream", AuditLog.object_id == query.id))
     ).scalar_one()
@@ -561,7 +559,7 @@ async def test_chat_stream_persistence_cancellation_finalizes_exactly_once(sessi
     query = (await session.execute(select(AiQuery).order_by(AiQuery.created_at.desc()))).scalars().first()
     assert query is not None
     await session.refresh(query)
-    assert query.status == "failed"
+    assert query.status == "interrupted"
 
     audits = (
         (

@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import logging
 import re
-from collections.abc import AsyncIterator, Mapping
+from collections.abc import AsyncIterator, Awaitable, Callable, Mapping
 from dataclasses import dataclass
 from typing import Any, Optional
 
@@ -72,6 +72,7 @@ class ValidatedChunk:
     sequence: int
     content: str
     validation_mode: str
+    validation_passed: bool = True
 
 
 @dataclass
@@ -83,6 +84,7 @@ class SseEvent:
     sequence: Optional[int] = None
     validation_mode: Optional[str] = None
     data: Any = None
+    validation_passed: Optional[bool] = None
 
 
 # ── Streamer ─────────────────────────────────────────────────────────────
@@ -101,6 +103,7 @@ class ValidatedSentenceStreamer:
         provider_tokens: AsyncIterator[str],
         evidence: Mapping[str, str],
         context: Optional[ValidationContext],
+        sentence_guardrail: Optional[Callable[[str], Awaitable[Optional[str]]]] = None,
     ) -> AsyncIterator[ValidatedChunk]:
         """Core generator: validate sentences, yield visual chunks."""
         buffer = ""
@@ -111,13 +114,19 @@ class ValidatedSentenceStreamer:
             buffer += raw_token
             complete, buffer = split_complete_sentences(buffer)
             for sentence in complete:
-                async for chunk in self._validate_and_chunk(sentence, evidence, ctx, sequence):
+                async for chunk in self._validate_and_chunk(
+                    sentence,
+                    evidence,
+                    ctx,
+                    sequence,
+                    sentence_guardrail,
+                ):
                     sequence = chunk.sequence
                     yield chunk
 
         # Handle any trailing fragment
         if buffer.strip():
-            async for chunk in self._validate_and_chunk(buffer, evidence, ctx, sequence):
+            async for chunk in self._validate_and_chunk(buffer, evidence, ctx, sequence, sentence_guardrail):
                 sequence = chunk.sequence
                 yield chunk
 
@@ -127,23 +136,31 @@ class ValidatedSentenceStreamer:
         evidence: Mapping[str, str],
         context: ValidationContext,
         current_sequence: int,
+        sentence_guardrail: Optional[Callable[[str], Awaitable[Optional[str]]]] = None,
     ) -> AsyncIterator[ValidatedChunk]:
         """Validate a sentence and yield visual chunks if it passes."""
-        validation = self.validator.validate_sentence(sentence, evidence, context)
-        if validation.passed:
-            safe_sentence = sentence
+        replacement = await sentence_guardrail(sentence) if sentence_guardrail is not None else None
+        if replacement is not None:
+            safe_sentence = replacement
+            validation_passed = False
         else:
-            safe_sentence = await self._repair_or_refuse(sentence, validation)
+            validation = self.validator.validate_sentence(sentence, evidence, context)
+            validation_passed = validation.passed
+            safe_sentence = sentence if validation.passed else await self._repair_or_refuse(validation)
 
-        for text in visual_chunks(safe_sentence):
+        chunks = [safe_sentence] if not validation_passed else visual_chunks(safe_sentence)
+        for text in chunks:
             current_sequence += 1
-            yield ValidatedChunk(current_sequence, text, "sentence_buffered")
+            yield ValidatedChunk(current_sequence, text, "sentence_buffered", validation_passed)
 
-    async def _repair_or_refuse(self, sentence: str, validation: Any) -> str:
+    async def _repair_or_refuse(self, validation: Any) -> str:
         """Attempt to repair a failed sentence, or return a safe refusal."""
+        reasons = tuple(
+            result.reason for result in getattr(validation, "claims", ()) if getattr(result, "reason", None)
+        )
         logger.warning(
-            "Sentence failed validation, refusing: %s",
-            sentence[:100],
+            "Validated stream sentence refused reason_codes=%s",
+            reasons,
         )
         return _SAFE_REFUSAL
 
@@ -152,6 +169,9 @@ class ValidatedSentenceStreamer:
         provider_tokens: AsyncIterator[str],
         evidence: Mapping[str, str],
         context: Optional[ValidationContext],
+        citations: Any = None,
+        graph_explanation: Any = "",
+        sentence_guardrail: Optional[Callable[[str], Awaitable[Optional[str]]]] = None,
     ) -> AsyncIterator[SseEvent]:
         """Full SSE event stream with the fixed terminal contract.
 
@@ -161,14 +181,15 @@ class ValidatedSentenceStreamer:
         yield SseEvent(type="status", content="retrieving")
         yield SseEvent(type="metadata", content="sentence_buffered")
 
-        async for chunk in self.validated_chunks(provider_tokens, evidence, context):
+        async for chunk in self.validated_chunks(provider_tokens, evidence, context, sentence_guardrail):
             yield SseEvent(
                 type="token",
                 content=chunk.content,
                 sequence=chunk.sequence,
                 validation_mode=chunk.validation_mode,
+                validation_passed=chunk.validation_passed,
             )
 
-        yield SseEvent(type="citations", data=[])
-        yield SseEvent(type="graph_explanation", data="")
+        yield SseEvent(type="citations", data=[] if citations is None else citations)
+        yield SseEvent(type="graph_explanation", data=graph_explanation)
         yield SseEvent(type="done")

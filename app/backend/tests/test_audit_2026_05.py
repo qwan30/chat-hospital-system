@@ -211,7 +211,7 @@ def _make_evidence(ids: list[str]) -> list[RetrievedChunk]:
             page=1,
             chunk_id=uuid.uuid4(),
             score=0.9,
-            content=f"Content for {eid}",
+            content=f"Content for {eid}. The dose is per protocol. Grounded answer.",
             metadata={},
         )
         for eid in ids

@@ -51,6 +51,7 @@ from hospital_ai.services.llm.base import LLMMessage
 from hospital_ai.services.memory import MemoryService
 from hospital_ai.services.permissions import PermissionService
 from hospital_ai.services.retrieval import RetrievalService
+from hospital_ai.services.validated_stream import ValidatedSentenceStreamer
 
 logger = logging.getLogger(__name__)
 
@@ -73,6 +74,8 @@ class StreamCompletion:
     citations_payload: list[dict] = field(default_factory=list)
     confidence: str = "low"
     failure_reason: Optional[str] = None
+    validation_mode: str = "sentence_buffered"
+    last_emitted_sequence: int = 0
 
 
 OnCompleteCallback = Callable[[StreamCompletion], Awaitable[None]]
@@ -96,9 +99,18 @@ _DENIED_REASONS = {
     "missing_patient_read_scope",
     "permission_denied",
 }
+_INTERRUPTED_REASONS = {
+    "app_error",
+    "cancelled",
+    "disconnected",
+    "internal_error",
+    "persistence_error",
+}
 
 
 def _stream_terminal_status(completion: StreamCompletion) -> str:
+    if completion.failure_reason in _INTERRUPTED_REASONS:
+        return "interrupted"
     if completion.failure_reason in _REFUSAL_REASONS:
         return "refused"
     if completion.validation_status == "passed":
@@ -109,7 +121,7 @@ def _stream_terminal_status(completion: StreamCompletion) -> str:
 def _stream_audit_outcome(completion: StreamCompletion) -> str:
     if completion.failure_reason in _DENIED_REASONS:
         return "denied"
-    if _stream_terminal_status(completion) == "failed":
+    if _stream_terminal_status(completion) in {"failed", "interrupted"}:
         return "failed"
     return "allowed"
 
@@ -131,6 +143,8 @@ async def _finalize_stream_outcome(
     ai_query.answer = completion.answer
     ai_query.status = _stream_terminal_status(completion)
     ai_query.latency_ms = elapsed_ms(started)
+    ai_query.validation_mode = completion.validation_mode
+    ai_query.last_emitted_sequence = completion.last_emitted_sequence
     audit_metadata = {
         "result": ai_query.status,
         "evidence_count": evidence_count,
@@ -169,6 +183,9 @@ async def _best_effort_failed_completion(
     on_complete: Optional[OnCompleteCallback],
     *,
     failure_reason: str,
+    answer: str = "",
+    last_emitted_sequence: int = 0,
+    validation_mode: str = "sentence_buffered",
 ) -> None:
     if on_complete is None:
         return
@@ -176,15 +193,245 @@ async def _best_effort_failed_completion(
         await on_complete(
             StreamCompletion(
                 validation_status="failed",
-                answer="",
+                answer=answer,
                 cited_evidence=[],
                 citations_payload=[],
                 confidence="low",
                 failure_reason=failure_reason,
+                validation_mode=validation_mode,
+                last_emitted_sequence=last_emitted_sequence,
             )
         )
     except BaseException:
         logger.exception("Failed to persist terminal stream state reason=%s", failure_reason)
+
+
+async def _generate_validated_sse_events(
+    *,
+    settings: Settings,
+    question: str,
+    evidence: list,
+    conversation_history: list,
+    query_id: UUID,
+    on_complete: Optional[OnCompleteCallback],
+    stream_state: dict[str, Any],
+) -> AsyncIterator[str]:
+    """Stream only sentence-validated output from the provider.
+
+    The provider iterator is consumed by ``ValidatedSentenceStreamer``. Raw
+    fragments never enter the SSE serializer; a complete sentence is either
+    emitted after deterministic validation or replaced by a safe refusal.
+    """
+    completion_callback_active = False
+    refused = False
+    preamble: list[dict[str, Any]] = []
+    preamble_emitted = False
+    cited_evidence: list[Any] = []
+    citations_payload: list[dict[str, Any]] = []
+
+    stream_state.setdefault("last_emitted_sequence", 0)
+    stream_state.setdefault("validation_mode", "sentence_buffered")
+    stream_state.setdefault("answer", "")
+    stream_state.setdefault("guardrail_blocked", False)
+
+    async def complete_terminal(completion: StreamCompletion) -> None:
+        nonlocal completion_callback_active
+        completion_callback_active = True
+        await _complete_stream(on_complete, completion)
+        completion_callback_active = False
+
+    def serialize(event: dict[str, Any]) -> str:
+        return f"data: {json.dumps(event)}\n\n"
+
+    async def sentence_guardrail(sentence: str) -> Optional[str]:
+        result = await get_output_guardrail().scan(question, f"{sentence} ")
+        if result.blocked:
+            stream_state["guardrail_blocked"] = True
+            return SAFE_PHI_LEAK_BLOCKED_ANSWER
+        return None
+
+    try:
+        llm = LLMManager(settings).get()
+        prompt = build_grounded_prompt(question, evidence, conversation_history)
+        messages = [
+            LLMMessage(
+                role="system",
+                content=(
+                    "You are a hospital knowledge assistant. Answer only from the evidence. "
+                    "Cite every factual claim using evidence IDs like [E1]."
+                ),
+            ),
+            LLMMessage(role="user", content=prompt),
+        ]
+        evidence_by_id = {item.evidence_id: item.content for item in evidence}
+        provisional_confidence = confidence_from_score(evidence[0].score) if evidence else "low"
+        streamer = ValidatedSentenceStreamer()
+
+        async for event in streamer.events(
+            llm.stream(messages),
+            evidence_by_id,
+            None,
+            sentence_guardrail=sentence_guardrail,
+        ):
+            if event.type == "status":
+                preamble.append({"type": "status", "stage": event.content or "retrieving"})
+                continue
+            if event.type == "metadata":
+                preamble.append(
+                    {
+                        "type": "metadata",
+                        "confidence": provisional_confidence,
+                        "pipeline": "simple_qa",
+                        "model": llm.model_name(),
+                        "validation_mode": "sentence_buffered",
+                    }
+                )
+                continue
+            if event.type == "token":
+                validation_passed = event.validation_passed is not False
+                if not validation_passed:
+                    refused = True
+                content = event.content or ""
+                if not validation_passed:
+                    content = (
+                        SAFE_PHI_LEAK_BLOCKED_ANSWER if stream_state["guardrail_blocked"] else SAFE_NO_EVIDENCE_ANSWER
+                    )
+                stream_state["answer"] += content
+                stream_state["last_emitted_sequence"] = event.sequence or stream_state["last_emitted_sequence"]
+                stream_state["validation_mode"] = event.validation_mode or "sentence_buffered"
+                if not preamble_emitted and validation_passed:
+                    for item in preamble:
+                        yield serialize(item)
+                    preamble_emitted = True
+                yield serialize(
+                    {
+                        "type": "token",
+                        "content": content,
+                        "sequence": event.sequence,
+                        "validation_mode": event.validation_mode or "sentence_buffered",
+                    }
+                )
+                continue
+            if event.type == "citations":
+                citation_ids = extract_citation_ids(stream_state["answer"])
+                allowed_ids = set(evidence_by_id)
+                if citation_ids and citation_ids.issubset(allowed_ids) and not refused:
+                    cited_evidence = [item for item in evidence if item.evidence_id in citation_ids]
+                    citations_payload = [
+                        {
+                            "evidence_id": item.evidence_id,
+                            "document_id": str(item.document_id),
+                            "document_title": item.document_title,
+                            "page": item.page,
+                            "score": item.score,
+                            "content": item.content[:200],
+                        }
+                        for item in cited_evidence
+                    ]
+                    yield serialize({"type": "citations", "data": citations_payload})
+                else:
+                    refused = True
+                continue
+            if event.type == "graph_explanation":
+                if not refused:
+                    yield serialize({"type": "graph_explanation", "data": event.data or ""})
+                continue
+            if event.type == "done":
+                if stream_state["guardrail_blocked"]:
+                    completion = StreamCompletion(
+                        validation_status="failed",
+                        answer=SAFE_PHI_LEAK_BLOCKED_ANSWER,
+                        cited_evidence=[],
+                        citations_payload=[],
+                        confidence="low",
+                        failure_reason="output_guardrail_blocked",
+                        validation_mode=stream_state["validation_mode"],
+                        last_emitted_sequence=stream_state["last_emitted_sequence"],
+                    )
+                    validation = "failed"
+                    reason = "output_guardrail_blocked"
+                elif refused or not cited_evidence:
+                    completion = StreamCompletion(
+                        validation_status="failed",
+                        answer=SAFE_NO_EVIDENCE_ANSWER,
+                        cited_evidence=[],
+                        citations_payload=[],
+                        confidence="low",
+                        failure_reason="invalid_citation",
+                        validation_mode=stream_state["validation_mode"],
+                        last_emitted_sequence=stream_state["last_emitted_sequence"],
+                    )
+                    validation = "failed"
+                    reason = "invalid_citation"
+                else:
+                    avg_score = sum(item.score for item in cited_evidence) / len(cited_evidence)
+                    confidence = confidence_from_score(avg_score)
+                    completion = StreamCompletion(
+                        validation_status="passed",
+                        answer=stream_state["answer"],
+                        cited_evidence=cited_evidence,
+                        citations_payload=citations_payload,
+                        confidence=confidence,
+                        validation_mode=stream_state["validation_mode"],
+                        last_emitted_sequence=stream_state["last_emitted_sequence"],
+                    )
+                    validation = "passed"
+                    reason = None
+                await complete_terminal(completion)
+                done_event = {"type": "done", "query_id": str(query_id), "validation": validation}
+                if reason is not None:
+                    done_event["reason"] = reason
+                yield serialize(done_event)
+    except _StreamPersistenceError:
+        logger.exception("SSE chat completion persistence failed query_id=%s", query_id)
+        yield serialize(
+            {
+                "type": "error",
+                "code": "INTERNAL_ERROR",
+                "message": "Stream failed due to an internal error.",
+            }
+        )
+    except asyncio.CancelledError:
+        if not completion_callback_active:
+            await _best_effort_failed_completion(
+                on_complete,
+                failure_reason="cancelled",
+                answer=stream_state["answer"],
+                last_emitted_sequence=stream_state["last_emitted_sequence"],
+                validation_mode=stream_state["validation_mode"],
+            )
+        raise
+    except AppError as exc:
+        await _best_effort_failed_completion(
+            on_complete,
+            failure_reason="app_error",
+            answer=stream_state["answer"],
+            last_emitted_sequence=stream_state["last_emitted_sequence"],
+            validation_mode=stream_state["validation_mode"],
+        )
+        yield serialize(
+            {
+                "type": "error",
+                "code": exc.code,
+                "message": SAFE_EXTERNAL_SERVICE_ERROR_MESSAGE,
+            }
+        )
+    except Exception:
+        logger.exception("SSE chat stream failed unexpectedly query_id=%s", query_id)
+        await _best_effort_failed_completion(
+            on_complete,
+            failure_reason="internal_error",
+            answer=stream_state["answer"],
+            last_emitted_sequence=stream_state["last_emitted_sequence"],
+            validation_mode=stream_state["validation_mode"],
+        )
+        yield serialize(
+            {
+                "type": "error",
+                "code": "INTERNAL_ERROR",
+                "message": "Stream failed due to an internal error.",
+            }
+        )
 
 
 async def _generate_sse_events(
@@ -196,6 +443,7 @@ async def _generate_sse_events(
     query_id: UUID,
     pipeline_name: str,
     on_complete: Optional[OnCompleteCallback] = None,
+    stream_state: Optional[dict[str, Any]] = None,
 ) -> AsyncIterator[str]:
     """Generate SSE events with token-by-token streaming.
 
@@ -209,6 +457,19 @@ async def _generate_sse_events(
     # This transport currently executes one grounded generation path.  Do not
     # claim a requested reasoning pipeline that was not actually run.
     actual_pipeline = "chitchat" if pipeline_name == "chitchat" else "simple_qa"
+
+    if pipeline_name != "chitchat":
+        async for event in _generate_validated_sse_events(
+            settings=settings,
+            question=question,
+            evidence=evidence,
+            conversation_history=conversation_history,
+            query_id=query_id,
+            on_complete=on_complete,
+            stream_state=stream_state if stream_state is not None else {},
+        ):
+            yield event
+        return
 
     async def complete_terminal(completion: StreamCompletion) -> None:
         nonlocal completion_callback_active
@@ -275,22 +536,22 @@ async def _generate_sse_events(
                 yield f"data: {done_event}\n\n"
                 return
 
-            async for status_event in emit_validated_statuses():
-                yield status_event
-
-            event = json.dumps({"type": "token", "content": full_text})
-            yield f"data: {event}\n\n"
-
-            # Emit metadata, done, and run on_complete
+            status_event = json.dumps({"type": "status", "stage": "retrieving"})
+            yield f"data: {status_event}\n\n"
             meta_event = json.dumps(
                 {
                     "type": "metadata",
                     "confidence": "high",
                     "pipeline": "chitchat",
                     "model": llm.model_name(),
+                    "validation_mode": "chitchat",
                 }
             )
             yield f"data: {meta_event}\n\n"
+            event = json.dumps({"type": "token", "content": full_text, "sequence": 1, "validation_mode": "chitchat"})
+            yield f"data: {event}\n\n"
+            yield f"data: {json.dumps({'type': 'citations', 'data': []})}\n\n"
+            yield f"data: {json.dumps({'type': 'graph_explanation', 'data': ''})}\n\n"
             await complete_terminal(
                 StreamCompletion(
                     validation_status="passed",
@@ -298,10 +559,10 @@ async def _generate_sse_events(
                     cited_evidence=[],
                     citations_payload=[],
                     confidence="high",
+                    validation_mode="chitchat",
+                    last_emitted_sequence=1,
                 ),
             )
-            complete_status = json.dumps({"type": "status", "stage": "complete"})
-            yield f"data: {complete_status}\n\n"
             done_event = json.dumps(
                 {
                     "type": "done",
@@ -643,7 +904,7 @@ async def _persist_stream_completion(
 
 
 async def _ensure_stream_terminal(
-    completion_state: dict[str, bool],
+    completion_state: dict[str, Any],
     on_complete: OnCompleteCallback,
 ) -> None:
     """Finalize a stream whose body never reached its completion callback."""
@@ -653,13 +914,16 @@ async def _ensure_stream_terminal(
         await on_complete(
             StreamCompletion(
                 validation_status="failed",
-                answer="",
+                answer=completion_state.get("answer", ""),
                 cited_evidence=[],
                 citations_payload=[],
                 confidence="low",
                 failure_reason="disconnected",
+                validation_mode=completion_state.get("validation_mode", "sentence_buffered"),
+                last_emitted_sequence=completion_state.get("last_emitted_sequence", 0),
             )
         )
+        completion_state["finished"] = True
     except BaseException:
         logger.exception("Unable to finalize an interrupted chat stream")
 
@@ -968,7 +1232,12 @@ async def chat_stream(
     captured_query_id = ai_query.id
     captured_question = payload.question
     captured_ip = get_request_ip(request)
-    completion_state = {"finished": False}
+    completion_state: dict[str, Any] = {
+        "finished": False,
+        "last_emitted_sequence": 0,
+        "validation_mode": "sentence_buffered",
+        "answer": "",
+    }
 
     async def _on_complete(completion: StreamCompletion) -> None:
         persistence_kwargs = {
@@ -989,11 +1258,13 @@ async def chat_stream(
         except BaseException as exc:
             fallback_completion = StreamCompletion(
                 validation_status="failed",
-                answer="",
+                answer=completion.answer,
                 cited_evidence=[],
                 citations_payload=[],
                 confidence="low",
                 failure_reason="cancelled" if isinstance(exc, asyncio.CancelledError) else "persistence_error",
+                validation_mode=completion.validation_mode,
+                last_emitted_sequence=completion.last_emitted_sequence,
             )
             await _apply_stream_completion(
                 session,
@@ -1023,6 +1294,7 @@ async def chat_stream(
             query_id=ai_query.id,
             pipeline_name=selected_pipeline,
             on_complete=_on_complete,
+            stream_state=completion_state,
         ),
         media_type="text/event-stream",
         headers={

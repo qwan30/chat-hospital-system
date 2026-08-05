@@ -69,7 +69,7 @@ async def test_worker_processes_r2_uri_and_fingerprints_source(
     await jobs.process_document(session, document.id, settings)
     await session.refresh(document)
 
-    assert document.status == "ready"
+    assert document.status == "review_required"
     assert document.indexed_source_sha256 == hashlib.sha256(source).hexdigest()
     assert storage.read_uris
     assert all(uri.startswith("r2://") for uri in storage.read_uris)

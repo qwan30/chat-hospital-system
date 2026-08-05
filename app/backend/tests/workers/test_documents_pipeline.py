@@ -89,4 +89,4 @@ async def test_pipeline_review_required_state(session_and_settings):
 
     await session.refresh(document)
     # This test will fail until the coder implements the state machine properly.
-    # assert document.status == "review_required"
+    assert document.status == "review_required"

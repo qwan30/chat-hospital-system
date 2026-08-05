@@ -118,14 +118,16 @@ def test_r2_requires_all_connection_settings() -> None:
 def test_r2_presigned_put_and_head_object() -> None:
     client = _FakeS3()
     storage = R2StorageService(_r2_settings(), client=client)
-    put_res = storage.create_presigned_put(key="test/file.pdf", content_type="application/pdf", expires_seconds=300)
-    assert "https://presigned.r2/test/file.pdf" in put_res.url
+    put_res = storage.create_presigned_put(
+        key="patients/test/file.pdf", content_type="application/pdf", expires_seconds=300
+    )
+    assert "https://presigned.r2/patients/test/file.pdf" in put_res.url
     assert put_res.required_headers == {"Content-Type": "application/pdf", "If-None-Match": "*"}
 
     with pytest.raises(FileNotFoundError):
-        storage.head_object("test/file.pdf")
+        storage.head_object("patients/test/file.pdf")
 
-    client.objects["test/file.pdf"] = b"test content"
-    head = storage.head_object("test/file.pdf")
+    client.objects["patients/test/file.pdf"] = b"test content"
+    head = storage.head_object("patients/test/file.pdf")
     assert head.byte_size == 12
     assert head.etag == '"etag"'

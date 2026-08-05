@@ -8,7 +8,7 @@ import {
 } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { History, Clock, User, CheckCircle, XCircle, FileText } from "lucide-react";
-import { RevisionSetRead } from "@/lib/api/types";
+import type { RevisionSetRead } from "@/lib/api/document-revisions";
 import { ScrollArea } from "@/components/ui/scroll-area";
 
 export function RevisionHistoryDrawer({

@@ -185,7 +185,7 @@ export interface ReviewItemPatchRequest {
   action: "approve" | "reject" | "correct";
   value?: unknown;
   reason: string;
-  version: number;
+  version?: number;
   fact_type?: string;
 }
 

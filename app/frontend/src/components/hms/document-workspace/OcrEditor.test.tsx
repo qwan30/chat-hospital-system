@@ -33,6 +33,7 @@ describe("OcrEditor", () => {
       </QueryClientProvider>,
     );
 
+    await user.type(screen.getByPlaceholderText("Edit reason"), "fixed a typo");
     await user.click(screen.getByRole("button", { name: "Save draft" }));
     expect(screen.getByDisplayValue("local correction")).toBeVisible();
     expect(screen.getByRole("button", { name: "Compare with latest" })).toBeVisible();

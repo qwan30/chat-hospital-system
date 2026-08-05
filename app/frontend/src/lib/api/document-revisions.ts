@@ -119,3 +119,17 @@ export async function restoreRevision(
 export async function listRevisionSets(documentId: string): Promise<RevisionSetRead[]> {
   return apiFetch<RevisionSetRead[]>(`/documents/${documentId}/revision-sets`);
 }
+
+export async function getDraftPage(documentId: string, pageNumber: number): Promise<DraftPageRead> {
+  return apiFetch<DraftPageRead>(`/documents/${documentId}/draft/pages/${pageNumber}`);
+}
+
+export async function getRevisionPage(
+  documentId: string,
+  revisionSetId: string,
+  pageNumber: number,
+): Promise<DraftPageRead> {
+  return apiFetch<DraftPageRead>(
+    `/documents/${documentId}/revision-sets/${revisionSetId}/pages/${pageNumber}`,
+  );
+}

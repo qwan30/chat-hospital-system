@@ -21,6 +21,7 @@ export function OcrEditor({
   initialText = "",
   lockVersion: initialLockVersion,
   revision,
+  onCompare,
 }: OcrEditorProps) {
   const [text, setText] = useState(initialText);
   const [reason, setReason] = useState("");
@@ -38,7 +39,7 @@ export function OcrEditor({
       return saveDraftPage(
         documentId,
         page,
-        { corrected_text: newText, parent_revision_id: revision?.id || "", edit_reason: reason || "Updated text" },
+        { corrected_text: newText, parent_revision_id: revision?.id || "", edit_reason: reason },
         { idempotencyKey: idempotencyKeyRef.current, lockVersion: initialLockVersion },
       );
     },
@@ -57,6 +58,8 @@ export function OcrEditor({
     saveMutation.mutate(text);
   };
 
+  const isSaveDisabled = isHistorical || saveMutation.isPending || reason.trim().length === 0;
+
   return (
     <div className="flex flex-col gap-4">
       <Textarea
@@ -66,16 +69,18 @@ export function OcrEditor({
         readOnly={isHistorical}
       />
       {conflict ? (
-        <Button variant="outline" onClick={() => onCompare?.()}>Compare with latest</Button>
+        <Button variant="outline" onClick={() => onCompare?.()}>
+          Compare with latest
+        </Button>
       ) : (
         <div className="flex flex-col gap-2">
-          <Input 
-            placeholder="Edit reason" 
-            value={reason} 
-            onChange={e => setReason(e.target.value)}
+          <Input
+            placeholder="Edit reason"
+            value={reason}
+            onChange={(e) => setReason(e.target.value)}
             disabled={isHistorical || saveMutation.isPending}
           />
-          <Button onClick={handleSave} disabled={isHistorical || saveMutation.isPending}>
+          <Button onClick={handleSave} disabled={isSaveDisabled}>
             Save draft
           </Button>
         </div>

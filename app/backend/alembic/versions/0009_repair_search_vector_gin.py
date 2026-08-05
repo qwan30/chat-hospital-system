@@ -7,7 +7,6 @@ Create Date: 2026-07-21
 
 from alembic import op
 
-
 revision = "0009_repair_search_vector_gin"
 down_revision = "cfb28845ca63"
 branch_labels = None

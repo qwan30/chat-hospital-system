@@ -14,12 +14,12 @@ Requires:
     HOSPITAL_AI_DATABASE_URL environment variable set (or uses .env).
 """
 
-from typing import Optional
 import asyncio
 import hashlib
 import math
 import uuid
 from datetime import UTC, date, datetime, timedelta
+from typing import Optional
 
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine

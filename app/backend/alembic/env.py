@@ -1,16 +1,12 @@
 from logging.config import fileConfig
 
-from alembic import context
 from sqlalchemy import pool
 from sqlalchemy.ext.asyncio import async_engine_from_config
 
+# Import all other models to ensure they are registered on Base for autogenerate
+from alembic import context
 from hospital_ai.core.config import get_settings
 from hospital_ai.db.models import Base
-# Import all other models to ensure they are registered on Base for autogenerate
-import hospital_ai.db.settings_store
-import hospital_ai.services.graph_rag
-import hospital_ai.services.metrics
-import hospital_ai.db.clinical_documents
 
 config = context.config
 if config.config_file_name is not None:

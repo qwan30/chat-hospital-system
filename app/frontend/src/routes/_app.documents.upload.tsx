@@ -30,6 +30,7 @@ function Page() {
               <Label htmlFor="patientId">Patient ID (UUID)</Label>
               <Input
                 id="patientId"
+                form="upload-form"
                 value={patientId}
                 onChange={(e) => setPatientId(e.target.value)}
                 required
@@ -40,6 +41,7 @@ function Page() {
               <Label htmlFor="title">Document Title</Label>
               <Input
                 id="title"
+                form="upload-form"
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
                 placeholder="e.g. Discharge Summary"
@@ -51,6 +53,7 @@ function Page() {
               <Label htmlFor="documentType">Document Type</Label>
               <select
                 id="documentType"
+                form="upload-form"
                 className="flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm"
                 value={documentType}
                 onChange={(e) => setDocumentType(e.target.value)}

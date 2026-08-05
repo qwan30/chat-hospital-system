@@ -235,6 +235,18 @@ class Document(TimestampMixin, SoftDeleteMixin, Base):
     )
     indexed_source_sha256: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
 
+    approved_revision_set_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        ForeignKey("document_revision_sets.id", use_alter=True), nullable=True
+    )
+    active_index_generation_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        ForeignKey("document_index_generations.id", use_alter=True), nullable=True
+    )
+    finalized_upload_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        ForeignKey("document_uploads.id", use_alter=True), nullable=True
+    )
+    is_synthetic: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default="false")
+    retention_state: Mapped[str] = mapped_column(String(32), nullable=False, default="active")
+
     patient: Mapped[Optional[Patient]] = relationship(back_populates="documents")
     pages: Mapped[list[DocumentPage]] = relationship(back_populates="document", cascade="all, delete-orphan")
     chunks: Mapped[list[DocumentChunk]] = relationship(back_populates="document", cascade="all, delete-orphan")
@@ -311,6 +323,16 @@ class DocumentChunk(TimestampMixin, SoftDeleteMixin, Base):
     embedding: Mapped[Optional[list[float]]] = mapped_column(EmbeddingVector(1024), nullable=True)
     meta: Mapped[dict[str, Any]] = mapped_column("metadata", JSON, nullable=False, default=dict)
 
+    generation_id: Mapped[Optional[uuid.UUID]] = mapped_column(ForeignKey("document_index_generations.id", use_alter=True), nullable=True, index=True)
+    revision_set_id: Mapped[Optional[uuid.UUID]] = mapped_column(ForeignKey("document_revision_sets.id", use_alter=True), nullable=True, index=True)
+    page_revision_id: Mapped[Optional[uuid.UUID]] = mapped_column(ForeignKey("document_page_revisions.id", use_alter=True), nullable=True, index=True)
+    text_start_offset: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    text_end_offset: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    source_text_sha256: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
+    approval_state: Mapped[Optional[str]] = mapped_column(String(32), nullable=True)
+    bounding_boxes: Mapped[Optional[dict[str, Any]]] = mapped_column(JSON, nullable=True)
+    access_tags: Mapped[list[str]] = mapped_column(JSON, nullable=True, default=list)
+
     document: Mapped[Document] = relationship(back_populates="chunks")
     page: Mapped[DocumentPage] = relationship(back_populates="chunks")
 
@@ -363,6 +385,8 @@ class RetrievedEvidence(Base):
     rerank_score: Mapped[Optional[float]] = mapped_column(Numeric, nullable=True)
     retrieval_method: Mapped[Optional[str]] = mapped_column(String(32), nullable=True)
     rerank_method: Mapped[Optional[str]] = mapped_column(String(32), nullable=True)
+
+    generation_id: Mapped[Optional[uuid.UUID]] = mapped_column(ForeignKey("document_index_generations.id", use_alter=True), nullable=True, index=True)
 
     query: Mapped[AiQuery] = relationship(back_populates="evidence")
 
@@ -577,6 +601,8 @@ class ClinicalFact(TimestampMixin, Base):
     bounding_box: Mapped[Optional[dict[str, Any]]] = mapped_column(JSON, nullable=True)
     status: Mapped[str] = mapped_column(String(32), nullable=False, default="unverified")
 
+    generation_id: Mapped[Optional[uuid.UUID]] = mapped_column(ForeignKey("document_index_generations.id", use_alter=True), nullable=True, index=True)
+
     document: Mapped[Document] = relationship()
     run: Mapped[DocumentProcessingRun] = relationship()
 
@@ -631,3 +657,5 @@ class Notification(TimestampMixin, Base):
     reference_url: Mapped[Optional[str]] = mapped_column(String(1024), nullable=True)
 
     user: Mapped[User] = relationship(back_populates="notifications")
+
+from hospital_ai.db import clinical_documents as _clinical_documents  # noqa: E402,F401

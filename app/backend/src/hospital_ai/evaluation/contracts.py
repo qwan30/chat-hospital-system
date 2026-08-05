@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Literal, Optional
+from typing import Literal, Optional, Union
 
 from pydantic import BaseModel, ConfigDict, Field, StrictBool, StrictFloat, StrictInt
 
@@ -106,7 +106,7 @@ class OcrEvaluationSummary(BaseModel):
 EvaluationComponent = Literal["corpus", "ocr", "retrieval", "graph", "chat", "harness"]
 ResultStatus = Literal["passed", "failed", "skipped"]
 RunStatus = Literal["passed", "failed", "skipped", "invalid"]
-ScalarValue = StrictBool | StrictInt | StrictFloat | str
+ScalarValue = Union[StrictBool, StrictInt, StrictFloat, str]
 
 
 class GateResult(BaseModel):

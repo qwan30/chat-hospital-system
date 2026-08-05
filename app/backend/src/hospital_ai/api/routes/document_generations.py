@@ -81,12 +81,16 @@ async def rollback_generation(
     idemp = IdempotencyService(session, current_user.id)
     req_str = _dump_json(payload)
     req_dict = json.loads(req_str)
+    req_dict["target_generation_id"] = str(generation_id)
     decision = await idemp.begin(f"generation.rollback.{document_id}", idempotency_key, req_dict)
+    if decision.is_in_progress:
+        raise ConflictError("Request is already in progress; retry later.")
     if decision.is_replay:
         return _parse_obj(GenerationRollbackRead, decision.response_body)
 
     displaced_id = document.active_index_generation_id
     if not displaced_id or displaced_id != payload.expected_active_generation_id:
+        await idemp.abort(decision.record_id)
         raise HTTPException(status_code=409, detail="Stale active pointer for rollback.")
 
     try:
@@ -96,10 +100,13 @@ async def rollback_generation(
             actor_id=current_user.id,
             expected_active_generation_id=payload.expected_active_generation_id,
             reason=payload.reason,
+            commit=False,
         )
     except ConflictError as exc:
+        await idemp.abort(decision.record_id)
         raise HTTPException(status_code=409, detail=exc.message) from exc
     except ValueError as exc:
+        await idemp.abort(decision.record_id)
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
     response_model = GenerationRollbackRead(
@@ -116,6 +123,7 @@ async def rollback_generation(
         200,
         json.loads(_dump_json(response_model)),
     )
+    await session.commit()
     return response_model
 
 
@@ -128,6 +136,7 @@ async def retry_generation(
     document_id: uuid.UUID,
     generation_id: uuid.UUID,
     request: Request,
+    idempotency_key: str = Header(..., alias="Idempotency-Key"),
     current_user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
 ) -> DocumentIndexGenerationRead:
@@ -149,11 +158,30 @@ async def retry_generation(
         object_id=document_id,
     )
 
-    new_gen = await GenerationService(session).retry(
-        document_id=document_id,
-        generation_id=generation_id,
-        actor_id=current_user.id,
+    idemp = IdempotencyService(session, current_user.id)
+    decision = await idemp.begin(
+        f"generation.retry.{document_id}:{generation_id}",
+        idempotency_key,
+        {"document_id": str(document_id), "generation_id": str(generation_id)},
     )
+    if decision.is_in_progress:
+        raise ConflictError("Request is already in progress; retry later.")
+    if decision.is_replay:
+        return _parse_obj(DocumentIndexGenerationRead, decision.response_body)
 
+    try:
+        new_gen = await GenerationService(session).retry(
+            document_id=document_id,
+            generation_id=generation_id,
+            actor_id=current_user.id,
+            commit=False,
+        )
+    except Exception:
+        await idemp.abort(decision.record_id)
+        raise
+
+    response_model = _from_orm(DocumentIndexGenerationRead, new_gen)
+    await idemp.complete(decision.record_id, 202, json.loads(_dump_json(response_model)))
+    await session.commit()
     generation_jobs.enqueue_build_generation_job(new_gen.id)
-    return _from_orm(DocumentIndexGenerationRead, new_gen)
+    return response_model

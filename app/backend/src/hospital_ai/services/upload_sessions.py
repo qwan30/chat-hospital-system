@@ -145,6 +145,8 @@ class UploadSessionService:
                 "claimed_mime_type": claimed_mime_type,
             }
             decision = await idemp_service.begin("upload.create", idempotency_key, idemp_payload)
+            if decision.is_in_progress:
+                raise ConflictError("Request is already in progress; retry later.")
             if decision.is_replay and decision.response_body:
                 return UploadSessionRead(**decision.response_body)
 
@@ -225,7 +227,12 @@ class UploadSessionService:
         return res_model
 
     async def finalize(
-        self, document_id: uuid.UUID, upload_id: uuid.UUID, actor: Optional[Any] = None
+        self,
+        document_id: uuid.UUID,
+        upload_id: uuid.UUID,
+        actor: Optional[Any] = None,
+        *,
+        commit: bool = True,
     ) -> UploadFinalizeResult:
         upload = await self._lock_upload(document_id, upload_id)
         if upload.state == "finalized":
@@ -257,7 +264,8 @@ class UploadSessionService:
         document.storage_uri = f"r2://{upload.object_key}"
         document.status = "uploaded"
         await self._record_finalization(document, upload, actor)
-        await self.session.commit()
+        if commit:
+            await self.session.commit()
         return UploadFinalizeResult.from_row(upload)
 
     async def _lock_upload(self, document_id: uuid.UUID, upload_id: uuid.UUID) -> DocumentUpload:

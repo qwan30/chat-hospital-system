@@ -152,7 +152,7 @@ class RevisionService:
         self.session.add(event)
 
     async def save_page(
-        self, document_id: uuid.UUID, page_number: int, command: SavePageCommand
+        self, document_id: uuid.UUID, page_number: int, command: SavePageCommand, *, commit: bool = True
     ) -> DraftMutationResult:
         head = await self._lock_draft_head(document_id)
         if head.lock_version != command.lock_version:
@@ -198,10 +198,11 @@ class RevisionService:
             outcome="allowed",
             trace_id="0",
         )
-        await self.session.commit()
+        if commit:
+            await self.session.commit()
         return DraftMutationResult(revision.id, head.lock_version, page_number, command.text, revision.status)
 
-    async def submit(self, document_id: uuid.UUID, command: SubmitCommand) -> RevisionSetResult:
+    async def submit(self, document_id: uuid.UUID, command: SubmitCommand, *, commit: bool = True) -> RevisionSetResult:
         head = await self._lock_draft_head(document_id)
         if command.lock_version is not None and head.lock_version != command.lock_version:
             raise ConflictError("Draft changed during submit.")
@@ -233,7 +234,8 @@ class RevisionService:
             outcome="allowed",
             trace_id="0",
         )
-        await self.session.commit()
+        if commit:
+            await self.session.commit()
         return RevisionSetResult(
             revision_set_id=rev_set.id,
             document_id=document_id,
@@ -262,7 +264,14 @@ class RevisionService:
                 raise NotFoundError("Document not found.")
         return doc
 
-    async def approve(self, revision_set_id: uuid.UUID, command: ApproveRevisionCommand) -> GenerationAccepted:
+    async def approve(
+        self,
+        revision_set_id: uuid.UUID,
+        command: ApproveRevisionCommand,
+        *,
+        commit: bool = True,
+        enqueue: bool = True,
+    ) -> GenerationAccepted:
         revision_set = await self._lock_submitted_set(revision_set_id)
         document = await self._lock_document(revision_set.document_id)
         if not command.demo_mode:
@@ -297,11 +306,15 @@ class RevisionService:
             outcome="allowed",
             trace_id="0",
         )
-        await self.session.commit()
-        enqueue_build_generation_job(generation.id)
+        if commit:
+            await self.session.commit()
+        if enqueue:
+            enqueue_build_generation_job(generation.id)
         return GenerationAccepted(generation.id, "building")
 
-    async def reject(self, revision_set_id: uuid.UUID, command: RejectCommand) -> RevisionSetResult:
+    async def reject(
+        self, revision_set_id: uuid.UUID, command: RejectCommand, *, commit: bool = True
+    ) -> RevisionSetResult:
         revision_set = await self._lock_submitted_set(revision_set_id)
         revision_set.status = "rejected"
         await self._append_event(
@@ -315,7 +328,8 @@ class RevisionService:
             outcome="allowed",
             trace_id="0",
         )
-        await self.session.commit()
+        if commit:
+            await self.session.commit()
         return RevisionSetResult(
             revision_set_id=revision_set.id,
             document_id=revision_set.document_id,
@@ -328,7 +342,14 @@ class RevisionService:
             approved_at=revision_set.approved_at,
         )
 
-    async def restore(self, document_id: uuid.UUID, page_number: int, command: RestoreCommand) -> DraftMutationResult:
+    async def restore(
+        self,
+        document_id: uuid.UUID,
+        page_number: int,
+        command: RestoreCommand,
+        *,
+        commit: bool = True,
+    ) -> DraftMutationResult:
         head = await self._lock_draft_head(document_id)
         if command.lock_version is not None and head.lock_version != command.lock_version:
             raise ConflictError("Draft changed during restore.")
@@ -367,5 +388,6 @@ class RevisionService:
             outcome="allowed",
             trace_id="0",
         )
-        await self.session.commit()
+        if commit:
+            await self.session.commit()
         return DraftMutationResult(revision.id, head.lock_version, page_number, target.corrected_text, revision.status)

@@ -32,6 +32,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from hospital_ai.services.llm.base import LLMMessage
 from hospital_ai.services.llm.manager import get_llm_manager
 
+logger = logging.getLogger(__name__)
+
 # ── ORM Models ──────────────────────────────────────────────────────────
 
 
@@ -252,23 +254,43 @@ async def index_chunk_entities(
 ) -> tuple[list, list]:
     active_extractor = extract_entities_and_relations_nlp if extractor is None else extractor
     entities, relations = await active_extractor(content)
-    print("EXTRACTION ENTITIES:", entities)
+    logger.info(
+        "graph.extraction.completed",
+        extra={
+            "document_id": str(document_id),
+            "entity_count": len(entities),
+            "relation_count": len(relations),
+        },
+    )
 
     from hospital_ai.db.models import DocumentChunk
     from hospital_ai.services.graph_index import GraphIndexService
 
     chunk = await session.get(DocumentChunk, chunk_id)
     if not chunk:
-        print("CHUNK NOT FOUND")
+        logger.warning(
+            "graph.chunk.not_found",
+            extra={"document_id": str(document_id), "chunk_id": str(chunk_id)},
+        )
         return [], []
 
-    print("INDEXING CHUNK:", chunk.id, chunk.patient_id)
     from hospital_ai.services.graph_rag import GraphExtraction
 
     extraction = GraphExtraction(entities=entities, relations=relations)
 
-    await GraphIndexService(session).index_chunk(chunk.generation_id, chunk, extraction)
-    print("INDEXING COMPLETE")
+    result = await GraphIndexService(session).index_chunk(chunk.generation_id, chunk, extraction)
+    logger.info(
+        "graph.index.completed",
+        extra={
+            "document_id": str(document_id),
+            "chunk_id": str(chunk.id),
+            "generation_id": str(chunk.generation_id),
+            "entities_inserted": result.entities_inserted,
+            "mentions_inserted": result.mentions_inserted,
+            "assertions_inserted": result.assertions_inserted,
+            "evidence_inserted": result.evidence_inserted,
+        },
+    )
 
     return [], []
 

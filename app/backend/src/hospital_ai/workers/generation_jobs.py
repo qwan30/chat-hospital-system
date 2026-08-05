@@ -190,10 +190,25 @@ class StageRunner:
                     extraction = GraphExtraction(entities=entities, relations=relations)
                     await graph_service.index_chunk(generation.id, chunk, extraction)
                 except Exception:
-                    logger.exception("Graph extraction failed for chunk %s", chunk.id)
+                    logger.error(
+                        "generation.graph.failed",
+                        extra={
+                            "generation_id": str(generation.id),
+                            "chunk_id": str(chunk.id),
+                            "error_code": "GRAPH_EXTRACTION_FAILED",
+                        },
+                    )
                     raise
 
             sha256 = hashlib.sha256(f"{generation.id}:graph".encode()).hexdigest()
+            logger.info(
+                "generation.graph.completed",
+                extra={
+                    "generation_id": str(generation.id),
+                    "chunk_count": len(chunks),
+                    "output_sha256": sha256,
+                },
+            )
             return StageOutput(sha256=sha256, row_count=len(chunks))
 
         elif stage == "timeline":

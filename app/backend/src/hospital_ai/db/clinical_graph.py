@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import uuid
 from datetime import datetime
 
@@ -7,6 +8,37 @@ from sqlalchemy import Float, ForeignKey, ForeignKeyConstraint, Index, String, U
 from sqlalchemy.orm import Mapped, mapped_column
 
 from hospital_ai.db.models import Base
+
+
+def immutable_source_identity(
+    *,
+    document_id: uuid.UUID,
+    generation_id: uuid.UUID,
+    revision_set_id: uuid.UUID,
+    page_revision_id: uuid.UUID,
+    chunk_id: uuid.UUID,
+    source_text_sha256: str | None,
+) -> str:
+    """Return a non-PHI identity for one immutable graph source lineage."""
+
+    canonical = ":".join(
+        (
+            str(document_id),
+            str(generation_id),
+            str(revision_set_id),
+            str(page_revision_id),
+            str(chunk_id),
+            source_text_sha256 or "",
+        )
+    )
+    return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+
+
+def deterministic_provenance_id(*, kind: str, owner_id: uuid.UUID, source_identity: str) -> uuid.UUID:
+    """Return an idempotent row id for a graph provenance record."""
+
+    namespace = uuid.UUID("7df4c6d2-9d8d-4a7a-8d3e-8b9f73f8c2a1")
+    return uuid.uuid5(namespace, f"{kind}:{owner_id}:{source_identity}")
 
 
 class TimestampMixin:

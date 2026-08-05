@@ -1,4 +1,5 @@
 import { apiFetch, apiFetchBlob } from "../api-client";
+import { mutationHeaders } from "../idempotency";
 
 export interface DocumentRead {
   id: string;
@@ -56,7 +57,7 @@ export interface EvidenceRead {
   chunk_id: string;
   score: number;
   content: string | null;
-  metadata: Record<string, any>;
+  metadata: Record<string, unknown>;
 }
 
 export interface DocumentSearchResponse {
@@ -182,7 +183,7 @@ export const getDocumentReviewItems = async (
 
 export interface ReviewItemPatchRequest {
   action: "approve" | "reject" | "correct";
-  value?: any;
+  value?: unknown;
   reason: string;
   version: number;
   fact_type?: string;
@@ -205,4 +206,47 @@ export const patchReviewItem = async (
       body: JSON.stringify(payload),
     },
   );
+};
+
+export interface UploadSessionCreate {
+  patient_id: string;
+  filename: string;
+  expected_size: number;
+  expected_sha256: string;
+  claimed_mime_type: string;
+}
+
+export interface UploadSessionRead {
+  document_id: string;
+  upload_id: string;
+  object_key: string;
+  presigned_url: string | null;
+  required_headers: Record<string, string>;
+  state: string;
+}
+
+export interface UploadFinalizeResult {
+  id: string;
+  document_id: string;
+  state: string;
+}
+
+export const createUploadSession = async (
+  payload: UploadSessionCreate,
+  options: { idempotencyKey: string; lockVersion?: number },
+): Promise<UploadSessionRead> => {
+  return apiFetch<UploadSessionRead>("/documents/upload-sessions", {
+    method: "POST",
+    headers: mutationHeaders(options),
+    body: JSON.stringify(payload),
+  });
+};
+
+export const finalizeUpload = async (
+  documentId: string,
+  uploadId: string,
+): Promise<UploadFinalizeResult> => {
+  return apiFetch<UploadFinalizeResult>(`/documents/${documentId}/uploads/${uploadId}/finalize`, {
+    method: "POST",
+  });
 };

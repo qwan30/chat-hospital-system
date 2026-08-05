@@ -177,3 +177,45 @@ def enqueue_cdss_analysis(
     )
     logger.info("Document %s enqueued for CDSS analysis (max_retries=%d).", document_id, max_retries)
     return "queued"
+
+
+def enqueue_build_generation(
+    generation_id: uuid.UUID,
+    settings: Optional[Settings] = None,
+    *,
+    max_retries: int = DEFAULT_MAX_RETRIES,
+    retry_intervals: Optional[list[int]] = None,
+) -> str:
+    """Enqueue a document generation for stage building."""
+    if settings is None:
+        from hospital_ai.core.config import get_settings
+        settings = get_settings()
+
+    try:
+        from redis import Redis
+        from rq import Queue, Retry
+    except ImportError:
+        return "queue_unavailable"
+
+    try:
+        connection = Redis.from_url(settings.redis_url)
+        connection.ping()
+    except Exception:
+        return "queue_unavailable"
+
+    queue = Queue("document-generation-build", connection=connection)
+    intervals = retry_intervals or DEFAULT_RETRY_INTERVALS[:max_retries]
+    retry = Retry(max=max_retries, interval=intervals)
+
+    queue.enqueue(
+        "hospital_ai.workers.generation_jobs.build_generation_job",
+        str(generation_id),
+        retry=retry,
+        job_timeout="30m",
+        result_ttl=86400,
+        failure_ttl=604800,
+        meta={"generation_id": str(generation_id), "max_retries": max_retries},
+    )
+    logger.info("Generation %s enqueued for building (max_retries=%d).", generation_id, max_retries)
+    return "queued"
+

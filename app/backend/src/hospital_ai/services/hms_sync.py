@@ -214,7 +214,7 @@ class HmsSyncService:
                 status="ready",
                 page_count=1,
                 indexed_source_sha256=content_hash,
-                index_generation=1,
+                index_generation=0,
             )
             self.session.add(document)
             await self.session.flush()
@@ -226,39 +226,25 @@ class HmsSyncService:
             document.ocr_error = None
             document.deleted_at = None
             document.indexed_source_sha256 = content_hash
-            document.index_generation += 1
-            await self.session.execute(delete(DocumentChunk).where(DocumentChunk.document_id == document.id))
-            await self.session.execute(delete(DocumentPage).where(DocumentPage.document_id == document.id))
             await self.session.flush()
 
-        page = DocumentPage(
-            document_id=document.id,
-            page_number=1,
-            ocr_text=content,
-            ocr_confidence=1.0,
-        )
-        self.session.add(page)
-        await self.session.flush()
-
-        self.session.add(
-            DocumentChunk(
-                document_id=document.id,
-                page_id=page.id,
-                patient_id=patient_id,
-                chunk_index=0,
-                content=content,
-                token_count=len(content.split()),
-                embedding=await self.embedder.embed(content),
-                meta={
-                    "source_system": HMS_SOURCE_SYSTEM,
-                    "source_family": source_family,
-                    "source_record_id": source_record_id,
-                    "contains_phi": True,
-                    "patient_permission_required": True,
-                    "imported_at": datetime.now(UTC).isoformat(),
-                    **metadata,
-                },
-            )
+        from hospital_ai.workers.generation_jobs import import_synthetic_generation
+        meta_dict = {
+            "source_system": HMS_SOURCE_SYSTEM,
+            "source_family": source_family,
+            "source_record_id": source_record_id,
+            "contains_phi": True,
+            "patient_permission_required": True,
+            "imported_at": datetime.now(UTC).isoformat(),
+            **metadata,
+        }
+        await import_synthetic_generation(
+            session=self.session,
+            settings=self.settings,
+            document=document,
+            content=content,
+            user_id=actor_user_id,
+            metadata=meta_dict,
         )
 
         await AuditService(self.session).record(

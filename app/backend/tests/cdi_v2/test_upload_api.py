@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import hashlib
+import io
 import uuid
 
 import pytest
@@ -77,11 +79,12 @@ async def test_finalize_upload_session(session_and_settings, monkeypatch: pytest
         session.add(doctor)
         await session.commit()
 
+    content = b"%PDF-1.4\n"
     payload = UploadSessionCreate(
         patient_id=uuid.uuid4(),
         filename="report.pdf",
-        expected_size=10,
-        expected_sha256="c" * 64,
+        expected_size=len(content),
+        expected_sha256=hashlib.sha256(content).hexdigest(),
         claimed_mime_type="application/pdf",
     )
 
@@ -104,10 +107,11 @@ async def test_finalize_upload_session(session_and_settings, monkeypatch: pytest
             "MockStorage",
             (),
             {
-                "head_object": lambda *args: StorageObjectHead(args[-1], 10, '"etag"', "application/pdf"),
-                "read_stream": lambda *args: None,
+                "head_object": lambda *args: StorageObjectHead(args[-1], len(content), '"etag"', "application/pdf"),
+                "read_stream": lambda *args: io.BytesIO(content),
             },
         )()
+        service.scanner = _CleanScanner()
         return service
 
     monkeypatch.setattr(us_module.UploadSessionService, "from_request", mocked_from_request)
@@ -128,3 +132,8 @@ def test_routes_registered_in_router() -> None:
     paths = [route.path for route in api_router.routes]
     assert any("upload-sessions" in p for p in paths)
     assert any("finalize" in p for p in paths)
+
+
+class _CleanScanner:
+    async def scan(self, key: str) -> str:
+        return "clean"

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import uuid
-from typing import Optional
+from typing import Literal, Optional
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -10,9 +10,9 @@ class UploadSessionCreate(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     patient_id: uuid.UUID
     filename: str
-    expected_size: int
-    expected_sha256: str
-    claimed_mime_type: str
+    expected_size: int = Field(..., gt=0)
+    expected_sha256: str = Field(..., min_length=64, max_length=64, regex=r"^[0-9a-fA-F]{64}$")
+    claimed_mime_type: Literal["application/pdf", "image/png", "image/jpeg"]
 
 
 class UploadSessionRead(BaseModel):

@@ -29,3 +29,8 @@ class ValidationAppError(AppError):
 class ExternalServiceError(AppError):
     status_code = 502
     code = "EXTERNAL_SERVICE_ERROR"
+
+class ConflictError(AppError):
+    status_code = 409
+    code = "CONFLICT"
+

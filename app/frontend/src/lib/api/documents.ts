@@ -150,6 +150,7 @@ export interface ClinicalFactRead {
   source_page: number | null;
   bounding_box: { top: number; left: number; width: number; height: number } | null;
   status: string;
+  page_revision_id?: string;
 }
 
 export interface DocumentFactsResponse {
@@ -187,6 +188,7 @@ export interface ReviewItemPatchRequest {
   reason: string;
   version?: number;
   fact_type?: string;
+  page_revision_id: string;
 }
 
 export interface ReviewItemPatchResponse {

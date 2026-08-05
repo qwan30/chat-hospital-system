@@ -1,28 +1,32 @@
-export function RevisionSelector({ 
-  revisions, 
-  selected, 
-  onSelect 
-}: { 
-  revisions: any[], 
-  selected: string | null, 
-  onSelect: (id: string) => void 
+export function RevisionSelector({
+  revisions,
+  selected,
+  onSelect,
+}: {
+  revisions: any[];
+  selected: string | null;
+  onSelect: (id: string) => void;
 }) {
   return (
     <div className="flex items-center gap-2">
-      <label htmlFor="revision-select" className="text-sm font-medium">Revision</label>
-      <select 
+      <label htmlFor="revision-select" className="text-sm font-medium">
+        Revision
+      </label>
+      <select
         id="revision-select"
         aria-label="Revision"
-        value={selected || ""} 
+        value={selected || ""}
         onChange={(e) => onSelect(e.target.value)}
         className="p-1 border rounded"
       >
-        <option value="" disabled>Select revision</option>
+        <option value="" disabled>
+          Select revision
+        </option>
         {revisions.map((rev) => (
-          <option key={rev.id} value={rev.id}>{rev.id}</option>
+          <option key={rev.revision_set_id} value={rev.revision_set_id}>
+            {rev.revision_set_id}
+          </option>
         ))}
-        {/* Fallback option for tests if not provided */}
-        <option value="rev-1">rev-1</option>
       </select>
     </div>
   );

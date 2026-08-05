@@ -46,8 +46,6 @@ function Page() {
     enabled: !!d && d.status === "indexed",
   });
 
-
-
   const retryMutation = useMutation({
     mutationFn: () => retryIndex(documentId),
     onSuccess: () => {
@@ -116,5 +114,3 @@ function Page() {
     </AppShell>
   );
 }
-
-

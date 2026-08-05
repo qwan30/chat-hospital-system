@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from hospital_ai.db.models import Base, Document, DocumentChunk
+from hospital_ai.db.models import AiQuery, Base, Document, DocumentChunk
 
 
 def test_v2_lineage_tables_and_document_pointers_are_registered() -> None:
@@ -35,3 +35,26 @@ def test_v2_status_checks_are_exact() -> None:
     )
     assert GENERATION_STATES == frozenset({"building", "active", "failed", "superseded"})
     assert ALIGNMENT_STATES == frozenset({"aligned", "partially_aligned", "stale"})
+
+
+def test_v2_metadata_keeps_legacy_tables_and_forward_schema_contract() -> None:
+    from hospital_ai.db.clinical_documents import DocumentUpload
+
+    expected_tables = {
+        "legacy_graph_entities",
+        "legacy_graph_relations",
+        "system_settings",
+        "metric_events",
+        "user_feedback",
+    }
+    assert expected_tables <= set(Base.metadata.tables)
+    assert {"quarantine_result"} <= set(DocumentUpload.__table__.c.keys())
+    assert {"validation_mode", "last_emitted_sequence"} <= set(AiQuery.__table__.c.keys())
+
+    chunk_constraint = next(
+        constraint for constraint in DocumentChunk.__table__.constraints if constraint.name == "uq_document_chunk_index"
+    )
+    assert {column.name for column in chunk_constraint.columns} == {"document_id", "generation_id", "chunk_index"}
+
+    graph_mentions = Base.metadata.tables["graph_mentions"]
+    assert "fk_graph_mention_entity_patient" in {fk.name for fk in graph_mentions.foreign_key_constraints}

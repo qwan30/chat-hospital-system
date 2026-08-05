@@ -371,6 +371,8 @@ class AiQuery(Base):
     status: Mapped[str] = mapped_column(String(32), nullable=False)
     latency_ms: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     model: Mapped[Optional[str]] = mapped_column(String(128), nullable=True)
+    validation_mode: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
+    last_emitted_sequence: Mapped[Optional[int]] = mapped_column(Integer, nullable=True, server_default="0")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
 
     evidence: Mapped[list[RetrievedEvidence]] = relationship(back_populates="query", cascade="all, delete-orphan")

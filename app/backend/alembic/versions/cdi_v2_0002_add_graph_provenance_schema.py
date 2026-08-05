@@ -41,6 +41,7 @@ def upgrade() -> None:
         ),
         sa.PrimaryKeyConstraint("id"),
         sa.UniqueConstraint("patient_id", "entity_type", "normalized_label", name="uq_graph_entity_identity"),
+        sa.UniqueConstraint("patient_id", "id", name="uq_graph_entity_patient_id"),
     )
     op.create_index(op.f("ix_graph_entities_patient_id"), "graph_entities", ["patient_id"], unique=False)
 
@@ -65,8 +66,9 @@ def upgrade() -> None:
             ["documents.id"],
         ),
         sa.ForeignKeyConstraint(
-            ["entity_id"],
-            ["graph_entities.id"],
+            ["patient_id", "entity_id"],
+            ["graph_entities.patient_id", "graph_entities.id"],
+            name="fk_graph_mention_entity_patient",
         ),
         sa.ForeignKeyConstraint(
             ["generation_id"],
@@ -101,16 +103,8 @@ def upgrade() -> None:
         sa.Column("created_at", sa.DateTime(), nullable=False),
         sa.Column("updated_at", sa.DateTime(), nullable=False),
         sa.ForeignKeyConstraint(
-            ["object_entity_id"],
-            ["graph_entities.id"],
-        ),
-        sa.ForeignKeyConstraint(
             ["patient_id"],
             ["patients.id"],
-        ),
-        sa.ForeignKeyConstraint(
-            ["subject_entity_id"],
-            ["graph_entities.id"],
         ),
         sa.PrimaryKeyConstraint("id"),
         sa.UniqueConstraint(
@@ -121,6 +115,17 @@ def upgrade() -> None:
             "normalized_value",
             name="uq_graph_relation_assertion",
         ),  # noqa: E501
+        sa.UniqueConstraint("patient_id", "id", name="uq_graph_assertion_patient_id"),
+        sa.ForeignKeyConstraint(
+            ["patient_id", "subject_entity_id"],
+            ["graph_entities.patient_id", "graph_entities.id"],
+            name="fk_graph_assertion_subject_patient",
+        ),
+        sa.ForeignKeyConstraint(
+            ["patient_id", "object_entity_id"],
+            ["graph_entities.patient_id", "graph_entities.id"],
+            name="fk_graph_assertion_object_patient",
+        ),
     )
     op.create_index(
         op.f("ix_graph_relation_assertions_patient_id"), "graph_relation_assertions", ["patient_id"], unique=False
@@ -139,8 +144,9 @@ def upgrade() -> None:
         sa.Column("chunk_id", sa.Uuid(), nullable=False),
         sa.Column("independent_source_identity", sa.String(length=128), nullable=False),
         sa.ForeignKeyConstraint(
-            ["assertion_id"],
-            ["graph_relation_assertions.id"],
+            ["patient_id", "assertion_id"],
+            ["graph_relation_assertions.patient_id", "graph_relation_assertions.id"],
+            name="fk_graph_evidence_assertion_patient",
         ),
         sa.ForeignKeyConstraint(
             ["chunk_id"],

@@ -427,6 +427,10 @@ def upgrade() -> None:
         batch_op.add_column(sa.Column("approval_state", sa.String(length=32), nullable=True))
         batch_op.add_column(sa.Column("bounding_boxes", sa.JSON(), nullable=True))
         batch_op.add_column(sa.Column("access_tags", sa.JSON(), nullable=True))
+        batch_op.drop_constraint("uq_document_chunk_index", type_="unique")
+        batch_op.create_unique_constraint(
+            "uq_document_chunk_index", ["document_id", "generation_id", "chunk_index"]
+        )
         batch_op.create_index(batch_op.f("ix_document_chunks_generation_id"), ["generation_id"], unique=False)
         batch_op.create_index(batch_op.f("ix_document_chunks_page_revision_id"), ["page_revision_id"], unique=False)
         batch_op.create_index(batch_op.f("ix_document_chunks_revision_set_id"), ["revision_set_id"], unique=False)

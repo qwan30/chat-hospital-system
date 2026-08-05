@@ -1,12 +1,12 @@
 """Deterministic RAG benchmark grounded in canonical source locators."""
-from __future__ import annotations
 
+from __future__ import annotations
 
 import csv
 from collections import Counter
 from collections.abc import Iterable
 from pathlib import Path
-from typing import Literal
+from typing import Literal, Optional
 from uuid import UUID, uuid5
 
 import fitz

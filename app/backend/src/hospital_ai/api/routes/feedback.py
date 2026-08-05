@@ -4,7 +4,6 @@ POST /api/v1/feedback/queries/{query_id}/feedback   — submit rating
 GET  /api/v1/feedback/metrics/summary               — aggregated metrics
 """
 
-
 from typing import Optional
 from uuid import UUID
 

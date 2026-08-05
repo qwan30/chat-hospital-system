@@ -1,6 +1,6 @@
 """Offline validation for explicitly staged public-source artifacts."""
-from __future__ import annotations
 
+from __future__ import annotations
 
 import hashlib
 import json

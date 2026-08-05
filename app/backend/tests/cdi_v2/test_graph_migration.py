@@ -1,7 +1,9 @@
 from __future__ import annotations
+
 import pytest
 from sqlalchemy import select, text
 from sqlalchemy.exc import ProgrammingError
+
 
 @pytest.mark.asyncio
 async def test_graph_provenance_tables_exist(session_and_settings):

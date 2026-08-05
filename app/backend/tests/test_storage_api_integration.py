@@ -42,10 +42,14 @@ class _FakeR2Storage:
 
     def create_presigned_put(self, *, key: str, content_type: str, expires_seconds: int) -> Any:
         from hospital_ai.services.storage import PresignedPut
-        return PresignedPut(url=f"https://fake.r2/{key}", required_headers={"Content-Type": content_type, "If-None-Match": "*"})
+
+        return PresignedPut(
+            url=f"https://fake.r2/{key}", required_headers={"Content-Type": content_type, "If-None-Match": "*"}
+        )
 
     def head_object(self, key: str) -> Any:
         from hospital_ai.services.storage import StorageObjectHead
+
         if key not in self.objects:
             raise FileNotFoundError()
         return StorageObjectHead(key, len(self.objects[key]), '"etag"', "application/pdf")
@@ -168,10 +172,11 @@ async def test_upload_session_storage_integration(session_and_settings, monkeypa
     session, settings = session_and_settings
     storage = _FakeR2Storage()
     monkeypatch.setattr("hospital_ai.services.storage.get_storage_service", lambda _settings: storage)
-    
+
     from hospital_ai.services.upload_sessions import UploadSessionService
+
     service = UploadSessionService.from_request(session, _request())
-    
+
     res = await service.create(
         patient_id=uuid.uuid4(),
         filename="test.pdf",

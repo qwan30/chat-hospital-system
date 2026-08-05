@@ -4,6 +4,7 @@ import asyncio
 import hashlib
 import re
 import uuid
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, BinaryIO, Protocol
 from urllib.parse import urlsplit
@@ -14,10 +15,10 @@ from fastapi import UploadFile
 
 from hospital_ai.core.config import Settings
 from hospital_ai.core.errors import ValidationAppError
-from dataclasses import dataclass
 
 SAFE_NAME_PATTERN = re.compile(r"[^a-zA-Z0-9._-]+")
 R2_SCHEME = "r2"
+
 
 @dataclass(frozen=True)
 class StorageObjectHead:
@@ -26,10 +27,12 @@ class StorageObjectHead:
     etag: str
     content_type: Optional[str]
 
+
 @dataclass(frozen=True)
 class PresignedPut:
     url: str
     required_headers: dict[str, str]
+
 
 class StorageService(Protocol):
     async def save_upload(
@@ -60,11 +63,11 @@ class StorageService(Protocol):
     ) -> bytes: ...
 
     def create_presigned_put(self, *, key: str, content_type: str, expires_seconds: int) -> PresignedPut: ...
-    
+
     def head_object(self, key: str) -> StorageObjectHead: ...
-    
+
     def read_stream(self, key: str) -> BinaryIO: ...
-    
+
     def delete_object(self, key: str) -> None: ...
 
 
@@ -296,10 +299,7 @@ class R2StorageService:
         try:
             row = self.client.head_object(Bucket=self.bucket, Key=key)
             return StorageObjectHead(
-                key=key,
-                byte_size=int(row["ContentLength"]),
-                etag=str(row["ETag"]),
-                content_type=row.get("ContentType")
+                key=key, byte_size=int(row["ContentLength"]), etag=str(row["ETag"]), content_type=row.get("ContentType")
             )
         except ClientError as exc:
             code = str(exc.response.get("Error", {}).get("Code", ""))
@@ -317,7 +317,7 @@ class R2StorageService:
             if code in {"404", "NoSuchKey", "NoSuchObject", "NoSuchBucket"}:
                 raise FileNotFoundError("Storage object not found.") from exc
             raise
-            
+
     def delete_object(self, key: str) -> None:
         self.client.delete_object(Bucket=self.bucket, Key=key)
 

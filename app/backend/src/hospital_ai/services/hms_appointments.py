@@ -1,18 +1,18 @@
 from __future__ import annotations
+
 import hashlib
 import uuid
 from datetime import UTC, datetime
 from typing import Optional
 
-from sqlalchemy import delete, select
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from hospital_ai.core.config import Settings
 from hospital_ai.core.errors import NotFoundError, ValidationAppError
-from hospital_ai.db.models import Document, DocumentChunk, DocumentPage, Patient, User
+from hospital_ai.db.models import Document, Patient, User
 from hospital_ai.schemas.hms import HmsAppointmentSummaryImport
 from hospital_ai.services.audit import AuditService
-from hospital_ai.services.embeddings import EmbeddingService
 from hospital_ai.services.permissions import PermissionService
 
 HMS_APPOINTMENT_DOCUMENT_TYPE = "hms_appointment_summary"
@@ -91,6 +91,7 @@ class HmsAppointmentEvidenceImporter:
             await self.session.flush()
 
         from hospital_ai.workers.generation_jobs import import_synthetic_generation
+
         await import_synthetic_generation(
             session=self.session,
             settings=self.settings,

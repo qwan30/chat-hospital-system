@@ -1,6 +1,6 @@
 """Deterministic AI evaluation orchestration with explicit adapter boundaries."""
-from __future__ import annotations
 
+from __future__ import annotations
 
 import asyncio
 import hashlib
@@ -10,7 +10,7 @@ import time
 from collections.abc import Awaitable, Callable, Mapping
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Protocol
+from typing import Any, Optional, Protocol
 
 from pydantic import BaseModel, Field, ValidationError, validator
 
@@ -81,6 +81,11 @@ class CaseObservation(BaseModel):
     graph_node_ids: tuple[str, ...] = ()
     graph_edge_ids: tuple[str, ...] = ()
     graph_path_ids: tuple[str, ...] = ()
+    timeline_events: tuple[Any, ...] = ()
+    superseded_retrieval_count: int = 0
+    sse_sequence_correct: bool = True
+    sse_interrupt_correct: bool = True
+    sse_event_order_correct: bool = True
 
     @validator("retrieved_evidence", "cited_evidence", pre=True)
     def _only_accept_untrusted_runtime_evidence(cls, value):

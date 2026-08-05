@@ -1,12 +1,13 @@
 from __future__ import annotations
 
 import uuid
-import pytest
-from datetime import datetime, UTC
+from datetime import UTC, datetime
 
-from hospital_ai.db.models import Document, User
+import pytest
+
 from hospital_ai.db.clinical_documents import DocumentIndexGeneration, DocumentRevisionSet, GenerationStageResult
 from hospital_ai.db.migrations import DOCTOR_ID, PATIENT_ALICE_ID
+from hospital_ai.db.models import Document, User
 
 
 @pytest.fixture
@@ -17,10 +18,10 @@ async def gens_fixture(session_and_settings):
         doctor = User(id=uuid.uuid4(), email="doc@test.com", full_name="Doc", role="doctor", is_active=True)
         session.add(doctor)
         await session.commit()
-        
+
     admin = User(id=uuid.uuid4(), email="admin_gen@test.com", full_name="Admin Gen", role="admin", is_active=True)
     session.add(admin)
-    
+
     doc_id = uuid.uuid4()
     doc = Document(
         id=doc_id,
@@ -33,7 +34,7 @@ async def gens_fixture(session_and_settings):
         status="ready",
     )
     session.add(doc)
-    
+
     rev_set_a = DocumentRevisionSet(
         document_id=doc.id,
         revision_number=1,
@@ -54,7 +55,7 @@ async def gens_fixture(session_and_settings):
     )
     session.add_all([rev_set_a, rev_set_b])
     await session.flush()
-    
+
     gen_a = DocumentIndexGeneration(
         id=uuid.uuid4(),
         document_id=doc.id,
@@ -74,11 +75,11 @@ async def gens_fixture(session_and_settings):
     )
     session.add_all([gen_a, gen_b])
     await session.flush()
-    
+
     for g in [gen_a, gen_b]:
         for stg in ("ocr_normalization", "facts", "chunks", "embeddings", "lexical_index", "graph", "timeline"):
             session.add(GenerationStageResult(generation_id=g.id, stage=stg, status="completed"))
-            
+
     await session.commit()
     doc.active_index_generation_id = gen_a.id
     doc.approved_revision_set_id = rev_set_a.id

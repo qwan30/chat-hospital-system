@@ -5,8 +5,8 @@ deterministic embeddings, a disposable SQLite schema, and the internal
 evaluation observer.  It deliberately reports SSE as ``not_evaluated`` rather
 than claiming transport parity from a non-streaming invocation.
 """
-from __future__ import annotations
 
+from __future__ import annotations
 
 from pathlib import Path
 from uuid import UUID

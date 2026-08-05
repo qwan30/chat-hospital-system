@@ -1,21 +1,18 @@
 from __future__ import annotations
-from typing import Optional
 
 import uuid
 from dataclasses import dataclass
-from datetime import datetime, UTC
+from datetime import UTC, datetime
+from typing import Optional
 
-from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from hospital_ai.core.errors import ConflictError
-from hospital_ai.db.models import Document
 from hospital_ai.db.clinical_documents import (
     DocumentIndexGeneration,
     DocumentRevisionSet,
-    GenerationStageResult,
 )
-
+from hospital_ai.db.models import Document
 
 GENERATION_STAGES = (
     "ocr_normalization",
@@ -99,7 +96,10 @@ class GenerationService:
         reason: str = "",
     ) -> ActivationResult:
         document = await self._lock_document(document_id)
-        if expected_active_generation_id is not None and document.active_index_generation_id != expected_active_generation_id:
+        if (
+            expected_active_generation_id is not None
+            and document.active_index_generation_id != expected_active_generation_id
+        ):
             raise ConflictError("Stale active pointer for rollback.")
 
         target = await self.session.get(DocumentIndexGeneration, target_generation_id)
@@ -134,7 +134,9 @@ class GenerationService:
         await self.session.commit()
         return ActivationResult(active_generation_id=target.id, approved_revision_set_id=target.revision_set_id)
 
-    async def retry(self, document_id: uuid.UUID, generation_id: uuid.UUID, actor_id: uuid.UUID) -> DocumentIndexGeneration:
+    async def retry(
+        self, document_id: uuid.UUID, generation_id: uuid.UUID, actor_id: uuid.UUID
+    ) -> DocumentIndexGeneration:
         orig = await self.session.get(DocumentIndexGeneration, generation_id)
         if not orig or orig.document_id != document_id:
             raise ValueError("Generation not found or mismatched document")

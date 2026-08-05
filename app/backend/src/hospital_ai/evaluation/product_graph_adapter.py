@@ -6,9 +6,10 @@ through the production permission-aware retrieval service.  It never starts an
 LLM provider: graph extraction is explicitly limited to the deterministic
 fallback grammar.
 """
+
 from __future__ import annotations
 
-
+from collections import defaultdict
 from pathlib import Path
 
 from sqlalchemy import select
@@ -86,7 +87,7 @@ class ProductGraphAdapter:
                 )
                 return CaseObservation(
                     retrieved_evidence=tuple(self._retrieval_adapter._runtime_evidence(item) for item in evidence),
-                    graph_node_ids=tuple(entity.name for entity in graph.entities),
+                    graph_node_ids=tuple(entity.normalized_label for entity in graph.entities),
                     graph_edge_ids=edge_ids,
                     graph_path_ids=self._path_ids(graph.relations),
                 )

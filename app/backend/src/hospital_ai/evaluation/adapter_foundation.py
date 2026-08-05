@@ -4,12 +4,12 @@ This module deliberately does not call product services or open a database.  It
 defines the provenance and isolation boundary that a concrete adapter must
 satisfy before the evaluator can trust its observations.
 """
-from __future__ import annotations
 
+from __future__ import annotations
 
 import re
 from dataclasses import dataclass
-from typing import Literal
+from typing import Literal, Optional
 from urllib.parse import urlsplit
 from uuid import UUID, uuid5
 

@@ -1,15 +1,17 @@
 from __future__ import annotations
-import pytest
-import uuid
-from datetime import datetime, UTC
 
-from hospital_ai.db.models import Document, DocumentPage, DocumentChunk, User
+import uuid
+from datetime import UTC, datetime
+
+import pytest
+
 from hospital_ai.db.clinical_documents import (
-    DocumentRevisionSet,
-    DocumentPageRevision,
     DocumentIndexGeneration,
+    DocumentPageRevision,
+    DocumentRevisionSet,
 )
-from hospital_ai.db.migrations import PATIENT_ALICE_ID, PATIENT_BOB_ID, DOCTOR_ID
+from hospital_ai.db.migrations import DOCTOR_ID, PATIENT_ALICE_ID, PATIENT_BOB_ID
+from hospital_ai.db.models import Document, DocumentChunk, DocumentPage, User
 from hospital_ai.services.retrieval import RetrievalService
 
 
@@ -164,9 +166,7 @@ async def seeded_generations(session):
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("mode", ["vector", "bm25", "hybrid"])
-async def test_retrieval_excludes_wrong_patient_and_superseded_generation(
-    session, seeded_generations, mode
-) -> None:
+async def test_retrieval_excludes_wrong_patient_and_superseded_generation(session, seeded_generations, mode) -> None:
     results = await RetrievalService(session).hybrid_search(
         user_id=DOCTOR_ID,
         patient_id=PATIENT_ALICE_ID,

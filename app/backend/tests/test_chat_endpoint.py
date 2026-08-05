@@ -4,6 +4,7 @@ Exercises the chat route handler through its FastAPI dependencies,
 confirming that Pydantic validation, authorization, pipeline dispatch,
 and response serialisation work end to end.
 """
+
 from __future__ import annotations
 
 import uuid
@@ -88,9 +89,10 @@ async def test_chat_invalid_patient_id_returns_error(session_and_settings):
 
     nonexistent_id = uuid.UUID("99999999-0000-0000-0000-000000000000")
     from hospital_ai.db.models import Patient
+
     session.add(Patient(id=nonexistent_id, full_name="Test", mrn="MRN"))
     await session.commit()
-    
+
     payload = ChatRequest(
         patient_id=nonexistent_id,
         question="What is the patient's condition?",

@@ -1,4 +1,3 @@
-
 import json
 import uuid
 
@@ -9,8 +8,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from hospital_ai.api.deps import get_current_user, get_session
 from hospital_ai.core.errors import NotFoundError
 from hospital_ai.core.security import new_trace_id
+from hospital_ai.db.clinical_documents import (
+    DocumentDraftHead,
+    DocumentPageRevision,
+    DocumentRevisionPage,
+    DocumentRevisionSet,
+)
 from hospital_ai.db.models import Document, User
-from hospital_ai.db.clinical_documents import DocumentRevisionSet, DocumentDraftHead, DocumentPageRevision, DocumentRevisionPage
 from hospital_ai.schemas.document_revisions import (
     ApproveRevisionRequest,
     DraftPageRead,
@@ -68,7 +72,11 @@ async def save_draft_page(
         payload=json.loads(payload.model_dump_json() if hasattr(payload, "model_dump_json") else payload.json()),
     )
     if decision.is_replay:
-        return DraftPageRead.model_validate(decision.response_body) if hasattr(DraftPageRead, "model_validate") else DraftPageRead.parse_obj(decision.response_body)
+        return (
+            DraftPageRead.model_validate(decision.response_body)
+            if hasattr(DraftPageRead, "model_validate")
+            else DraftPageRead.parse_obj(decision.response_body)
+        )
 
     result = await RevisionService(session).save_page(
         document_id=document_id,
@@ -88,7 +96,11 @@ async def save_draft_page(
         text=result.text,
         status=result.status,
     )
-    await idemp_service.complete(decision.record_id, 201, json.loads(res_model.model_dump_json() if hasattr(res_model, "model_dump_json") else res_model.json()))
+    await idemp_service.complete(
+        decision.record_id,
+        201,
+        json.loads(res_model.model_dump_json() if hasattr(res_model, "model_dump_json") else res_model.json()),
+    )
     return res_model
 
 
@@ -117,9 +129,15 @@ async def submit_draft(
         payload={"if_match": if_match},
     )
     if decision.is_replay:
-        return RevisionSetRead.model_validate(decision.response_body) if hasattr(RevisionSetRead, "model_validate") else RevisionSetRead.parse_obj(decision.response_body)
+        return (
+            RevisionSetRead.model_validate(decision.response_body)
+            if hasattr(RevisionSetRead, "model_validate")
+            else RevisionSetRead.parse_obj(decision.response_body)
+        )
 
-    res = await RevisionService(session).submit(document_id, SubmitCommand(actor_id=current_user.id, lock_version=if_match))
+    res = await RevisionService(session).submit(
+        document_id, SubmitCommand(actor_id=current_user.id, lock_version=if_match)
+    )
     res_model = RevisionSetRead(
         revision_set_id=res.revision_set_id,
         document_id=res.document_id,
@@ -131,11 +149,17 @@ async def submit_draft(
         approved_by_user_id=res.approved_by_user_id,
         approved_at=res.approved_at,
     )
-    await idemp_service.complete(decision.record_id, 201, json.loads(res_model.model_dump_json() if hasattr(res_model, "model_dump_json") else res_model.json()))
+    await idemp_service.complete(
+        decision.record_id,
+        201,
+        json.loads(res_model.model_dump_json() if hasattr(res_model, "model_dump_json") else res_model.json()),
+    )
     return res_model
 
 
-@router.post("/{document_id}/revision-sets/{revision_set_id}/approve", response_model=GenerationAcceptedRead, status_code=202)
+@router.post(
+    "/{document_id}/revision-sets/{revision_set_id}/approve", response_model=GenerationAcceptedRead, status_code=202
+)
 async def approve_revision_set(
     document_id: uuid.UUID,
     revision_set_id: uuid.UUID,
@@ -161,14 +185,22 @@ async def approve_revision_set(
         payload=json.loads(payload.model_dump_json() if hasattr(payload, "model_dump_json") else payload.json()),
     )
     if decision.is_replay:
-        return GenerationAcceptedRead.model_validate(decision.response_body) if hasattr(GenerationAcceptedRead, "model_validate") else GenerationAcceptedRead.parse_obj(decision.response_body)
+        return (
+            GenerationAcceptedRead.model_validate(decision.response_body)
+            if hasattr(GenerationAcceptedRead, "model_validate")
+            else GenerationAcceptedRead.parse_obj(decision.response_body)
+        )
 
     res = await RevisionService(session).approve(
         revision_set_id=revision_set_id,
         command=ApproveRevisionCommand(actor_id=current_user.id, demo_mode=payload.demo_mode),
     )
     res_model = GenerationAcceptedRead(generation_id=res.generation_id, state=res.state)
-    await idemp_service.complete(decision.record_id, 202, json.loads(res_model.model_dump_json() if hasattr(res_model, "model_dump_json") else res_model.json()))
+    await idemp_service.complete(
+        decision.record_id,
+        202,
+        json.loads(res_model.model_dump_json() if hasattr(res_model, "model_dump_json") else res_model.json()),
+    )
     return res_model
 
 
@@ -248,7 +280,9 @@ async def list_revision_sets(
     session: AsyncSession = Depends(get_session),
 ) -> list[RevisionSetRead]:
     await _get_document_or_404(session, document_id)
-    rows = list(await session.scalars(select(DocumentRevisionSet).where(DocumentRevisionSet.document_id == document_id)))
+    rows = list(
+        await session.scalars(select(DocumentRevisionSet).where(DocumentRevisionSet.document_id == document_id))
+    )
     return [
         RevisionSetRead(
             revision_set_id=r.id,
@@ -279,20 +313,23 @@ async def get_draft_page(
     page_rev_id_str = head.selected_pages.get(str(page_number))
     if not page_rev_id_str:
         raise NotFoundError("Draft page not found")
-    
+
     page_rev = await session.get(DocumentPageRevision, uuid.UUID(page_rev_id_str))
     if not page_rev:
         raise NotFoundError("Revision not found")
-        
+
     return DraftPageRead(
         page_revision_id=page_rev.id,
         lock_version=head.lock_version,
         page_number=page_number,
         text=page_rev.corrected_text,
-        status="draft"
+        status="draft",
     )
 
-@router.get("/{document_id}/revision-sets/{revision_set_id}/pages/{page_number}", response_model=DraftPageRead, status_code=200)
+
+@router.get(
+    "/{document_id}/revision-sets/{revision_set_id}/pages/{page_number}", response_model=DraftPageRead, status_code=200
+)
 async def get_revision_page(
     document_id: uuid.UUID,
     revision_set_id: uuid.UUID,
@@ -304,7 +341,7 @@ async def get_revision_page(
     rev_set = await session.get(DocumentRevisionSet, revision_set_id)
     if not rev_set or rev_set.document_id != document_id:
         raise NotFoundError("Revision set not found")
-        
+
     rev_page = await session.scalar(
         select(DocumentRevisionPage)
         .where(DocumentRevisionPage.revision_set_id == revision_set_id)
@@ -312,16 +349,15 @@ async def get_revision_page(
     )
     if not rev_page:
         raise NotFoundError("Revision page not found")
-        
+
     page_rev = await session.get(DocumentPageRevision, rev_page.page_revision_id)
     if not page_rev:
         raise NotFoundError("Revision content not found")
-        
+
     return DraftPageRead(
         page_revision_id=page_rev.id,
         lock_version=1,
         page_number=page_number,
         text=page_rev.corrected_text,
-        status=rev_set.status
+        status=rev_set.status,
     )
-

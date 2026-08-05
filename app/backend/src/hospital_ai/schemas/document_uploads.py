@@ -1,7 +1,10 @@
 from __future__ import annotations
-from typing import Optional
+
 import uuid
+from typing import Optional
+
 from pydantic import BaseModel, ConfigDict, Field
+
 
 class UploadSessionCreate(BaseModel):
     model_config = ConfigDict(from_attributes=True)
@@ -10,6 +13,7 @@ class UploadSessionCreate(BaseModel):
     expected_size: int
     expected_sha256: str
     claimed_mime_type: str
+
 
 class UploadSessionRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
@@ -20,6 +24,7 @@ class UploadSessionRead(BaseModel):
     required_headers: dict[str, str] = Field(default_factory=dict)
     state: str
 
+
 class UploadFinalizeResult(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     id: uuid.UUID
@@ -27,5 +32,5 @@ class UploadFinalizeResult(BaseModel):
     state: str
 
     @classmethod
-    def from_row(cls, row: any) -> UploadFinalizeResult: # type: ignore
+    def from_row(cls, row: any) -> UploadFinalizeResult:  # type: ignore
         return cls(id=row.id, document_id=row.document_id, state=row.state)

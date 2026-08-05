@@ -12,6 +12,7 @@ streamed to the user.
 Version: 1.0.0
 Last reviewed: 2026-06-14
 """
+
 from __future__ import annotations
 
 CITATION_VALIDATION_PROMPT = """\

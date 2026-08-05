@@ -3,6 +3,7 @@
 Orchestrates fetching data from the HMS REST API and importing it as
 searchable evidence into the chatbot's PostgreSQL/pgvector store.
 """
+
 from __future__ import annotations
 
 import hashlib
@@ -11,12 +12,12 @@ import uuid
 from datetime import UTC, datetime
 from typing import Any, Optional
 
-from sqlalchemy import delete, select
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from hospital_ai.core.config import Settings
 from hospital_ai.core.errors import NotFoundError
-from hospital_ai.db.models import Document, DocumentChunk, DocumentPage, Patient
+from hospital_ai.db.models import Document, Patient
 from hospital_ai.services.audit import AuditService
 from hospital_ai.services.embeddings import EmbeddingService
 from hospital_ai.services.hms_connector import HmsApiClient
@@ -230,6 +231,7 @@ class HmsSyncService:
             await self.session.flush()
 
         from hospital_ai.workers.generation_jobs import import_synthetic_generation
+
         meta_dict = {
             "source_system": HMS_SOURCE_SYSTEM,
             "source_family": source_family,

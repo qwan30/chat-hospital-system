@@ -1,12 +1,16 @@
 from __future__ import annotations
+
 import pytest
+
 
 # Mock classes for testing
 class ValidationContext:
     pass
 
+
 def validation_context():
     return ValidationContext()
+
 
 @pytest.mark.parametrize(
     ("sentence", "evidence", "expected"),
@@ -19,5 +23,6 @@ def validation_context():
 )
 def test_numeric_unit_date_and_negation_validation(sentence, evidence, expected) -> None:
     from hospital_ai.services.claim_validation import ClaimValidator
+
     result = ClaimValidator().validate_sentence(sentence, {"E1": evidence}, validation_context())
     assert result.passed is expected

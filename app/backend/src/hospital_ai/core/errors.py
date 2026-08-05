@@ -1,4 +1,5 @@
 from __future__ import annotations
+
 from typing import Any, Optional
 
 
@@ -31,7 +32,7 @@ class ExternalServiceError(AppError):
     status_code = 502
     code = "EXTERNAL_SERVICE_ERROR"
 
+
 class ConflictError(AppError):
     status_code = 409
     code = "CONFLICT"
-

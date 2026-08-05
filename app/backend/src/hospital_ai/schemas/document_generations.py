@@ -1,7 +1,7 @@
-
 import uuid
-from typing import Literal, Optional
 from datetime import datetime
+from typing import Literal, Optional
+
 from pydantic import BaseModel, ConfigDict, constr
 
 
@@ -12,6 +12,7 @@ class GenerationRollbackRequest(BaseModel):
 
 class GenerationRollbackRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
+
     class Config:
         orm_mode = True
 
@@ -25,6 +26,7 @@ class GenerationRollbackRead(BaseModel):
 
 class DocumentIndexGenerationRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
+
     class Config:
         orm_mode = True
 

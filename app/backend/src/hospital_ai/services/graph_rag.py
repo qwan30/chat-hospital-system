@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing_extensions import TypeAlias
+
 """Graph RAG — SQL-backed entity-relationship extraction and traversal.
 
 This is a lightweight "graph RAG" implementation that uses SQL tables to
@@ -27,18 +27,13 @@ from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from typing import Optional
 
-from sqlalchemy import Float, ForeignKey, String, delete, func, or_, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import Mapped, mapped_column
 
-from hospital_ai.db.models import Base, TimestampMixin
 from hospital_ai.services.llm.base import LLMMessage
 from hospital_ai.services.llm.manager import get_llm_manager
 
 # ── ORM Models ──────────────────────────────────────────────────────────
-
-
-
 
 
 # ── Data classes ─────────────────────────────────────────────────────────
@@ -61,7 +56,8 @@ class ExtractedRelation:
 
     def __post_init__(self):
         if not self.normalized_value:
-            object.__setattr__(self, 'normalized_value', self.relation_type)
+            object.__setattr__(self, "normalized_value", self.relation_type)
+
 
 @dataclass(frozen=True)
 class GraphExtraction:
@@ -259,21 +255,22 @@ async def index_chunk_entities(
     entities, relations = await active_extractor(content)
     print("EXTRACTION ENTITIES:", entities)
 
-    from hospital_ai.services.graph_index import GraphIndexService
     from hospital_ai.db.models import DocumentChunk
-    
+    from hospital_ai.services.graph_index import GraphIndexService
+
     chunk = await session.get(DocumentChunk, chunk_id)
     if not chunk:
         print("CHUNK NOT FOUND")
         return [], []
-        
+
     print("INDEXING CHUNK:", chunk.id, chunk.patient_id)
     from hospital_ai.services.graph_rag import GraphExtraction
+
     extraction = GraphExtraction(entities=entities, relations=relations)
-    
+
     await GraphIndexService(session).index_chunk(chunk.generation_id, chunk, extraction)
     print("INDEXING COMPLETE")
-    
+
     return [], []
 
 
@@ -295,6 +292,7 @@ async def find_related_entities(
     allowed_chunks = None
     if patient_id is not None:
         from hospital_ai.db.models import DocumentPage
+
         allowed_chunks = (
             select(DocumentChunk.id)
             .join(Document, Document.id == DocumentChunk.document_id)
@@ -346,8 +344,7 @@ async def find_related_entities(
 
         result = await session.execute(
             _scope_relations_to_patient(
-                select(GraphRelationAssertion)
-                .where(
+                select(GraphRelationAssertion).where(
                     or_(
                         GraphRelationAssertion.subject_entity_id.in_(frontier_ids),
                         GraphRelationAssertion.object_entity_id.in_(frontier_ids),
@@ -391,13 +388,13 @@ async def find_related_entities(
     elif all_relations:
         assertion_ids = [r.id for r in all_relations]
         result = await session.execute(
-            select(GraphRelationEvidence.chunk_id)
-            .where(GraphRelationEvidence.assertion_id.in_(assertion_ids))
+            select(GraphRelationEvidence.chunk_id).where(GraphRelationEvidence.assertion_id.in_(assertion_ids))
         )
         chunk_ids.update(result.scalars().all())
 
     entity_list = [
-        ExtractedEntity(normalized_label=e.normalized_label, entity_type=e.entity_type, confidence=1.0) for e in all_entities
+        ExtractedEntity(normalized_label=e.normalized_label, entity_type=e.entity_type, confidence=1.0)
+        for e in all_entities
     ]
     relation_list = []
     entity_id_to_name = {e.id: e.normalized_label for e in all_entities}

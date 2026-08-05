@@ -1,18 +1,16 @@
 from __future__ import annotations
+
 import asyncio
 import logging
 import uuid
 from typing import Literal, Optional
 
-from sqlalchemy import delete, func, select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from hospital_ai.core.config import Settings, get_settings
-from hospital_ai.db.models import Document, DocumentChunk, DocumentPage, DocumentProcessingEvent
+from hospital_ai.db.models import Document, DocumentChunk, DocumentProcessingEvent
 from hospital_ai.db.session import get_session_factory
-from hospital_ai.services.chunking import ChunkingService
-from hospital_ai.services.embeddings import EmbeddingService
-from hospital_ai.services.ocr import OcrService
 from hospital_ai.services.storage import StorageService, get_storage_service
 
 
@@ -58,7 +56,6 @@ async def _index_graph_entities(session: AsyncSession, document: Document) -> No
 
     Silently skips on failure to avoid blocking the main indexing pipeline.
     """
-    import logging
 
     logger = logging.getLogger(__name__)
     try:
@@ -186,7 +183,6 @@ def process_document_job(document_id: str) -> None:
     On final failure (after all retries exhausted), the document is moved
     to the dead-letter queue for manual inspection.
     """
-    import logging
 
     logger = logging.getLogger(__name__)
     logger.info("Starting document processing job for %s", document_id)
@@ -221,7 +217,6 @@ def dead_letter_handler(document_id: str, error_message: str) -> None:
     Logs the failure for monitoring.  A future admin dashboard or
     alerting hook can subscribe to this queue for notifications.
     """
-    import logging
 
     logger = logging.getLogger(__name__)
     logger.error("DEAD-LETTER: Document %s permanently failed: %s", document_id, error_message)
@@ -229,7 +224,6 @@ def dead_letter_handler(document_id: str, error_message: str) -> None:
 
 def cdss_job_handler(document_id: str) -> None:
     """Entry point called by rq workers for CDSS analysis."""
-    import logging
 
     logger = logging.getLogger(__name__)
     logger.info("Starting CDSS analysis job for %s", document_id)

@@ -4,6 +4,7 @@ These tests exercise the auth logic in get_current_user: JWT validation,
 static bearer token fallback, missing/invalid credentials, inactive users,
 and malformed Authorization headers.
 """
+
 from __future__ import annotations
 
 import pytest

@@ -1,19 +1,19 @@
 from __future__ import annotations
-from typing import Optional
 
 import uuid
 from collections.abc import Collection
+from typing import Optional
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from hospital_ai.core.security import PATIENT_READ_SCOPES
-from hospital_ai.db.models import Document, DocumentChunk
 from hospital_ai.db.clinical_documents import (
     DocumentIndexGeneration,
-    DocumentRevisionSet,
     DocumentPageRevision,
+    DocumentRevisionSet,
 )
+from hospital_ai.db.models import Document, DocumentChunk
 from hospital_ai.services.permissions import active_patient_permission_exists
 
 ACTIVE_GENERATION_JOINS_SQL = """

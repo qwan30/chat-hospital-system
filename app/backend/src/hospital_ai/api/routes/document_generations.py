@@ -1,4 +1,3 @@
-
 import json
 import uuid
 
@@ -6,17 +5,17 @@ from fastapi import APIRouter, Depends, Header, HTTPException, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from hospital_ai.api.deps import get_current_user, get_session
-from hospital_ai.core.errors import NotFoundError, ConflictError
+from hospital_ai.core.errors import ConflictError, NotFoundError
 from hospital_ai.core.security import new_trace_id
 from hospital_ai.db.models import Document, User
 from hospital_ai.schemas.document_generations import (
-    GenerationRollbackRequest,
-    GenerationRollbackRead,
     DocumentIndexGenerationRead,
+    GenerationRollbackRead,
+    GenerationRollbackRequest,
 )
 from hospital_ai.services.capabilities import CapabilityService
-from hospital_ai.services.idempotency import IdempotencyService
 from hospital_ai.services.generations import GenerationService
+from hospital_ai.services.idempotency import IdempotencyService
 from hospital_ai.workers import generation_jobs
 
 router = APIRouter()
@@ -49,7 +48,9 @@ async def _get_document_or_404(session: AsyncSession, document_id: uuid.UUID) ->
     return doc
 
 
-@router.post("/{document_id}/index-generations/{generation_id}/rollback", response_model=GenerationRollbackRead, status_code=200)
+@router.post(
+    "/{document_id}/index-generations/{generation_id}/rollback", response_model=GenerationRollbackRead, status_code=200
+)
 async def rollback_generation(
     document_id: uuid.UUID,
     generation_id: uuid.UUID,
@@ -110,7 +111,11 @@ async def rollback_generation(
     return response_model
 
 
-@router.post("/{document_id}/index-generations/{generation_id}/retry", response_model=DocumentIndexGenerationRead, status_code=202)
+@router.post(
+    "/{document_id}/index-generations/{generation_id}/retry",
+    response_model=DocumentIndexGenerationRead,
+    status_code=202,
+)
 async def retry_generation(
     document_id: uuid.UUID,
     generation_id: uuid.UUID,

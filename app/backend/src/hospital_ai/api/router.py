@@ -1,4 +1,5 @@
 from __future__ import annotations
+
 from fastapi import APIRouter
 
 from hospital_ai.api.routes import (
@@ -9,11 +10,11 @@ from hospital_ai.api.routes import (
     chat_stream,
     chat_threads,
     dashboard,
-    documents,
-    document_uploads,
-    document_revisions,
     document_generations,
     document_graph,
+    document_revisions,
+    document_uploads,
+    documents,
     feedback,
     graph,
     hms,

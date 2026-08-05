@@ -1,5 +1,4 @@
 from __future__ import annotations
-from typing import Optional
 
 import importlib.util
 import json
@@ -8,6 +7,7 @@ import subprocess
 import sys
 from pathlib import Path
 from types import SimpleNamespace
+from typing import Optional
 
 import pytest
 

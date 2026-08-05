@@ -1,4 +1,5 @@
 from __future__ import annotations
+
 import pytest
 from sqlalchemy import select
 from starlette.requests import Request

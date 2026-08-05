@@ -94,6 +94,13 @@ async def create_indexed_document(
     title: str,
     content: str,
 ) -> Document:
+    from hospital_ai.db.clinical_documents import (
+        DocumentRevisionSet,
+        DocumentPageRevision,
+        DocumentIndexGeneration,
+    )
+    import hashlib
+
     document = Document(
         patient_id=patient_id,
         uploaded_by=uploaded_by,
@@ -116,6 +123,54 @@ async def create_indexed_document(
     session.add(page)
     await session.flush()
 
+    content_sha = hashlib.sha256(content.encode("utf-8")).hexdigest()
+    page_rev = DocumentPageRevision(
+        id=uuid.uuid4(),
+        document_id=document.id,
+        page_number=1,
+        revision_number=1,
+        revision_type="machine_ocr",
+        raw_text_snapshot=content,
+        corrected_text=content,
+        confidence=1.0,
+        status="approved",
+        created_by_user_id=uploaded_by,
+        content_sha256=content_sha,
+        version=1,
+    )
+    session.add(page_rev)
+    await session.flush()
+
+    rev_set = DocumentRevisionSet(
+        id=uuid.uuid4(),
+        document_id=document.id,
+        revision_number=1,
+        status="approved",
+        created_by_user_id=uploaded_by,
+        submitted_at=datetime.datetime.now(datetime.UTC),
+        approved_by_user_id=uploaded_by,
+        approved_at=datetime.datetime.now(datetime.UTC),
+    )
+    session.add(rev_set)
+    await session.flush()
+
+    gen = DocumentIndexGeneration(
+        id=uuid.uuid4(),
+        document_id=document.id,
+        revision_set_id=rev_set.id,
+        state="active",
+        revision_set_sha256=content_sha,
+        generation_sha256=content_sha,
+        created_at=datetime.datetime.now(datetime.UTC),
+        started_at=datetime.datetime.now(datetime.UTC),
+        activated_at=datetime.datetime.now(datetime.UTC),
+    )
+    session.add(gen)
+    await session.flush()
+
+    document.approved_revision_set_id = rev_set.id
+    document.active_index_generation_id = gen.id
+
     session.add(
         DocumentChunk(
             document_id=document.id,
@@ -126,6 +181,13 @@ async def create_indexed_document(
             token_count=len(content.split()),
             embedding=deterministic_embedding(content),
             meta={"page_number": 1},
+            generation_id=gen.id,
+            revision_set_id=rev_set.id,
+            page_revision_id=page_rev.id,
+            approval_state="approved",
+            source_text_sha256=content_sha,
+            text_start_offset=0,
+            text_end_offset=len(content),
         )
     )
     await session.commit()

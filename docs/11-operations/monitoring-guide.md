@@ -41,12 +41,12 @@ docker compose -f infra/docker-compose.yml exec redis redis-cli INFO memory
 ## 4. Queue Commands
 
 ```bash
-for queue in document-indexing cdss-analysis; do
+for queue in document-indexing cdss-analysis document-generation-build; do
   docker compose -f infra/docker-compose.yml exec -T redis \
     redis-cli LLEN "rq:queue:${queue}"
 done
 
-for queue in document-indexing cdss-analysis; do
+for queue in document-indexing cdss-analysis document-generation-build; do
   docker compose -f infra/docker-compose.yml exec -T worker \
     python -c "from redis import Redis; from rq.registry import FailedJobRegistry; r=Redis.from_url('redis://redis:6379/0'); print('${queue}', FailedJobRegistry('${queue}', connection=r).count)"
 done

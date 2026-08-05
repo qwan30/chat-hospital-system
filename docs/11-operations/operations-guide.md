@@ -46,17 +46,17 @@ A named-volume export may support forensic or secondary recovery work, but it do
 
 ## 4. Worker Queue Monitoring
 
-The worker consumes exactly `document-indexing` and `cdss-analysis`.
+The worker consumes exactly `document-indexing`, `cdss-analysis`, and `document-generation-build`.
 
 ```bash
 # Queue depth
-for queue in document-indexing cdss-analysis; do
+for queue in document-indexing cdss-analysis document-generation-build; do
   docker compose -f "<absolute-path-to-infra/docker-compose.yml>" exec -T redis \
     redis-cli LLEN "rq:queue:${queue}"
 done
 
 # Failed jobs by queue registry
-for queue in document-indexing cdss-analysis; do
+for queue in document-indexing cdss-analysis document-generation-build; do
   docker compose -f "<absolute-path-to-infra/docker-compose.yml>" exec -T worker \
     python -c "from redis import Redis; from rq.registry import FailedJobRegistry; r=Redis.from_url('redis://redis:6379/0'); print('${queue}', FailedJobRegistry('${queue}', connection=r).count)"
 done

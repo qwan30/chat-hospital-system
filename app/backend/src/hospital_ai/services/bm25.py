@@ -103,20 +103,15 @@ class BM25Scorer:
         for bm25_score, idx in scored[:top_k]:
             chunk = chunks[idx]
             normalized_score = bm25_score / max_score
+            new_metadata = {
+                **chunk.metadata,
+                "retrieval_method": "bm25",
+                "bm25_raw_score": round(bm25_score, 4),
+            }
             result.append(
-                RetrievedChunk(
-                    evidence_id=chunk.evidence_id,
-                    document_id=chunk.document_id,
-                    document_title=chunk.document_title,
-                    page=chunk.page,
-                    chunk_id=chunk.chunk_id,
+                chunk.with_score_and_metadata(
                     score=round(normalized_score, 4),
-                    content=chunk.content,
-                    metadata={
-                        **chunk.metadata,
-                        "retrieval_method": "bm25",
-                        "bm25_raw_score": round(bm25_score, 4),
-                    },
+                    metadata=new_metadata,
                 )
             )
 
@@ -174,21 +169,16 @@ def reciprocal_rank_fusion(
     result: list[RetrievedChunk] = []
     for key in sorted_keys[:top_k]:
         chunk = chunk_map[key]
+        new_metadata = {
+            **chunk.metadata,
+            "retrieval_method": "hybrid_rrf",
+            "rrf_score": round(rrf_scores[key], 6),
+            **{f"score_{k}": v for k, v in original_scores.get(key, {}).items()},
+        }
         result.append(
-            RetrievedChunk(
-                evidence_id=chunk.evidence_id,
-                document_id=chunk.document_id,
-                document_title=chunk.document_title,
-                page=chunk.page,
-                chunk_id=chunk.chunk_id,
+            chunk.with_score_and_metadata(
                 score=round(rrf_scores[key], 6),
-                content=chunk.content,
-                metadata={
-                    **chunk.metadata,
-                    "retrieval_method": "hybrid_rrf",
-                    "rrf_score": round(rrf_scores[key], 6),
-                    **{f"score_{k}": v for k, v in original_scores.get(key, {}).items()},
-                },
+                metadata=new_metadata,
             )
         )
 

@@ -183,6 +183,15 @@ export async function mountApiMocks(page: Page): Promise<void> {
     });
   });
 
+  // CDI V2 Documents
+  await page.route("**/api/v1/cdi/documents**", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ id: "doc-v2-123", status: "review_required" }),
+    });
+  });
+
   // Catch-all for any remaining /api/v1/ calls (threads, chat, etc.)
   await page.route("**/api/v1/**", async (route) => {
     // Don't intercept streaming/SSE — let those fail naturally.

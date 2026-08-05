@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import hashlib
+import json
 import logging
 import subprocess
 import uuid
@@ -11,6 +12,7 @@ from typing import Any, Optional
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from hospital_ai.core.security import new_trace_id
 from hospital_ai.db.clinical_documents import (
     DocumentDraftHead,
     DocumentIndexGeneration,
@@ -18,10 +20,11 @@ from hospital_ai.db.clinical_documents import (
     DocumentRevisionPage,
     DocumentRevisionSet,
 )
-from hospital_ai.db.clinical_graph import LegacyGraphEntity
-from hospital_ai.db.models import Document, DocumentChunk, DocumentPage
+from hospital_ai.db.clinical_graph import LegacyGraphEntity, LegacyGraphRelation
+from hospital_ai.db.models import AuditLog, Document, DocumentChunk, DocumentPage
 
 logger = logging.getLogger(__name__)
+CHECKPOINT_ACTION = "cdi_v2_backfill.checkpoint"
 
 
 @dataclass
@@ -69,15 +72,41 @@ class BackfillResult:
 
 
 class CdiV2Backfill:
-    def __init__(self, session: AsyncSession, policy: Optional[BackfillPolicy] = None) -> None:
+    def __init__(
+        self,
+        session: AsyncSession,
+        policy: Optional[BackfillPolicy] = None,
+        *,
+        dry_run: bool = False,
+    ) -> None:
         self.session = session
         self.policy = policy or BackfillPolicy()
+        self.dry_run = dry_run
 
     async def _lock_document(self, document_id: uuid.UUID) -> Document:
-        doc = await self.session.get(Document, document_id)
+        result = await self.session.execute(
+            select(Document)
+            .where(Document.id == document_id)
+            .with_for_update()
+            .execution_options(populate_existing=True)
+        )
+        doc = result.scalar_one_or_none()
         if not doc:
             raise ValueError(f"Document {document_id} not found")
         return doc
+
+    async def _completed_phases(self, document_id: uuid.UUID) -> set[str]:
+        result = await self.session.execute(
+            select(AuditLog).where(
+                AuditLog.action == CHECKPOINT_ACTION,
+                AuditLog.object_id == document_id,
+            )
+        )
+        return {
+            str(row.meta.get("phase"))
+            for row in result.scalars().all()
+            if isinstance(row.meta, dict) and row.meta.get("phase")
+        }
 
     async def verify_legacy_lineage(self, document_id: uuid.UUID) -> LineageVerificationResult:
         doc = await self.session.get(Document, document_id)
@@ -253,26 +282,102 @@ class CdiV2Backfill:
         return gen
 
     async def _record_checkpoint(self, document_id: uuid.UUID, phase: str) -> None:
-        logger.debug("Backfill checkpoint: doc=%s phase=%s", document_id, phase)
+        completed = await self._completed_phases(document_id)
+        if phase in completed:
+            return
+        self.session.add(
+            AuditLog(
+                actor_user_id=None,
+                action=CHECKPOINT_ACTION,
+                object_type="document_backfill",
+                object_id=document_id,
+                outcome="allowed",
+                trace_id=new_trace_id(),
+                meta={"phase": phase, "schema_version": 1},
+            )
+        )
+        await self.session.flush()
+
+    async def _commit_phase(self) -> None:
+        if not self.dry_run:
+            await self.session.commit()
+
+    async def _existing_generation(self, document_id: uuid.UUID) -> Optional[DocumentIndexGeneration]:
+        return await self.session.scalar(
+            select(DocumentIndexGeneration)
+            .where(DocumentIndexGeneration.document_id == document_id)
+            .order_by(DocumentIndexGeneration.created_at)
+        )
 
     async def run_document(self, document_id: uuid.UUID) -> BackfillResult:
         document = await self._lock_document(document_id)
-        page_revisions = await self._machine_v1_from_document_pages(document)
-        await self._record_checkpoint(document.id, "machine_revisions")
-        head = await self._upsert_draft_head(document, page_revisions)
-        await self._record_checkpoint(document.id, "draft_heads")
-        submitted = await self._upsert_submitted_revision_set(document, head)
-        await self._record_checkpoint(document.id, "submitted_sets")
+        completed = await self._completed_phases(document.id)
+
+        if "machine_revisions" not in completed:
+            page_revisions = await self._machine_v1_from_document_pages(document)
+            await self._record_checkpoint(document.id, "machine_revisions")
+            completed.add("machine_revisions")
+            await self._commit_phase()
+        else:
+            page_revisions = list(
+                (
+                    await self.session.scalars(
+                        select(DocumentPageRevision)
+                        .where(
+                            DocumentPageRevision.document_id == document.id,
+                            DocumentPageRevision.revision_type == "machine_ocr",
+                        )
+                        .order_by(DocumentPageRevision.page_number)
+                    )
+                ).all()
+            )
+            if not page_revisions:
+                raise ValueError("Backfill checkpoint exists but machine revisions are missing")
+
+        if "draft_heads" not in completed:
+            head = await self._upsert_draft_head(document, page_revisions)
+            await self._record_checkpoint(document.id, "draft_heads")
+            completed.add("draft_heads")
+            await self._commit_phase()
+        else:
+            head = await self.session.get(DocumentDraftHead, document.id)
+            if head is None:
+                raise ValueError("Backfill checkpoint exists but draft head is missing")
+
+        if "submitted_sets" not in completed:
+            submitted = await self._upsert_submitted_revision_set(document, head)
+            await self._record_checkpoint(document.id, "submitted_sets")
+            completed.add("submitted_sets")
+            await self._commit_phase()
+        else:
+            submitted = await self.session.scalar(
+                select(DocumentRevisionSet)
+                .where(DocumentRevisionSet.document_id == document.id)
+                .order_by(DocumentRevisionSet.revision_number)
+            )
+            if submitted is None:
+                raise ValueError("Backfill checkpoint exists but submitted revision set is missing")
+
         generation = None
         if self.policy.may_autoapprove(document):
-            lineage = await self.verify_legacy_lineage(document.id)
-            if not lineage.passed:
-                raise BackfillBlocked(lineage.failure_codes)
-            generation = await self._attach_verified_legacy_generation(document, submitted)
-            await self._record_checkpoint(document.id, "legacy_generations")
+            if "legacy_generations" not in completed:
+                lineage = await self.verify_legacy_lineage(document.id)
+                if not lineage.passed:
+                    raise BackfillBlocked(lineage.failure_codes)
+                generation = await self._attach_verified_legacy_generation(document, submitted)
+                await self._record_checkpoint(document.id, "legacy_generations")
+                completed.add("legacy_generations")
+                await self._commit_phase()
+            else:
+                generation = await self._existing_generation(document.id)
+                if generation is None:
+                    raise ValueError("Backfill checkpoint exists but legacy generation is missing")
         await self._record_checkpoint(document.id, "complete")
-        await self.session.commit()
-        return BackfillResult.from_rows(page_revisions, head, submitted, generation)
+        await self._commit_phase()
+        result = BackfillResult.from_rows(page_revisions, head, submitted, generation)
+        if self.dry_run:
+            await self.session.rollback()
+        return result
 
     async def compute_parity_report(self, document_ids: Optional[list[uuid.UUID]] = None) -> dict[str, Any]:
         query = select(Document)
@@ -283,10 +388,18 @@ class CdiV2Backfill:
 
         wrong_patient_count = 0
         superseded_generation_count = 0
+        lineage_failure_count = 0
         docs_output: list[dict[str, Any]] = []
+
+        try:
+            git_sha = subprocess.check_output(["git", "rev-parse", "HEAD"], stderr=subprocess.DEVNULL).decode().strip()
+        except Exception:
+            git_sha = "unknown"
 
         for doc in docs:
             lineage = await self.verify_legacy_lineage(doc.id)
+            if not lineage.passed:
+                lineage_failure_count += 1
             if "wrong_patient_chunk" in lineage.failure_codes:
                 wrong_patient_count += 1
             if doc.active_index_generation_id is not None:
@@ -294,10 +407,119 @@ class CdiV2Backfill:
                 if not gen or gen.state != "active":
                     superseded_generation_count += 1
 
+            pages = list(
+                (await self.session.scalars(select(DocumentPage).where(DocumentPage.document_id == doc.id))).all()
+            )
+            page_by_id = {page.id: page for page in pages}
+            chunks = list(
+                (await self.session.scalars(select(DocumentChunk).where(DocumentChunk.document_id == doc.id))).all()
+            )
+            revisions = list(
+                (
+                    await self.session.scalars(
+                        select(DocumentPageRevision).where(DocumentPageRevision.document_id == doc.id)
+                    )
+                ).all()
+            )
+            revision_sets = list(
+                (
+                    await self.session.scalars(
+                        select(DocumentRevisionSet).where(DocumentRevisionSet.document_id == doc.id)
+                    )
+                ).all()
+            )
+            revision_set_by_id = {revision_set.id: revision_set for revision_set in revision_sets}
+            generations = list(
+                (
+                    await self.session.scalars(
+                        select(DocumentIndexGeneration).where(DocumentIndexGeneration.document_id == doc.id)
+                    )
+                ).all()
+            )
+            generation_by_id = {generation.id: generation for generation in generations}
+            chunk_ids = [chunk.id for chunk in chunks]
+            entities = list(
+                (
+                    await self.session.scalars(
+                        select(LegacyGraphEntity).where(LegacyGraphEntity.source_document_id == doc.id)
+                    )
+                ).all()
+            )
+            relations = []
+            if chunk_ids:
+                relations = list(
+                    (
+                        await self.session.scalars(
+                            select(LegacyGraphRelation).where(LegacyGraphRelation.source_chunk_id.in_(chunk_ids))
+                        )
+                    ).all()
+                )
+
+            lexical_vector_ids: list[dict[str, Any]] = []
+            citation_locators: list[dict[str, Any]] = []
+            authorization_outcomes: list[dict[str, Any]] = []
+            for chunk in chunks:
+                page = page_by_id.get(chunk.page_id)
+                generation = generation_by_id.get(chunk.generation_id)
+                revision_set = revision_set_by_id.get(chunk.revision_set_id)
+                patient_match = chunk.patient_id == doc.patient_id
+                generation_active = bool(
+                    generation and doc.active_index_generation_id == generation.id and generation.state == "active"
+                )
+                revision_approved = bool(revision_set and revision_set.status == "approved")
+                document_active = bool(doc.deleted_at is None and doc.status in {"ready", "ready_with_warnings"})
+                included = bool(
+                    document_active
+                    and patient_match
+                    and page
+                    and page.deleted_at is None
+                    and chunk.deleted_at is None
+                    and generation_active
+                    and revision_approved
+                )
+                lexical_vector_ids.append(
+                    {
+                        "chunk_id": str(chunk.id),
+                        "lexical_row_id": str(chunk.id),
+                        "vector_row_id": str(chunk.id) if chunk.embedding is not None else None,
+                        "rank": None,
+                        "rank_available": False,
+                    }
+                )
+                citation_locators.append(
+                    {
+                        "chunk_id": str(chunk.id),
+                        "document_id": str(doc.id),
+                        "page_number": page.page_number if page else None,
+                        "start_offset": chunk.text_start_offset,
+                        "end_offset": chunk.text_end_offset,
+                    }
+                )
+                authorization_outcomes.append(
+                    {
+                        "chunk_id": str(chunk.id),
+                        "document_active": document_active,
+                        "patient_match": patient_match,
+                        "generation_active": generation_active,
+                        "revision_approved": revision_approved,
+                        "included": included,
+                    }
+                )
+
             docs_output.append(
                 {
                     "document_id": str(doc.id),
-                    "source_sha256": doc.indexed_source_sha256,
+                    "source_hashes": {
+                        "document_sha256": doc.indexed_source_sha256,
+                        "revision_sha256": {str(revision.id): revision.content_sha256 for revision in revisions},
+                        "generation_sha256": {
+                            str(generation.id): {
+                                "revision_set_sha256": generation.revision_set_sha256,
+                                "generation_sha256": generation.generation_sha256,
+                            }
+                            for generation in generations
+                        },
+                    },
                     "approved_revision_set_id": str(doc.approved_revision_set_id)
                     if doc.approved_revision_set_id
                     else None,
@@ -306,19 +528,45 @@ class CdiV2Backfill:
                     else None,
                     "passed_lineage": lineage.passed,
                     "failure_codes": lineage.failure_codes,
+                    "lexical_vector_ids": lexical_vector_ids,
+                    "citation_locators": citation_locators,
+                    "graph_provenance": {
+                        "entities": [
+                            {
+                                "entity_id": str(entity.id),
+                                "source_chunk_id": str(entity.source_chunk_id),
+                                "name": entity.name,
+                                "entity_type": entity.entity_type,
+                                "confidence": entity.confidence,
+                            }
+                            for entity in entities
+                        ],
+                        "relations": [
+                            {
+                                "relation_id": str(relation.id),
+                                "source_chunk_id": str(relation.source_chunk_id),
+                                "source_entity_id": str(relation.source_entity_id),
+                                "target_entity_id": str(relation.target_entity_id),
+                                "relation_type": relation.relation_type,
+                                "weight": relation.weight,
+                            }
+                            for relation in relations
+                        ],
+                    },
+                    "authorization_outcomes": authorization_outcomes,
                 }
             )
 
-        try:
-            git_sha = subprocess.check_output(["git", "rev-parse", "HEAD"], stderr=subprocess.DEVNULL).decode().strip()
-        except Exception:
-            git_sha = "unknown"
-
-        status = "passed" if (wrong_patient_count == 0 and superseded_generation_count == 0) else "failed"
-        return {
-            "status": status,
+        report: dict[str, Any] = {
+            "artifact_version": "cdi-v2-parity-v1",
+            "status": "failed",
             "wrong_patient_count": wrong_patient_count,
             "superseded_generation_count": superseded_generation_count,
+            "lineage_failure_count": lineage_failure_count,
             "git_sha": git_sha,
             "documents": docs_output,
         }
+        report["status"] = "passed" if lineage_failure_count == 0 and superseded_generation_count == 0 else "failed"
+        canonical = json.dumps(report, sort_keys=True, separators=(",", ":"), default=str).encode("utf-8")
+        report["artifact_sha256"] = hashlib.sha256(canonical).hexdigest()
+        return report

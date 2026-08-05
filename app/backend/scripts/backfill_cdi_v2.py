@@ -26,7 +26,7 @@ async def run_backfill(args: argparse.Namespace) -> int:
     session_factory = get_session_factory()
     async with session_factory() as session:
         policy = BackfillPolicy(autoapprove_synthetic=True)
-        runner = CdiV2Backfill(session, policy=policy)
+        runner = CdiV2Backfill(session, policy=policy, dry_run=args.mode == "dry-run")
 
         doc_ids: list[uuid.UUID] = []
         if args.document_id:
@@ -62,9 +62,11 @@ async def run_backfill(args: argparse.Namespace) -> int:
             except BackfillBlocked as exc:
                 logger.warning("Document %s blocked: %s", doc_id, exc.failure_codes)
                 results.append({"document_id": str(doc_id), "status": "blocked", "failure_codes": exc.failure_codes})
+                await session.rollback()
             except Exception as exc:
                 logger.exception("Document %s error: %s", doc_id, exc)
                 results.append({"document_id": str(doc_id), "status": "error", "detail": str(exc)})
+                await session.rollback()
 
         if args.mode == "dry-run":
             await session.rollback()
@@ -82,10 +84,17 @@ async def run_backfill(args: argparse.Namespace) -> int:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="CDI v2 Legacy Document Backfill and Parity CLI")
-    parser.add_argument("--mode", choices=("dry-run", "apply", "parity"), required=True)
+    parser.add_argument("--mode", choices=("dry-run", "apply", "parity"), default=None)
+    parser.add_argument("--dry-run", action="store_true", help="Alias for --mode dry-run")
     parser.add_argument("--document-id", action="append", default=[])
-    parser.add_argument("--output", type=Path, required=True)
+    parser.add_argument("--output", type=Path, default=Path("artifacts/cdi_v2_backfill_report.json"))
     args = parser.parse_args()
+    if args.dry_run:
+        if args.mode not in (None, "dry-run"):
+            parser.error("--dry-run cannot be combined with a different --mode")
+        args.mode = "dry-run"
+    if args.mode is None:
+        parser.error("--mode is required unless --dry-run is used")
     exit_code = asyncio.run(run_backfill(args))
     raise SystemExit(exit_code)
 

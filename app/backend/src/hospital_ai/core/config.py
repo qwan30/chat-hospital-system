@@ -1,9 +1,11 @@
 from __future__ import annotations
 
+import base64
 from functools import lru_cache
 from pathlib import Path
+from typing import Optional
 
-from pydantic import BaseSettings, Field, validator
+from pydantic import BaseSettings, Field, root_validator, validator
 
 
 class Settings(BaseSettings):
@@ -28,6 +30,9 @@ class Settings(BaseSettings):
     cdi_v2_dual_read: bool = Field(default=False)
     cdi_v2_active_generation_reads: bool = Field(default=False)
     cdi_v2_authoring_enabled: bool = Field(default=False)
+    cdi_v2_parity_artifact_path: Optional[Path] = None
+    cdi_v2_parity_artifact_signature: str = Field(default="", repr=False)
+    cdi_v2_parity_artifact_public_key: str = Field(default="", repr=False)
     # Seconds allowed for an llm-guard scan before the guardrail fails closed.
     # The prompt-injection model takes ~4s per scan on CPU, so the previous
     # hardcoded 3.0 timed out on every request and refused safe questions as
@@ -123,6 +128,31 @@ class Settings(BaseSettings):
         if not value.startswith("/"):
             value = "/" + value
         return value.rstrip("/") or "/api/v1"
+
+    @root_validator
+    def require_signed_cdi_v2_parity_artifact(cls, values):
+        enabled = any(
+            values.get(name, False)
+            for name in ("cdi_v2_dual_read", "cdi_v2_active_generation_reads", "cdi_v2_authoring_enabled")
+        )
+        if not enabled:
+            return values
+
+        artifact_path = values.get("cdi_v2_parity_artifact_path")
+        signature = values.get("cdi_v2_parity_artifact_signature", "")
+        public_key = values.get("cdi_v2_parity_artifact_public_key", "")
+        if not artifact_path or not artifact_path.is_file() or not signature or not public_key:
+            raise ValueError("CDI v2 feature flags require a signed parity artifact")
+
+        try:
+            from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey
+
+            key_bytes = base64.b64decode(public_key, validate=True)
+            signature_bytes = base64.b64decode(signature, validate=True)
+            Ed25519PublicKey.from_public_bytes(key_bytes).verify(signature_bytes, artifact_path.read_bytes())
+        except Exception as exc:
+            raise ValueError("CDI v2 feature flags require a valid signed parity artifact") from exc
+        return values
 
     @property
     def token_user_map(self) -> dict[str, str]:

@@ -11,7 +11,6 @@ from hospital_ai.core.security import new_trace_id
 from hospital_ai.db.clinical_documents import (
     DocumentDraftHead,
     DocumentPageRevision,
-    DocumentRevisionPage,
     DocumentRevisionSet,
 )
 from hospital_ai.db.models import Document, User
@@ -24,7 +23,7 @@ from hospital_ai.schemas.document_revisions import (
     RestoreRevisionRequest,
     RevisionSetRead,
 )
-from hospital_ai.services.capabilities import CapabilityService
+from hospital_ai.services.capabilities import CapabilityService, load_document_revision_aggregate
 from hospital_ai.services.idempotency import IdempotencyService
 from hospital_ai.services.revisions import (
     ApproveRevisionCommand,
@@ -169,7 +168,15 @@ async def approve_revision_set(
     current_user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
 ) -> GenerationAcceptedRead:
-    document = await _get_document_or_404(session, document_id)
+    aggregate = await load_document_revision_aggregate(
+        session,
+        document_id=document_id,
+        revision_set_id=revision_set_id,
+        actor=current_user,
+        action="document_revision.approve",
+        trace_id=new_trace_id(),
+    )
+    document = aggregate.document
     await CapabilityService(session).require(
         user=current_user,
         patient_id=document.patient_id,
@@ -214,7 +221,15 @@ async def reject_revision_set(
     current_user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
 ) -> RevisionSetRead:
-    document = await _get_document_or_404(session, document_id)
+    aggregate = await load_document_revision_aggregate(
+        session,
+        document_id=document_id,
+        revision_set_id=revision_set_id,
+        actor=current_user,
+        action="document_revision.reject",
+        trace_id=new_trace_id(),
+    )
+    document = aggregate.document
     await CapabilityService(session).require(
         user=current_user,
         patient_id=document.patient_id,
@@ -250,7 +265,16 @@ async def restore_revision(
     current_user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
 ) -> DraftPageRead:
-    document = await _get_document_or_404(session, document_id)
+    aggregate = await load_document_revision_aggregate(
+        session,
+        document_id=document_id,
+        revision_set_id=revision_set_id,
+        page_revision_id=payload.revision_id,
+        actor=current_user,
+        action="document_revision.restore",
+        trace_id=new_trace_id(),
+    )
+    document = aggregate.document
     await CapabilityService(session).require(
         user=current_user,
         patient_id=document.patient_id,
@@ -279,7 +303,21 @@ async def list_revision_sets(
     current_user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
 ) -> list[RevisionSetRead]:
-    await _get_document_or_404(session, document_id)
+    aggregate = await load_document_revision_aggregate(
+        session,
+        document_id=document_id,
+        actor=current_user,
+        action="document_revision.sets.read",
+        trace_id=new_trace_id(),
+    )
+    await CapabilityService(session).require(
+        user=current_user,
+        patient_id=aggregate.document.patient_id,
+        capability="document_revision.view_raw",
+        action="document_revision.sets.read",
+        trace_id=new_trace_id(),
+        object_id=document_id,
+    )
     rows = list(
         await session.scalars(select(DocumentRevisionSet).where(DocumentRevisionSet.document_id == document_id))
     )
@@ -306,7 +344,21 @@ async def get_draft_page(
     current_user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
 ) -> DraftPageRead:
-    await _get_document_or_404(session, document_id)
+    aggregate = await load_document_revision_aggregate(
+        session,
+        document_id=document_id,
+        actor=current_user,
+        action="document_revision.draft.read",
+        trace_id=new_trace_id(),
+    )
+    await CapabilityService(session).require(
+        user=current_user,
+        patient_id=aggregate.document.patient_id,
+        capability="document_revision.view_raw",
+        action="document_revision.draft.read",
+        trace_id=new_trace_id(),
+        object_id=document_id,
+    )
     head = await session.get(DocumentDraftHead, document_id)
     if not head:
         raise NotFoundError("Draft head not found")
@@ -337,22 +389,25 @@ async def get_revision_page(
     current_user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
 ) -> DraftPageRead:
-    await _get_document_or_404(session, document_id)
-    rev_set = await session.get(DocumentRevisionSet, revision_set_id)
-    if not rev_set or rev_set.document_id != document_id:
-        raise NotFoundError("Revision set not found")
-
-    rev_page = await session.scalar(
-        select(DocumentRevisionPage)
-        .where(DocumentRevisionPage.revision_set_id == revision_set_id)
-        .where(DocumentRevisionPage.page_number == page_number)
+    aggregate = await load_document_revision_aggregate(
+        session,
+        document_id=document_id,
+        revision_set_id=revision_set_id,
+        page_number=page_number,
+        actor=current_user,
+        action="document_revision.page.read",
+        trace_id=new_trace_id(),
     )
-    if not rev_page:
-        raise NotFoundError("Revision page not found")
-
-    page_rev = await session.get(DocumentPageRevision, rev_page.page_revision_id)
-    if not page_rev:
-        raise NotFoundError("Revision content not found")
+    await CapabilityService(session).require(
+        user=current_user,
+        patient_id=aggregate.document.patient_id,
+        capability="document_revision.view_raw",
+        action="document_revision.page.read",
+        trace_id=new_trace_id(),
+        object_id=document_id,
+    )
+    rev_set = aggregate.revision_set
+    page_rev = aggregate.page_revision
 
     return DraftPageRead(
         page_revision_id=page_rev.id,

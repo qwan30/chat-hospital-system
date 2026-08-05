@@ -13,7 +13,7 @@ from hospital_ai.schemas.document_generations import (
     GenerationRollbackRead,
     GenerationRollbackRequest,
 )
-from hospital_ai.services.capabilities import CapabilityService
+from hospital_ai.services.capabilities import CapabilityService, load_document_generation_aggregate
 from hospital_ai.services.generations import GenerationService
 from hospital_ai.services.idempotency import IdempotencyService
 from hospital_ai.workers import generation_jobs
@@ -60,7 +60,15 @@ async def rollback_generation(
     current_user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
 ) -> GenerationRollbackRead:
-    document = await _get_document_or_404(session, document_id)
+    aggregate = await load_document_generation_aggregate(
+        session,
+        document_id=document_id,
+        generation_id=generation_id,
+        actor=current_user,
+        action="document_generation.rollback",
+        trace_id=new_trace_id(),
+    )
+    document = aggregate.document
     await CapabilityService(session).require(
         user=current_user,
         patient_id=document.patient_id,
@@ -123,7 +131,15 @@ async def retry_generation(
     current_user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
 ) -> DocumentIndexGenerationRead:
-    document = await _get_document_or_404(session, document_id)
+    aggregate = await load_document_generation_aggregate(
+        session,
+        document_id=document_id,
+        generation_id=generation_id,
+        actor=current_user,
+        action="document_generation.retry",
+        trace_id=new_trace_id(),
+    )
+    document = aggregate.document
     await CapabilityService(session).require(
         user=current_user,
         patient_id=document.patient_id,

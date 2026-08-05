@@ -61,7 +61,7 @@ class EmbeddingService:
                 # Batch request to Ollama
                 uncached_texts = [text for _, text in uncached]
                 embeddings = await self._embed_ollama_batch(uncached_texts)
-                for (idx, text), embedding in zip(uncached, embeddings):  # noqa: B905
+                for (idx, text), embedding in zip(uncached, embeddings, strict=True):
                     cache_key = _cache_key(text, self.settings.embedding_provider)
                     self._put_cache(cache_key, embedding)
                     results.append((idx, embedding))
@@ -69,7 +69,7 @@ class EmbeddingService:
                 # Batch request to Gemini
                 uncached_texts = [text for _, text in uncached]
                 embeddings = await self._embed_gemini_batch(uncached_texts)
-                for (idx, text), embedding in zip(uncached, embeddings):  # noqa: B905
+                for (idx, text), embedding in zip(uncached, embeddings, strict=True):
                     cache_key = _cache_key(text, self.settings.embedding_provider)
                     self._put_cache(cache_key, embedding)
                     results.append((idx, embedding))

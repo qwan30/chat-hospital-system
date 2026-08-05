@@ -5,15 +5,10 @@ on:
     branches:
       - main
       - master
-    paths-ignore:
-      - "**.md"
-      - "docs/**"
       - ".gitignore"
       - "LICENSE"
   pull_request:
     paths-ignore:
-      - "**.md"
-      - "docs/**"
       - ".gitignore"
       - "LICENSE"
   schedule:
@@ -90,6 +85,7 @@ jobs:
               - 'app/backend/**'
               - '.github/workflows/ci.yml'
               - '.github/workflows/cd.yml'
+              - 'docs/**'
             frontend:
               - 'app/frontend/src/**'
               - 'app/frontend/public/**'
@@ -98,6 +94,7 @@ jobs:
               - 'app/frontend/package.json'
               - '.github/workflows/ci.yml'
               - '.github/workflows/cd.yml'
+              - 'docs/**'
             infra:
               - 'infra/docker-compose.yml'
               - 'infra/docker-compose.local-build.yml'

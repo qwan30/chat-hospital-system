@@ -430,12 +430,13 @@ async def _evaluate_adapter_case(
     llm_judge_provider: str = "stub",
 ) -> CaseResult:
     resolver = resolver.for_case(case)
+    import uuid
     from hospital_ai.evaluation.benchmark import ActorIdentity
     actor_id = getattr(case, "actor", None)
     if actor_id is None:
-        actor_id = ActorIdentity(role="doctor")
-        if item.permissions:
-            actor_id = ActorIdentity(role=item.permissions[0].actor_role)
+        actor_id = ActorIdentity(actor_id=uuid.uuid4(), role="doctor")
+        if getattr(item, "permissions", None):
+            actor_id = ActorIdentity(actor_id=uuid.uuid4(), role=item.permissions[0].actor_role)
 
     context = EvaluationCaseContext(
         actor=materialize_evaluation_actor(actor_id, isolation),

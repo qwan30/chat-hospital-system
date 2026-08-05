@@ -92,6 +92,7 @@ def verify():
         "src/lib/api-client.ts",
         "src/lib/auth-context.tsx",
         "src/lib/stream-client.ts",
+        "e2e/fixtures/api-mocks.ts",
     ]
 
     frontend_paths = get_frontend_paths(frontend_root, scan_files)

@@ -8,11 +8,11 @@ import { Button } from "@/components/ui/button";
 export function DocumentPreview({
   documentId,
   mimeType,
-  boundingBox,
+  children,
 }: {
   documentId: string;
   mimeType: string;
-  boundingBox?: { top: number; left: number; width: number; height: number } | null;
+  children?: React.ReactNode;
 }) {
   const reduceMotion = useReducedMotion();
   const [url, setUrl] = useState<string | null>(null);
@@ -66,6 +66,7 @@ export function DocumentPreview({
             alt="Document preview"
             className="max-h-[520px] w-full rounded border object-contain bg-muted/20"
           />
+          {children}
           <Dialog>
             <DialogTrigger asChild>
               <Button

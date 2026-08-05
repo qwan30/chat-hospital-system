@@ -39,6 +39,7 @@ class DocumentUpload(TimestampMixin, Base):
     expected_sha256: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
     byte_size: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     mime_type: Mapped[Optional[str]] = mapped_column(String(128), nullable=True)
+    quarantine_result: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     actor_user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"), nullable=False)
 
     def apply_verification(self, decision: Any) -> None:

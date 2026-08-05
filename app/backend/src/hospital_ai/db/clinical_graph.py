@@ -3,7 +3,7 @@ from __future__ import annotations
 import uuid
 from datetime import datetime
 
-from sqlalchemy import ForeignKey, ForeignKeyConstraint, String, UniqueConstraint, func
+from sqlalchemy import Float, ForeignKey, ForeignKeyConstraint, Index, String, UniqueConstraint, func
 from sqlalchemy.orm import Mapped, mapped_column
 
 from hospital_ai.db.models import Base
@@ -99,12 +99,33 @@ class GraphRelationEvidence(Base):
     independent_source_identity: Mapped[str] = mapped_column(String(128), nullable=False)
 
 
-class LegacyGraphEntity(Base):
+class LegacyGraphEntity(TimestampMixin, Base):
     __tablename__ = "legacy_graph_entities"
+    __table_args__ = (
+        Index("ix_graph_entities_name", "name"),
+        Index("ix_graph_entities_entity_type", "entity_type"),
+        Index("ix_graph_entities_source_chunk_id", "source_chunk_id"),
+        Index("ix_graph_entities_source_document_id", "source_document_id"),
+    )
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
-    patient_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("patients.id"), nullable=False, index=True)
     source_document_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("documents.id"), nullable=False)
     source_chunk_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("document_chunks.id"), nullable=False)
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     entity_type: Mapped[str] = mapped_column(String(64), nullable=False)
     confidence: Mapped[float] = mapped_column(nullable=False, default=1.0)
+
+
+class LegacyGraphRelation(TimestampMixin, Base):
+    __tablename__ = "legacy_graph_relations"
+    __table_args__ = (
+        Index("ix_graph_relations_source_entity_id", "source_entity_id"),
+        Index("ix_graph_relations_target_entity_id", "target_entity_id"),
+        Index("ix_graph_relations_relation_type", "relation_type"),
+        Index("ix_graph_relations_source_chunk_id", "source_chunk_id"),
+    )
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    source_entity_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("legacy_graph_entities.id"), nullable=False)
+    target_entity_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("legacy_graph_entities.id"), nullable=False)
+    relation_type: Mapped[str] = mapped_column(String(64), nullable=False)
+    weight: Mapped[float] = mapped_column(Float, nullable=False, default=1.0)
+    source_chunk_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("document_chunks.id"), nullable=False)

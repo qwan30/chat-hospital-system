@@ -1,3 +1,4 @@
+from __future__ import annotations
 import json
 import logging
 import uuid
@@ -7,7 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from hospital_ai.core.config import get_settings
 from hospital_ai.db.models import ClinicalAlert, Document, DocumentChunk
-from hospital_ai.services.graph_rag import GraphEntity
+from hospital_ai.db.clinical_graph import GraphEntity, GraphRelationAssertion
 from hospital_ai.services.llm.base import LLMMessage
 from hospital_ai.services.llm.manager import get_llm_manager
 
@@ -28,20 +29,16 @@ async def run_cdss_analysis(session: AsyncSession, document_id: uuid.UUID) -> No
     text_content = "\n".join(chunk.content for chunk in chunks)
 
     # 3. Fetch patient's existing GraphContext summary
-    from hospital_ai.services.graph_rag import GraphRelation
-
     entity_result = await session.execute(
-        select(GraphEntity)
-        .join(Document, GraphEntity.source_document_id == Document.id)
-        .where(Document.patient_id == document.patient_id)
+        select(GraphEntity).where(GraphEntity.patient_id == document.patient_id)
     )
     all_entities = entity_result.scalars().all()
-    all_entities_map = {e.id: e.name for e in all_entities}
+    all_entities_map = {e.id: e.normalized_label for e in all_entities}
     entity_ids = list(all_entities_map.keys())
 
     if entity_ids:
         relation_result = await session.execute(
-            select(GraphRelation).where(GraphRelation.source_entity_id.in_(entity_ids))
+            select(GraphRelationAssertion).where(GraphRelationAssertion.patient_id == document.patient_id)
         )
         all_relations = relation_result.scalars().all()
     else:
@@ -49,10 +46,10 @@ async def run_cdss_analysis(session: AsyncSession, document_id: uuid.UUID) -> No
 
     context_lines = []
     for e in all_entities:
-        context_lines.append(f"- Entity: {e.name} ({e.entity_type})")
+        context_lines.append(f"- Entity: {e.normalized_label} ({e.entity_type})")
     for r in all_relations:
-        source_name = all_entities_map.get(r.source_entity_id)
-        target_name = all_entities_map.get(r.target_entity_id)
+        source_name = all_entities_map.get(r.subject_entity_id)
+        target_name = all_entities_map.get(r.object_entity_id)
         if source_name and target_name:
             context_lines.append(f"- Relation: {source_name} {r.relation_type} {target_name}")
 

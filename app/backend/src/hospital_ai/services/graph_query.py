@@ -1,3 +1,4 @@
+from __future__ import annotations
 import uuid
 from datetime import date
 from typing import Literal, Optional, Any
@@ -17,9 +18,9 @@ class GraphFilters(BaseModel):
     relation_types: tuple[str, ...] = ()
     min_confidence: float = Field(0.0, ge=0.0, le=1.0)
     document_scope: tuple[UUID, ...] = ()
-    approved_revision_set_id: UUID | None = None
-    date_from: date | None = None
-    date_to: date | None = None
+    approved_revision_set_id: Optional[UUID] = None
+    date_from: Optional[date] = None
+    date_to: Optional[date] = None
     layout: Literal["force", "timeline", "hierarchical"] = "force"
     include_superseded: bool = False
 

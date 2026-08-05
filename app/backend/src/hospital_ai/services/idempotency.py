@@ -1,3 +1,4 @@
+from __future__ import annotations
 import json
 import uuid
 from collections.abc import Mapping
@@ -16,8 +17,8 @@ from hospital_ai.db.clinical_documents import IdempotencyRecord
 class IdempotencyDecision:
     record_id: uuid.UUID
     is_replay: bool
-    status_code: int | None = None
-    response_body: dict[str, Any] | None = None
+    status_code: Optional[int] = None
+    response_body: dict[str, Optional[Any]] = None
 
 def canonical_json(payload: Mapping[str, Any]) -> bytes:
     return json.dumps(payload, sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode("utf-8")
@@ -27,7 +28,7 @@ class IdempotencyService:
         self.session = session
         self.actor_user_id = actor_user_id
 
-    async def _lock(self, actor_user_id: uuid.UUID, scope: str, key_hash: str) -> IdempotencyRecord | None:
+    async def _lock(self, actor_user_id: uuid.UUID, scope: str, key_hash: str) -> Optional[IdempotencyRecord]:
         stmt = select(IdempotencyRecord).where(
             IdempotencyRecord.actor_user_id == actor_user_id,
             IdempotencyRecord.scope == scope,

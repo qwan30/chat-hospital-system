@@ -3,6 +3,7 @@
 Splits document pages into chunks while respecting table boundaries,
 ensuring that markdown tables are never split across chunks.
 """
+from __future__ import annotations
 
 from collections.abc import Iterable
 from dataclasses import dataclass

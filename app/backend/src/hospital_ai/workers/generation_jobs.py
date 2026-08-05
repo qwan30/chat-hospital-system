@@ -161,10 +161,27 @@ class StageRunner:
             return StageOutput(sha256=sha256, row_count=1)
 
         elif stage == "graph":
-            from hospital_ai.workers.jobs import _index_graph_entities
-            await _index_graph_entities(self.session, doc)
+            from hospital_ai.services.graph_rag import extract_entities_and_relations_nlp, GraphExtraction
+            from hospital_ai.services.graph_index import GraphIndexService
+
+            res = await self.session.execute(
+                select(DocumentChunk)
+                .where(DocumentChunk.generation_id == generation.id)
+                .order_by(DocumentChunk.chunk_index)
+            )
+            chunks = list(res.scalars().all())
+
+            graph_service = GraphIndexService(self.session)
+            for chunk in chunks:
+                try:
+                    entities, relations = await extract_entities_and_relations_nlp(chunk.content)
+                    extraction = GraphExtraction(entities=entities, relations=relations)
+                    await graph_service.index_chunk(generation.id, chunk, extraction)
+                except Exception as e:
+                    logger.debug("Graph extraction failed for chunk %s: %s", chunk.id, e)
+
             sha256 = hashlib.sha256(f"{generation.id}:graph".encode("utf-8")).hexdigest()
-            return StageOutput(sha256=sha256, row_count=1)
+            return StageOutput(sha256=sha256, row_count=len(chunks))
 
         elif stage == "timeline":
             sha256 = hashlib.sha256(f"{generation.id}:timeline".encode("utf-8")).hexdigest()

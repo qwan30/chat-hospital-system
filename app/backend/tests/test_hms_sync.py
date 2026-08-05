@@ -1,4 +1,5 @@
 """Tests for HMS synchronization service."""
+from __future__ import annotations
 
 import uuid
 from unittest.mock import AsyncMock, patch

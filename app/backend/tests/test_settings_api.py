@@ -6,6 +6,7 @@ Verifies that:
 - Overrides survive a fresh GET (round-trip persistence).
 - Multiple PUT calls merge overrides correctly.
 """
+from __future__ import annotations
 
 import pytest
 

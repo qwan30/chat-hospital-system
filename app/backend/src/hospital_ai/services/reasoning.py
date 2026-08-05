@@ -5,6 +5,7 @@ Provides multiple strategies for answering questions:
 - DecomposeQAPipeline: break complex question into sub-questions
 - PatientSummaryPipeline: generate structured patient summaries
 """
+from __future__ import annotations
 
 import re
 import uuid

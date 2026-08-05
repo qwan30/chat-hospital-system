@@ -4,6 +4,7 @@ Verifies that queries with no matching evidence return the standard
 "could not find sufficient evidence" message and empty citations,
 rather than hallucinating an answer.
 """
+from __future__ import annotations
 
 import pytest
 

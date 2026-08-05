@@ -5,7 +5,6 @@ without restarting the server.  Persists overrides to the ``system_settings``
 database table so they survive restarts.
 """
 
-from __future__ import annotations
 
 from typing import Optional
 

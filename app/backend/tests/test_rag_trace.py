@@ -5,8 +5,8 @@ Validates:
 - RagTraceResponse schema serialization
 - RAG trace data flows end-to-end through the chat pipeline
 """
-
 from __future__ import annotations
+
 
 import uuid
 from datetime import UTC, datetime

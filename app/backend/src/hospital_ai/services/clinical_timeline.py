@@ -1,3 +1,4 @@
+from __future__ import annotations
 import uuid
 from datetime import date, datetime
 from typing import Literal
@@ -7,7 +8,7 @@ from dataclasses import dataclass
 @dataclass(frozen=True)
 class TimelineEventProjection:
     event_type: str
-    clinical_date: date | None
+    clinical_date: Optional[date]
     recorded_at: datetime
     evidence_ids: tuple[uuid.UUID, ...]
     confidence: float

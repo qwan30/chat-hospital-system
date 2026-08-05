@@ -1,6 +1,6 @@
 """Versioned, immutable result contracts for AI evaluation runs."""
-
 from __future__ import annotations
+
 
 from typing import Literal
 
@@ -68,7 +68,7 @@ class ScanVariant(BaseModel):
 class ClinicalFieldMatchResult(BaseModel):
     field_type: str
     gold_value: str
-    extracted_value: str | None = None
+    extracted_value: Optional[str] = None
     exact_match: bool
     normalized_match: bool
     decimal_misread_risk: bool
@@ -174,8 +174,8 @@ class MetricDriftComparison(BaseModel):
     delta: float
     tolerance: float
     higher_is_better: bool = True
-    hard_gate_min: float | None = None
-    hard_gate_max: float | None = None
+    hard_gate_min: Optional[float] = None
+    hard_gate_max: Optional[float] = None
     status: Literal["passed", "failed_drift", "failed_hard_gate"]
 
 

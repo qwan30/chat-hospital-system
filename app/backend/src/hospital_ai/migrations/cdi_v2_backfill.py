@@ -19,7 +19,7 @@ from hospital_ai.db.clinical_documents import (
     DocumentRevisionPage,
     DocumentIndexGeneration,
 )
-from hospital_ai.services.graph_rag import GraphEntity
+from hospital_ai.db.clinical_graph import LegacyGraphEntity
 
 logger = logging.getLogger(__name__)
 
@@ -102,7 +102,7 @@ class CdiV2Backfill:
             if chunk.page_id not in page_ids:
                 failure_codes.add("orphan_chunk")
 
-        res_entities = await self.session.execute(select(GraphEntity).where(GraphEntity.source_document_id == document_id))
+        res_entities = await self.session.execute(select(LegacyGraphEntity).where(LegacyGraphEntity.source_document_id == document_id))
         entities = list(res_entities.scalars().all())
         for entity in entities:
             if entity.source_chunk_id not in chunk_ids:

@@ -14,6 +14,7 @@ Usage pattern:
         # Works with ANY implementation — Ollama, OpenAI, stub for testing
         ...
 """
+from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from typing import Any, Protocol, runtime_checkable

@@ -6,8 +6,8 @@ through the production permission-aware retrieval service.  It never starts an
 LLM provider: graph extraction is explicitly limited to the deterministic
 fallback grammar.
 """
-
 from __future__ import annotations
+
 
 from pathlib import Path
 
@@ -80,7 +80,7 @@ class ProductGraphAdapter:
                 )
                 edge_ids = tuple(
                     sorted(
-                        f"{relation.source_name}|{relation.relation_type}|{relation.target_name}"
+                        f"{relation.subject_label}|{relation.relation_type}|{relation.object_label}"
                         for relation in graph.relations
                     )
                 )
@@ -98,17 +98,20 @@ class ProductGraphAdapter:
         """Return every observed direct or connected relationship path."""
 
         def edge_id(relation: ExtractedRelation) -> str:
-            return f"{relation.source_name}|{relation.relation_type}|{relation.target_name}"
+            return f"{relation.subject_label}|{relation.relation_type}|{relation.object_label}"
+
+        adjacency = defaultdict(list)
+        for relation in relations:
+            adjacency[relation.subject_label.casefold()].append(relation)
 
         paths: set[tuple[str, ...]] = set()
 
         def visit(path: tuple[ExtractedRelation, ...]) -> None:
             paths.add(tuple(edge_id(relation) for relation in path))
-            tail = path[-1].target_name.casefold()
-            for candidate in relations:
-                if candidate in path or candidate.source_name.casefold() != tail:
-                    continue
-                visit(path + (candidate,))
+            tail = path[-1].object_label.casefold()
+            for candidate in adjacency.get(tail, []):
+                if candidate not in path:
+                    visit(path + (candidate,))
 
         for relation in relations:
             visit((relation,))

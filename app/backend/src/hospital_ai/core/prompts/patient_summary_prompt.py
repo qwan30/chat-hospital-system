@@ -8,6 +8,7 @@ medical record, synthesizing information from multiple HMS sources
 Version: 1.0.0
 Last reviewed: 2026-06-14
 """
+from __future__ import annotations
 
 PATIENT_SUMMARY_PROMPT = """\
 You are a clinical summarization assistant. Generate a structured patient summary

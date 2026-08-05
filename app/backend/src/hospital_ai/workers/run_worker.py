@@ -1,4 +1,5 @@
 from __future__ import annotations
+from typing import Optional
 
 import argparse
 from collections.abc import Sequence
@@ -22,7 +23,7 @@ def build_worker(settings: Settings) -> Worker:
     return Worker(queues, connection=connection)
 
 
-def main(argv: Sequence[str] | None = None) -> None:
+def main(argv: Optional[Sequence[str]] = None) -> None:
     parser = argparse.ArgumentParser(description="Run Hospital AI background workers.")
     parser.add_argument(
         "--burst",

@@ -43,7 +43,7 @@ class DraftMutationResult:
 @dataclass(frozen=True)
 class SubmitCommand:
     actor_id: uuid.UUID
-    lock_version: int | None = None
+    lock_version: Optional[int] = None
 
 
 @dataclass(frozen=True)
@@ -53,10 +53,10 @@ class RevisionSetResult:
     revision_number: int
     status: str
     created_by_user_id: uuid.UUID
-    created_at: datetime | None = None
-    submitted_at: datetime | None = None
-    approved_by_user_id: uuid.UUID | None = None
-    approved_at: datetime | None = None
+    created_at: Optional[datetime] = None
+    submitted_at: Optional[datetime] = None
+    approved_by_user_id: Optional[uuid.UUID] = None
+    approved_at: Optional[datetime] = None
 
 
 @dataclass(frozen=True)
@@ -75,7 +75,7 @@ class RejectCommand:
 class RestoreCommand:
     revision_id: uuid.UUID
     actor_id: uuid.UUID
-    lock_version: int | None = None
+    lock_version: Optional[int] = None
     reason: str = ""
 
 

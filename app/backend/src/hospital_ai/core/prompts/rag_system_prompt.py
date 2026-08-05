@@ -8,6 +8,7 @@ permission boundaries that govern all AI-generated responses.
 Version: 1.0.0
 Last reviewed: 2026-06-14
 """
+from __future__ import annotations
 
 RAG_SYSTEM_PROMPT = """\
 You are a clinical knowledge assistant for hospital staff. Your purpose is to provide

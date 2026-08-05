@@ -3,9 +3,12 @@ import uuid
 from fastapi import APIRouter, Depends, Header, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from hospital_ai.api.deps import get_current_user, get_session
-from hospital_ai.db.models import User
+from hospital_ai.api.deps import get_current_user, get_request_ip, get_session
+from hospital_ai.core.errors import NotFoundError
+from hospital_ai.core.security import new_trace_id
+from hospital_ai.db.models import Document, User
 from hospital_ai.schemas.document_uploads import UploadFinalizeResult, UploadSessionCreate, UploadSessionRead
+from hospital_ai.services.permissions import PermissionService
 from hospital_ai.services.upload_sessions import UploadSessionService
 
 router = APIRouter()
@@ -19,6 +22,13 @@ async def create_upload_session(
     session: AsyncSession = Depends(get_session),
     current_user: User = Depends(get_current_user),
 ) -> UploadSessionRead:
+    await PermissionService(session).require_upload_or_admin_role(
+        user=current_user,
+        patient_id=payload.patient_id,
+        action="document.upload_session.create",
+        trace_id=new_trace_id(),
+        ip_address=get_request_ip(request),
+    )
     return await UploadSessionService.from_request(session, request).create(
         actor=current_user, payload=payload, idempotency_key=idempotency_key
     )
@@ -32,6 +42,18 @@ async def finalize_upload_session(
     session: AsyncSession = Depends(get_session),
     current_user: User = Depends(get_current_user),
 ) -> UploadFinalizeResult:
+    document = await session.get(Document, document_id)
+    if document is None:
+        raise NotFoundError("Document not found.")
+    await PermissionService(session).require_upload_or_admin_role(
+        user=current_user,
+        patient_id=document.patient_id,
+        action="document.upload_session.finalize",
+        trace_id=new_trace_id(),
+        object_type="document",
+        object_id=document.id,
+        ip_address=get_request_ip(request),
+    )
     return await UploadSessionService.from_request(session, request).finalize(
         document_id=document_id, upload_id=upload_id, actor=current_user
     )

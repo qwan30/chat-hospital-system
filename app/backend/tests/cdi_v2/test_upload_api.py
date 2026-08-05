@@ -7,7 +7,7 @@ import uuid
 import pytest
 from fastapi import Request
 
-from hospital_ai.db.migrations import DOCTOR_ID
+from hospital_ai.db.migrations import DOCTOR_ID, PATIENT_ALICE_ID
 from hospital_ai.db.models import User
 
 
@@ -32,7 +32,7 @@ async def test_create_upload_session_idempotency_replay(session_and_settings, mo
         await session.commit()
 
     payload = UploadSessionCreate(
-        patient_id=uuid.uuid4(),
+        patient_id=PATIENT_ALICE_ID,
         filename="report.pdf",
         expected_size=1024,
         expected_sha256="b" * 64,
@@ -81,7 +81,7 @@ async def test_finalize_upload_session(session_and_settings, monkeypatch: pytest
 
     content = b"%PDF-1.4\n"
     payload = UploadSessionCreate(
-        patient_id=uuid.uuid4(),
+        patient_id=PATIENT_ALICE_ID,
         filename="report.pdf",
         expected_size=len(content),
         expected_sha256=hashlib.sha256(content).hexdigest(),

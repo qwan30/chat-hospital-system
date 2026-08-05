@@ -210,6 +210,8 @@ export const patchReviewItem = async (
 
 export interface UploadSessionCreate {
   patient_id: string;
+  title?: string;
+  document_type?: string;
   filename: string;
   expected_size: number;
   expected_sha256: string;
@@ -229,6 +231,7 @@ export interface UploadFinalizeResult {
   id: string;
   document_id: string;
   state: string;
+  reason?: string;
 }
 
 export const createUploadSession = async (

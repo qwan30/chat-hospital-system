@@ -23,6 +23,7 @@ class Settings(BaseSettings):
     dev_auto_grant_access: bool = False
     enable_break_glass: bool = False
     demo_mode: bool = True
+    allow_self_approval_for_synthetic_data: bool = False
     disable_guardrails: bool = False
     cdi_v2_dual_read: bool = Field(default=False)
     cdi_v2_active_generation_reads: bool = Field(default=False)

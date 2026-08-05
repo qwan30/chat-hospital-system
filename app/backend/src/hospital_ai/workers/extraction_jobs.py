@@ -104,7 +104,7 @@ class _RevisionIngest:
                 raw_text_snapshot=p.raw_text,
                 corrected_text=p.raw_text,
                 confidence=p.confidence,
-                status="machine_initial",
+                status="machine_draft",
                 created_by_user_id=document.uploaded_by,
                 content_sha256=sha256_val,
                 version=1,

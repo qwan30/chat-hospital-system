@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import hashlib
+import json
 import uuid
 from dataclasses import dataclass
 from datetime import UTC, datetime
@@ -9,6 +10,7 @@ from typing import Optional
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from hospital_ai.core.config import Settings, get_settings
 from hospital_ai.core.errors import ConflictError, NotFoundError
 from hospital_ai.db.clinical_documents import (
     DocumentDraftHead,
@@ -17,6 +19,9 @@ from hospital_ai.db.clinical_documents import (
     DocumentRevisionEvent,
     DocumentRevisionPage,
     DocumentRevisionSet,
+    OcrBlock,
+    OcrLine,
+    OcrSpan,
 )
 from hospital_ai.db.models import Document
 from hospital_ai.services.audit import AuditService
@@ -92,8 +97,9 @@ def enqueue_build_generation_job(generation_id: uuid.UUID) -> None:
 
 
 class RevisionService:
-    def __init__(self, session: AsyncSession) -> None:
+    def __init__(self, session: AsyncSession, settings: Optional[Settings] = None) -> None:
         self.session = session
+        self.settings = settings or get_settings()
 
     async def _lock_draft_head(self, document_id: uuid.UUID) -> DocumentDraftHead:
         head = await self.session.get(DocumentDraftHead, document_id, with_for_update=True)
@@ -107,9 +113,14 @@ class RevisionService:
     async def _require_selected_parent(
         self, document_id: uuid.UUID, page_number: int, parent_revision_id: uuid.UUID, head: DocumentDraftHead
     ) -> DocumentPageRevision:
+        selected_id = head.selected_pages.get(str(page_number))
+        if selected_id != str(parent_revision_id):
+            raise ConflictError("Parent revision must be the current draft head for this page.")
         parent = await self.session.get(DocumentPageRevision, parent_revision_id)
         if not parent or parent.document_id != document_id or parent.page_number != page_number:
             raise NotFoundError("Parent revision not found or mismatch.")
+        if parent.status not in {"machine_draft", "human_draft"}:
+            raise ConflictError("Only a machine or human draft can be edited.")
         return parent
 
     async def _next_page_revision_number(self, document_id: uuid.UUID, page_number: int) -> int:
@@ -128,10 +139,130 @@ class RevisionService:
         return (current or 0) + 1
 
     async def _mark_geometry_after_edit(self, parent_id: uuid.UUID, revision_id: uuid.UUID, text: str) -> None:
-        pass
+        parent = await self.session.get(DocumentPageRevision, parent_id)
+        if not parent:
+            raise NotFoundError("Parent revision not found.")
+        alignment_status = "aligned" if parent.corrected_text == text else "stale"
+
+        blocks = list(
+            await self.session.scalars(
+                select(OcrBlock)
+                .where(OcrBlock.page_revision_id == parent_id)
+                .order_by(OcrBlock.reading_order, OcrBlock.id)
+            )
+        )
+        block_ids: dict[uuid.UUID, uuid.UUID] = {}
+        for block in blocks:
+            cloned_id = uuid.uuid4()
+            block_ids[block.id] = cloned_id
+            self.session.add(
+                OcrBlock(
+                    id=cloned_id,
+                    page_revision_id=revision_id,
+                    text_start_offset=block.text_start_offset,
+                    text_end_offset=block.text_end_offset,
+                    polygon=dict(block.polygon) if block.polygon else None,
+                    confidence=block.confidence,
+                    reading_order=block.reading_order,
+                    alignment_status=alignment_status,
+                )
+            )
+
+        lines = list(
+            await self.session.scalars(
+                select(OcrLine).where(OcrLine.page_revision_id == parent_id).order_by(OcrLine.reading_order, OcrLine.id)
+            )
+        )
+        line_ids: dict[uuid.UUID, uuid.UUID] = {}
+        for line in lines:
+            cloned_block_id = block_ids.get(line.block_id)
+            if cloned_block_id is None:
+                raise ConflictError("OCR geometry lineage is incomplete.")
+            cloned_id = uuid.uuid4()
+            line_ids[line.id] = cloned_id
+            self.session.add(
+                OcrLine(
+                    id=cloned_id,
+                    block_id=cloned_block_id,
+                    page_revision_id=revision_id,
+                    text_start_offset=line.text_start_offset,
+                    text_end_offset=line.text_end_offset,
+                    polygon=dict(line.polygon) if line.polygon else None,
+                    confidence=line.confidence,
+                    reading_order=line.reading_order,
+                    alignment_status=alignment_status,
+                )
+            )
+
+        spans = list(
+            await self.session.scalars(
+                select(OcrSpan).where(OcrSpan.page_revision_id == parent_id).order_by(OcrSpan.reading_order, OcrSpan.id)
+            )
+        )
+        for span in spans:
+            cloned_line_id = line_ids.get(span.line_id)
+            if cloned_line_id is None:
+                raise ConflictError("OCR geometry lineage is incomplete.")
+            self.session.add(
+                OcrSpan(
+                    id=uuid.uuid4(),
+                    line_id=cloned_line_id,
+                    page_revision_id=revision_id,
+                    text_start_offset=span.text_start_offset,
+                    text_end_offset=span.text_end_offset,
+                    polygon=dict(span.polygon) if span.polygon else None,
+                    confidence=span.confidence,
+                    reading_order=span.reading_order,
+                    alignment_status=alignment_status,
+                    normalized_text=span.normalized_text,
+                    source_engine_metadata=(dict(span.source_engine_metadata) if span.source_engine_metadata else None),
+                )
+            )
+        await self.session.flush()
+
+    async def _geometry_alignment_state(self, page_revision_id: uuid.UUID) -> str:
+        statuses: list[str] = []
+        for model in (OcrBlock, OcrLine, OcrSpan):
+            statuses.extend(
+                list(
+                    await self.session.scalars(
+                        select(model.alignment_status).where(model.page_revision_id == page_revision_id)
+                    )
+                )
+            )
+        if "stale" in statuses:
+            return "stale"
+        if "partially_aligned" in statuses:
+            return "partially_aligned"
+        return "aligned"
 
     async def _revision_set_hash(self, revision_set_id: uuid.UUID) -> str:
-        return hashlib.sha256(str(revision_set_id).encode("utf-8")).hexdigest()
+        revision_set = await self.session.get(DocumentRevisionSet, revision_set_id)
+        if not revision_set:
+            raise NotFoundError("Revision set not found.")
+        result = await self.session.execute(
+            select(DocumentRevisionPage, DocumentPageRevision)
+            .join(DocumentPageRevision, DocumentPageRevision.id == DocumentRevisionPage.page_revision_id)
+            .where(DocumentRevisionPage.revision_set_id == revision_set_id)
+            .order_by(DocumentRevisionPage.page_number)
+        )
+        pages = []
+        for revision_page, page_revision in result.all():
+            pages.append(
+                {
+                    "page_number": revision_page.page_number,
+                    "page_revision_id": str(page_revision.id),
+                    "content_sha256": page_revision.content_sha256,
+                    "geometry_alignment_state": await self._geometry_alignment_state(page_revision.id),
+                }
+            )
+        payload = {
+            "schema_version": "cdi-v2-revision-set-v1",
+            "document_id": str(revision_set.document_id),
+            "pages": pages,
+        }
+        canonical = json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+        return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
 
     async def _append_event(
         self,
@@ -206,6 +337,24 @@ class RevisionService:
         head = await self._lock_draft_head(document_id)
         if command.lock_version is not None and head.lock_version != command.lock_version:
             raise ConflictError("Draft changed during submit.")
+        if not head.selected_pages:
+            raise ConflictError("Cannot submit a draft without selected pages.")
+        document = await self._lock_document(document_id)
+        selected_items = sorted(head.selected_pages.items(), key=lambda item: int(item[0]))
+        if document.page_count is not None and [int(page) for page, _ in selected_items] != list(
+            range(1, document.page_count + 1)
+        ):
+            raise ConflictError("Draft must select exactly one current revision for every document page.")
+        for page_number, revision_id in selected_items:
+            page_revision = await self.session.get(DocumentPageRevision, uuid.UUID(str(revision_id)))
+            if (
+                not page_revision
+                or page_revision.document_id != document_id
+                or page_revision.page_number != int(page_number)
+            ):
+                raise ConflictError("Draft head contains an invalid page revision.")
+            if page_revision.status not in {"machine_draft", "human_draft"}:
+                raise ConflictError("Only machine or human drafts can be submitted.")
         rev_number = await self._next_revision_set_number(document_id)
         now_ts = datetime.now(UTC)
         rev_set = DocumentRevisionSet(
@@ -218,7 +367,7 @@ class RevisionService:
         )
         self.session.add(rev_set)
         await self.session.flush()
-        for p_num, rev_id in head.selected_pages.items():
+        for p_num, rev_id in selected_items:
             rp = DocumentRevisionPage(
                 revision_set_id=rev_set.id,
                 page_number=int(p_num),
@@ -254,6 +403,8 @@ class RevisionService:
             rev_set = await self.session.get(DocumentRevisionSet, revision_set_id)
             if not rev_set:
                 raise NotFoundError("Revision set not found.")
+        if rev_set.status != "submitted":
+            raise ConflictError("Only a submitted revision set can be reviewed.")
         return rev_set
 
     async def _lock_document(self, document_id: uuid.UUID) -> Document:
@@ -274,22 +425,23 @@ class RevisionService:
     ) -> GenerationAccepted:
         revision_set = await self._lock_submitted_set(revision_set_id)
         document = await self._lock_document(revision_set.document_id)
-        if not command.demo_mode:
-            if revision_set.created_by_user_id == command.actor_id:
-                await AuditService(self.session).record(
-                    actor_user_id=command.actor_id,
-                    action="document_revision.approve",
-                    object_type="document",
-                    object_id=document.id,
-                    outcome="failed",
-                    trace_id="0",
-                )
-                raise ConflictError("The editor cannot approve this production revision set.")
-        revision_set.status = "approved"
+        self_approval_allowed = (
+            self.settings.demo_mode and self.settings.allow_self_approval_for_synthetic_data and document.is_synthetic
+        )
+        if revision_set.created_by_user_id == command.actor_id and not self_approval_allowed:
+            await AuditService(self.session).record(
+                actor_user_id=command.actor_id,
+                action="document_revision.approve",
+                object_type="document",
+                object_id=document.id,
+                outcome="failed",
+                trace_id="0",
+            )
+            raise ConflictError("Self-approval is not permitted for this revision set.")
+        revision_set.status = "build_authorized"
         revision_set.approved_by_user_id = command.actor_id
         now_ts = datetime.now(UTC)
         revision_set.approved_at = now_ts
-        document.approved_revision_set_id = revision_set.id
         generation = DocumentIndexGeneration(
             document_id=document.id,
             revision_set_id=revision_set.id,
@@ -354,19 +506,19 @@ class RevisionService:
         if command.lock_version is not None and head.lock_version != command.lock_version:
             raise ConflictError("Draft changed during restore.")
         target = await self.session.get(DocumentPageRevision, command.revision_id)
-        if not target:
-            raise NotFoundError("Target revision not found.")
+        if not target or target.document_id != document_id or target.page_number != page_number:
+            raise NotFoundError("Target revision not found or mismatch.")
         revision = DocumentPageRevision(
             document_id=document_id,
             page_number=page_number,
             parent_revision_id=target.id,
             extraction_run_id=target.extraction_run_id,
             revision_number=await self._next_page_revision_number(document_id, page_number),
-            revision_type="restored",
+            revision_type="human_edit",
             raw_text_snapshot=target.raw_text_snapshot,
             corrected_text=target.corrected_text,
             confidence=target.confidence,
-            status="restored",
+            status="human_draft",
             created_by_user_id=command.actor_id,
             edit_reason=command.reason,
             content_sha256=target.content_sha256,
@@ -374,6 +526,7 @@ class RevisionService:
         )
         self.session.add(revision)
         await self.session.flush()
+        await self._mark_geometry_after_edit(target.id, revision.id, target.corrected_text)
         head.selected_pages = {**head.selected_pages, str(page_number): str(revision.id)}
         head.lock_version += 1
         head.updated_by_user_id = command.actor_id

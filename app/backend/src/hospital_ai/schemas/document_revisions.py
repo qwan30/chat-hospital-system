@@ -2,7 +2,7 @@ import uuid
 from datetime import datetime
 from typing import Optional
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class DraftPageWrite(BaseModel):
@@ -36,7 +36,12 @@ class RevisionSetRead(BaseModel):
 
 class ApproveRevisionRequest(BaseModel):
     model_config = ConfigDict(from_attributes=True)
-    demo_mode: bool = False
+    demo_mode: bool = Field(
+        default=False,
+        description=(
+            "Deprecated compatibility field; self-approval is decided by server settings and document metadata."
+        ),
+    )
 
 
 class RejectRevisionRequest(BaseModel):

@@ -46,11 +46,11 @@ async def setup_data(session_and_settings):
         document_id=doc.id,
         page_number=1,
         revision_number=1,
-        revision_type="machine_initial",
+        revision_type="machine_ocr",
         raw_text_snapshot="initial text",
         corrected_text="initial text",
         confidence=0.95,
-        status="machine_initial",
+        status="machine_draft",
         created_by_user_id=doctor.id,
         content_sha256="a" * 64,
         version=1,
@@ -190,7 +190,7 @@ async def test_restore_endpoint_enforces_idempotency_payload(session_and_setting
         current_user=records,
         session=session,
     )
-    assert first.status == "restored"
+    assert first.status == "human_draft"
 
     from hospital_ai.core.errors import ConflictError
 

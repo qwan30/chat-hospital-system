@@ -63,6 +63,9 @@ class GenerationService:
         document.approved_revision_set_id = generation.revision_set_id
         generation.state = "active"
         generation.activated_at = datetime.now(UTC)
+        revision_set = await self.session.get(DocumentRevisionSet, generation.revision_set_id)
+        if revision_set:
+            revision_set.status = "approved"
 
         if previous is not None:
             previous.state = "superseded"

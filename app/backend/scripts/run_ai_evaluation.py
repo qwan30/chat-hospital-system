@@ -38,7 +38,9 @@ def _parse_components(raw: str) -> tuple[str, ...]:
     components = tuple(item.strip() for item in raw.split(",") if item.strip())
     allowed = {"corpus", "ocr", "retrieval", "graph", "chat", "timeline", "stream"}
     if not components or set(components) - allowed:
-        raise ValueError("components must be a comma-separated subset of corpus,ocr,retrieval,graph,chat,timeline,stream")
+        raise ValueError(
+            "components must be a comma-separated subset of corpus,ocr,retrieval,graph,chat,timeline,stream"
+        )  # noqa: E501
     return components
 
 

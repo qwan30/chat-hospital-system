@@ -1,14 +1,12 @@
-from __future__ import annotations
-
-from typing import Optional
-
 """Gemini and Local LLM Judge engine with API Key Rotation for Chat Evaluation Harness."""
 
+from __future__ import annotations
 
 import json
 import os
 import re
 from collections.abc import Sequence
+from typing import Optional
 
 import httpx
 from pydantic import BaseModel, Field

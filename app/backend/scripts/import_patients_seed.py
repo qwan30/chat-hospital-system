@@ -4,11 +4,12 @@ Bulk import patients from the normalized CSV seed file with exact UUIDs.
 Usage:
   python scripts/import_patients_seed.py --file data/metadata/generated_patients_seed.csv
 """
+
 import argparse
 import csv
 import datetime
-import uuid
 import sys
+import uuid
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
@@ -29,7 +30,7 @@ def parse_args():
 
 def read_csv(path: Path):
     rows = []
-    with open(path, "r", encoding="utf-8-sig") as f:
+    with open(path, encoding="utf-8-sig") as f:
         reader = csv.DictReader(f)
         for row in reader:
             rows.append(row)
@@ -56,16 +57,17 @@ async def import_patients(file_path: str, dry_run: bool = False):
             print(f"  {mrn[:4]}... | {masked_name} | {masked_dob} | {r.get('department')} | {r.get('status')}")
         return
 
-    from hospital_ai.db.session import get_session
-    from hospital_ai.db.models import Patient, PatientPermission
     from sqlalchemy import select
+
+    from hospital_ai.db.models import Patient, PatientPermission
+    from hospital_ai.db.session import get_session
 
     imported = 0
     skipped = 0
     perms_added = 0
 
     async for session in get_session():
-        for i, row in enumerate(rows):
+        for i, row in enumerate(rows):  # noqa: B007
             mrn = row["mrn"].strip()
             name = row["full_name"].strip()
             dob_str = (row.get("dob") or "").strip()
@@ -74,9 +76,7 @@ async def import_patients(file_path: str, dry_run: bool = False):
             patient_id_str = row["patient_id"].strip()
             patient_id = uuid.UUID(patient_id_str)
 
-            existing = await session.execute(
-                select(Patient).where(Patient.mrn == mrn)
-            )
+            existing = await session.execute(select(Patient).where(Patient.mrn == mrn))
             patient = existing.scalar_one_or_none()
 
             if patient is None:
@@ -130,10 +130,14 @@ async def import_patients(file_path: str, dry_run: bool = False):
         await session.commit()
         break
 
-    print(f"\nImport Complete: Imported {imported} patients, skipped {skipped} existing. Added {perms_added} permission records.")
+    print(
+        f"\nImport Complete: Imported {imported} patients, skipped {skipped} "
+        f"existing. Added {perms_added} permission records."
+    )
 
 
 if __name__ == "__main__":
     args = parse_args()
     import asyncio
+
     asyncio.run(import_patients(args.file, args.dry_run))

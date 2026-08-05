@@ -24,7 +24,7 @@ class ProductTimelineAdapter:
     async def evaluate(
         self, case: Any, context: EvaluationCaseContext, filters: Optional[dict[str, Any]] = None
     ) -> CaseObservation:
-        patient_id = context.patient_id or getattr(case, 'patient_id', '')
+        patient_id = context.patient_id or getattr(case, "patient_id", "")
         if patient_id not in context.actor.allowed_patient_ids:
             raise EvidenceResolutionError("evaluation actor is not authorized for the requested patient timeline")
 

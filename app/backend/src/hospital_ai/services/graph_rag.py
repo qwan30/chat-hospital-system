@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 """Graph RAG — SQL-backed entity-relationship extraction and traversal.
 
 This is a lightweight "graph RAG" implementation that uses SQL tables to
@@ -18,6 +16,7 @@ existing PostgreSQL / SQLite database.  A future migration can promote
 these tables into a true graph engine.
 """
 
+from __future__ import annotations
 
 import json
 import logging

@@ -3,7 +3,11 @@ from __future__ import annotations
 import uuid
 from dataclasses import dataclass
 from datetime import date, datetime
-from typing import Literal
+from typing import Literal, Optional
+
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from hospital_ai.db.models import Document, User
 
 
 @dataclass(frozen=True)
@@ -16,11 +20,6 @@ class TimelineEventProjection:
     reviewer_state: str
     conflict_state: Literal["none", "date_conflict", "value_conflict"]
     supersession_lineage: tuple[uuid.UUID, ...]
-
-
-from sqlalchemy.ext.asyncio import AsyncSession
-
-from hospital_ai.db.models import Document, User
 
 
 class ClinicalTimelineService:

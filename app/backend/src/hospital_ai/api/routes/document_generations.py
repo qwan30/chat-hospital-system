@@ -90,9 +90,9 @@ async def rollback_generation(
             reason=payload.reason,
         )
     except ConflictError as exc:
-        raise HTTPException(status_code=409, detail=exc.message)
+        raise HTTPException(status_code=409, detail=exc.message) from exc
     except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc))
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
     response_model = GenerationRollbackRead(
         document_id=document_id,

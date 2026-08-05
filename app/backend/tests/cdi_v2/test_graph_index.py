@@ -4,6 +4,7 @@ import uuid
 
 import pytest
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 
 from hospital_ai.db.clinical_graph import GraphEntity, GraphMention, GraphRelationAssertion
 from hospital_ai.services.graph_index import GraphIndexService
@@ -178,7 +179,7 @@ async def test_cross_patient_relation_is_rejected(session_and_settings) -> None:
     session.add_all([entity_a, entity_b])
     await session.flush()
 
-    with pytest.raises(Exception):
+    with pytest.raises(IntegrityError):
         assertion = GraphRelationAssertion(
             patient_id=patient_alice_id,
             subject_entity_id=entity_a.id,

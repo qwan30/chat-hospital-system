@@ -5,9 +5,9 @@ Revises: 0002_add_doc_idx_gen
 Create Date: 2026-04-28
 """
 
-from alembic import op
 import sqlalchemy as sa
-from sqlalchemy.dialects import postgresql
+
+from alembic import op
 
 revision = "0003_add_chat_threads"
 down_revision = "0002_add_doc_idx_gen"

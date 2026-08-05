@@ -1,7 +1,3 @@
-from __future__ import annotations
-
-from typing import Optional
-
 """Isolated adapter that observes the real product retrieval service.
 
 The adapter intentionally owns a disposable SQLite schema.  It materializes
@@ -10,12 +6,14 @@ only canonical source artifacts referenced by a case, then converts the
 evaluation runner to validate.
 """
 
+from __future__ import annotations
 
 import csv
 import hashlib
 import io
 from collections.abc import Iterable
 from pathlib import Path
+from typing import Any, Optional
 from uuid import UUID
 
 import fitz
@@ -37,7 +35,6 @@ from hospital_ai.evaluation.adapter_foundation import (
     EvidenceResolutionError,
     RuntimeEvidenceChunk,
 )
-from hospital_ai.evaluation.benchmark import EvalCaseV2
 from hospital_ai.evaluation.corpus_manifest import EvidenceLocator, SourceArtifact
 from hospital_ai.evaluation.runner import CaseObservation
 from hospital_ai.services.chat_utils import meets_evidence_threshold
@@ -65,7 +62,7 @@ class ProductRetrievalAdapter:
     async def evaluate(self, case: Any, context: EvaluationCaseContext) -> CaseObservation:
         """Materialize one case and return only evidence actually retrieved."""
 
-        patient_id = context.patient_id or getattr(case, 'patient_id', '')
+        patient_id = context.patient_id or getattr(case, "patient_id", "")
         if patient_id not in context.actor.allowed_patient_ids:
             return CaseObservation(
                 refused=True,

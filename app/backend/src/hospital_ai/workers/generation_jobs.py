@@ -152,7 +152,7 @@ class StageRunner:
             chunks = list(res.scalars().all())
             if chunks:
                 embeddings = await EmbeddingService(self.settings).embed_many(c.content for c in chunks)
-                for c, emb in zip(chunks, embeddings):
+                for c, emb in zip(chunks, embeddings, strict=True):
                     c.embedding = emb
                 await self.session.flush()
             sha256 = hashlib.sha256(f"{generation.id}:embeddings:{len(chunks)}".encode()).hexdigest()

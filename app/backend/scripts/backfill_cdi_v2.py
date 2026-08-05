@@ -13,9 +13,10 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 
 from sqlalchemy import select
-from hospital_ai.db.session import get_session_factory
+
 from hospital_ai.db.models import Document
-from hospital_ai.migrations.cdi_v2_backfill import CdiV2Backfill, BackfillPolicy, BackfillBlocked
+from hospital_ai.db.session import get_session_factory
+from hospital_ai.migrations.cdi_v2_backfill import BackfillBlocked, BackfillPolicy, CdiV2Backfill
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")
 logger = logging.getLogger("backfill_cdi_v2")

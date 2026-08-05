@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import uuid
-from typing import Final
+from typing import Final, Optional
 
 from sqlalchemy.ext.asyncio import AsyncSession
 

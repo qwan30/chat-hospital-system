@@ -1,13 +1,11 @@
-from __future__ import annotations
-
-from typing import Optional
-
 """Pure, deterministic metrics used by the AI evaluation harness."""
 
+from __future__ import annotations
 
 import math
 import re
 from collections.abc import Iterable, Mapping, Sequence
+from typing import Optional
 
 from pydantic import BaseModel
 

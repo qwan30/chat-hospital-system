@@ -14,25 +14,25 @@ Each patient gets:
 
 import asyncio
 import uuid
-from datetime import date, datetime, timedelta, timezone
+from datetime import UTC, date, datetime, timedelta
+
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from hospital_ai.core.config import get_settings
 from hospital_ai.core.security import new_trace_id
 from hospital_ai.db.migrations import (
     ADMIN_ID,
     DOCTOR_ID,
-    NURSE_ID,
     PATIENT_ALICE_ID,
     PATIENT_BOB_ID,
     PATIENT_ELEANOR_ID,
     seed_synthetic_data,
 )
-from hospital_ai.db.models import Document, DocumentChunk, DocumentPage, User, AccessRequest, ChatThread
+from hospital_ai.db.models import AccessRequest, Document, DocumentChunk, DocumentPage, User
 from hospital_ai.db.session import get_session_factory
 from hospital_ai.schemas.hms import HmsAppointmentSummaryImport
 from hospital_ai.services.graph_rag import GraphEntity, GraphRelation
 from hospital_ai.services.hms_appointments import HmsAppointmentEvidenceImporter
-from sqlalchemy.ext.asyncio import AsyncSession
 
 SYNTHETIC_APPOINTMENT_ID = uuid.UUID("30000000-0000-0000-0000-000000000001")
 SYNTHETIC_APPOINTMENT_ID_ELEANOR = uuid.UUID("30000000-0000-0000-0000-000000000002")
@@ -56,8 +56,10 @@ DOC_ELEANOR_LAB_ID = uuid.UUID("40000000-0000-0000-0000-000000000007")
 
 # ── Helpers ──────────────────────────────────────────────────────────────────
 
+
 async def _doc_exists(session: AsyncSession, doc_id: uuid.UUID) -> bool:
     from sqlalchemy import select
+
     r = await session.execute(select(Document).where(Document.id == doc_id))
     return r.scalar_one_or_none() is not None
 
@@ -78,9 +80,8 @@ async def _add_document(
     if await _doc_exists(session, doc_id):
         # Return existing chunk id
         from sqlalchemy import select
-        r = await session.execute(
-            select(DocumentChunk).where(DocumentChunk.document_id == doc_id)
-        )
+
+        r = await session.execute(select(DocumentChunk).where(DocumentChunk.document_id == doc_id))
         existing = r.scalar_one_or_none()
         return existing.id if existing else chunk_uuid
 
@@ -131,16 +132,19 @@ async def _add_graph_entity(
     document_id: uuid.UUID,
 ) -> None:
     from sqlalchemy import select
+
     r = await session.execute(select(GraphEntity).where(GraphEntity.id == entity_id))
     if r.scalar_one_or_none() is None:
-        session.add(GraphEntity(
-            id=entity_id,
-            name=name,
-            entity_type=entity_type,
-            source_chunk_id=chunk_id,
-            source_document_id=document_id,
-            confidence=0.95,
-        ))
+        session.add(
+            GraphEntity(
+                id=entity_id,
+                name=name,
+                entity_type=entity_type,
+                source_chunk_id=chunk_id,
+                source_document_id=document_id,
+                confidence=0.95,
+            )
+        )
 
 
 async def _add_graph_relation(
@@ -152,19 +156,23 @@ async def _add_graph_relation(
     chunk_id: uuid.UUID,
 ) -> None:
     from sqlalchemy import select
+
     r = await session.execute(select(GraphRelation).where(GraphRelation.id == relation_id))
     if r.scalar_one_or_none() is None:
-        session.add(GraphRelation(
-            id=relation_id,
-            source_entity_id=source_entity_id,
-            target_entity_id=target_entity_id,
-            relation_type=relation_type,
-            weight=1.0,
-            source_chunk_id=chunk_id,
-        ))
+        session.add(
+            GraphRelation(
+                id=relation_id,
+                source_entity_id=source_entity_id,
+                target_entity_id=target_entity_id,
+                relation_type=relation_type,
+                weight=1.0,
+                source_chunk_id=chunk_id,
+            )
+        )
 
 
 # ── Main seed function ───────────────────────────────────────────────────────
+
 
 async def main() -> None:
     settings = get_settings()
@@ -174,29 +182,38 @@ async def main() -> None:
         # 1. Core users, patients, and basic permissions
         await seed_synthetic_data(session)
         admin = await session.get(User, ADMIN_ID)
-        doctor = await session.get(User, DOCTOR_ID)
+        doctor = await session.get(User, DOCTOR_ID)  # noqa: F841
 
         # 1b. Grant Bob Synthetic permissions for local dev.
         #     Bob is intentionally excluded from migrations.py to keep security tests intact.
         from hospital_ai.db.migrations import (
             NURSE_ID as _NURSE_ID,
+        )
+        from hospital_ai.db.migrations import (
             PHARMACIST_ID as _PHARMACIST_ID,
+        )
+        from hospital_ai.db.migrations import (
             RECORDS_ID as _RECORDS_ID,
+        )
+        from hospital_ai.db.migrations import (
             _add_missing_permissions,
         )
         from hospital_ai.db.models import PatientPermission as PP
 
-        await _add_missing_permissions(session, [
-            PP(user_id=DOCTOR_ID, patient_id=PATIENT_BOB_ID, scope="read"),
-            PP(user_id=DOCTOR_ID, patient_id=PATIENT_BOB_ID, scope="summary"),
-            PP(user_id=DOCTOR_ID, patient_id=PATIENT_BOB_ID, scope="medication"),
-            PP(user_id=_RECORDS_ID, patient_id=PATIENT_BOB_ID, scope="upload"),
-            PP(user_id=ADMIN_ID, patient_id=PATIENT_BOB_ID, scope="admin"),
-            PP(user_id=_NURSE_ID, patient_id=PATIENT_BOB_ID, scope="read"),
-            PP(user_id=_NURSE_ID, patient_id=PATIENT_BOB_ID, scope="summary"),
-            PP(user_id=_PHARMACIST_ID, patient_id=PATIENT_BOB_ID, scope="read"),
-            PP(user_id=_PHARMACIST_ID, patient_id=PATIENT_BOB_ID, scope="medication"),
-        ])
+        await _add_missing_permissions(
+            session,
+            [
+                PP(user_id=DOCTOR_ID, patient_id=PATIENT_BOB_ID, scope="read"),
+                PP(user_id=DOCTOR_ID, patient_id=PATIENT_BOB_ID, scope="summary"),
+                PP(user_id=DOCTOR_ID, patient_id=PATIENT_BOB_ID, scope="medication"),
+                PP(user_id=_RECORDS_ID, patient_id=PATIENT_BOB_ID, scope="upload"),
+                PP(user_id=ADMIN_ID, patient_id=PATIENT_BOB_ID, scope="admin"),
+                PP(user_id=_NURSE_ID, patient_id=PATIENT_BOB_ID, scope="read"),
+                PP(user_id=_NURSE_ID, patient_id=PATIENT_BOB_ID, scope="summary"),
+                PP(user_id=_PHARMACIST_ID, patient_id=PATIENT_BOB_ID, scope="read"),
+                PP(user_id=_PHARMACIST_ID, patient_id=PATIENT_BOB_ID, scope="medication"),
+            ],
+        )
         await session.commit()
 
         # 2. HMS Appointment Evidence ─────────────────────────────────────────
@@ -234,7 +251,7 @@ async def main() -> None:
                 start_time="10:00",
                 end_time="10:30",
                 reason="Routine AFib follow up",
-                symptoms="Patient reports occasional palpitations. Denies shortness of breath. History of AFib, CKD stage 3.",
+                symptoms="Patient reports occasional palpitations. Denies shortness of breath. History of AFib, CKD stage 3.",  # noqa: E501
                 vital_signs_summary="BP 135/85, HR 88 (irregular), SpO2 97%.",
                 follow_up_summary=(
                     "Continue Apixaban 5mg BID. Renal labs: Creatinine 1.6, eGFR 42. "
@@ -276,7 +293,7 @@ async def main() -> None:
         # 3. Alice — Prescription & Labs ──────────────────────────────────────
         ALICE_CHUNK_PRESC = uuid.UUID("50000000-0000-0000-0000-000000000001")
         ALICE_PAGE_PRESC = uuid.UUID("50000000-0000-0000-0000-000000000011")
-        alice_presc_chunk = await _add_document(
+        alice_presc_chunk = await _add_document(  # noqa: F841
             session,
             doc_id=DOC_ALICE_PRESCRIPTION_ID,
             patient_id=PATIENT_ALICE_ID,
@@ -296,9 +313,27 @@ async def main() -> None:
             ),
             chunk_meta={
                 "medications": [
-                    {"name": "Lisinopril", "dose": "10 mg", "route": "PO", "frequency": "1 lần/ngày", "prescriber": "BS. Dev Doctor"},
-                    {"name": "Metformin", "dose": "500 mg", "route": "PO", "frequency": "2 lần/ngày", "prescriber": "BS. Dev Doctor"},
-                    {"name": "Amlodipine", "dose": "5 mg", "route": "PO", "frequency": "1 lần/ngày", "prescriber": "BS. Dev Doctor"},
+                    {
+                        "name": "Lisinopril",
+                        "dose": "10 mg",
+                        "route": "PO",
+                        "frequency": "1 lần/ngày",
+                        "prescriber": "BS. Dev Doctor",
+                    },  # noqa: E501
+                    {
+                        "name": "Metformin",
+                        "dose": "500 mg",
+                        "route": "PO",
+                        "frequency": "2 lần/ngày",
+                        "prescriber": "BS. Dev Doctor",
+                    },  # noqa: E501
+                    {
+                        "name": "Amlodipine",
+                        "dose": "5 mg",
+                        "route": "PO",
+                        "frequency": "1 lần/ngày",
+                        "prescriber": "BS. Dev Doctor",
+                    },  # noqa: E501
                 ]
             },
             chunk_uuid=ALICE_CHUNK_PRESC,
@@ -307,7 +342,7 @@ async def main() -> None:
 
         ALICE_CHUNK_LAB = uuid.UUID("50000000-0000-0000-0000-000000000002")
         ALICE_PAGE_LAB = uuid.UUID("50000000-0000-0000-0000-000000000012")
-        alice_lab_chunk = await _add_document(
+        alice_lab_chunk = await _add_document(  # noqa: F841
             session,
             doc_id=DOC_ALICE_LAB_ID,
             patient_id=PATIENT_ALICE_ID,
@@ -346,7 +381,7 @@ async def main() -> None:
         # 4. Bob — Prescription, Labs, Discharge ──────────────────────────────
         BOB_CHUNK_PRESC = uuid.UUID("50000000-0000-0000-0000-000000000003")
         BOB_PAGE_PRESC = uuid.UUID("50000000-0000-0000-0000-000000000013")
-        bob_presc_chunk = await _add_document(
+        bob_presc_chunk = await _add_document(  # noqa: F841
             session,
             doc_id=DOC_BOB_PRESCRIPTION_ID,
             patient_id=PATIENT_BOB_ID,
@@ -367,10 +402,34 @@ async def main() -> None:
             ),
             chunk_meta={
                 "medications": [
-                    {"name": "Aspirin", "dose": "81 mg", "route": "PO", "frequency": "1 lần/ngày", "prescriber": "BS. Dev Doctor"},
-                    {"name": "Atorvastatin", "dose": "40 mg", "route": "PO", "frequency": "1 lần/ngày", "prescriber": "BS. Dev Doctor"},
-                    {"name": "Carvedilol", "dose": "6.25 mg", "route": "PO", "frequency": "2 lần/ngày", "prescriber": "BS. Dev Doctor"},
-                    {"name": "Ramipril", "dose": "5 mg", "route": "PO", "frequency": "1 lần/ngày", "prescriber": "BS. Dev Doctor"},
+                    {
+                        "name": "Aspirin",
+                        "dose": "81 mg",
+                        "route": "PO",
+                        "frequency": "1 lần/ngày",
+                        "prescriber": "BS. Dev Doctor",
+                    },  # noqa: E501
+                    {
+                        "name": "Atorvastatin",
+                        "dose": "40 mg",
+                        "route": "PO",
+                        "frequency": "1 lần/ngày",
+                        "prescriber": "BS. Dev Doctor",
+                    },  # noqa: E501
+                    {
+                        "name": "Carvedilol",
+                        "dose": "6.25 mg",
+                        "route": "PO",
+                        "frequency": "2 lần/ngày",
+                        "prescriber": "BS. Dev Doctor",
+                    },  # noqa: E501
+                    {
+                        "name": "Ramipril",
+                        "dose": "5 mg",
+                        "route": "PO",
+                        "frequency": "1 lần/ngày",
+                        "prescriber": "BS. Dev Doctor",
+                    },  # noqa: E501
                 ]
             },
             chunk_uuid=BOB_CHUNK_PRESC,
@@ -379,7 +438,7 @@ async def main() -> None:
 
         BOB_CHUNK_LAB = uuid.UUID("50000000-0000-0000-0000-000000000004")
         BOB_PAGE_LAB = uuid.UUID("50000000-0000-0000-0000-000000000014")
-        bob_lab_chunk = await _add_document(
+        bob_lab_chunk = await _add_document(  # noqa: F841
             session,
             doc_id=DOC_BOB_LAB_ID,
             patient_id=PATIENT_BOB_ID,
@@ -419,7 +478,7 @@ async def main() -> None:
 
         BOB_CHUNK_DISCHARGE = uuid.UUID("50000000-0000-0000-0000-000000000005")
         BOB_PAGE_DISCHARGE = uuid.UUID("50000000-0000-0000-0000-000000000015")
-        bob_discharge_chunk = await _add_document(
+        bob_discharge_chunk = await _add_document(  # noqa: F841
             session,
             doc_id=DOC_BOB_DISCHARGE_ID,
             patient_id=PATIENT_BOB_ID,
@@ -440,9 +499,27 @@ async def main() -> None:
             ),
             chunk_meta={
                 "medications": [
-                    {"name": "Aspirin", "dose": "81 mg", "route": "PO", "frequency": "1 lần/ngày", "prescriber": "BS. Dev Doctor"},
-                    {"name": "Atorvastatin", "dose": "40 mg", "route": "PO", "frequency": "1 lần/ngày", "prescriber": "BS. Dev Doctor"},
-                    {"name": "Carvedilol", "dose": "6.25 mg", "route": "PO", "frequency": "BID", "prescriber": "BS. Dev Doctor"},
+                    {
+                        "name": "Aspirin",
+                        "dose": "81 mg",
+                        "route": "PO",
+                        "frequency": "1 lần/ngày",
+                        "prescriber": "BS. Dev Doctor",
+                    },  # noqa: E501
+                    {
+                        "name": "Atorvastatin",
+                        "dose": "40 mg",
+                        "route": "PO",
+                        "frequency": "1 lần/ngày",
+                        "prescriber": "BS. Dev Doctor",
+                    },  # noqa: E501
+                    {
+                        "name": "Carvedilol",
+                        "dose": "6.25 mg",
+                        "route": "PO",
+                        "frequency": "BID",
+                        "prescriber": "BS. Dev Doctor",
+                    },  # noqa: E501
                 ],
                 "allergies": ["Penicillin (phát ban)"],
                 "diagnoses": ["CAD 3-vessel disease", "Post-CABG"],
@@ -454,7 +531,7 @@ async def main() -> None:
         # 5. Eleanor — Prescription & Labs ───────────────────────────────────
         ELEANOR_CHUNK_PRESC = uuid.UUID("50000000-0000-0000-0000-000000000006")
         ELEANOR_PAGE_PRESC = uuid.UUID("50000000-0000-0000-0000-000000000016")
-        eleanor_presc_chunk = await _add_document(
+        eleanor_presc_chunk = await _add_document(  # noqa: F841
             session,
             doc_id=DOC_ELEANOR_PRESCRIPTION_ID,
             patient_id=PATIENT_ELEANOR_ID,
@@ -476,9 +553,27 @@ async def main() -> None:
             ),
             chunk_meta={
                 "medications": [
-                    {"name": "Apixaban", "dose": "5 mg", "route": "PO", "frequency": "2 lần/ngày", "prescriber": "BS. Dev Doctor"},
-                    {"name": "Metoprolol succinate", "dose": "50 mg", "route": "PO", "frequency": "1 lần/ngày", "prescriber": "BS. Dev Doctor"},
-                    {"name": "Furosemide", "dose": "40 mg", "route": "PO", "frequency": "1 lần/ngày", "prescriber": "BS. Dev Doctor"},
+                    {
+                        "name": "Apixaban",
+                        "dose": "5 mg",
+                        "route": "PO",
+                        "frequency": "2 lần/ngày",
+                        "prescriber": "BS. Dev Doctor",
+                    },  # noqa: E501
+                    {
+                        "name": "Metoprolol succinate",
+                        "dose": "50 mg",
+                        "route": "PO",
+                        "frequency": "1 lần/ngày",
+                        "prescriber": "BS. Dev Doctor",
+                    },  # noqa: E501
+                    {
+                        "name": "Furosemide",
+                        "dose": "40 mg",
+                        "route": "PO",
+                        "frequency": "1 lần/ngày",
+                        "prescriber": "BS. Dev Doctor",
+                    },  # noqa: E501
                 ],
                 "allergies": ["Sulfa (nổi mề đay)"],
             },
@@ -488,7 +583,7 @@ async def main() -> None:
 
         ELEANOR_CHUNK_LAB = uuid.UUID("50000000-0000-0000-0000-000000000007")
         ELEANOR_PAGE_LAB = uuid.UUID("50000000-0000-0000-0000-000000000017")
-        eleanor_lab_chunk = await _add_document(
+        eleanor_lab_chunk = await _add_document(  # noqa: F841
             session,
             doc_id=DOC_ELEANOR_LAB_ID,
             patient_id=PATIENT_ELEANOR_ID,
@@ -631,30 +726,39 @@ async def main() -> None:
         ar_002_id = uuid.UUID("90000000-0000-0000-0000-000000000002")
 
         from sqlalchemy import select
-        ar_001_exists = (await session.execute(select(AccessRequest).where(AccessRequest.id == ar_001_id))).scalar_one_or_none()
-        if not ar_001_exists:
-            session.add(AccessRequest(
-                id=ar_001_id,
-                patient_id=PATIENT_ALICE_ID,
-                user_id=_PHARMACIST_ID,
-                justification="Need to review Alice's medication list for pharmacy safety checks.",
-                status="approved",
-                reviewed_by_user_id=ADMIN_ID,
-                reviewed_at=datetime.now(timezone.utc) - timedelta(hours=2.5),
-                review_notes="Approved for pharmacy review.",
-                created_at=datetime.now(timezone.utc) - timedelta(hours=3),
-            ))
 
-        ar_002_exists = (await session.execute(select(AccessRequest).where(AccessRequest.id == ar_002_id))).scalar_one_or_none()
+        ar_001_exists = (
+            await session.execute(select(AccessRequest).where(AccessRequest.id == ar_001_id))
+        ).scalar_one_or_none()  # noqa: E501
+        if not ar_001_exists:
+            session.add(
+                AccessRequest(
+                    id=ar_001_id,
+                    patient_id=PATIENT_ALICE_ID,
+                    user_id=_PHARMACIST_ID,
+                    justification="Need to review Alice's medication list for pharmacy safety checks.",
+                    status="approved",
+                    reviewed_by_user_id=ADMIN_ID,
+                    reviewed_at=datetime.now(UTC) - timedelta(hours=2.5),
+                    review_notes="Approved for pharmacy review.",
+                    created_at=datetime.now(UTC) - timedelta(hours=3),
+                )
+            )
+
+        ar_002_exists = (
+            await session.execute(select(AccessRequest).where(AccessRequest.id == ar_002_id))
+        ).scalar_one_or_none()  # noqa: E501
         if not ar_002_exists:
-            session.add(AccessRequest(
-                id=ar_002_id,
-                patient_id=PATIENT_ELEANOR_ID,
-                user_id=_PHARMACIST_ID,
-                justification="Justification for reviewing Eleanor Vance's cardiology documents.",
-                status="pending",
-                created_at=datetime.now(timezone.utc) - timedelta(hours=1),
-            ))
+            session.add(
+                AccessRequest(
+                    id=ar_002_id,
+                    patient_id=PATIENT_ELEANOR_ID,
+                    user_id=_PHARMACIST_ID,
+                    justification="Justification for reviewing Eleanor Vance's cardiology documents.",
+                    status="pending",
+                    created_at=datetime.now(UTC) - timedelta(hours=1),
+                )
+            )
 
         from hospital_ai.db.models import ChatThread
 
@@ -669,7 +773,7 @@ async def main() -> None:
                     status="active",
                     owner_user_id=DOCTOR_ID,
                     created_trace_id="seed_dev_trace",
-                    last_message_at=datetime.now(timezone.utc),
+                    last_message_at=datetime.now(UTC),
                 )
             )
             await session.commit()

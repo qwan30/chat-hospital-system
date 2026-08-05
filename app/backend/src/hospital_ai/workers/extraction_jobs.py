@@ -170,7 +170,7 @@ class _ProcessingEvents:
         self, session: AsyncSession, document_id: uuid.UUID, run_id: uuid.UUID, count: int
     ) -> None:
         stages = ["preflight_document", "classify_document", "ocr"]
-        for i, stage in enumerate(stages, start=1):
+        for stage in stages:
             max_seq = await session.scalar(
                 select(func.max(DocumentProcessingEvent.sequence)).where(
                     DocumentProcessingEvent.document_id == document_id,

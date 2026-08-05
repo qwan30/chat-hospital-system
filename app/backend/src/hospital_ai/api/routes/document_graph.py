@@ -46,6 +46,6 @@ async def get_document_graph(
 async def get_document_timeline(
     document_id: UUID, session: AsyncSession = Depends(get_session), current_user: User = Depends(get_current_user)
 ):
-    document = await require_document_read(document_id, session, current_user)
+    _ = await require_document_read(document_id, session, current_user)
     # Placeholder for timeline response
     return {"events": []}

@@ -1,11 +1,10 @@
-from __future__ import annotations
-
-from typing import Optional
-
 """Tests for the ValidatedSentenceStreamer service."""
+
+from __future__ import annotations
 
 from collections.abc import AsyncIterator
 from dataclasses import dataclass
+from typing import Optional
 
 import pytest
 

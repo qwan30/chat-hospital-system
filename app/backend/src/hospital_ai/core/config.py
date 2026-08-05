@@ -22,6 +22,9 @@ class Settings(BaseSettings):
     enable_break_glass: bool = False
     demo_mode: bool = True
     disable_guardrails: bool = False
+    cdi_v2_dual_read: bool = Field(default=False)
+    cdi_v2_active_generation_reads: bool = Field(default=False)
+    cdi_v2_authoring_enabled: bool = Field(default=False)
     # Seconds allowed for an llm-guard scan before the guardrail fails closed.
     # The prompt-injection model takes ~4s per scan on CPU, so the previous
     # hardcoded 3.0 timed out on every request and refused safe questions as

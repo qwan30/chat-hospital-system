@@ -1,0 +1,123 @@
+import React, { useRef, useState } from "react";
+import { UploadUiState, UploadStatePanel } from "./UploadStatePanel";
+import {
+  createUploadSession,
+  putPresignedObject,
+  finalizeUpload,
+  UploadFinalizeResult,
+} from "@/lib/api/documents";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { useNavigate } from "@tanstack/react-router";
+
+export function DocumentUploadFlow({
+  patientId,
+  documentType = "clinical_note",
+  title = "",
+}: {
+  patientId: string;
+  documentType?: string;
+  title?: string;
+}) {
+  const navigate = useNavigate();
+  const [file, setFile] = useState<File | null>(null);
+  const [state, setState] = useState<UploadUiState>({ kind: "idle" });
+  const key = useRef<string>(crypto.randomUUID());
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setFile(e.target.files?.[0] || null);
+    key.current = crypto.randomUUID();
+    setState({ kind: "idle" });
+  };
+
+  const uploadResultToUiState = (result: UploadFinalizeResult): UploadUiState => {
+    switch (result.state) {
+      case "finalized":
+        return { kind: "finalized" };
+      case "quarantined":
+        return { kind: "quarantined" };
+      case "rejected":
+        return { kind: "rejected" };
+      case "verified":
+        return { kind: "verified" };
+      default:
+        return { kind: "uploaded_unverified" };
+    }
+  };
+
+  const hashFile = async (file: File): Promise<string> => {
+    const buffer = await file.arrayBuffer();
+    const hashBuffer = await crypto.subtle.digest("SHA-256", buffer);
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    return hashArray.map((b) => b.toString(16).padStart(2, "0")).join("");
+  };
+
+  const runUpload = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!file) return;
+
+    try {
+      setState({ kind: "creating_session" });
+      const sha256 = await hashFile(file);
+      const session = await createUploadSession(
+        {
+          patient_id: patientId,
+          filename: file.name,
+          expected_size: file.size,
+          expected_sha256: sha256,
+          claimed_mime_type: file.type || "application/octet-stream",
+        },
+        { idempotencyKey: key.current },
+      );
+
+      setState({ kind: "uploading", percent: 0 });
+      await putPresignedObject(session, file, (percent) =>
+        setState({ kind: "uploading", percent }),
+      );
+
+      setState({ kind: "uploaded_unverified" });
+      const result = await finalizeUpload(session.document_id, session.upload_id, {
+        idempotencyKey: key.current,
+      });
+
+      const nextState = uploadResultToUiState(result);
+      setState(nextState);
+
+      if (nextState.kind === "finalized") {
+        setFile(null);
+        navigate({ to: "/documents/$documentId", params: { documentId: result.document_id } });
+      }
+    } catch (err) {
+      setState({ kind: "rejected", reason: err instanceof Error ? err.message : String(err) });
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      <form onSubmit={runUpload} className="space-y-4">
+        <div className="space-y-2">
+          <Label htmlFor="file-upload">Clinical document</Label>
+          <Input
+            id="file-upload"
+            type="file"
+            onChange={handleFileChange}
+            disabled={
+              state.kind !== "idle" && state.kind !== "quarantined" && state.kind !== "rejected"
+            }
+          />
+        </div>
+        <Button
+          type="submit"
+          disabled={
+            !file ||
+            (state.kind !== "idle" && state.kind !== "quarantined" && state.kind !== "rejected")
+          }
+        >
+          Upload document
+        </Button>
+      </form>
+      <UploadStatePanel state={state} onReset={() => setState({ kind: "idle" })} />
+    </div>
+  );
+}

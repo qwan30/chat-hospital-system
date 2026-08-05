@@ -74,7 +74,10 @@ export async function scanPublicBundle(targetDir = DEFAULT_TARGET) {
 
 async function runCli(targetDir, options = {}) {
   const frontendRoot = path.resolve(import.meta.dirname, "..");
-  const cliScriptPath = path.relative(frontendRoot, path.resolve(import.meta.dirname, "verify-public-bundle.mjs"));
+  const cliScriptPath = path.relative(
+    frontendRoot,
+    path.resolve(import.meta.dirname, "verify-public-bundle.mjs"),
+  );
 
   return new Promise((resolve, reject) => {
     const child = spawn(process.execPath, [cliScriptPath, targetDir], {
@@ -115,7 +118,11 @@ async function runSelfTest() {
     await mkdir(nestedDir, { recursive: true });
     await mkdir(failingNameDir, { recursive: true });
     await mkdir(failingValueDir, { recursive: true });
-    await writeFile(path.join(safeDir, "index.html"), "<html><body>safe bundle</body></html>", "utf8");
+    await writeFile(
+      path.join(safeDir, "index.html"),
+      "<html><body>safe bundle</body></html>",
+      "utf8",
+    );
     await writeFile(path.join(nestedDir, "app.js"), "console.log('safe bundle');", "utf8");
     await writeFile(
       path.join(failingNameDir, "env.js"),
@@ -148,7 +155,9 @@ async function runSelfTest() {
     }
 
     const failingNameResult = await scanPublicBundle(failingNameDir);
-    const failingNameMarkers = new Set(failingNameResult.violations.map((violation) => violation.marker));
+    const failingNameMarkers = new Set(
+      failingNameResult.violations.map((violation) => violation.marker),
+    );
     const expectedNameMarkers = [
       "HOSPITAL_AI_DATABASE_URL",
       "HOSPITAL_AI_REDIS_URL",
@@ -164,7 +173,9 @@ async function runSelfTest() {
     }
 
     const failingValueResult = await scanPublicBundle(path.join(tempRoot, "failing-values"));
-    const failingValueMarkers = new Set(failingValueResult.violations.map((violation) => violation.marker));
+    const failingValueMarkers = new Set(
+      failingValueResult.violations.map((violation) => violation.marker),
+    );
     const expectedValueMarkers = ["postgresql+asyncpg://", "redis://"];
     for (const marker of expectedValueMarkers) {
       if (!failingValueMarkers.has(marker)) {
@@ -183,13 +194,17 @@ async function runSelfTest() {
     const cliSmokeResult = await runCli(failingCliDir);
     const cliOutput = `${cliSmokeResult.stdout}\n${cliSmokeResult.stderr}`;
     if (cliSmokeResult.code !== 2) {
-      throw new Error(`Scanner self-test failed: CLI smoke test exited ${cliSmokeResult.code} instead of 2.`);
+      throw new Error(
+        `Scanner self-test failed: CLI smoke test exited ${cliSmokeResult.code} instead of 2.`,
+      );
     }
     if (!cliOutput.includes(path.resolve(failingCliDir))) {
       throw new Error("Scanner self-test failed: CLI smoke test did not report the scanned path.");
     }
     if (!cliOutput.includes("HOSPITAL_AI_DATABASE_URL")) {
-      throw new Error("Scanner self-test failed: CLI smoke test did not report the offending marker.");
+      throw new Error(
+        "Scanner self-test failed: CLI smoke test did not report the offending marker.",
+      );
     }
 
     let missingFailed = false;
@@ -197,8 +212,7 @@ async function runSelfTest() {
       await scanPublicBundle(path.join(tempRoot, "missing"));
     } catch (error) {
       missingFailed =
-        error instanceof Error &&
-        error.message.includes("Public bundle target not found:");
+        error instanceof Error && error.message.includes("Public bundle target not found:");
     }
 
     if (!missingFailed) {
@@ -228,7 +242,9 @@ export async function main(argv = process.argv.slice(2)) {
   if (result.violations.length > 0) {
     console.error(`Public bundle scan failed: ${result.targetDir}`);
     for (const violation of result.violations) {
-      console.error(`- ${path.relative(process.cwd(), violation.file)} contains ${violation.marker}`);
+      console.error(
+        `- ${path.relative(process.cwd(), violation.file)} contains ${violation.marker}`,
+      );
     }
     process.exitCode = 2;
     return result;

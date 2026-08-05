@@ -40,7 +40,7 @@ export interface GraphDataResponse {
   nodes: GraphNode[];
   edges: GraphEdge[];
   reasoning_path: GraphPath[];
-  metadata?: any;
+  metadata?: Record<string, unknown>;
 }
 
 export async function getPatientGraph(patientId: string): Promise<GraphDataResponse> {

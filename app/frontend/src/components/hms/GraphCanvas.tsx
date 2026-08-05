@@ -13,6 +13,7 @@ import {
   RotateCcw,
 } from "lucide-react";
 import type { GraphDataResponse as GraphData, GraphNode, GraphEdge } from "@/lib/api/graph";
+import type { DocumentGraphFilters } from "@/lib/api/document-graph";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -249,7 +250,13 @@ function getIntersectionOffset(
 /* ------------------------------------------------------------------ */
 /*  Component                                                          */
 /* ------------------------------------------------------------------ */
-export function GraphCanvas({ data }: { data: GraphData }) {
+export function GraphCanvas({
+  data,
+  filters,
+}: {
+  data: GraphData;
+  filters?: DocumentGraphFilters;
+}) {
   const [hover, setHover] = useState<string | null>(null);
   const [selected, setSelected] = useState<string | null>(null);
   const [hidden, setHidden] = useState<Set<NodeType>>(new Set());
@@ -304,15 +311,23 @@ export function GraphCanvas({ data }: { data: GraphData }) {
     return map;
   }, [filteredEdges]);
 
-  const visibleNodes = useMemo(
-    () => data.nodes.filter((n) => !hidden.has(n.type as NodeType)),
-    [data.nodes, hidden],
-  );
+  const visibleNodes = useMemo(() => {
+    const nodes = data.nodes.filter((n) => !hidden.has(n.type as NodeType));
+    if (filters?.node_limit !== undefined && filters.node_limit > 0) {
+      return nodes.slice(0, filters.node_limit);
+    }
+    return nodes;
+  }, [data.nodes, hidden, filters?.node_limit]);
   const visibleIds = useMemo(() => new Set(visibleNodes.map((n) => n.id)), [visibleNodes]);
-  const visibleEdges = useMemo(
-    () => filteredEdges.filter((e) => visibleIds.has(e.from_node) && visibleIds.has(e.to_node)),
-    [filteredEdges, visibleIds],
-  );
+  const visibleEdges = useMemo(() => {
+    const edges = filteredEdges.filter(
+      (e) => visibleIds.has(e.from_node) && visibleIds.has(e.to_node),
+    );
+    if (filters?.edge_limit !== undefined && filters.edge_limit > 0) {
+      return edges.slice(0, filters.edge_limit);
+    }
+    return edges;
+  }, [filteredEdges, visibleIds, filters?.edge_limit]);
 
   const counts = data.nodes.reduce<Record<string, number>>((acc, n) => {
     acc[n.type] = (acc[n.type] ?? 0) + 1;

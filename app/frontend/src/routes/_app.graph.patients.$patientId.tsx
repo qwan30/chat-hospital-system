@@ -3,13 +3,15 @@ import { ArrowRight, Network, Download, Share2, Sparkles } from "lucide-react";
 import { AppShell } from "@/components/shell/AppShell";
 import { PageHeader } from "@/components/hms/PageHeader";
 import { GraphCanvas } from "@/components/hms/GraphCanvas";
-import { getPatientGraph } from "@/lib/api/graph";
+import { GraphFilters, DEFAULT_GRAPH_FILTERS } from "@/components/hms/GraphFilters";
+import { getPatientGraph, type GraphPathStep } from "@/lib/api/graph";
+import type { DocumentGraphFilters } from "@/lib/api/document-graph";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { StreamingControls } from "@/components/hms/StreamingControls";
 import { useStreamSteps } from "@/hooks/use-stream-steps";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 
 export const Route = createFileRoute("/_app/graph/patients/$patientId")({
@@ -19,6 +21,7 @@ export const Route = createFileRoute("/_app/graph/patients/$patientId")({
 
 function Page() {
   const { patientId } = Route.useParams();
+  const [filters, setFilters] = useState<DocumentGraphFilters>(DEFAULT_GRAPH_FILTERS);
 
   const {
     data: patientGraph,
@@ -76,7 +79,8 @@ function Page() {
               <Sparkles className="h-3 w-3 text-ai" /> RAG-grounded
             </Badge>
             <Badge variant="outline">
-              Updated {new Date(patientGraph.metadata?.updated_at || "").toLocaleDateString()}
+              Updated{" "}
+              {new Date((patientGraph.metadata?.updated_at as string) || "").toLocaleDateString()}
             </Badge>
           </>
         }
@@ -93,10 +97,11 @@ function Page() {
       />
 
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-[1fr_360px]">
-        {/* @ts-ignore */}
-        <GraphCanvas data={patientGraph} />
+        <GraphCanvas data={patientGraph} filters={filters} />
 
         <div className="space-y-4">
+          <GraphFilters filters={filters} onChange={setFilters} />
+
           <Card>
             <CardHeader className="pb-3">
               <div className="flex items-center justify-between">
@@ -113,7 +118,7 @@ function Page() {
               <p className="mt-2 text-xs leading-relaxed text-muted-foreground">{path.rationale}</p>
             </CardHeader>
             <CardContent className="space-y-3">
-              {path.steps.slice(0, stream.revealed).map((s: any, i: number) => (
+              {path.steps.slice(0, stream.revealed).map((s: GraphPathStep, i: number) => (
                 <div key={i} className="rounded-lg border bg-muted/30 p-3">
                   <div className="flex items-center gap-2 text-[11px] font-medium text-muted-foreground">
                     <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-primary/10 text-primary text-[10px] font-semibold">

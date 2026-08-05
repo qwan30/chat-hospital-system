@@ -1,4 +1,4 @@
-import React, { useRef, useState } from "react";
+import React, { useRef, useState, useEffect } from "react";
 import { UploadUiState, UploadStatePanel } from "./UploadStatePanel";
 import {
   createUploadSession,
@@ -25,6 +25,13 @@ export function DocumentUploadFlow({
   const [file, setFile] = useState<File | null>(null);
   const [state, setState] = useState<UploadUiState>({ kind: "idle" });
   const key = useRef<string>(crypto.randomUUID());
+  const isMounted = useRef<boolean>(true);
+
+  useEffect(() => {
+    return () => {
+      isMounted.current = false;
+    };
+  }, []);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFile(e.target.files?.[0] || null);
@@ -98,6 +105,7 @@ export function DocumentUploadFlow({
         let isFinal = false;
         while (!isFinal) {
           await new Promise((resolve) => setTimeout(resolve, 2000));
+          if (!isMounted.current) return;
           const projection = await getDocument(result.document_id);
           if (
             projection.status === "review_required" ||
@@ -123,7 +131,6 @@ export function DocumentUploadFlow({
         }
       }
     } catch (err) {
-      setFile(null);
       setState({
         kind: "rejected",
         reason: err instanceof Error ? err.message : String(err),

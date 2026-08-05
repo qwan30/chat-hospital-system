@@ -229,7 +229,7 @@ jobs:
 
       # ── Quality gates ──
       - name: Ruff lint check
-        run: python -m ruff check src/ tests/
+        run: python -m ruff check src/ tests/ > ruff-output.txt || (cat ruff-output.txt; exit 1)
 
       - name: Ruff format check
         run: python -m ruff format --check src/ tests/
@@ -241,7 +241,7 @@ jobs:
           HOSPITAL_AI_CHAT_PROVIDER: "stub"
           HOSPITAL_AI_EMBEDDING_PROVIDER: "deterministic"
           HOSPITAL_AI_DISABLE_GUARDRAILS: "true"
-        run: python -m pytest tests/ -v --tb=short --cov=hospital_ai --cov-report=term --cov-fail-under=60
+        run: python -m pytest tests/ -v --tb=short --cov=hospital_ai --cov-report=term --cov-fail-under=60 --junitxml=test-results/junit.xml
 
       # ── API Contract Verification ──
       - name: Verify API contracts
@@ -262,6 +262,8 @@ jobs:
           path: |
             app/backend/.pytest_cache/
             app/backend/test-results/
+            app/backend/ruff-output.txt
+            app/backend/cdi-v2-release-evidence/
           if-no-files-found: ignore
           retention-days: 7
 
@@ -327,7 +329,16 @@ jobs:
       - name: Check migration-model alignment
         env:
           HOSPITAL_AI_DATABASE_URL: "postgresql+asyncpg://hospital_ai:hospital_ai@localhost:5432/hospital_ai_test"
-        run: alembic check
+        run: alembic check > alembic-check.txt || (cat alembic-check.txt; exit 1)
+
+      - name: Upload migration diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-migration-diagnostics
+          path: app/backend/alembic-check.txt
+          if-no-files-found: ignore
+          retention-days: 7
 
   # ═══════════════════════════════════════════════════════════════════
   # Job 4b: Backend — RAG Evaluation

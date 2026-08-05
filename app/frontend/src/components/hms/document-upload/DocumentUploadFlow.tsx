@@ -5,6 +5,7 @@ import {
   putPresignedObject,
   finalizeUpload,
   UploadFinalizeResult,
+  getDocument,
 } from "@/lib/api/documents";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -34,15 +35,15 @@ export function DocumentUploadFlow({
   const uploadResultToUiState = (result: UploadFinalizeResult): UploadUiState => {
     switch (result.state) {
       case "finalized":
-        return { kind: "finalized" };
+        return { kind: "finalized", reason: result.reason };
       case "quarantined":
-        return { kind: "quarantined" };
+        return { kind: "quarantined", reason: result.reason };
       case "rejected":
-        return { kind: "rejected" };
+        return { kind: "rejected", reason: result.reason };
       case "verified":
-        return { kind: "verified" };
+        return { kind: "verified", reason: result.reason };
       default:
-        return { kind: "uploaded_unverified" };
+        return { kind: "uploaded_unverified", reason: result.reason };
     }
   };
 
@@ -63,6 +64,8 @@ export function DocumentUploadFlow({
       const session = await createUploadSession(
         {
           patient_id: patientId,
+          title: title,
+          document_type: documentType,
           filename: file.name,
           expected_size: file.size,
           expected_sha256: sha256,
@@ -81,15 +84,50 @@ export function DocumentUploadFlow({
         idempotencyKey: key.current,
       });
 
-      const nextState = uploadResultToUiState(result);
+      let nextState = uploadResultToUiState(result);
+      if (nextState.kind === "quarantined" || nextState.kind === "rejected") {
+        setFile(null);
+        nextState = { ...nextState, checksum: sha256, mime: file.type || "application/octet-stream" };
+      }
       setState(nextState);
 
       if (nextState.kind === "finalized") {
         setFile(null);
         navigate({ to: "/documents/$documentId", params: { documentId: result.document_id } });
+      } else if (nextState.kind === "verified") {
+        let isFinal = false;
+        while (!isFinal) {
+          await new Promise((resolve) => setTimeout(resolve, 2000));
+          const projection = await getDocument(result.document_id);
+          if (
+            projection.status === "review_required" ||
+            projection.status === "ready"
+          ) {
+            isFinal = true;
+            setFile(null);
+            navigate({ to: "/documents/$documentId", params: { documentId: result.document_id } });
+          } else if (
+            projection.status === "quarantined" ||
+            projection.status === "rejected" ||
+            projection.status === "failed"
+          ) {
+            isFinal = true;
+            setFile(null);
+            setState({
+              kind: projection.status === "quarantined" ? "quarantined" : "rejected",
+              reason: projection.ocr_error || "Processing failed",
+              checksum: sha256,
+              mime: file.type || "application/octet-stream",
+            });
+          }
+        }
       }
     } catch (err) {
-      setState({ kind: "rejected", reason: err instanceof Error ? err.message : String(err) });
+      setFile(null);
+      setState({
+        kind: "rejected",
+        reason: err instanceof Error ? err.message : String(err),
+      });
     }
   };
 

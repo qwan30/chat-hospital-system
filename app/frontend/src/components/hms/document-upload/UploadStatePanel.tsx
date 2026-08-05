@@ -14,6 +14,8 @@ export type UploadUiState = {
     | "rejected";
   percent?: number;
   reason?: string;
+  checksum?: string;
+  mime?: string;
 };
 
 export function UploadStatePanel({
@@ -46,15 +48,25 @@ export function UploadStatePanel({
         </div>
       )}
       {state.kind === "quarantined" && (
-        <div className="flex items-center gap-2 text-destructive">
-          <XCircle className="h-4 w-4" />
-          <span>Upload quarantined</span>
+        <div className="flex flex-col gap-2 text-destructive">
+          <div className="flex items-center gap-2">
+            <XCircle className="h-4 w-4" />
+            <span>Upload quarantined</span>
+          </div>
+          {state.reason && <p className="text-sm">Reason: {state.reason}</p>}
+          {state.checksum && <p className="text-sm">Checksum: {state.checksum}</p>}
+          {state.mime && <p className="text-sm">MIME: {state.mime}</p>}
         </div>
       )}
       {state.kind === "rejected" && (
-        <div className="flex items-center gap-2 text-destructive">
-          <XCircle className="h-4 w-4" />
-          <span>Upload rejected</span>
+        <div className="flex flex-col gap-2 text-destructive">
+          <div className="flex items-center gap-2">
+            <XCircle className="h-4 w-4" />
+            <span>Upload rejected</span>
+          </div>
+          {state.reason && <p className="text-sm">Reason: {state.reason}</p>}
+          {state.checksum && <p className="text-sm">Checksum: {state.checksum}</p>}
+          {state.mime && <p className="text-sm">MIME: {state.mime}</p>}
         </div>
       )}
       {state.kind === "finalized" && (

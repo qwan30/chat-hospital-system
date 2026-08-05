@@ -40,6 +40,22 @@ class _FakeR2Storage:
     def read_page_image(self, patient_id: str, document_id: str, page_number: int) -> bytes:
         return self.objects[f"r2://patients/{patient_id}/documents/{document_id}/pages/{page_number}.png"]
 
+    def create_presigned_put(self, *, key: str, content_type: str, expires_seconds: int) -> Any:
+        from hospital_ai.services.storage import PresignedPut
+        return PresignedPut(url=f"https://fake.r2/{key}", required_headers={"Content-Type": content_type, "If-None-Match": "*"})
+
+    def head_object(self, key: str) -> Any:
+        from hospital_ai.services.storage import StorageObjectHead
+        if key not in self.objects:
+            raise FileNotFoundError()
+        return StorageObjectHead(key, len(self.objects[key]), '"etag"', "application/pdf")
+
+    def read_stream(self, key: str) -> io.BytesIO:
+        return io.BytesIO(self.objects[key])
+
+    def delete_object(self, key: str) -> None:
+        self.objects.pop(key, None)
+
 
 def _request() -> Request:
     return Request({"type": "http", "client": ("127.0.0.1", 8000)})
@@ -145,3 +161,23 @@ async def test_document_page_image_is_served_from_storage_bytes(
     assert isinstance(response, Response)
     assert response.media_type == "image/png"
     assert response.body == page_png
+
+
+@pytest.mark.asyncio
+async def test_upload_session_storage_integration(session_and_settings, monkeypatch: pytest.MonkeyPatch) -> None:
+    session, settings = session_and_settings
+    storage = _FakeR2Storage()
+    monkeypatch.setattr("hospital_ai.services.storage.get_storage_service", lambda _settings: storage)
+    
+    from hospital_ai.services.upload_sessions import UploadSessionService
+    service = UploadSessionService.from_request(session, _request())
+    
+    res = await service.create(
+        patient_id=uuid.uuid4(),
+        filename="test.pdf",
+        expected_size=10,
+        expected_sha256="d" * 64,
+        claimed_mime_type="application/pdf",
+    )
+    assert res.presigned_url and res.presigned_url.startswith("https://fake.r2/")
+    assert res.required_headers == {"Content-Type": "application/pdf", "If-None-Match": "*"}

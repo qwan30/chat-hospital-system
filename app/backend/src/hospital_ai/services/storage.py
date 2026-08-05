@@ -14,10 +14,22 @@ from fastapi import UploadFile
 
 from hospital_ai.core.config import Settings
 from hospital_ai.core.errors import ValidationAppError
+from dataclasses import dataclass
 
 SAFE_NAME_PATTERN = re.compile(r"[^a-zA-Z0-9._-]+")
 R2_SCHEME = "r2"
 
+@dataclass(frozen=True)
+class StorageObjectHead:
+    key: str
+    byte_size: int
+    etag: str
+    content_type: str | None
+
+@dataclass(frozen=True)
+class PresignedPut:
+    url: str
+    required_headers: dict[str, str]
 
 class StorageService(Protocol):
     async def save_upload(
@@ -46,6 +58,14 @@ class StorageService(Protocol):
         document_id: uuid.UUID | str,
         page_number: int,
     ) -> bytes: ...
+
+    def create_presigned_put(self, *, key: str, content_type: str, expires_seconds: int) -> PresignedPut: ...
+    
+    def head_object(self, key: str) -> StorageObjectHead: ...
+    
+    def read_stream(self, key: str) -> BinaryIO: ...
+    
+    def delete_object(self, key: str) -> None: ...
 
 
 class LocalStorageService:
@@ -134,6 +154,33 @@ class LocalStorageService:
         if not resolved.is_relative_to(root):
             raise ValueError("Storage URI points outside the configured local storage root.")
         return resolved
+
+    def create_presigned_put(self, *, key: str, content_type: str, expires_seconds: int) -> PresignedPut:
+        target_path = self._resolve_local_path(key)
+        target_path.parent.mkdir(parents=True, exist_ok=True)
+        return PresignedPut(
+            url=f"local://{key}",
+            required_headers={"Content-Type": content_type, "If-None-Match": "*"},
+        )
+
+    def head_object(self, key: str) -> StorageObjectHead:
+        target_path = self._resolve_local_path(key)
+        if not target_path.exists():
+            raise FileNotFoundError("Storage object not found.")
+        return StorageObjectHead(
+            key=key,
+            byte_size=target_path.stat().st_size,
+            etag='"local-etag"',
+            content_type=None,
+        )
+
+    def read_stream(self, key: str) -> BinaryIO:
+        target_path = self._resolve_local_path(key)
+        return target_path.open("rb")
+
+    def delete_object(self, key: str) -> None:
+        target_path = self._resolve_local_path(key)
+        target_path.unlink(missing_ok=True)
 
 
 class R2StorageService:
@@ -233,6 +280,46 @@ class R2StorageService:
         page_number: int,
     ) -> bytes:
         return self.read_bytes(_r2_uri(_page_key(patient_id, document_id, page_number)))
+
+    def create_presigned_put(self, *, key: str, content_type: str, expires_seconds: int) -> PresignedPut:
+        url = self.client.generate_presigned_url(
+            "put_object",
+            Params={"Bucket": self.bucket, "Key": key, "ContentType": content_type},
+            ExpiresIn=expires_seconds,
+        )
+        return PresignedPut(
+            url=url,
+            required_headers={"Content-Type": content_type, "If-None-Match": "*"},
+        )
+
+    def head_object(self, key: str) -> StorageObjectHead:
+        try:
+            row = self.client.head_object(Bucket=self.bucket, Key=key)
+            return StorageObjectHead(
+                key=key,
+                byte_size=int(row["ContentLength"]),
+                etag=str(row["ETag"]),
+                content_type=row.get("ContentType")
+            )
+        except ClientError as exc:
+            code = str(exc.response.get("Error", {}).get("Code", ""))
+            if code in {"404", "NoSuchKey", "NoSuchObject", "NoSuchBucket"}:
+                raise FileNotFoundError("Storage object not found.") from exc
+            raise
+
+    def read_stream(self, key: str) -> BinaryIO:
+        try:
+            response = self.client.get_object(Bucket=self.bucket, Key=key)
+            body = response["Body"]
+            return body
+        except ClientError as exc:
+            code = str(exc.response.get("Error", {}).get("Code", ""))
+            if code in {"404", "NoSuchKey", "NoSuchObject", "NoSuchBucket"}:
+                raise FileNotFoundError("Storage object not found.") from exc
+            raise
+            
+    def delete_object(self, key: str) -> None:
+        self.client.delete_object(Bucket=self.bucket, Key=key)
 
 
 def parse_r2_uri(storage_uri: str) -> str:

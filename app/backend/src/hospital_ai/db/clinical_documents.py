@@ -5,12 +5,14 @@ from typing import Any
 from sqlalchemy import (
     JSON,
     Boolean,
+    CheckConstraint,
     DateTime,
     ForeignKey,
     Integer,
     Numeric,
     String,
     Text,
+    UniqueConstraint,
     func,
 )
 from sqlalchemy.orm import Mapped, mapped_column
@@ -37,8 +39,11 @@ class DocumentUpload(TimestampMixin, Base):
     expected_sha256: Mapped[str | None] = mapped_column(String(64), nullable=True)
     byte_size: Mapped[int | None] = mapped_column(Integer, nullable=True)
     mime_type: Mapped[str | None] = mapped_column(String(128), nullable=True)
-    quarantine_result: Mapped[str | None] = mapped_column(Text, nullable=True)
     actor_user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"), nullable=False)
+
+    def apply_verification(self, decision: Any) -> None:
+        self.state = decision.state
+        self.quarantine_result = getattr(decision, "quarantine_result", "clean")
 
 
 class DocumentExtractionRun(Base):
@@ -90,6 +95,13 @@ class DocumentDraftHead(TimestampMixin, Base):
 
 class DocumentRevisionSet(Base):
     __tablename__ = "document_revision_sets"
+    __table_args__ = (
+        CheckConstraint(
+            "status in ('submitted','approved','rejected','superseded')",
+            name="ck_document_revision_sets_status",
+        ),
+        UniqueConstraint("document_id", "revision_number", name="uq_document_revision_set_number"),
+    )
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
     document_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("documents.id"), nullable=False, index=True)
     revision_number: Mapped[int] = mapped_column(Integer, nullable=False)
@@ -147,6 +159,9 @@ class DocumentIndexGeneration(Base):
 
 class GenerationStageResult(Base):
     __tablename__ = "generation_stage_results"
+    __table_args__ = (
+        UniqueConstraint("generation_id", "stage", name="uq_generation_stage_result"),
+    )
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
     generation_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("document_index_generations.id"), nullable=False, index=True)
     stage: Mapped[str] = mapped_column(String(64), nullable=False)
@@ -200,6 +215,9 @@ class OcrSpan(Base):
 
 class IdempotencyRecord(Base):
     __tablename__ = "idempotency_records"
+    __table_args__ = (
+        UniqueConstraint("actor_user_id", "scope", "key_hash", name="uq_idempotency_record"),
+    )
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
     actor_user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"), nullable=False, index=True)
     scope: Mapped[str] = mapped_column(String(64), nullable=False)

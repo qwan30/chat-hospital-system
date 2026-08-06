@@ -113,10 +113,13 @@ async def test_finalize_upload_session(session_and_settings, monkeypatch: pytest
                 "read_stream": lambda *args: io.BytesIO(content),
             },
         )()
+        from hospital_ai.services.upload_sessions import StorageContentReader
+        service.content_reader = StorageContentReader(service.storage)
         service.scanner = _CleanScanner()
         return service
 
     monkeypatch.setattr(us_module.UploadSessionService, "from_request", mocked_from_request)
+    monkeypatch.setattr("hospital_ai.workers.queue.enqueue_document_indexing", lambda *args, **kwargs: None)
 
     res = await upload_routes.finalize_upload_session(
         document_id=created.document_id,
@@ -151,5 +154,6 @@ def test_routes_registered_in_router() -> None:
 
 
 class _CleanScanner:
-    async def scan(self, key: str) -> str:
-        return "clean"
+    async def scan(self, key: str):
+        from hospital_ai.services.upload_sessions import MalwareScanResult
+        return MalwareScanResult(status="clean")

@@ -74,6 +74,10 @@ async def finalize_upload_session(
         result = await UploadSessionService.from_request(session, request).finalize(
             document_id=document_id, upload_id=upload_id, actor=current_user, commit=False
         )
+        if result.state == "finalized":
+            from hospital_ai.workers.queue import enqueue_document_indexing
+            from hospital_ai.core.config import get_settings
+            enqueue_document_indexing(document.id, get_settings())
     except Exception:
         await idemp.abort(decision.record_id)
         raise

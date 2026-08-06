@@ -21,11 +21,15 @@ from hospital_ai.services.storage import StorageObjectHead
 
 
 @dataclass
-class HashResult:
+class VerifiedObjectDigest:
     sha256: str
-    prefix: bytes
     byte_size: int
-    temp_path: Optional[str] = None
+    mime_type: str
+
+
+@dataclass
+class MalwareScanResult:
+    status: str
 
 
 @dataclass
@@ -35,42 +39,19 @@ class VerificationDecision:
     quarantine_result: str
 
 
+class UploadContentReader(Protocol):
+    async def hash_and_sniff(self, key: str) -> VerifiedObjectDigest: ...
+
+
 class MalwareScanner(Protocol):
-    async def scan(self, key: str) -> str: ...
-
-
-class UnavailableMalwareScanner:
-    async def scan(self, key: str) -> str:
-        raise ValidationAppError("Malware scanner unavailable.")
+    async def scan(self, key: str) -> MalwareScanResult: ...
 
 
 ALLOWED_MIME_TYPES = frozenset({"application/pdf", "image/png", "image/jpeg"})
 
 
-def sniff_magic_mime(prefix: bytes) -> str:
-    if prefix.startswith(b"%PDF"):
-        return "application/pdf"
-    if prefix.startswith(b"\x89PNG"):
-        return "image/png"
-    if prefix.startswith(b"\xff\xd8\xff"):
-        return "image/jpeg"
-    raise ValidationAppError("Unable to detect a supported MIME type from the uploaded object.")
-
-
-def hash_stream(stream: Any) -> HashResult:
-    if stream is None or not hasattr(stream, "read"):
-        raise ValidationAppError("Unable to read uploaded object.")
-    try:
-        data = stream.read()
-    except Exception as exc:
-        raise ValidationAppError("Unable to read uploaded object.") from exc
-    if not isinstance(data, bytes) or not data:
-        raise ValidationAppError("Uploaded object is empty or unreadable.")
-    return HashResult(sha256=hashlib.sha256(data).hexdigest(), prefix=data[:1024], byte_size=len(data))
-
-
 def verify_upload(
-    upload: DocumentUpload, head: Any, actual: HashResult, mime: str, malware: str
+    upload: DocumentUpload, head: Any, actual: VerifiedObjectDigest, malware: MalwareScanResult
 ) -> VerificationDecision:
     if not isinstance(head, (dict, StorageObjectHead)):
         return VerificationDecision(
@@ -78,23 +59,61 @@ def verify_upload(
         )
     head_bytes = head.get("ContentLength") if isinstance(head, dict) else head.byte_size
     if not isinstance(head_bytes, int) or head_bytes != actual.byte_size:
-        return VerificationDecision(state="rejected", public_reason="File size mismatch", quarantine_result=malware)
-    if upload.byte_size is not None and actual.byte_size != upload.byte_size:
-        return VerificationDecision(state="rejected", public_reason="File size mismatch", quarantine_result=malware)
-    if upload.expected_sha256 and actual.sha256 != upload.expected_sha256:
-        return VerificationDecision(state="rejected", public_reason="SHA256 mismatch", quarantine_result=malware)
-    if upload.mime_type not in ALLOWED_MIME_TYPES or upload.mime_type != mime:
-        return VerificationDecision(state="rejected", public_reason="MIME type mismatch", quarantine_result=malware)
-    if malware != "clean":
-        return VerificationDecision(state="rejected", public_reason="Malware detected", quarantine_result=malware)
-    return VerificationDecision(state="verified", public_reason="Verified", quarantine_result=malware)
+        return VerificationDecision(state="rejected", public_reason="File size mismatch", quarantine_result=malware.status)
+    if not upload.byte_size or actual.byte_size != upload.byte_size:
+        return VerificationDecision(state="rejected", public_reason="File size mismatch", quarantine_result=malware.status)
+    if not upload.expected_sha256 or actual.sha256 != upload.expected_sha256:
+        return VerificationDecision(state="rejected", public_reason="SHA256 mismatch", quarantine_result=malware.status)
+    if not upload.mime_type or upload.mime_type not in ALLOWED_MIME_TYPES or upload.mime_type != actual.mime_type:
+        return VerificationDecision(state="rejected", public_reason="MIME type mismatch", quarantine_result=malware.status)
+    if malware.status != "clean":
+        return VerificationDecision(state="rejected", public_reason="Malware detected", quarantine_result=malware.status)
+    return VerificationDecision(state="verified", public_reason="Verified", quarantine_result=malware.status)
+
+
+class StorageContentReader:
+    def __init__(self, storage: Any) -> None:
+        self.storage = storage
+
+    async def hash_and_sniff(self, key: str) -> VerifiedObjectDigest:
+        stream = await asyncio.to_thread(self.storage.read_stream, key)
+        if stream is None or not hasattr(stream, "read"):
+            raise ValidationAppError("Unable to read uploaded object.")
+        try:
+            data = stream.read()
+        except Exception as exc:
+            raise ValidationAppError("Unable to read uploaded object.") from exc
+        if not isinstance(data, bytes) or not data:
+            raise ValidationAppError("Uploaded object is empty or unreadable.")
+        
+        prefix = data[:1024]
+        if prefix.startswith(b"%PDF"):
+            mime = "application/pdf"
+        elif prefix.startswith(b"\x89PNG"):
+            mime = "image/png"
+        elif prefix.startswith(b"\xff\xd8\xff"):
+            mime = "image/jpeg"
+        else:
+            raise ValidationAppError("Unable to detect a supported MIME type from the uploaded object.")
+            
+        return VerifiedObjectDigest(
+            sha256=hashlib.sha256(data).hexdigest(),
+            byte_size=len(data),
+            mime_type=mime,
+        )
+
+
+class UnavailableMalwareScanner:
+    async def scan(self, key: str) -> MalwareScanResult:
+        raise ValidationAppError("Malware scanner unavailable.")
 
 
 class UploadSessionService:
-    def __init__(self, session: AsyncSession, storage: Any, scanner: Optional[MalwareScanner] = None) -> None:
+    def __init__(self, session: AsyncSession, storage: Any, content_reader: UploadContentReader, scanner: MalwareScanner) -> None:
         self.session = session
         self.storage = storage
-        self.scanner = scanner or UnavailableMalwareScanner()
+        self.content_reader = content_reader
+        self.scanner = scanner
 
     @classmethod
     def from_request(cls, session: AsyncSession, request: Request) -> UploadSessionService:
@@ -102,7 +121,7 @@ class UploadSessionService:
         from hospital_ai.services.storage import get_storage_service
 
         storage = get_storage_service(get_settings())
-        return cls(session, storage)
+        return cls(session, storage, StorageContentReader(storage), UnavailableMalwareScanner())
 
     async def create(
         self,
@@ -240,11 +259,9 @@ class UploadSessionService:
         error: Optional[Exception] = None
         try:
             head = await asyncio.to_thread(self.storage.head_object, upload.object_key)
-            stream = await asyncio.to_thread(self.storage.read_stream, upload.object_key)
-            actual = await asyncio.to_thread(hash_stream, stream)
-            mime = sniff_magic_mime(actual.prefix)
+            actual = await self.content_reader.hash_and_sniff(upload.object_key)
             malware = await self.scanner.scan(upload.object_key)
-            decision = verify_upload(upload, head, actual, mime, malware)
+            decision = verify_upload(upload, head, actual, malware)
         except ValidationAppError as exc:
             decision = VerificationDecision(state="rejected", public_reason=str(exc), quarantine_result="unavailable")
         except Exception as exc:

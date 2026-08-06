@@ -346,3 +346,54 @@ async def test_retry_of_finalized_upload(session_and_settings) -> None:
     # Retry
     res = await service.finalize(created.document_id, created.upload_id, actor=actor)
     assert res.state == "finalized"
+@pytest.mark.asyncio
+async def test_concurrent_finalize_handles_safely(session_and_settings) -> None:
+    session, _ = session_and_settings
+    from hospital_ai.services.storage import PresignedPut, StorageObjectHead
+    from hospital_ai.services.upload_sessions import UploadSessionService, StorageContentReader
+    from hospital_ai.db.models import Document
+    import asyncio
+
+    content = b"%PDF-1.4\n"
+    storage = Mock()
+    storage.head_object.side_effect = FileNotFoundError
+    storage.read_stream.return_value = io.BytesIO(content)
+    storage.create_presigned_put.return_value = PresignedPut("https://presigned", {})
+    actor = Mock(id=uuid.uuid4())
+    service = UploadSessionService(session, storage, content_reader=StorageContentReader(storage), scanner=_CleanScanner())
+    
+    created = await service.create(
+        actor=actor,
+        patient_id=uuid.uuid4(),
+        filename="scan.pdf",
+        expected_size=len(content),
+        expected_sha256=hashlib.sha256(content).hexdigest(),
+        claimed_mime_type="application/pdf",
+    )
+    storage.head_object.side_effect = None
+    
+    original_hash_and_sniff = service.content_reader.hash_and_sniff
+    async def delayed_hash_and_sniff(key):
+        await asyncio.sleep(0.01)
+        storage.read_stream.return_value = io.BytesIO(content)
+        return await original_hash_and_sniff(key)
+    
+    service.content_reader.hash_and_sniff = delayed_hash_and_sniff
+    storage.head_object.return_value = StorageObjectHead(created.object_key, len(content), '"etag"', "application/pdf")
+
+    results = await asyncio.gather(
+        service.finalize(created.document_id, created.upload_id, actor=actor),
+        service.finalize(created.document_id, created.upload_id, actor=actor),
+        return_exceptions=True
+    )
+    
+    successes = 0
+    for r in results:
+        if not isinstance(r, Exception) and getattr(r, "state", None) == "finalized":
+            successes += 1
+            
+    assert successes >= 1, "At least one finalize should succeed"
+    
+    doc = await session.get(Document, created.document_id)
+    assert doc.finalized_upload_id == created.upload_id
+

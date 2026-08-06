@@ -79,14 +79,28 @@ class StorageContentReader:
         stream = await asyncio.to_thread(self.storage.read_stream, key)
         if stream is None or not hasattr(stream, "read"):
             raise ValidationAppError("Unable to read uploaded object.")
+            
+        hasher = hashlib.sha256()
+        byte_size = 0
+        prefix = b""
+        
         try:
-            data = stream.read()
+            while True:
+                chunk = stream.read(64 * 1024)
+                if not chunk:
+                    break
+                if not isinstance(chunk, bytes):
+                    raise ValidationAppError("Unable to read uploaded object.")
+                hasher.update(chunk)
+                byte_size += len(chunk)
+                if len(prefix) < 1024:
+                    prefix += chunk[: 1024 - len(prefix)]
         except Exception as exc:
             raise ValidationAppError("Unable to read uploaded object.") from exc
-        if not isinstance(data, bytes) or not data:
+            
+        if byte_size == 0:
             raise ValidationAppError("Uploaded object is empty or unreadable.")
-        
-        prefix = data[:1024]
+            
         if prefix.startswith(b"%PDF"):
             mime = "application/pdf"
         elif prefix.startswith(b"\x89PNG"):
@@ -97,8 +111,8 @@ class StorageContentReader:
             raise ValidationAppError("Unable to detect a supported MIME type from the uploaded object.")
             
         return VerifiedObjectDigest(
-            sha256=hashlib.sha256(data).hexdigest(),
-            byte_size=len(data),
+            sha256=hasher.hexdigest(),
+            byte_size=byte_size,
             mime_type=mime,
         )
 
@@ -150,6 +164,7 @@ class UploadSessionService:
             or any(char not in "0123456789abcdefABCDEF" for char in expected_sha256)
         ):
             raise ValidationAppError("A valid expected SHA256 is required.")
+        expected_sha256 = expected_sha256.lower()
         if claimed_mime_type not in ALLOWED_MIME_TYPES:
             raise ValidationAppError("Unsupported upload MIME type.")
 

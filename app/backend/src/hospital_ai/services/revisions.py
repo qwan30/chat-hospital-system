@@ -508,10 +508,12 @@ class RevisionService:
         target = await self.session.get(DocumentPageRevision, command.revision_id)
         if not target or target.document_id != document_id or target.page_number != page_number:
             raise NotFoundError("Target revision not found or mismatch.")
+        selected_parent_str = head.selected_pages.get(str(page_number))
+        parent_rev_id = uuid.UUID(str(selected_parent_str)) if selected_parent_str else target.id
         revision = DocumentPageRevision(
             document_id=document_id,
             page_number=page_number,
-            parent_revision_id=target.id,
+            parent_revision_id=parent_rev_id,
             extraction_run_id=target.extraction_run_id,
             revision_number=await self._next_page_revision_number(document_id, page_number),
             revision_type="human_edit",
@@ -544,3 +546,48 @@ class RevisionService:
         if commit:
             await self.session.commit()
         return DraftMutationResult(revision.id, head.lock_version, page_number, target.corrected_text, revision.status)
+
+    async def compute_revision_set_hash(self, revision_set_id: uuid.UUID) -> str:
+        """Compute the canonical content and geometry hash for a revision set."""
+        return await self._revision_set_hash(revision_set_id)
+
+    async def serialize_exact_evidence(self, document_id: uuid.UUID, page_revision_id: uuid.UUID) -> dict:
+        """Serialize exact OCR geometry evidence for a page revision, rejecting stale geometry."""
+        revision = await self.session.get(DocumentPageRevision, page_revision_id)
+        if not revision or revision.document_id != document_id:
+            raise NotFoundError("Revision not found or mismatch.")
+
+        alignment_state = await self._geometry_alignment_state(page_revision_id)
+        if alignment_state == "stale":
+            raise ConflictError("Stale geometry cannot be serialized as exact evidence.")
+
+        spans_result = await self.session.execute(
+            select(OcrSpan)
+            .where(OcrSpan.page_revision_id == page_revision_id)
+            .order_by(OcrSpan.reading_order, OcrSpan.text_start_offset)
+        )
+        spans = spans_result.scalars().all()
+        if any(span.alignment_status == "stale" for span in spans):
+            raise ConflictError("Stale geometry cannot be serialized as exact evidence.")
+
+        span_list = [
+            {
+                "span_id": str(span.id),
+                "text_start_offset": span.text_start_offset,
+                "text_end_offset": span.text_end_offset,
+                "polygon": span.polygon,
+                "confidence": span.confidence,
+                "reading_order": span.reading_order,
+                "alignment_status": span.alignment_status,
+            }
+            for span in spans
+        ]
+
+        return {
+            "page_revision_id": str(revision.id),
+            "document_id": str(revision.document_id),
+            "page_number": revision.page_number,
+            "content_sha256": revision.content_sha256,
+            "alignment_state": alignment_state,
+            "spans": span_list,
+        }

@@ -175,9 +175,17 @@ async def test_reject_endpoint_enforces_idempotency_payload(session_and_settings
             session=session,
         )
 
-    from hospital_ai.db.clinical_documents import DocumentRevisionSet
     import datetime
-    second_sub = DocumentRevisionSet(document_id=doc.id, revision_number=2, created_by_user_id=doctor.id, status="submitted", submitted_at=datetime.datetime.now(datetime.timezone.utc))
+
+    from hospital_ai.db.clinical_documents import DocumentRevisionSet
+
+    second_sub = DocumentRevisionSet(
+        document_id=doc.id,
+        revision_number=2,
+        created_by_user_id=doctor.id,
+        status="submitted",
+        submitted_at=datetime.datetime.now(datetime.UTC),
+    )
     session.add(second_sub)
     await session.commit()
 
@@ -198,10 +206,11 @@ async def test_restore_endpoint_enforces_idempotency_payload(session_and_setting
     session, _ = session_and_settings
     doc, doctor, _, machine_id = setup_data
     records = await session.get(User, RECORDS_ID)
-    from hospital_ai.api.routes import document_revisions as rev_routes
-    from hospital_ai.schemas.document_revisions import RestoreRevisionRequest
-    from hospital_ai.db.clinical_documents import DocumentRevisionSet
     import datetime
+
+    from hospital_ai.api.routes import document_revisions as rev_routes
+    from hospital_ai.db.clinical_documents import DocumentRevisionSet
+    from hospital_ai.schemas.document_revisions import RestoreRevisionRequest
 
     submitted = await rev_routes.submit_draft(
         document_id=doc.id,
@@ -246,7 +255,13 @@ async def test_restore_endpoint_enforces_idempotency_payload(session_and_setting
             session=session,
         )
 
-    second_sub2 = DocumentRevisionSet(document_id=doc.id, revision_number=3, created_by_user_id=doctor.id, status="submitted", submitted_at=datetime.datetime.now(datetime.timezone.utc))
+    second_sub2 = DocumentRevisionSet(
+        document_id=doc.id,
+        revision_number=3,
+        created_by_user_id=doctor.id,
+        status="submitted",
+        submitted_at=datetime.datetime.now(datetime.UTC),
+    )
     session.add(second_sub2)
     await session.commit()
 
@@ -262,6 +277,61 @@ async def test_restore_endpoint_enforces_idempotency_payload(session_and_setting
         )
 
 
+@pytest.mark.asyncio
+async def test_get_exact_evidence_endpoint(session_and_settings, setup_data) -> None:
+    session, _ = session_and_settings
+    doc, doctor, _, machine_id = setup_data
+    from hospital_ai.api.routes import document_revisions as rev_routes
+    from hospital_ai.db.clinical_documents import OcrBlock, OcrLine, OcrSpan
+
+    block = OcrBlock(
+        page_revision_id=machine_id,
+        text_start_offset=0,
+        text_end_offset=12,
+        polygon={"points": [[0, 0], [1, 1]]},
+        confidence=0.99,
+        reading_order=1,
+        alignment_status="aligned",
+    )
+    session.add(block)
+    await session.flush()
+    line = OcrLine(
+        block_id=block.id,
+        page_revision_id=machine_id,
+        text_start_offset=0,
+        text_end_offset=12,
+        polygon={"points": [[0, 0], [1, 1]]},
+        confidence=0.99,
+        reading_order=1,
+        alignment_status="aligned",
+    )
+    session.add(line)
+    await session.flush()
+    span = OcrSpan(
+        line_id=line.id,
+        page_revision_id=machine_id,
+        text_start_offset=0,
+        text_end_offset=12,
+        polygon={"points": [[0, 0], [1, 1]]},
+        confidence=0.99,
+        reading_order=1,
+        alignment_status="aligned",
+        normalized_text="initial text",
+    )
+    session.add(span)
+    await session.commit()
+
+    res = await rev_routes.get_exact_evidence(
+        document_id=doc.id,
+        revision_id=machine_id,
+        current_user=doctor,
+        session=session,
+    )
+    assert res.alignment_state == "aligned"
+    assert len(res.spans) == 1
+    assert res.spans[0].text_start_offset == 0
+
+
 def test_routes_registered_in_router() -> None:
     from hospital_ai.api.router import api_router
 
@@ -269,3 +339,4 @@ def test_routes_registered_in_router() -> None:
     assert any("draft/pages" in p for p in paths)
     assert any("draft/submit" in p for p in paths)
     assert any("revision-sets" in p for p in paths)
+    assert any("exact-evidence" in p for p in paths)

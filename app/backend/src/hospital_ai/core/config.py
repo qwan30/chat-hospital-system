@@ -24,8 +24,14 @@ class Settings(BaseSettings):
     cors_origins: str = "http://localhost:3000,http://127.0.0.1:3000,http://localhost:3001,http://127.0.0.1:3001,http://localhost:8082,http://127.0.0.1:8082"
     dev_auto_grant_access: bool = False
     enable_break_glass: bool = False
-    demo_mode: bool = True
-    allow_self_approval_for_synthetic_data: bool = False
+    demo_mode: bool = Field(
+        default=True,
+        description="Server demo mode flag required as part of server-side self-approval eligibility.",
+    )
+    allow_self_approval_for_synthetic_data: bool = Field(
+        default=False,
+        description="Configured synthetic self-approval flag; requires demo_mode and synthetic document metadata.",
+    )
     disable_guardrails: bool = False
     cdi_v2_dual_read: bool = Field(default=False)
     cdi_v2_active_generation_reads: bool = Field(default=False)

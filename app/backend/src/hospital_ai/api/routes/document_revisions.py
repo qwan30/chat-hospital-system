@@ -17,6 +17,7 @@ from hospital_ai.schemas.document_revisions import (
     ApproveRevisionRequest,
     DraftPageRead,
     DraftPageWrite,
+    ExactEvidenceRead,
     GenerationAcceptedRead,
     RejectRevisionRequest,
     RestoreRevisionRequest,
@@ -505,3 +506,28 @@ async def get_revision_page(
         text=page_rev.corrected_text,
         status=rev_set.status,
     )
+
+
+@router.get("/{document_id}/revisions/{revision_id}/exact-evidence", response_model=ExactEvidenceRead, status_code=200)
+async def get_exact_evidence(
+    document_id: uuid.UUID,
+    revision_id: uuid.UUID,
+    current_user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+) -> ExactEvidenceRead:
+    from hospital_ai.core.errors import NotFoundError
+    from hospital_ai.db.models import Document
+
+    document = await session.get(Document, document_id)
+    if not document:
+        raise NotFoundError("Document not found.")
+    await CapabilityService(session).require(
+        user=current_user,
+        patient_id=document.patient_id,
+        capability="document_revision.view_raw",
+        action="document_revision.exact_evidence.read",
+        trace_id=new_trace_id(),
+        object_id=document_id,
+    )
+    evidence = await RevisionService(session).serialize_exact_evidence(document_id, revision_id)
+    return ExactEvidenceRead(**evidence)

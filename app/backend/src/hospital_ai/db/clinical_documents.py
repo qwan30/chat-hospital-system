@@ -152,7 +152,7 @@ class DocumentIndexGeneration(Base):
     retry_of_generation_id: Mapped[Optional[uuid.UUID]] = mapped_column(
         ForeignKey("document_index_generations.id"), nullable=True
     )
-    state: Mapped[str] = mapped_column(String(16), nullable=False, default="building")
+    state: Mapped[str] = mapped_column(String(16), nullable=False, default="building", server_default="building")
     revision_set_sha256: Mapped[str] = mapped_column(String(64), nullable=False)
     generation_sha256: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

@@ -12,12 +12,57 @@ import {
   Plus,
   RotateCcw,
 } from "lucide-react";
-import type { GraphDataResponse as GraphData, GraphNode, GraphEdge } from "@/lib/api/graph";
+import type {
+  GraphDataResponse as GraphData,
+  GraphNode,
+  GraphEdge,
+  GraphProvenance,
+} from "@/lib/api/graph";
 import type { DocumentGraphFilters } from "@/lib/api/document-graph";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 type NodeType = GraphNode["type"];
+
+type ProvenanceSource = Pick<
+  GraphNode,
+  | "source_document_id"
+  | "source_chunk_id"
+  | "source_generation_id"
+  | "source_revision_set_id"
+  | "source_page_revision_id"
+  | "source_page"
+  | "source_start_offset"
+  | "source_end_offset"
+  | "source_bounding_boxes"
+  | "source_alignment_status"
+>;
+
+function provenanceFor(source: ProvenanceSource): GraphProvenance {
+  return {
+    document_id: source.source_document_id,
+    chunk_id: source.source_chunk_id,
+    generation_id: source.source_generation_id,
+    revision_set_id: source.source_revision_set_id,
+    page_revision_id: source.source_page_revision_id,
+    page: source.source_page,
+    start_offset: source.source_start_offset,
+    end_offset: source.source_end_offset,
+    bounding_boxes: source.source_bounding_boxes,
+    alignment_status: source.source_alignment_status,
+  };
+}
+
+function provenanceTitle(provenance: GraphProvenance): string {
+  const values = [
+    provenance.document_id && `document:${provenance.document_id}`,
+    provenance.revision_set_id && `revision:${provenance.revision_set_id}`,
+    provenance.page_revision_id && `page-revision:${provenance.page_revision_id}`,
+    provenance.page !== undefined && provenance.page !== null && `page:${provenance.page}`,
+    provenance.chunk_id && `chunk:${provenance.chunk_id}`,
+  ].filter(Boolean);
+  return values.length > 0 ? `Provenance — ${values.join("; ")}` : "Provenance unavailable";
+}
 
 /* ------------------------------------------------------------------ */
 /*  Style map                                                          */
@@ -707,6 +752,7 @@ export function GraphCanvas({
 
           {/* Edges */}
           {visibleEdges.map((e) => {
+            const provenance = provenanceFor(e);
             const from = getPos(e.from_node);
             const to = getPos(e.to_node);
             const midX = (from.x + to.x) / 2;
@@ -724,7 +770,18 @@ export function GraphCanvas({
             const x2 = to.x - offsetTo.x;
             const y2 = to.y - offsetTo.y;
             return (
-              <g key={e.id} className={cn("transition-opacity", dimmed && "opacity-15")}>
+              <g
+                key={e.id}
+                data-testid={`graph-edge-${e.id}`}
+                data-provenance-document-id={provenance.document_id ?? undefined}
+                data-provenance-revision-id={provenance.revision_set_id ?? undefined}
+                data-provenance-page-revision-id={provenance.page_revision_id ?? undefined}
+                data-provenance-page={provenance.page ?? undefined}
+                data-provenance-chunk-id={provenance.chunk_id ?? undefined}
+                data-provenance-alignment-status={provenance.alignment_status ?? undefined}
+                className={cn("transition-opacity", dimmed && "opacity-15")}
+              >
+                <title>{provenanceTitle(provenance)}</title>
                 <line
                   x1={x1}
                   y1={y1}
@@ -766,6 +823,7 @@ export function GraphCanvas({
           {visibleNodes.map((n) => {
             const s = nodeStyle[n.type as NodeType];
             if (!s) return null;
+            const provenance = provenanceFor(n);
             const pos = getPos(n.id);
             const isActive = active === n.id;
             const dimmed = isDimmed(n.id);
@@ -773,6 +831,13 @@ export function GraphCanvas({
             return (
               <g
                 key={n.id}
+                data-testid={`graph-node-${n.id}`}
+                data-provenance-document-id={provenance.document_id ?? undefined}
+                data-provenance-revision-id={provenance.revision_set_id ?? undefined}
+                data-provenance-page-revision-id={provenance.page_revision_id ?? undefined}
+                data-provenance-page={provenance.page ?? undefined}
+                data-provenance-chunk-id={provenance.chunk_id ?? undefined}
+                data-provenance-alignment-status={provenance.alignment_status ?? undefined}
                 transform={`translate(${pos.x}, ${pos.y})`}
                 className={cn(
                   "transition-opacity",
@@ -784,6 +849,7 @@ export function GraphCanvas({
                 onMouseDown={(e) => handleNodeMouseDown(e, n.id)}
                 style={{ pointerEvents: "all" }}
               >
+                <title>{provenanceTitle(provenance)}</title>
                 {isActive ? (
                   <rect
                     x={-78}

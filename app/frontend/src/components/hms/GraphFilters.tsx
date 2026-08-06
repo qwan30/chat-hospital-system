@@ -18,6 +18,14 @@ export const DEFAULT_GRAPH_FILTERS: DocumentGraphFilters = {
   include_superseded: false,
 };
 
+export type GraphFilterKey =
+  | "node_limit"
+  | "edge_limit"
+  | "hop_depth"
+  | "min_confidence"
+  | "layout"
+  | "include_superseded";
+
 export function serializeGraphFilters(filters: DocumentGraphFilters): URLSearchParams {
   const params = new URLSearchParams();
   if (filters.node_limit !== undefined) params.append("node_limit", String(filters.node_limit));
@@ -74,6 +82,7 @@ export interface GraphFiltersProps {
   filters: DocumentGraphFilters;
   onChange: (filters: DocumentGraphFilters) => void;
   capabilities?: string[] | Record<string, unknown>;
+  supportedFilters?: readonly GraphFilterKey[];
   supersededEvidenceList?: SupersededEvidenceItem[];
   sourceBackedPaths?: SourceBackedPathItem[];
   finalCitations?: FinalCitationItem[];
@@ -83,10 +92,12 @@ export function GraphFilters({
   filters,
   onChange,
   capabilities,
+  supportedFilters,
   supersededEvidenceList = [],
   sourceBackedPaths = [],
   finalCitations = [],
 }: GraphFiltersProps) {
+  const supports = (key: GraphFilterKey) => supportedFilters?.includes(key) ?? true;
   const canReadSuperseded = React.useMemo(() => {
     if (!capabilities) return false;
     if (Array.isArray(capabilities)) {
@@ -121,7 +132,7 @@ export function GraphFilters({
       <Card className="p-4 space-y-4">
         <h3 className="font-semibold text-foreground">Graph Controls</h3>
 
-        <div className="space-y-2">
+        {supports("node_limit") && <div className="space-y-2">
           <Label htmlFor="node-limit-slider">Node Limit: {filters.node_limit ?? 50}</Label>
           <Slider
             id="node-limit-slider"
@@ -132,9 +143,9 @@ export function GraphFilters({
             step={10}
             onValueChange={(vals) => onChange({ ...filters, node_limit: vals[0] })}
           />
-        </div>
+        </div>}
 
-        <div className="space-y-2">
+        {supports("edge_limit") && <div className="space-y-2">
           <Label htmlFor="edge-limit-slider">Edge Limit: {filters.edge_limit ?? 100}</Label>
           <Slider
             id="edge-limit-slider"
@@ -145,9 +156,9 @@ export function GraphFilters({
             step={10}
             onValueChange={(vals) => onChange({ ...filters, edge_limit: vals[0] })}
           />
-        </div>
+        </div>}
 
-        <div className="space-y-2">
+        {supports("hop_depth") && <div className="space-y-2">
           <Label htmlFor="hop-depth-slider">Hop Depth: {filters.hop_depth ?? 2}</Label>
           <Slider
             id="hop-depth-slider"
@@ -158,9 +169,9 @@ export function GraphFilters({
             step={1}
             onValueChange={(vals) => onChange({ ...filters, hop_depth: vals[0] })}
           />
-        </div>
+        </div>}
 
-        <div className="space-y-2">
+        {supports("min_confidence") && <div className="space-y-2">
           <Label htmlFor="min-conf-slider">Minimum Confidence: {filters.min_confidence ?? 0}</Label>
           <Slider
             id="min-conf-slider"
@@ -171,9 +182,9 @@ export function GraphFilters({
             step={0.05}
             onValueChange={(vals) => onChange({ ...filters, min_confidence: vals[0] })}
           />
-        </div>
+        </div>}
 
-        <div className="space-y-2">
+        {supports("layout") && <div className="space-y-2">
           <Label id="layout-select-label">Layout</Label>
           <div className="flex gap-2" role="group" aria-labelledby="layout-select-label">
             {(["force", "timeline", "hierarchical"] as const).map((l) => (
@@ -192,9 +203,9 @@ export function GraphFilters({
               </button>
             ))}
           </div>
-        </div>
+        </div>}
 
-        {canReadSuperseded && (
+        {supports("include_superseded") && canReadSuperseded && (
           <div className="flex items-center justify-between pt-2 border-t">
             <Label htmlFor="include-superseded" className="cursor-pointer">
               Include Superseded

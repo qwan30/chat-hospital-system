@@ -7,18 +7,26 @@ export interface TimelineEventProjection {
   recorded_date: string;
   recorded_at?: string;
   evidence_ids: string[];
-  confidence: number;
+  confidence: number | null;
   reviewer_state: string;
   conflict_state: "none" | "date_conflict" | "value_conflict";
   supersession_lineage: string[];
+  document_id?: string | null;
+  generation_id?: string | null;
+  revision_set_id?: string | null;
+  page_revision_id?: string | null;
+  page?: number | null;
+  chunk_id?: string | null;
+  start_offset?: number | null;
+  end_offset?: number | null;
+  bounding_boxes?: unknown;
+  alignment_status?: string | null;
 }
 
 export interface DocumentTimelineFilters {
-  revision?: string;
   date_from?: string;
   date_to?: string;
-  event_types?: string[];
-  include_superseded?: boolean;
+  min_confidence?: number;
 }
 
 export interface DocumentTimelineResponse {
@@ -35,12 +43,8 @@ export async function getDocumentTimeline(
     if (filters.revision) params.append("revision", filters.revision);
     if (filters.date_from) params.append("date_from", filters.date_from);
     if (filters.date_to) params.append("date_to", filters.date_to);
-    if (filters.event_types) {
-      filters.event_types.forEach((t) => params.append("event_types", t));
-    }
-    if (filters.include_superseded !== undefined) {
-      params.append("include_superseded", String(filters.include_superseded));
-    }
+    if (filters.min_confidence !== undefined)
+      params.append("min_confidence", String(filters.min_confidence));
   }
   const queryString = params.toString();
   const path = queryString

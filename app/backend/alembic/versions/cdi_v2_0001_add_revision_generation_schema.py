@@ -217,7 +217,7 @@ def upgrade() -> None:
         sa.Column("document_id", sa.Uuid(), nullable=False),
         sa.Column("revision_set_id", sa.Uuid(), nullable=False),
         sa.Column("retry_of_generation_id", sa.Uuid(), nullable=True),
-        sa.Column("state", sa.String(length=16), nullable=False),
+        sa.Column("state", sa.String(length=16), nullable=False, server_default="building"),
         sa.Column("revision_set_sha256", sa.String(length=64), nullable=False),
         sa.Column("generation_sha256", sa.String(length=64), nullable=True),
         sa.Column(

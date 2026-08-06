@@ -7,6 +7,7 @@ import pytest
 from pydantic import ValidationError
 
 from hospital_ai.core.config import get_settings
+from hospital_ai.db.clinical_graph import LegacyGraphEntity, LegacyGraphRelation
 from hospital_ai.db.migrations import DOCTOR_ID, PATIENT_ALICE_ID, PATIENT_BOB_ID
 from hospital_ai.db.models import Document, DocumentChunk, DocumentPage, User
 from hospital_ai.migrations.cdi_v2_backfill import BackfillPolicy, CdiV2Backfill
@@ -61,8 +62,42 @@ async def test_parity_verification_succeeds_on_clean_synthetic(session) -> None:
         chunk_index=0,
         content="Clean parity text",
         token_count=3,
+        text_start_offset=0,
+        text_end_offset=17,
     )
     session.add(chunk)
+    await session.flush()
+
+    entity1 = LegacyGraphEntity(
+        id=uuid.uuid4(),
+        source_document_id=doc.id,
+        source_chunk_id=chunk.id,
+        name="Hypertension",
+        entity_type="Condition",
+        confidence=1.0,
+    )
+    session.add(entity1)
+
+    entity2 = LegacyGraphEntity(
+        id=uuid.uuid4(),
+        source_document_id=doc.id,
+        source_chunk_id=chunk.id,
+        name="Lisinopril",
+        entity_type="Medication",
+        confidence=1.0,
+    )
+    session.add(entity2)
+
+    relation = LegacyGraphRelation(
+        id=uuid.uuid4(),
+        source_entity_id=entity1.id,
+        target_entity_id=entity2.id,
+        relation_type="Treated_By",
+        weight=1.0,
+        source_chunk_id=chunk.id,
+    )
+    session.add(relation)
+
     await session.flush()
     await session.commit()
 
@@ -75,9 +110,38 @@ async def test_parity_verification_succeeds_on_clean_synthetic(session) -> None:
     assert parity_report["status"] == "passed"
     assert len(parity_report["documents"]) == 1
     artifact = parity_report["documents"][0]
-    assert artifact["lexical_vector_ids"]
-    assert artifact["citation_locators"]
-    assert "graph_provenance" in artifact
+
+    assert len(artifact["lexical_vector_ids"]) == 1
+    assert artifact["lexical_vector_ids"][0]["chunk_id"] == str(chunk.id)
+
+    assert len(artifact["citation_locators"]) == 1
+    assert artifact["citation_locators"][0]["chunk_id"] == str(chunk.id)
+    assert artifact["citation_locators"][0]["document_id"] == str(doc.id)
+    assert artifact["citation_locators"][0]["page_number"] == 1
+    assert artifact["citation_locators"][0]["start_offset"] == 0
+    assert artifact["citation_locators"][0]["end_offset"] == 17
+
+    graph = artifact["graph_provenance"]
+    assert len(graph["entities"]) == 2
+
+    entities_by_name = {e["name"]: e for e in graph["entities"]}
+    assert "Hypertension" in entities_by_name
+    assert entities_by_name["Hypertension"]["entity_type"] == "Condition"
+    assert entities_by_name["Hypertension"]["entity_id"] == str(entity1.id)
+    assert entities_by_name["Hypertension"]["source_chunk_id"] == str(chunk.id)
+
+    assert "Lisinopril" in entities_by_name
+    assert entities_by_name["Lisinopril"]["entity_type"] == "Medication"
+    assert entities_by_name["Lisinopril"]["entity_id"] == str(entity2.id)
+    assert entities_by_name["Lisinopril"]["source_chunk_id"] == str(chunk.id)
+
+    assert len(graph["relations"]) == 1
+    assert graph["relations"][0]["relation_id"] == str(relation.id)
+    assert graph["relations"][0]["source_entity_id"] == str(entity1.id)
+    assert graph["relations"][0]["target_entity_id"] == str(entity2.id)
+    assert graph["relations"][0]["relation_type"] == "Treated_By"
+    assert graph["relations"][0]["source_chunk_id"] == str(chunk.id)
+
     assert "source_hashes" in artifact
     assert "authorization_outcomes" in artifact
     assert len(parity_report["artifact_sha256"]) == 64

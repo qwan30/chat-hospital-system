@@ -92,7 +92,11 @@ class GenerationService:
         return doc
 
     async def activate(
-        self, generation_id: uuid.UUID, expected_active_generation_id: Optional[uuid.UUID] = None, *, commit: bool = True
+        self,
+        generation_id: uuid.UUID,
+        expected_active_generation_id: Optional[uuid.UUID] = None,
+        *,
+        commit: bool = True,
     ) -> ActivationResult:
         generation = await self._require_complete_build(generation_id)
         document = await self._lock_document(generation.document_id)
@@ -160,7 +164,9 @@ class GenerationService:
                 page.ocr_text = page_revision.corrected_text
                 page.ocr_confidence = page_revision.confidence
 
-    async def fail(self, generation_id: uuid.UUID, error_code: str, error_detail: str = "", *, commit: bool = True) -> None:
+    async def fail(
+        self, generation_id: uuid.UUID, error_code: str, error_detail: str = "", *, commit: bool = True
+    ) -> None:
         gen = await self.session.get(DocumentIndexGeneration, generation_id)
         if gen:
             gen.state = "failed"

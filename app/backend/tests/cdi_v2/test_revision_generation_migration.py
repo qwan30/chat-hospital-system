@@ -104,6 +104,12 @@ def test_cdi_v2_migration_retains_legacy_data(tmp_path: Path) -> None:
         cur.execute("SELECT last_emitted_sequence FROM ai_queries WHERE id = ?", (query_id,))
         assert cur.fetchone()[0] == 0
 
+        cur.execute("SELECT id FROM document_chunks WHERE id = ?", (chunk_id,))
+        assert cur.fetchone()[0] == chunk_id
+
+        cur.execute("SELECT id FROM legacy_graph_entities WHERE id = ?", (graph_ent_id,))
+        assert cur.fetchone()[0] == graph_ent_id
+
         conn.close()
     finally:
         os.environ.pop("HOSPITAL_AI_DATABASE_URL", None)

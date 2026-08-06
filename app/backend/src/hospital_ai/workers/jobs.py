@@ -15,9 +15,9 @@ from hospital_ai.services.storage import StorageService, get_storage_service
 
 
 async def process_document(session: AsyncSession, document_id: uuid.UUID, settings: Settings) -> None:
-    from hospital_ai.workers.extraction_jobs import extract_document
+    from hospital_ai.workers.pipeline import process_document_pipeline
 
-    await extract_document(session, document_id, settings)
+    await process_document_pipeline(session, document_id, settings)
 
 
 async def _populate_tsvectors(session: AsyncSession, document_id: uuid.UUID) -> None:

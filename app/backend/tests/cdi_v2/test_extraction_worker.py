@@ -2,13 +2,20 @@ from __future__ import annotations
 
 import asyncio
 import hashlib
+import json
 import uuid
 from pathlib import Path
 
 import pytest
 from sqlalchemy import select
 
-from hospital_ai.db.clinical_documents import DocumentExtractionRun, DocumentPageRevision, DocumentUpload
+from hospital_ai.core.config import Settings
+from hospital_ai.db.clinical_documents import (
+    DocumentExtractionRun,
+    DocumentPageRevision,
+    DocumentUpload,
+    OcrSpan,
+)
 from hospital_ai.db.migrations import DOCTOR_ID, PATIENT_ALICE_ID
 from hospital_ai.db.models import Document, DocumentChunk, User
 from hospital_ai.workers.extraction_jobs import extract_document
@@ -108,6 +115,23 @@ async def test_extraction_creates_machine_revisions_but_no_chunks(
     assert revisions and all(row.revision_type == "machine_ocr" for row in revisions)
     assert chunks == []
     assert (await session.get(Document, finalized_document.id)).status == "review_required"
+
+    run = await session.scalar(
+        select(DocumentExtractionRun).where(DocumentExtractionRun.document_id == finalized_document.id)
+    )
+    assert run is not None
+    assert run.latency_ms == 100
+    assert run.peak_rss_mb == 200
+    assert run.engine_family == "paddle_printed"
+    assert run.engine_model == "v4"
+    assert run.engine_revision == "r1"
+
+    spans = list(await session.scalars(select(OcrSpan).where(OcrSpan.page_revision_id == revisions[0].id)))
+    assert spans[0].source_engine_metadata == {
+        "family": "paddle_printed",
+        "model": "v4",
+        "revision": "r1",
+    }
 
 
 @pytest.mark.asyncio
@@ -239,6 +263,28 @@ async def test_extraction_fails_closed_on_source_hash_drift(finalized_document, 
         select(DocumentExtractionRun).where(DocumentExtractionRun.document_id == finalized_document.id)
     )
     assert run is not None and run.status == "failed"
+    assert run.error_code == "SOURCE_HASH_DRIFT"
+    assert (await session.get(Document, finalized_document.id)).status == "failed"
+    assert not list(
+        await session.scalars(
+            select(DocumentPageRevision).where(DocumentPageRevision.document_id == finalized_document.id)
+        )
+    )
+
+
+@pytest.mark.asyncio
+async def test_extraction_fails_closed_on_missing_source_object(finalized_document, session_and_settings):
+    session, settings = session_and_settings
+    source_path = Path(finalized_document.storage_uri)
+    source_path.unlink(missing_ok=True)
+
+    await extract_document(session, finalized_document.id, settings)
+
+    run = await session.scalar(
+        select(DocumentExtractionRun).where(DocumentExtractionRun.document_id == finalized_document.id)
+    )
+    assert run is not None and run.status == "failed"
+    assert run.error_code == "MISSING_SOURCE_OBJECT"
     assert (await session.get(Document, finalized_document.id)).status == "failed"
     assert not list(
         await session.scalars(
@@ -304,3 +350,126 @@ async def test_model_oom_is_classified_with_rss_evidence(tmp_path: Path) -> None
             pass
     assert manager.telemetry.oom_events
     assert manager.telemetry.oom_events[0]["route"] == "force_oom"
+
+
+@pytest.mark.asyncio
+async def test_one_ocr_model_acquisition_at_a_time_on_4gb_profile(tmp_path: Path) -> None:
+    path_a = tmp_path / "model_a.bin"
+    path_b = tmp_path / "model_b.bin"
+    path_a.write_bytes(b"model a content")
+    path_b.write_bytes(b"model b content")
+
+    art_a = ModelArtifact(
+        route="paddle_printed",
+        path=str(path_a),
+        sha256=hashlib.sha256(b"model a content").hexdigest(),
+        revision="r1",
+    )
+    art_b = ModelArtifact(
+        route="vietocr_handwritten",
+        path=str(path_b),
+        sha256=hashlib.sha256(b"model b content").hexdigest(),
+        revision="r1",
+    )
+    manager = OcrModelManager(
+        registry=ModelRegistry({"paddle_printed": art_a, "vietocr_handwritten": art_b}),
+        memory_budget_mb=4096,
+    )
+
+    async with manager.acquire_model("paddle_printed") as model_a:
+        assert model_a.route == "paddle_printed"
+    assert "paddle_printed" in manager._loaded
+
+    async with manager.acquire_model("vietocr_handwritten") as model_b:
+        assert model_b.route == "vietocr_handwritten"
+        assert "paddle_printed" not in manager._loaded
+        assert len(manager._loaded) == 1
+
+
+@pytest.mark.asyncio
+async def test_idle_unload_cancellation_on_reuse(tmp_path: Path) -> None:
+    artifact_path = tmp_path / "native.model"
+    artifact_bytes = b"approved model artifact"
+    artifact_path.write_bytes(artifact_bytes)
+    artifact = ModelArtifact(
+        route="native",
+        path=str(artifact_path),
+        sha256=hashlib.sha256(artifact_bytes).hexdigest(),
+        revision="native-r1",
+    )
+    manager = OcrModelManager(
+        registry=ModelRegistry({"native": artifact}),
+        idle_unload_seconds=0.05,
+    )
+
+    async with manager.acquire_model("native") as recognizer:
+        assert recognizer.route == "native"
+    assert "native" in manager._loaded
+
+    await asyncio.sleep(0.025)
+    assert "native" in manager._loaded
+
+    async with manager.acquire_model("native") as recognizer2:
+        assert recognizer2.route == "native"
+
+    await asyncio.sleep(0.035)
+    assert "native" in manager._loaded
+    await asyncio.sleep(0.045)
+    assert "native" not in manager._loaded
+
+
+@pytest.mark.asyncio
+async def test_approved_artifact_manifest_from_settings(tmp_path: Path) -> None:
+    manifest_path = tmp_path / "manifest.json"
+    model_path = tmp_path / "test.model"
+    model_path.write_bytes(b"approved content")
+    sha = hashlib.sha256(b"approved content").hexdigest()
+
+    manifest_data = {
+        "models": {
+            "test_route": {
+                "path": str(model_path),
+                "sha256": sha,
+                "revision": "test-r1",
+            }
+        }
+    }
+    manifest_path.write_text(json.dumps(manifest_data), encoding="utf-8")
+
+    settings = Settings(environment="local")
+    settings.ocr_model_manifest_path = manifest_path
+
+    manager = OcrModelManager.from_settings(settings)
+    async with manager.acquire_model("test_route") as recognizer:
+        assert recognizer.route == "test_route"
+        assert recognizer.artifact.revision == "test-r1"
+
+
+@pytest.mark.asyncio
+async def test_deterministic_fallback_policy_and_telemetry(tmp_path: Path) -> None:
+    path_native = tmp_path / "native.model"
+    path_native.write_bytes(b"native content")
+    artifact_oom = ModelArtifact(
+        route="force_oom",
+        path=str(path_native),
+        sha256=hashlib.sha256(b"native content").hexdigest(),
+        revision="oom-r1",
+    )
+    artifact_native = ModelArtifact(
+        route="native",
+        path=str(path_native),
+        sha256=hashlib.sha256(b"native content").hexdigest(),
+        revision="native-r1",
+    )
+    manager = OcrModelManager(
+        registry=ModelRegistry({"force_oom": artifact_oom, "native": artifact_native})
+    )
+
+    async with manager.acquire_model_with_fallback("force_oom") as recognizer:
+        assert recognizer.route == "native"
+
+    assert len(manager.telemetry.oom_events) == 1
+    assert manager.telemetry.oom_events[0]["route"] == "force_oom"
+    assert len(manager.telemetry.fallback_events) == 1
+    assert manager.telemetry.fallback_events[0]["from_route"] == "force_oom"
+    assert manager.telemetry.fallback_events[0]["to_route"] == "native"

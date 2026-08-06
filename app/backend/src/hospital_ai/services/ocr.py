@@ -1,11 +1,13 @@
 from __future__ import annotations
 
+import time
 from collections.abc import Mapping
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Optional
 
 from hospital_ai.core.errors import ExternalServiceError
+from hospital_ai.workers.ocr_models import current_rss_mb
 
 
 class _DefaultStorageService:
@@ -93,6 +95,9 @@ class OcrService:
 
     TEXT_MIME_TYPES = {"text/plain", "text/markdown", "application/json", "text/csv"}
 
+    def __init__(self, model_manager: Optional[Any] = None) -> None:
+        self.model_manager = model_manager
+
     def extract_pages(
         self,
         *,
@@ -102,17 +107,40 @@ class OcrService:
         document_id: str = "0",
         storage_service: Optional[Any] = None,
     ) -> list[OcrPage]:
+        start_t = time.monotonic()
         if storage_service is None:
             storage_service = _DefaultStorageService()
 
         if storage_uri.startswith(("mock://", "mock/", "local://mock", "hms://")) or "mock" in storage_uri:
-            return [OcrPage(page_number=1, text=f"Mock content for {storage_uri}", confidence=1.0, route="native")]
+            lat = max(0, int((time.monotonic() - start_t) * 1000))
+            rss = max(1, int(current_rss_mb()))
+            return [
+                OcrPage(
+                    page_number=1,
+                    text=f"Mock content for {storage_uri}",
+                    confidence=1.0,
+                    route="native",
+                    latency_ms=lat,
+                    peak_rss_mb=rss,
+                )
+            ]
 
         source_bytes = storage_service.read_bytes(storage_uri)
         suffix = _storage_suffix(storage_uri)
         if mime_type in self.TEXT_MIME_TYPES or suffix in {".txt", ".md", ".csv"}:
             text = source_bytes.decode("utf-8")
-            return [OcrPage(page_number=1, text=text, confidence=1.0, route="native")]
+            lat = max(0, int((time.monotonic() - start_t) * 1000))
+            rss = max(1, int(current_rss_mb()))
+            return [
+                OcrPage(
+                    page_number=1,
+                    text=text,
+                    confidence=1.0,
+                    route="native",
+                    latency_ms=lat,
+                    peak_rss_mb=rss,
+                )
+            ]
 
         import fitz  # PyMuPDF
 
@@ -163,7 +191,19 @@ class OcrService:
                         "install the 'ocr' dependency extra."
                     )
 
-                pages.append(OcrPage(page_number=page_number, text=text_extracted, confidence=confidence, route=route))
+                lat = max(0, int((time.monotonic() - start_t) * 1000))
+                rss = max(1, int(current_rss_mb()))
+                pages.append(
+                    OcrPage(
+                        page_number=page_number,
+                        text=text_extracted,
+                        confidence=confidence,
+                        route=route,
+                        latency_ms=lat,
+                        peak_rss_mb=rss,
+                    )
+                )
+                start_t = time.monotonic()
         finally:
             doc.close()
 

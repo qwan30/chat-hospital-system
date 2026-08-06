@@ -110,3 +110,14 @@ def test_ocr_extra_pins_supported_paddle_3_cpu_contract() -> None:
     assert "vietocr>=0.3.0,<0.4.0" in vietocr_dependencies
     assert "transformers>=4.40.0,<5.0.0" in trocr_dependencies
     assert "torch>=2.2.0,<3.0.0" in trocr_dependencies
+
+
+def test_ocr_service_records_real_latency_and_rss() -> None:
+    service = OcrService()
+    pages = service.extract_page_results(
+        storage_uri="mock://test-document",
+        mime_type="text/plain",
+    )
+    assert len(pages) == 1
+    assert pages[0].latency_ms >= 0
+    assert pages[0].peak_rss_mb >= 1

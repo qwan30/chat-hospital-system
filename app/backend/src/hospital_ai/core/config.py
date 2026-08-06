@@ -78,6 +78,7 @@ class Settings(BaseSettings):
     ocr_memory_budget_mb: int = Field(default=4096, ge=512)
     ocr_idle_unload_seconds: float = Field(default=300.0, ge=0)
     ocr_models_path: Path = Path(".models")
+    ocr_model_manifest_path: Optional[Path] = None
 
     # OpenAI / OpenAI-compatible provider
     openai_api_key: str = ""

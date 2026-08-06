@@ -85,6 +85,7 @@ async def test_backfill_resumes_from_durable_checkpoint_without_duplicates(
     async def interrupt_after_checkpoint(document_id, phase):
         await original_checkpoint(document_id, phase)
         if phase == interrupted_phase:
+            await session.commit()
             raise RuntimeError(f"interrupted at {phase}")
 
     runner._record_checkpoint = interrupt_after_checkpoint

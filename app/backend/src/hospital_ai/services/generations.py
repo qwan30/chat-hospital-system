@@ -92,7 +92,7 @@ class GenerationService:
         return doc
 
     async def activate(
-        self, generation_id: uuid.UUID, expected_active_generation_id: Optional[uuid.UUID] = None
+        self, generation_id: uuid.UUID, expected_active_generation_id: Optional[uuid.UUID] = None, *, commit: bool = True
     ) -> ActivationResult:
         generation = await self._require_complete_build(generation_id)
         document = await self._lock_document(generation.document_id)
@@ -138,7 +138,10 @@ class GenerationService:
                 "revision_set_id": str(generation.revision_set_id),
             },
         )
-        await self.session.commit()
+        if commit:
+            await self.session.commit()
+        else:
+            await self.session.flush()
         return ActivationResult(active_generation_id=generation.id, approved_revision_set_id=generation.revision_set_id)
 
     async def _project_legacy_pages(self, generation_id: uuid.UUID) -> None:
@@ -157,14 +160,17 @@ class GenerationService:
                 page.ocr_text = page_revision.corrected_text
                 page.ocr_confidence = page_revision.confidence
 
-    async def fail(self, generation_id: uuid.UUID, error_code: str, error_detail: str = "") -> None:
+    async def fail(self, generation_id: uuid.UUID, error_code: str, error_detail: str = "", *, commit: bool = True) -> None:
         gen = await self.session.get(DocumentIndexGeneration, generation_id)
         if gen:
             gen.state = "failed"
             gen.failed_at = datetime.now(UTC)
             gen.failure_code = error_code
             gen.failure_detail = error_detail
-            await self.session.commit()
+            if commit:
+                await self.session.commit()
+            else:
+                await self.session.flush()
 
     async def rollback(
         self,

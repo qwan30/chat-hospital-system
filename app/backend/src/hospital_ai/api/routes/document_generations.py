@@ -74,8 +74,9 @@ async def rollback_generation(
     idemp = IdempotencyService(session, current_user.id)
     req_str = _dump_json(payload)
     req_dict = json.loads(req_str)
+    req_dict["document_id"] = str(document_id)
     req_dict["target_generation_id"] = str(generation_id)
-    decision = await idemp.begin(f"generation.rollback.{document_id}", idempotency_key, req_dict)
+    decision = await idemp.begin("document.generation.rollback", idempotency_key, req_dict)
     if decision.is_in_progress:
         raise ConflictError("Request is already in progress; retry later.")
     if decision.is_replay:
@@ -153,7 +154,7 @@ async def retry_generation(
 
     idemp = IdempotencyService(session, current_user.id)
     decision = await idemp.begin(
-        f"generation.retry.{document_id}:{generation_id}",
+        "document.generation.retry",
         idempotency_key,
         {"document_id": str(document_id), "generation_id": str(generation_id)},
     )

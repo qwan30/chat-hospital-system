@@ -286,7 +286,7 @@ class UploadSessionService:
             error = exc
         upload.apply_verification(decision)
         if decision.state != "verified":
-            await self._audit_and_commit(upload, actor, decision)
+            await self._audit_and_commit(upload, actor, decision, commit=commit)
             if error is not None:
                 raise ValidationAppError(decision.public_reason) from error
             raise ValidationAppError(decision.public_reason)
@@ -328,7 +328,7 @@ class UploadSessionService:
         return doc
 
     async def _audit_and_commit(
-        self, upload: DocumentUpload, actor: Optional[Any], decision: VerificationDecision
+        self, upload: DocumentUpload, actor: Optional[Any], decision: VerificationDecision, *, commit: bool = True
     ) -> None:
         self.session.add(upload)
         if actor and hasattr(actor, "id"):
@@ -343,7 +343,10 @@ class UploadSessionService:
                 trace_id="0",
                 metadata={"reason": decision.public_reason},
             )
-        await self.session.commit()
+        if commit:
+            await self.session.commit()
+        else:
+            await self.session.flush()
 
     async def _record_finalization(self, document: Document, upload: DocumentUpload, actor: Optional[Any]) -> None:
         self.session.add(upload)

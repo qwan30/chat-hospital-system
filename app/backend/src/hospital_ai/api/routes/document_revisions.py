@@ -66,10 +66,13 @@ async def save_draft_page(
         object_id=document_id,
     )
     idemp_service = IdempotencyService(session, current_user.id)
+    req_payload = json.loads(payload.model_dump_json() if hasattr(payload, "model_dump_json") else payload.json())
+    req_payload["document_id"] = str(document_id)
+    req_payload["page_number"] = page_number
     decision = await idemp_service.begin(
-        scope=f"save_draft_page:{document_id}:{page_number}",
+        scope="document.revision.page.save",
         key=idempotency_key,
-        payload=json.loads(payload.model_dump_json() if hasattr(payload, "model_dump_json") else payload.json()),
+        payload=req_payload,
     )
     if decision.is_in_progress:
         raise ConflictError("Request is already in progress; retry later.")
@@ -139,9 +142,9 @@ async def submit_draft(
     )
     idemp_service = IdempotencyService(session, current_user.id)
     decision = await idemp_service.begin(
-        scope=f"submit_draft:{document_id}",
+        scope="document.revision.submit",
         key=idempotency_key,
-        payload={"if_match": if_match},
+        payload={"document_id": str(document_id), "if_match": if_match},
     )
     if decision.is_in_progress:
         raise ConflictError("Request is already in progress; retry later.")
@@ -209,10 +212,13 @@ async def approve_revision_set(
         object_id=document_id,
     )
     idemp_service = IdempotencyService(session, current_user.id)
+    req_payload = json.loads(payload.model_dump_json() if hasattr(payload, "model_dump_json") else payload.json())
+    req_payload["document_id"] = str(document_id)
+    req_payload["revision_set_id"] = str(revision_set_id)
     decision = await idemp_service.begin(
-        scope=f"approve_revision_set:{document_id}:{revision_set_id}",
+        scope="document.revision.approve",
         key=idempotency_key,
-        payload=json.loads(payload.model_dump_json() if hasattr(payload, "model_dump_json") else payload.json()),
+        payload=req_payload,
     )
     if decision.is_in_progress:
         raise ConflictError("Request is already in progress; retry later.")
@@ -272,10 +278,13 @@ async def reject_revision_set(
         object_id=document_id,
     )
     idemp_service = IdempotencyService(session, current_user.id)
+    req_payload = json.loads(payload.model_dump_json() if hasattr(payload, "model_dump_json") else payload.json())
+    req_payload["document_id"] = str(document_id)
+    req_payload["revision_set_id"] = str(revision_set_id)
     decision = await idemp_service.begin(
-        scope=f"reject_revision_set:{document_id}:{revision_set_id}",
+        scope="document.revision.reject",
         key=idempotency_key,
-        payload=json.loads(payload.model_dump_json() if hasattr(payload, "model_dump_json") else payload.json()),
+        payload=req_payload,
     )
     if decision.is_in_progress:
         raise ConflictError("Request is already in progress; retry later.")
@@ -343,10 +352,13 @@ async def restore_revision(
         object_id=document_id,
     )
     idemp_service = IdempotencyService(session, current_user.id)
+    req_payload = json.loads(payload.model_dump_json() if hasattr(payload, "model_dump_json") else payload.json())
+    req_payload["document_id"] = str(document_id)
+    req_payload["revision_set_id"] = str(revision_set_id)
     decision = await idemp_service.begin(
-        scope=f"restore_revision:{document_id}:{revision_set_id}",
+        scope="document.revision.restore",
         key=idempotency_key,
-        payload=json.loads(payload.model_dump_json() if hasattr(payload, "model_dump_json") else payload.json()),
+        payload=req_payload,
     )
     if decision.is_in_progress:
         raise ConflictError("Request is already in progress; retry later.")

@@ -77,7 +77,7 @@ async def finalize_upload_session(
     )
     idemp = IdempotencyService(session, current_user.id)
     decision = await idemp.begin(
-        f"upload.finalize.{document_id}:{upload_id}",
+        "document.upload_session.finalize",
         idempotency_key,
         {"document_id": str(document_id), "upload_id": str(upload_id)},
     )

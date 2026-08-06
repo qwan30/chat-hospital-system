@@ -151,6 +151,17 @@ async def test_reject_endpoint_enforces_idempotency_payload(session_and_settings
     )
     assert first.status == "rejected"
 
+    replay = await rev_routes.reject_revision_set(
+        document_id=doc.id,
+        revision_set_id=submitted.revision_set_id,
+        payload=RejectRevisionRequest(reason="first reason"),
+        request=_request(path=f"/api/v1/documents/{doc.id}/revision-sets/{submitted.revision_set_id}/reject"),
+        idempotency_key="reject-1",
+        current_user=records,
+        session=session,
+    )
+    assert replay.status == "rejected"
+
     from hospital_ai.core.errors import ConflictError
 
     with pytest.raises(ConflictError):
@@ -164,6 +175,23 @@ async def test_reject_endpoint_enforces_idempotency_payload(session_and_settings
             session=session,
         )
 
+    from hospital_ai.db.clinical_documents import DocumentRevisionSet
+    import datetime
+    second_sub = DocumentRevisionSet(document_id=doc.id, revision_number=2, created_by_user_id=doctor.id, status="submitted", submitted_at=datetime.datetime.now(datetime.timezone.utc))
+    session.add(second_sub)
+    await session.commit()
+
+    with pytest.raises(ConflictError):
+        await rev_routes.reject_revision_set(
+            document_id=doc.id,
+            revision_set_id=second_sub.id,
+            payload=RejectRevisionRequest(reason="first reason"),
+            request=_request(path=f"/api/v1/documents/{doc.id}/revision-sets/{second_sub.id}/reject"),
+            idempotency_key="reject-1",
+            current_user=records,
+            session=session,
+        )
+
 
 @pytest.mark.asyncio
 async def test_restore_endpoint_enforces_idempotency_payload(session_and_settings, setup_data) -> None:
@@ -172,6 +200,8 @@ async def test_restore_endpoint_enforces_idempotency_payload(session_and_setting
     records = await session.get(User, RECORDS_ID)
     from hospital_ai.api.routes import document_revisions as rev_routes
     from hospital_ai.schemas.document_revisions import RestoreRevisionRequest
+    from hospital_ai.db.clinical_documents import DocumentRevisionSet
+    import datetime
 
     submitted = await rev_routes.submit_draft(
         document_id=doc.id,
@@ -192,6 +222,17 @@ async def test_restore_endpoint_enforces_idempotency_payload(session_and_setting
     )
     assert first.status == "human_draft"
 
+    replay = await rev_routes.restore_revision(
+        document_id=doc.id,
+        revision_set_id=submitted.revision_set_id,
+        payload=RestoreRevisionRequest(revision_id=machine_id, reason="first reason"),
+        request=_request(path=f"/api/v1/documents/{doc.id}/revision-sets/{submitted.revision_set_id}/restore"),
+        idempotency_key="restore-1",
+        current_user=records,
+        session=session,
+    )
+    assert replay.status == "human_draft"
+
     from hospital_ai.core.errors import ConflictError
 
     with pytest.raises(ConflictError):
@@ -200,6 +241,21 @@ async def test_restore_endpoint_enforces_idempotency_payload(session_and_setting
             revision_set_id=submitted.revision_set_id,
             payload=RestoreRevisionRequest(revision_id=machine_id, reason="different reason"),
             request=_request(path=f"/api/v1/documents/{doc.id}/revision-sets/{submitted.revision_set_id}/restore"),
+            idempotency_key="restore-1",
+            current_user=records,
+            session=session,
+        )
+
+    second_sub2 = DocumentRevisionSet(document_id=doc.id, revision_number=3, created_by_user_id=doctor.id, status="submitted", submitted_at=datetime.datetime.now(datetime.timezone.utc))
+    session.add(second_sub2)
+    await session.commit()
+
+    with pytest.raises(ConflictError):
+        await rev_routes.restore_revision(
+            document_id=doc.id,
+            revision_set_id=second_sub2.id,
+            payload=RestoreRevisionRequest(revision_id=machine_id, reason="first reason"),
+            request=_request(path=f"/api/v1/documents/{doc.id}/revision-sets/{second_sub2.id}/restore"),
             idempotency_key="restore-1",
             current_user=records,
             session=session,

@@ -451,7 +451,7 @@ def upgrade() -> None:
         batch_op.add_column(sa.Column("active_index_generation_id", sa.Uuid(), nullable=True))
         batch_op.add_column(sa.Column("finalized_upload_id", sa.Uuid(), nullable=True))
         batch_op.add_column(sa.Column("is_synthetic", sa.Boolean(), server_default="false", nullable=False))
-        batch_op.add_column(sa.Column("retention_state", sa.String(length=32), nullable=False))
+        batch_op.add_column(sa.Column("retention_state", sa.String(length=32), nullable=True, server_default="active"))
         batch_op.create_foreign_key(
             "fk_documents_finalized_upload_id", "document_uploads", ["finalized_upload_id"], ["id"], use_alter=True
         )  # noqa: E501
@@ -469,6 +469,11 @@ def upgrade() -> None:
             ["id"],
             use_alter=True,
         )  # noqa: E501
+
+    op.execute("UPDATE documents SET retention_state = 'active' WHERE retention_state IS NULL")
+    with op.batch_alter_table("documents", schema=None) as batch_op:
+        batch_op.alter_column("retention_state", nullable=False, server_default=None)
+
 
     with op.batch_alter_table("retrieved_evidence", schema=None) as batch_op:
         batch_op.add_column(sa.Column("generation_id", sa.Uuid(), nullable=True))

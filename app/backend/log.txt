@@ -1,0 +1,490 @@
+4751e04 fix: integrate OcrModelManager into extraction pipeline (Task 8)
+954c46b fix: enforce finalized review-gated OCR extraction
+d9c9f75 fix: enforce immutable revision authority and exact evidence geometry validation
+6ec98a6 feat(cdi-v2): make idempotency durable and universal for writes (Task 6)
+628388f feat(security): enforce resource aggregate and identifier binding boundary (Task 5)
+9c3c813 fix(security): resolve OOM, hash normalisation, and concurrency tests for Task 4
+63359b2 fix(security): make upload creation and finalization fail closed (Task 4)
+1bfe449 fix: add server_default to ORM models to match migrations
+8668ad2 fix: align server defaults for new CDI v2 states
+a75352f test: add missing chunk and graph assertions to migration tests
+0713147 fix: align CDI v2 models and migrations
+9a7db54 fix: remove F841 noqa suppressions in seed_dev.py
+1f4ab2d fix: resolve remaining noqa issues in Task 2 cleanup
+6146f36 fix: complete CDI upload and revision workspace
+a24260d fix: harden CDI evidence and stream presentation
+0985f70 fix: stream only authorized validated claims
+25d6a0c fix: preserve generation-scoped graph provenance
+a44c78f fix: unify CDI v2 active evidence scope
+fd76de6 fix: prove resumable CDI v2 backfill parity
+58dc43d fix: activate complete CDI generations atomically
+758fb15 fix: enforce finalized review-gated OCR extraction
+49a8390 fix: enforce immutable revision authority
+54b2eef fix: make CDI v2 writes idempotent
+6cf9248 fix: bind CDI v2 authorization to patient resources
+a78d7ae fix: fail closed on immutable source finalization
+312c64d fix: align CDI v2 models and migrations
+7aef320 fix: complete CDI v2 lint cleanup
+4b8f5b1 fix: remove unjustified noqa suppressions in CDI v2 lint cleanup
+8d9f661 chore: make CDI v2 backend lint clean
+86324a5 fix: address CI workflow side effects from defect baseline
+e9df4a8 test: preserve PR 89 defect baseline
+a32f6be fix: resolve cdi v2 final model alignments for postgres ci
+29e5b83 test: enforce normative e2e journey and release gates
+1dbbf26 test: integrate task 18 reviewer findings
+0c0a399 test: add unified clinical corpus v3 gates
+08c8e30 frontend: trace graph and chat evidence exactly
+50eb302 frontend: integrate revision-aware OCR workspace and address reviewer feedback
+990caf4 backend: fix task 16 reviewer findings
+efc4e4b frontend: build revision-aware OCR workspace route integration
+9754e0e feat(ui): add visual overlay and history components for OCR review workspace
+9176c8e feat(document-workspace): implement OCR review workspace foundation
+d5a1d33 backend: fix task 15 reviewer UX findings
+7a33942 backend: fix task 15 reviewer retry state findings
+329620f backend: fix task 15 reviewer findings
+8daa853 frontend: direct R2 immutable upload flow
+57d07c8 backend: fix test failures and finalize validated streaming (Task 13)
+29e380d backend: validate chat claims against evidence
+01259a2 backend: expose filtered clinical graph and timeline
+3df1a7a backend: scope retrieval to active generations
+0fb97c3 backend: backfill CDI v2 lineage safely
+626cc69 feat(generations): build, activate, retry, and rollback index generations
+5aa2f9c backend: create review-gated OCR extraction
+b892258 frontend: add typed clinical intelligence v2 contracts and sse checks
+c327976 feat: implement draft save, submit, approval, rejection, and restore (CDI v2 task 5)
+cde59ec feat(cdi): implement immutable r2 upload sessions and atomic finalization
+13e1faf feat(cdi): implement capability matrix and idempotency logic
+8127e52 feat(cdi): add forward revision generation migration
+d0272fc backend: add CDI v2 lineage models
+6794777 docs: amend unified clinical document intelligence v2 spec (#88)
+7462fc5 refactor: establish public data governance foundation (#86)
+0f0ae8c Merge pull request #85 from qwan30/feat/deployment-tasks-8-9
+4af90b6 docs: correct runtime troubleshooting procedures
+0b92ec1 docs: make incident recovery fail closed
+4eed06e docs: monitor active queues and preserve rollback assets
+4e153c7 docs: correct backup queue and outage operations
+b74e580 docs: align CI/CD contract with blocking release gates
+ef835c3 fix: harden release evidence and staging smoke checks
+44dbc65 test: cover CD and operations review findings
+5c7a0d1 docs: plan PR 85 release hardening
+8bcd199 docs: design PR 85 release hardening
+32a9859 docs: add release record and smoke test to CI/CD contract and refine troubleshooting guide
+537c5ac fix: correct smoke test health endpoint path to /api/v1/health
+8f0fc25 docs: update monitoring, incident response, and troubleshooting for VPS profile
+ea0d22c docs: rewrite operations guide for VPS staging-demo profile
+59e6bf9 ci: add release record and staging smoke test to CD workflow
+561b39d Merge pull request #84 from qwan30/feat/deployment-task-7-ghcr-dokploy
+7321e63 fix: close Task 7 deployment review gaps
+b265601 docs: align Task 7 release wording
+970e1a0 fix: close Task 7 deployment handoff gaps
+2c38dcb feat: route Task 7 staging through GHCR and Dokploy
+810b882 ci: validate image-only staging compose contract
+33e5224 test: enforce Task 7 image deployment contract
+a5149dd docs: add Task 7 implementation plan
+0a3b27e docs: specify Task 7 GHCR Dokploy deployment
+6b7c8d1 Merge pull request #83 from qwan30/feat/deployment-tasks-5-6
+336fd06 fix: repair public bundle CLI smoke test
+c13776a fix: align deployment validator frontend secret denylist
+12c9128 docs: add deployment tasks 5-6 plan
+858e558 fix: harden deployment contract validator
+202aa6c chore: enforce deployment task 6 preflight contract
+a92ffe5 docs: align local deployment api contract
+2bac857 fix: close deployment scanner review gaps
+b8a613e fix: align frontend deployment api base
+062ed94 Merge pull request #82 from qwan30/feat/deployment-tasks-2-4
+e874706 style: format R2 storage client initialization
+53f0ded style: format deployment contract validator
+41bcacc ci: bind Dokploy image tags to source commits
+c4de11f ci: add deployment contract validation gate
+45d9b12 docs: add Dokploy VPS operations runbook
+db7bf2d ci: align Dokploy release handoff
+5c6b6eb Merge pull request #81 from qwan30/feat/deployment-contract-task1
+7dede40 docs: align provider deployment examples
+ce8f8c5 docs: freeze Dokploy deployment contract
+aa396a1 Merge pull request #80 from qwan30/fix/r2-storage-phase2
+e26e707 feat: wire r2 storage through document processing
+37484ec feat: add local and r2 storage backends
+f8f4533 feat: define r2 storage configuration contract
+3a5f960 docs: plan r2 document storage
+9865547 Merge pull request #79 from qwan30/fix/deployment-contracts-phase1
+36adefd fix: align deployment runtime contracts
+67a50e2 Merge pull request #78 from qwan30/feat/global-timeline
+946b424 fix: align document statuses with database contract
+01894c8 docs: add test factory and status refactoring design spec
+0d90d39 test: update old document statuses to match new db constraint
+541d741 test: fix assertion for records_staff rbac rejection
+16c9397 style: fix ruff formatting
+6d5b350 style: fix ruff import sorting and unused imports
+d331263 QA: Add global timeline e2e tests and fix lint warnings
+bf16a9f fix: resolve timeline UI state rendering and backend query logic
+a0b4fa9 fix: secure global timeline with proper RBAC, soft-delete, and audit log mapping
+9a432ba Fix timeline API bugs: concurrent DB queries, model field references, and schema types
+9336bd4 feat: integrate global timeline API into frontend
+8374e4f feat: implement global timeline endpoint
+6eeceb0 feat: define timeline schemas
+49ef9b5 Merge pull request #77 from qwan30/feat/clinical-document-intelligence-20260731
+37242db fix: resolve backend linting and frontend test errors
+08620c7 fix: resolve frontend typecheck and route generation errors
+5b6fa66 docs: add implementation plan for global timeline
+3dffffa feat(backend): add Notification model and migration
+51d15e1 feat: implement clinical document intelligence subsystem
+b8adf46 docs: add spec for global timeline
+9dac15f docs: sync README with true code status (audit findings)
+bd751a8 docs: sync README with recent hardening and architecture fixes
+416c3e7 Merge pull request #76 from qwan30/chore/vercel-deployment
+011ca52 chore: remove accidentally tracked coverage artifacts
+683f890 chore: add vercel deployment config
+cdc62cd Merge pull request #75 from qwan30/fix/e2e-hardening-and-token-leak
+d52357d test(e2e): fix contention flake and assertions that never matched the app
+c41ac71 fix(seed): give the synthetic patients a UUID range no other allocator owns
+a6ccafc fix(auth): stop persisting the bearer token to localStorage
+e6e7023 fix(guardrails): remove the topic scanner that refused every clinical answer
+02efaca fix(ui): stop the Documents route crashing on unmapped document statuses
+776c86f Merge pull request #74 from qwan30/fix/release-readiness-p0-hardening
+923ca3d fix(hms): stop logging patient_id in clear text
+4813414 fix(frontend): declare @vitest/coverage-v8 so CI vitest can actually run
+266aed0 fix(guardrails): stop refusing every chat question as a policy violation
+769ee05 fix(backend): close authorization, severity and error-leak gaps
+47b2e97 ci: make vitest blocking and explain the release-gate failure
+d7a8f27 docs: reconcile documentation claims with actual implementation
+ce007d4 fix(security): harden release-blocking defects for demo readiness
+aa03414 Merge pull request #73 from qwan30/feat/ci-baseline-regression-drift-detector
+3c5d3dc feat(ci): implement Automated CI Baseline Regression & Drift Detector
+130b30c docs(plan): update implementation plan with writing-plans skill guidelines
+29039ff docs(plan): add Automated CI Baseline Regression & Drift Detector implementation plan
+885ab86 docs(spec): add Automated CI Baseline Regression & Drift Detector design spec
+d5e1e20 Merge pull request #72 from qwan30/feat/ocr-evaluation-harness-e2e
+4e8baa3 style(contracts): format contracts.py with ruff
+d7b198f style(ocr): fix ruff import sorting and line length formatting
+528541f docs(benchmark): finalize ocr benchmark report
+4844ec8 docs(benchmark): generate official ocr evaluation harness benchmark report
+5585419 feat(ocr): implement evaluate_ocr_corpus runner and markdown exporter
+9e19894 feat(ocr): implement ClinicalFieldMatcher with decimal misread detection
+30fea4c feat(ocr): implement 10 deterministic image degradation variants
+9abb38f feat(ocr): add clinical match and variant metric data contracts
+d90ef78 Merge pull request #71 from qwan30/test/graph-rag-benchmark-45-v1
+1b73b9c style(eval): fix ruff linting and formatting errors for CI
+17a3dc8 feat(eval): add Chat Evaluation Harness with Gemini LLM Judge and HIPAA PHI redaction
+43af5cc Merge pull request #70 from qwan30/test/graph-rag-benchmark-45-v1
+f5341ca fix(eval): import select in product_retrieval_adapter and format backend code
+b33285f docs(eval): publish 45 graph benchmark and unified retrieval ablation report
+e49175b feat(eval): add graph mode support to retrieval ablation harness and update runner tests
+f8be67e fix: derive graph observations from labeled labs (#69)
+a444413 docs: freeze corrected retrieval baseline (#68)
+377a7fe fix: ground retrieval benchmark questions (#67)
+e867cfe docs: freeze retrieval ablation baseline (#66)
+e40ad9c feat: add retrieval evaluation ablations (#65)
+b9d8b5e test: enforce aggregate retrieval quality gates (#64)
+ce78f44 test: isolate whole CSV materialization (#63)
+26c37a4 fix: apply product evidence threshold in retrieval eval (#62)
+735c9e3 test: align retrieval safety fixtures (#61)
+8502ea4 fix: score evaluation safety by component (#60)
+0c4cb7f fix: support whole-source evaluation locators (#59)
+ad1a4ba fix: record retrieval authorization refusals (#58)
+cf4067a ci: add configurable AI evaluation dispatch (#57)
+81ca034 feat: wire deterministic product evaluation adapters (#56)
+446ebdd feat: add source-backed chat evaluation adapter (#54)
+e9ad8fd feat: evaluate offline graph traversal (#53)
+80817ed feat: add offline graph extraction seam (#52)
+ad74089 feat: add source-backed retrieval evaluation adapter
+d421628 feat: add source-backed retrieval evaluation adapter
+dfabc21 fix: scope evaluation evidence per case
+1aa803a style: format evaluation provenance contracts
+1856ef8 fix: scope evaluation evidence per case
+b6d2d6e fix: bound OCR evaluation worker resources
+7b874f4 fix: support OCR worker tests on Linux
+0640735 docs: qualify evaluation evidence claims
+a72daf6 fix: bound OCR evaluation worker resources
+95799c6 Merge pull request #48 from qwan30/feat/rag-observer-port
+62ffa4a feat: observe RAG certification boundaries
+ef5cb32 Merge pull request #47 from qwan30/feat/full-ai-evaluation-platform-20260722
+62fbf98 ci: record pending sentinel review in PR runs
+f0196b2 fix: restore HMS write policy compatibility
+d6c2fcc data: freeze evaluation corpus manifest
+209b92b fix: harden evaluation adapter provenance
+0d02015 feat: add fail-closed evaluation adapter foundation
+3ea0e36 docs: record final evaluation evidence
+f3bd3a7 fix: fail closed on HMS writes and OCR
+b4e9fdf fix: fail unbound AI evaluation components
+f499e55 ci: enforce source-backed AI evaluation
+89265df Merge pull request #43 from qwan30/feat/ocr-activity-preview
+9d402a4 fix: preserve stream safety and hms authorization
+f1dc735 fix: satisfy migration and lint checks
+6023d1d feat: add document activity workspace
+83efc66 feat: add deterministic AI evaluation runner
+36f3119 fix: validate source-backed fact statements
+c148452 fix: validate source-backed benchmark evidence
+2f9db49 feat: add source-backed RAG benchmark
+f1f76b7 fix: return invalid manifest exit code
+cf14b65 feat: add corpus manifest contracts
+8cce5ee fix: reject installer source-root overlap
+f09522e fix: harden skill installer path validation
+39db611 docs: finalize Task 1 remediation status
+60877d8 fix: close installer preflight bypasses
+c18a714 docs: record Task 1 remediation evidence
+ab92cd3 fix: harden AI evaluation skill installer
+cdbbee2 feat: add AI evaluation skill suite
+ecbea80 Merge pull request #41 from qwan30/codex/fix-upload-graph-rag-20260722
+515969a fix: align demo upload and graph access
+3f6d791 test: enforce benchmark validation and deprecate golden data
+4d1fc33 fix: harden benchmark corpus and permission semantics
+dee3e2f chore: remove legacy eval dataset
+91a8d51 test: add RAG value benchmark v1
+4acadec Merge pull request #40 from qwan30/codex/graph-rag-certification
+8e224e5 ci: defer browser tests without backend
+8d49a06 fix: seed a valid audit IP address
+5078b97 ci: isolate backend dependency caches
+a2c668c fix: avoid shadowing seeded doctor id
+7bc2aa6 ci: declare workflow test dependency
+86cef10 fix(frontend): guard attachment upload scope
+4e95cf6 fix(frontend): ignore stale stream completions
+bf25cd2 fix(frontend): preserve new-thread streams
+30579fd style: format certification fixes
+1c0f071 fix(stream): finalize interrupted responses
+6ddf5a1 fix(labs): enforce observation source identity
+17b71b0 test(labs): enforce source chain identity
+4e45451 test(chat): require cited-only evidence persistence
+87710d9 test(chat): cover chitchat output guardrail
+f506681 fix(db): restore bm25 parent schema on downgrade
+1bd8066 test(rag): cover trace authorization chains
+8c4328a fix(stream): align lifecycle and pipeline metadata
+145463c docs: remove trailing whitespace
+81bfaae fix(frontend): surface terminal stream errors
+040c15c fix(rag): enforce current evidence authorization
+9db7c64 test: tighten patient creation audit assertion
+c92f07e test: cover scoped demo identifier mapping
+556318d fix: scope demo identifier translation
+89ad069 fix: enforce active graph provenance chain
+1cf3dac fix: preserve graph evidence provenance
+67f61ed fix: finalize stream cancellation once
+33968f4 fix: harden streaming terminal failures
+0458900 fix: align streaming RAG safety contracts
+68d254f fix: fail closed on ungoverned retrieval
+8ac28d3 fix: harden patient registration boundaries
+3b3cb4b fix: restrict patient registration privileges
+4acba6e docs: plan Graph RAG branch certification
+e417d52 style: frontend prettier formatting fixes
+d268c3f test: fix configure_logging test failures and update sql retrieval assertions
+19dac7c style: backend linting and formatting fixes
+9a34f04 merge: resolve merge conflicts with main
+a915c1a Merge pull request #26 from qwan30/pr/backend-100-patient-dataset
+4cb9b70 fix(ci, security): use python -m ruff in GHA and mask sensitive logs in patient seed script
+0cd7846 fix(observability): implement OTelJsonFormatter and prometheus_enabled setting
+d87aba6 merge: resolve merge conflict in test_audit_2026_05.py
+d50eaa2 Merge pull request #37 from qwan30/feat/optimize-ci-cd
+4051fdc ci: optimize workflows, split CodeQL and enable venv caching
+3b13f3c Merge pull request #25 from qwan30/pr/backend-api-graph-rag-v2
+04e7ac4 ci: set deterministic embedding provider for RAG evaluation job
+b2ca0ad fix(backend/migration): restore batch_alter_table block for audit_logs in 60e7683f03bd
+65cace1 fix(backend/migration): add postgresql_using to ip_address cast in 60e7683f03bd
+fe045e8 fix: resolve alembic migration drop and eslint formatting
+164d02d fix(e2e): make graph-patient tests backend-independent with route mocking
+796f5d8 fix(lint): resolve all ruff E501/F401/I001 violations
+1bd1742 fix(backend): resolve alembic multiple heads + regex bug in graph_rag
+ecbedd3 fix(backend): resolve merge conflicts, Python 3.9 compatibility, and RAG natural refusal tests
+a9fa2d4 merge(pr/backend-api-graph-rag-v2): resolve conflicts with origin/main
+8e668f7 fix(ci): resolve CodeQL security alerts, test environment pollution, and linting errors
+5962fae Potential fix for pull request finding 'CodeQL / Empty except'
+4c0d402 Merge pull request #24 from qwan30/pr/backend-schema-graph-rag-v2
+1c7e261 Potential fix for pull request finding 'CodeQL / Empty except'
+e72daa2 Potential fix for pull request finding 'CodeQL / Clear-text logging of sensitive information'
+494eecf Merge pull request #23 from qwan30/pr/docs-readme-screenshots
+676948f Merge pull request #22 from qwan30/pr/fix-auth-hero-image
+c4fbe0c Merge pull request #36 from qwan30/codex/rag-baseline-clean
+397396e fix(rag): harden baseline evidence safety
+71c5186 fix: support mock URIs in OCR pipeline
+b0ecf86 chore: fix line endings with formatter
+8c31eea Merge branch 'main' into pr/fix-auth-hero-image and resolve conflicts
+17792cb chore: format files and save current state
+a4fbce4 Merge pull request #34 from qwan30/fix/rag-pipeline-overhaul
+ace3abf chore: fix lint and formatting errors
+fbebe51 Merge main into fix/rag-pipeline-overhaul and resolve conflicts
+d924413 fix: resolve ocr_failed for virtual URIs in ingestion pipeline
+eaabc4b fix(rag): overhaul streaming RAG pipeline with bge-m3, graph enrichment and telemetry
+26116af Merge pull request #30 from qwan30/feat/ai-engineering-hardening
+97a7bc7 fix: resolve CodeQL alerts and frontend eslint warnings
+e5e2da2 fix: change test extra to dev for RAG evaluation dependencies
+5d76472 fix: add test dependencies to rag-evaluation job so pytest is available
+c488578 fix: use valid INET IP address 127.0.0.1 in seed_dev.py
+6cb2fd1 fix: catch generic exceptions in guardrails scan to handle fallback properly
+a5d0d5c style: run ruff format on test_guardrails.py
+a6df5be fix: override disable_guardrails in test_guardrails.py to prevent early return
+8357fa4 fix: mock scan_prompt and scan_output to fix AttributeError in tests
+db9e474 fix: ruff format in tests
+0da7e6a fix: resolve DatatypeMismatchError in migration and sort imports in tests
+fa4718e fix: resolve NameError in Alembic migration
+e6b49cb test: fix broken tests in CI
+23a11f5 fix: resolve backend ruff errors and frontend typecheck failure
+8ca8b3e fix(backend): move ML deps to optional group, fix log injection (CWE-117), lazy imports for CI
+a2b47fa style(frontend): fix prettier formatting and remove unused eslint directives
+1e0c036 docs: update architecture and security documentation
+93e2616 test(backend): add RAG evaluation, metrics and unit tests
+5834e7d feat(backend): integrate guardrails, telemetry, and observability
+df569a6 feat(frontend): improve chat streaming robustness and UI error handling
+160eba7 feat: map backend errors to status codes and resolve UAT/E2E issues
+524dc07 docs: revert README.md to previous version
+a74dee6 docs: improve README diagrams by converting Mermaid to Draw.io SVGs
+6605e7d docs: sync all documentation with CDSS Autonomous Agent feature (v5.0)
+142ec6f test(cdss): add e2e test for clinical alerts flow
+824989d feat(cdss): Autonomous Clinical Agent with graph context and async execution
+6f0a2c1 feat(backend): upgrade Graph RAG pipeline with Proposition Transfer and MIMIC mock seeding
+7089216 chore: save current state before Graph RAG upgrade
+b7cdfc0 fix(e2e): restore mock data to fix TS errors and enable video recording in playwright
+cf7a010 fix: resolve Phase 4 code issues and TS errors, delete mock data, update API docs
+baed3e1 fix(e2e): fix session token hydration and bogus tests, all 117 tests passing
+86521f4 docs: complete Phase 3 test report with Human Simulation Assessment and Final Verdict
+d5d057e docs: add Phase 3 test report and task 1 summary
+c2add37 docs: update frontend test results and phase 2 summary
+82dbb16 docs: update Phase 2 test report for Graph RAG & AI Engine
+b72acc3 docs: update Phase 2 Test Report with HMS Data Sync results
+54d8335 docs: Khoi tao Bao cao Kiem thu Phase 2
+8f19baf docs: finish Drift_Report_VI with final evaluation and action plan
+3a74608 docs: audit API and update Drift Report Section 3
+61b042e docs: update architecture drift report
+ed46877 docs: update Drift_Report_VI.md with testing phase drift findings
+2355a5c docs: Khởi tạo cấu trúc Drift_Report_VI.md
+2567583 feat(backend/data): add 100-patient synthetic dataset and ingestion pipeline
+b861dfc feat(backend/api): graph RAG v2 routes and retrieval overhaul
+cfb4e41 feat(backend): extend DB schema and core config for graph RAG v2
+e46f8fb docs: refresh README screenshots with latest UI demo captures
+709bd32 fix(auth): reposition hero image on login page to show doctor faces
+7e3f174 chore: update agent configs, docs, and screen-demo snapshots
+39a1cf2 feat(frontend/routes): live data integration across all major pages
+7b8c5bf feat(frontend): knowledge graph v2 canvas and API client upgrades
+484eafb feat(backend/data): add 100-patient synthetic dataset and ingestion pipeline
+f2ee2fd feat(backend/api): graph RAG v2 routes and retrieval overhaul
+2905ab9 feat(backend): extend DB schema and core config for graph RAG v2
+934e8c1 docs: refresh README screenshots with latest UI demo captures
+dab40ef fix(auth): reposition hero image on login page to show doctor faces
+227acbd @ feat: dynamic patient tab data, graph RAG visualizer, and role-based data population
+743c177 fix(ci/cd): fix CD deploy, E2E advisory, image ref mismatch
+d9b207e fix(ci): use block scalar for E2E || true, make frontend-test advisory in summary
+83e8fb3 fix(ci): make E2E tests advisory, remove complex Python backend setup
+711151d fix(ci): add backend service to frontend-test job for E2E tests
+b6f65c0 fix: resolve ruff E501/I001/F401 lint and format errors in chat modules
+87d03f2 chore: update agent knowledge base and UI screen demos
+bf2382f backend: update core utilities, prompts, and database configuration
+61f1ba3 frontend: update auth context, fix linting, and stabilize E2E tests
+aecd1a1 frontend: wire chat, graph, and dashboard components to real backend APIs
+5efa8ea frontend: remove mock data and implement centralized API client modules
+25dede5 backend: fix type annotations, formatting, and stabilize test suite
+2e30d1b backend: harden permissions, add graph RAG, and implement chat/memory endpoints
+43fd6b1 backend: add database migrations for chat memory and nullable patient queries
+2ab5d19 docs: add and update upgrade plan and architecture documentation
+0dd49e5 test: add 131 tests across frontend, backend, and E2E with CI coverage
+babf469 fix(ci): harden Trivy scan with continue-on-error, make docker-push advisory
+8d43c88 fix: allow known contract gaps as warnings in verify_contracts.py
+42fc27c fix: remove test artifact, add test artifact patterns to gitignore
+c85cd33 fix: ruff format all backend Python files (alembic + scripts)
+3646001 @ fix: apply ruff format + prettier to all frontend files
+46d7124 @ fix: CI/CD stack remediation — worktree hygiene, E2E baseURL, docs, contracts
+dcb8e92 fix(frontend): apply prettier formatting to e2e test files
+bb14e6b fix(ci): pin trivy-action to correct version v0.36.0
+6ee9d22 fix(backend): move ruff from lint extras to dev extras
+24f2778 fix(ci): fix security-scan workflow — Bun support + pinned actions
+d2524bb fix(ci): add Bun support and fix frontend CI pipeline
+a2c6bc5 fix(backend): resolve ruff lint violations across 5 files
+0d00d98 chore(ci): bump appleboy/scp-action from v0.1.7 to v1.0.0
+98261fb chore(ci): bump actions/checkout from v4 to v6
+eec0f85 chore(ci): bump docker/setup-buildx-action from v3 to v4
+619afad chore(ci): bump actions/setup-node from v4 to v6
+261f574 chore(ci): bump appleboy/ssh-action from v1.2.0 to v1.2.5
+9eb5d07 docs: update README with screenshots, TanStack Start migration
+1bc094c feat: add Google Gemini LLM provider to backend
+4031298 test: add comprehensive E2E test suite — business flow + chat + screenshots
+d0b81fd feat: add TanStack Start frontend from Pixel Perfect Replica
+85ff2c2 refactor: remove Next.js frontend — delete all source, tests, and configs
+fd1d20d test: add 56 real-user interaction E2E tests (100% pass rate)
+d5a97d9 fix: replace block-beta with graph TB subgraphs for reliable GitHub rendering
+fd6ca85 docs: replace ASCII architecture layers with Mermaid block-beta diagram
+c37532f docs: replace PlantUML deployment diagram with Mermaid for native GitHub rendering
+90aed60 docs: apply HMS README patterns — Key Features table, full docs table, bold description
+17ebe84 docs: upgrade README to HMS-level quality — colored Mermaid, xychart, ASCII layers, demo accounts
+8db9107 docs: sync CI/CD spec and repository guide + add comprehensive JSDoc to key components
+09ea9af feat(backend): add centralized prompt registry for AI production maintainability
+99179ae chore(ci-deps)(deps): bump actions/checkout from 4 to 6
+713d7af chore(ci-deps)(deps): bump appleboy/scp-action from 0.1.7 to 1.0.0
+ef75ef6 chore(ci-deps)(deps): bump docker/setup-buildx-action from 3 to 4
+3dcd969 chore(ci-deps)(deps): bump appleboy/ssh-action from 1.2.0 to 1.2.5
+c5f458b chore(ci-deps)(deps): bump actions/setup-node from 4 to 6
+83f5298 feat(docs): enhance documentation portal with dark mode, search, Mermaid diagrams, and scroll progress
+b70c93d feat(backend): add abstract interfaces and domain exception-to-HTTP mapper
+573b2fd feat(backend): add domain-driven exceptions for clean architecture dependency rule
+a4767c2 docs: interview-ready README with Mermaid and PlantUML diagrams
+e1ba43c infra: add production Docker Compose, nginx reverse proxy, and full observability stack
+7e8a630 ci: upgrade CI/CD to enterprise-grade with CodeQL, Trivy, path-filtering, and multi-env deploy
+9a71308 ci: add Dependabot config, scheduled security scan, and rollback workflow
+c34d067 @ feat: comprehensive documentation overhaul and UI/Figma alignment
+41582b6 feat: replace H text badge with logo image across login, topbar, and sidebar
+8515476 fix: move router.replace from render to useEffect in login and MFA pages
+8b2bb71 test: add visual audit suite, mock POST chat-threads and chat endpoints
+0594e84 @ fix(backend): seed script field name fixes for SQLite compatibility
+d44e24e @ feat: complete UI/UX Figma alignment — design tokens, login, MFA, timeline, E2E
+82dadc4 @ fix: wire all interactive buttons, convert mock-data components to props-driven
+77f654f @ feat: add E2E test suite, auth bypass, and login page backgrounds
+8200b41 @ feat: complete frontend rebuild — 25 Figma screens to React + shadcnUI
+249ece2 fix(ci): add all jobs to ci-summary needs array so env vars resolve correctly
+a67c9fd fix(docker): extract deps via tomllib instead of pip install .[postgres]
+428b530 fix(ci): copy source code in Docker builder stage so hatchling can build the wheel
+4fa2d39 fix(ci): use shell-level fallback instead of continue-on-error; fix Dockerfile shell escaping
+b510e8d fix(alembic): shorten revision ID 0002_add_document_index_generation -> 0002_add_doc_idx_gen
+f6df826 fix(ci): make security scan and migration-check advisory (non-blocking)
+207ca37 fix: resolve 500+ ruff lint errors across backend codebase
+748695f @ ci: consolidate into monolithic CI/CD with staged gates and caching
+307d5f4 fix(backend): harden security — JWT auth, HMS access validation, rate limiting, PHI audit sanitization
+2ea9bd0 test(frontend): add unit tests for HospitalDashboard component
+b1b037c feat(frontend): integrate BFF endpoints, patients list, overview details, global search, and access justification flow
+05ea17d feat(backend): implement Sprint 2 BFF endpoints for clinical workspace, search, patient overview, and timeline
+31959a6 feat(backend): update HmsApiClient and integrate permissions check with HMS
+a056dfd docs: align specifications with UI-first HMS copilot model
+e6fe606 docs: link figma desktop mockup specs to UI/UX package
+6f8db5e docs: add typography system pairing and specifications to design system doc
+584f2ef feat: complete portfolio hardening slice, link figma design system, and update error mappings
+a96d7e3 docs: move UAT snapshots and project evidence sheets into docs/ folder
+ee11177 docs: create professional README with diagrams and add evidence sheets
+1f4aeaa ci: integrate API contract verification and GHA CD deployment
+69fe6fa audit: close 2026-05 P2/P3 gaps (F-SEC-001, F-RAG-003/005, F-STRUCT-001, F-BUG-002, F-SEC-005, F-TEST-002)
+de03f8c new
+3c62fb1 feat: complete Phase 4 production hardening, clinical drug safety, and metrics instrumentation
+035afee feat: complete Phase 3 RAG enhancements — hybrid search, reranker strategy, table parsing, trace observability
+dc58c87 feat(hospital-ai): finalize frontend test suite and production stabilization
+1df398b feat: implement streaming RAG chat and persistent system settings
+78b1b7b feat: finalize hospital RAG infrastructure and HMS integration
+3dec4fc review: fix UAT feedback and record evidence
+8581d49 feat(chat): complete hms appointment evidence phase
+d628183 review: record chat phase follow-ups
+c24ee82 feat(chat): wire live threads and general knowledge
+c83c389 chore(khuym): update phase 2 execution handoff
+72cdbbc feat(br-200): add persisted thread frontend adapter
+d62b5fc feat(br-mu0): add chat thread participant sharing
+7a7c280 feat(br-qql): persist chat thread messages
+3b93698 feat(br-22l): implement shared chat thread APIs
+e81aa1f feat(br-gjf): define shared chat thread contract
+46a8139 chore(gitnexus): ignore generated local artifacts
+3e75ca1 chore(khuym): record dream learnings
+5a6c883 chore(khuym): record phase 1 review handoff
+18807ca refactor(br-54h): consolidate chat contract types
+8f293dd fix(br-d99): wire safe composer submit
+d0476ae fix(br-pos): validate patient chat requests
+e61dd99 fix(br-ca7): preserve citation evidence details
+9578359 test(br-dtm): cover phi evidence states
+7e3886c fix(br-9gn): centralize chat workspace state
+ff8bfd4 chore(khuym): record phase 1 handoff
+2c98107 chore(br-dyy): close phase 1 epic
+b07020b test(br-dyy.11): record browser review
+e9d2d9c test(br-dyy.10): record frontend build verification
+5a680f2 feat(br-dyy.7): add local thread affordances
+ea34a51 feat(br-dyy.9): add cited evidence states
+6767905 feat(br-dyy.8): add patient context gate
+f60d62c feat(br-dyy.6): add typed assistant sample data
+bb783f5 feat(br-dyy.5): implement responsive chat shell regions
+5092c6f feat(br-dyy.4): route home to assistant shell
+00fef86 feat(br-dyy.3): add chat contract inventory
+7e73a7e feat(br-dyy.2): reconcile chat-first scope docs
+9920694 bd init: initialize beads issue tracking
+5e300a6 backend: fix review-blocking retrieval safety
+1769c12 backend: centralize active permission predicates
+0d82c0e backend: harden retrieval and reindex safety
+0ec71be backend: filter soft-deleted retrieval evidence
+0a56e30 backend: harden permission-filtered retrieval
+bc13cc9 feat: bootstrap hospital knowledge assistant workspace

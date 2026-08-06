@@ -9,7 +9,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from hospital_ai.db.clinical_documents import ClinicalTimelineEvent
-from hospital_ai.db.models import Document, DocumentChunk, User
+from hospital_ai.db.models import Document, User
 from hospital_ai.services.evidence_scope import ActiveEvidenceScope
 
 
@@ -38,12 +38,6 @@ class ClinicalTimelineService:
         )
         if not allowed_chunk_ids:
             return {"events": []}
-        chunk_result = await self.session.execute(
-            select(DocumentChunk.id, DocumentChunk.generation_id, DocumentChunk.revision_set_id).where(
-                DocumentChunk.id.in_(allowed_chunk_ids)
-            )
-        )
-        authorized_lineage = {row.id: (str(row.generation_id), str(row.revision_set_id)) for row in chunk_result}
 
         result = await self.session.execute(
             select(ClinicalTimelineEvent).where(ClinicalTimelineEvent.patient_id == document.patient_id)
@@ -62,12 +56,8 @@ class ClinicalTimelineService:
             if not evidence_values:
                 evidence_values = [source.get("chunk_id") or source.get("evidence_id")]
             evidence_ids = {uuid.UUID(str(value)) for value in evidence_values if _is_uuid(value)}
-            source_lineage = (str(source.get("generation_id")), str(source.get("revision_set_id")))
-            authorized_evidence_ids = {
-                chunk_id
-                for chunk_id in evidence_ids
-                if chunk_id in authorized_lineage and authorized_lineage[chunk_id] == source_lineage
-            }
+
+            authorized_evidence_ids = {chunk_id for chunk_id in evidence_ids if chunk_id in allowed_chunk_ids}
             if not authorized_evidence_ids:
                 continue
             if event.confidence is not None and float(event.confidence) < min_confidence:

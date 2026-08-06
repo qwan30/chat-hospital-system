@@ -93,7 +93,7 @@ async def ocr_pipeline_extract(
 
     try:
         ocr = OcrService()
-        pages = ocr.extract_page_results(
+        pages = await ocr.extract_page_results(
             storage_uri=document.storage_uri,
             mime_type=document.mime_type,
             patient_id=str(document.patient_id),

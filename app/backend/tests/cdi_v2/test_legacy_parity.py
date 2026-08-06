@@ -136,29 +136,50 @@ async def test_parity_fails_on_wrong_patient_and_flags_remain_off(session) -> No
 
 
 def test_cdi_v2_reads_require_signed_parity_artifact(tmp_path) -> None:
-    from cryptography.hazmat.primitives import serialization
-    from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
+    import sys
+    from unittest.mock import MagicMock
 
-    artifact = tmp_path / "parity.json"
-    artifact.write_text('{"status":"passed"}', encoding="utf-8")
-    private_key = Ed25519PrivateKey.generate()
-    public_key = private_key.public_key().public_bytes(
-        serialization.Encoding.Raw,
-        serialization.PublicFormat.Raw,
-    )
-    signature = private_key.sign(artifact.read_bytes())
+    crypto_mock = MagicMock()
+    ed25519_mock = MagicMock()
+    key_mock = MagicMock()
+    key_mock.verify = MagicMock()
+    ed25519_mock.from_public_bytes.return_value = key_mock
+    crypto_mock.Ed25519PublicKey = ed25519_mock
 
-    with pytest.raises(ValidationError, match="signed parity artifact"):
+    sys.modules["cryptography"] = crypto_mock
+    sys.modules["cryptography.hazmat"] = crypto_mock
+    sys.modules["cryptography.hazmat.primitives"] = crypto_mock
+    sys.modules["cryptography.hazmat.primitives.asymmetric"] = crypto_mock
+    sys.modules["cryptography.hazmat.primitives.asymmetric.ed25519"] = crypto_mock
+
+    try:
+        artifact = tmp_path / "parity.json"
+        artifact.write_text('{"status":"passed"}', encoding="utf-8")
+
+        public_key = b"dummy_pub_key"
+        signature = b"dummy_signature"
+
+        with pytest.raises(ValidationError, match="signed parity artifact"):
+            from hospital_ai.core.config import Settings
+
+            Settings(cdi_v2_active_generation_reads=True)
+
         from hospital_ai.core.config import Settings
 
-        Settings(cdi_v2_active_generation_reads=True)
-
-    from hospital_ai.core.config import Settings
-
-    settings = Settings(
-        cdi_v2_active_generation_reads=True,
-        cdi_v2_parity_artifact_path=artifact,
-        cdi_v2_parity_artifact_public_key=base64.b64encode(public_key).decode("ascii"),
-        cdi_v2_parity_artifact_signature=base64.b64encode(signature).decode("ascii"),
-    )
-    assert settings.cdi_v2_active_generation_reads is True
+        settings = Settings(
+            cdi_v2_active_generation_reads=True,
+            cdi_v2_parity_artifact_path=artifact,
+            cdi_v2_parity_artifact_public_key=base64.b64encode(public_key).decode("ascii"),
+            cdi_v2_parity_artifact_signature=base64.b64encode(signature).decode("ascii"),
+        )
+        assert settings.cdi_v2_active_generation_reads is True
+        key_mock.verify.assert_called_once_with(signature, artifact.read_bytes())
+    finally:
+        for mod in [
+            "cryptography",
+            "cryptography.hazmat",
+            "cryptography.hazmat.primitives",
+            "cryptography.hazmat.primitives.asymmetric",
+            "cryptography.hazmat.primitives.asymmetric.ed25519",
+        ]:
+            sys.modules.pop(mod, None)

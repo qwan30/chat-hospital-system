@@ -1,12 +1,14 @@
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from hospital_ai.api.deps import get_current_user, get_session
+from hospital_ai.core.errors import NotFoundError
 from hospital_ai.core.security import new_trace_id
 from hospital_ai.db.models import Document, User
 from hospital_ai.schemas.document_graph import DocumentGraphRead
+from hospital_ai.services.audit import AuditService
 from hospital_ai.services.capabilities import CapabilityService
 from hospital_ai.services.clinical_timeline import ClinicalTimelineService
 from hospital_ai.services.graph_query import GraphFilters, GraphQueryService
@@ -23,8 +25,20 @@ async def require_document_read(
     enforce_patient_scope: bool = True,
 ) -> Document:
     document = await session.get(Document, document_id)
-    if not document:
-        raise HTTPException(status_code=404, detail="Document not found")
+    if not document or document.deleted_at is not None:
+        if current_user:
+            await AuditService(session).record(
+                actor_user_id=current_user.id,
+                action="document.graph.timeline.read",
+                object_type="document",
+                object_id=document_id,
+                patient_id=None,
+                outcome="denied",
+                trace_id=new_trace_id(),
+                metadata={"reason": "document_not_found"},
+            )
+            await session.commit()
+        raise NotFoundError("Document not found.")
     if enforce_patient_scope:
         await PermissionService(session).require_read(
             user=current_user,

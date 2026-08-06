@@ -5,9 +5,9 @@ from fastapi import APIRouter, Depends, Header, HTTPException, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from hospital_ai.api.deps import get_current_user, get_session
-from hospital_ai.core.errors import ConflictError, NotFoundError
+from hospital_ai.core.errors import ConflictError
 from hospital_ai.core.security import new_trace_id
-from hospital_ai.db.models import Document, User
+from hospital_ai.db.models import User
 from hospital_ai.schemas.document_generations import (
     DocumentIndexGenerationRead,
     GenerationRollbackRead,
@@ -39,13 +39,6 @@ def _parse_obj(cls: any, obj: any) -> any:
     if hasattr(cls, "model_validate"):
         return cls.model_validate(obj)
     return cls.parse_obj(obj)
-
-
-async def _get_document_or_404(session: AsyncSession, document_id: uuid.UUID) -> Document:
-    doc = await session.get(Document, document_id)
-    if not doc:
-        raise NotFoundError(f"Document not found: {document_id}")
-    return doc
 
 
 @router.post(

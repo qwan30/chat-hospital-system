@@ -8,14 +8,18 @@ from unittest.mock import Mock
 import pytest
 
 from hospital_ai.core.errors import ConflictError, ValidationAppError
-from hospital_ai.services.upload_sessions import UploadSessionService, StorageContentReader, MalwareScanResult, UnavailableMalwareScanner
+from hospital_ai.services.upload_sessions import (
+    MalwareScanResult,
+    StorageContentReader,
+    UnavailableMalwareScanner,
+    UploadSessionService,
+)
 
 
 @pytest.mark.asyncio
 async def test_unverified_upload_cannot_be_finalized_or_queued(session_and_settings) -> None:
     session, settings = session_and_settings
     from hospital_ai.services.storage import PresignedPut
-    from hospital_ai.services.upload_sessions import UploadSessionService
 
     r2_client = Mock()
     r2_client.head_object.side_effect = FileNotFoundError
@@ -50,7 +54,6 @@ async def test_unverified_upload_cannot_be_finalized_or_queued(session_and_setti
 @pytest.mark.asyncio
 async def test_duplicate_immutable_key_is_a_conflict(session_and_settings) -> None:
     session, settings = session_and_settings
-    from hospital_ai.services.upload_sessions import UploadSessionService
 
     r2_client = Mock()
     r2_client.head_object.return_value = {
@@ -80,7 +83,6 @@ async def test_malware_scanner_unavailable_rejects_without_finalizing(session_an
     session, _ = session_and_settings
     from hospital_ai.db.models import Document
     from hospital_ai.services.storage import PresignedPut
-    from hospital_ai.services.upload_sessions import UploadSessionService
 
     content = b"%PDF-1.4\n"
     storage = Mock()
@@ -112,7 +114,6 @@ async def test_malware_scanner_unavailable_rejects_without_finalizing(session_an
 @pytest.mark.asyncio
 async def test_storage_head_error_rejects_upload_session_creation(session_and_settings) -> None:
     session, _ = session_and_settings
-    from hospital_ai.services.upload_sessions import UploadSessionService
 
     storage = Mock()
     storage.head_object.side_effect = OSError("head failed")
@@ -132,7 +133,6 @@ async def test_claimed_mime_mismatch_rejects_without_finalizing(session_and_sett
     session, _ = session_and_settings
     from hospital_ai.db.models import Document
     from hospital_ai.services.storage import PresignedPut
-    from hospital_ai.services.upload_sessions import UploadSessionService
 
     content = b"\x89PNG\r\n\x1a\nimage"
     storage = Mock()
@@ -166,7 +166,6 @@ async def test_presign_error_does_not_leave_upload_rows(session_and_settings) ->
     from sqlalchemy import select
 
     from hospital_ai.db.clinical_documents import DocumentUpload
-    from hospital_ai.services.upload_sessions import UploadSessionService
 
     storage = Mock()
     storage.head_object.side_effect = FileNotFoundError
@@ -222,9 +221,9 @@ class _CleanScanner:
 @pytest.mark.asyncio
 async def test_short_stream_rejects_without_finalizing(session_and_settings) -> None:
     session, _ = session_and_settings
-    from hospital_ai.services.storage import PresignedPut, StorageObjectHead
-    from hospital_ai.services.upload_sessions import UploadSessionService, StorageContentReader
     from hospital_ai.db.models import Document
+    from hospital_ai.services.storage import PresignedPut, StorageObjectHead
+    from hospital_ai.services.upload_sessions import StorageContentReader
 
     content = b"%PDF-short"
     storage = Mock()
@@ -253,9 +252,9 @@ async def test_short_stream_rejects_without_finalizing(session_and_settings) -> 
 @pytest.mark.asyncio
 async def test_sha_mismatch_rejects_without_finalizing(session_and_settings) -> None:
     session, _ = session_and_settings
-    from hospital_ai.services.storage import PresignedPut, StorageObjectHead
-    from hospital_ai.services.upload_sessions import UploadSessionService, StorageContentReader
     from hospital_ai.db.models import Document
+    from hospital_ai.services.storage import PresignedPut, StorageObjectHead
+    from hospital_ai.services.upload_sessions import StorageContentReader
 
     content = b"%PDF-short\n"
     storage = Mock()
@@ -284,9 +283,9 @@ async def test_sha_mismatch_rejects_without_finalizing(session_and_settings) -> 
 @pytest.mark.asyncio
 async def test_malware_positive_rejects_without_finalizing(session_and_settings) -> None:
     session, _ = session_and_settings
-    from hospital_ai.services.storage import PresignedPut, StorageObjectHead
-    from hospital_ai.services.upload_sessions import UploadSessionService, StorageContentReader, MalwareScanResult
     from hospital_ai.db.models import Document
+    from hospital_ai.services.storage import PresignedPut, StorageObjectHead
+    from hospital_ai.services.upload_sessions import MalwareScanResult, StorageContentReader
 
     class MalwareScannerPositive:
         async def scan(self, key: str) -> MalwareScanResult:
@@ -320,8 +319,7 @@ async def test_malware_positive_rejects_without_finalizing(session_and_settings)
 async def test_retry_of_finalized_upload(session_and_settings) -> None:
     session, _ = session_and_settings
     from hospital_ai.services.storage import PresignedPut, StorageObjectHead
-    from hospital_ai.services.upload_sessions import UploadSessionService, StorageContentReader
-    from hospital_ai.db.models import Document
+    from hospital_ai.services.upload_sessions import StorageContentReader
 
     content = b"%PDF-1.4\n"
     storage = Mock()
@@ -349,10 +347,11 @@ async def test_retry_of_finalized_upload(session_and_settings) -> None:
 @pytest.mark.asyncio
 async def test_concurrent_finalize_handles_safely(session_and_settings) -> None:
     session, _ = session_and_settings
-    from hospital_ai.services.storage import PresignedPut, StorageObjectHead
-    from hospital_ai.services.upload_sessions import UploadSessionService, StorageContentReader
-    from hospital_ai.db.models import Document
     import asyncio
+
+    from hospital_ai.db.models import Document
+    from hospital_ai.services.storage import PresignedPut, StorageObjectHead
+    from hospital_ai.services.upload_sessions import StorageContentReader
 
     content = b"%PDF-1.4\n"
     storage = Mock()

@@ -7,8 +7,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from hospital_ai.api.deps import get_current_user, get_request_ip, get_session
 from hospital_ai.core.errors import ConflictError, NotFoundError
 from hospital_ai.core.security import new_trace_id
+from hospital_ai.db.clinical_documents import DocumentUpload
 from hospital_ai.db.models import Document, User
 from hospital_ai.schemas.document_uploads import UploadFinalizeResult, UploadSessionCreate, UploadSessionRead
+from hospital_ai.services.audit import AuditService
 from hospital_ai.services.idempotency import IdempotencyService
 from hospital_ai.services.permissions import PermissionService
 from hospital_ai.services.upload_sessions import UploadSessionService
@@ -48,8 +50,22 @@ async def finalize_upload_session(
     current_user: User = Depends(get_current_user),
 ) -> UploadFinalizeResult:
     document = await session.get(Document, document_id)
-    if document is None:
-        raise NotFoundError("Document not found.")
+    upload = await session.get(DocumentUpload, upload_id)
+    if document is None or upload is None or upload.document_id != document.id:
+        if current_user:
+            await AuditService(session).record(
+                actor_user_id=current_user.id,
+                action="document.upload_session.finalize",
+                object_type="document",
+                object_id=document_id,
+                patient_id=document.patient_id if document else None,
+                outcome="denied",
+                trace_id=new_trace_id(),
+                ip_address=get_request_ip(request),
+                metadata={"reason": "upload_document_mismatch" if (document and upload) else "not_found"},
+            )
+            await session.commit()
+        raise NotFoundError("Document or upload session not found.")
     await PermissionService(session).require_upload_or_admin_role(
         user=current_user,
         patient_id=document.patient_id,
@@ -75,8 +91,8 @@ async def finalize_upload_session(
             document_id=document_id, upload_id=upload_id, actor=current_user, commit=False
         )
         if result.state == "finalized":
-            from hospital_ai.workers.queue import enqueue_document_indexing
             from hospital_ai.core.config import get_settings
+            from hospital_ai.workers.queue import enqueue_document_indexing
             enqueue_document_indexing(document.id, get_settings())
     except Exception:
         await idemp.abort(decision.record_id)

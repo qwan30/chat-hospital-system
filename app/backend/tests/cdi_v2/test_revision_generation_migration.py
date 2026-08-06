@@ -42,11 +42,13 @@ def test_cdi_v2_migration_contains_atomic_authority_schema() -> None:
 
 
 def test_cdi_v2_migration_retains_legacy_data(tmp_path: Path) -> None:
-    from alembic.config import Config
-    from alembic import command
+    import os
     import sqlite3
     import uuid
-    import os
+
+    from alembic.config import Config
+
+    from alembic import command
 
     db_path = tmp_path / "legacy.db"
     db_url = f"sqlite+aiosqlite:///{db_path}"

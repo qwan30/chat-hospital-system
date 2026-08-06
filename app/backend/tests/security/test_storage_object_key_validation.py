@@ -35,9 +35,10 @@ def test_storage_object_key_accepts_generated_source_key() -> None:
     assert validate_storage_object_key(key, allowed_prefixes=("source/", "patients/")) == key
 
 
-from hospital_ai.services.upload_sessions import StorageContentReader
-import asyncio
 from unittest.mock import Mock
+
+from hospital_ai.services.upload_sessions import StorageContentReader
+
 
 @pytest.mark.asyncio
 async def test_hash_stream_rejects_unreadable_stream() -> None:

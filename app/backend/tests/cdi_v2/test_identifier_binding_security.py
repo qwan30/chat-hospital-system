@@ -15,7 +15,7 @@ from hospital_ai.db.clinical_documents import (
     DocumentPageRevision,
     DocumentRevisionSet,
 )
-from hospital_ai.db.migrations import ADMIN_ID, DOCTOR_ID, PATIENT_ALICE_ID, PATIENT_BOB_ID, SECURITY_ID
+from hospital_ai.db.migrations import ADMIN_ID, DOCTOR_ID, PATIENT_ALICE_ID, PATIENT_BOB_ID, RECORDS_ID, SECURITY_ID
 from hospital_ai.db.models import AuditLog, Document, User
 
 
@@ -135,6 +135,7 @@ async def test_generation_path_binding_rejects_cross_document_retry(session_and_
             document_id=document_a.id,
             generation_id=generation_b.id,
             request=_request(path="/index-generations/retry"),
+            idempotency_key="binding-gen-retry-1",
             current_user=admin,
             session=session,
         )
@@ -143,6 +144,18 @@ async def test_generation_path_binding_rejects_cross_document_retry(session_and_
     assert not any(
         row.retry_of_generation_id == generation_b.id for row in await session.scalars(select(DocumentIndexGeneration))
     )
+
+    denial = await session.scalar(
+        select(AuditLog)
+        .where(
+            AuditLog.actor_user_id == ADMIN_ID,
+            AuditLog.patient_id == PATIENT_ALICE_ID,
+            AuditLog.action == "document_generation.retry",
+            AuditLog.outcome == "denied",
+        )
+        .order_by(AuditLog.created_at.desc())
+    )
+    assert denial is not None
 
 
 @pytest.mark.asyncio
@@ -163,6 +176,103 @@ async def test_revision_page_path_binding_rejects_cross_document_page(session_an
             session=session,
         )
 
+    denial = await session.scalar(
+        select(AuditLog)
+        .where(
+            AuditLog.actor_user_id == DOCTOR_ID,
+            AuditLog.patient_id == PATIENT_ALICE_ID,
+            AuditLog.action == "document_revision.page.read",
+            AuditLog.outcome == "denied",
+        )
+        .order_by(AuditLog.created_at.desc())
+    )
+    assert denial is not None
+
+
+@pytest.mark.asyncio
+async def test_page_revision_binding_rejects_cross_document_page_revision(session_and_settings) -> None:
+    session, _ = session_and_settings
+    document_a, revision_set_a, _, _ = await _make_document(session, patient_id=PATIENT_ALICE_ID, actor_id=DOCTOR_ID)
+    _, _, _, page_revision_b = await _make_document(session, patient_id=PATIENT_BOB_ID, actor_id=DOCTOR_ID)
+    doctor = await session.get(User, DOCTOR_ID)
+    records = await session.get(User, RECORDS_ID)
+
+    from hospital_ai.api.routes.document_revisions import restore_revision, save_draft_page
+    from hospital_ai.schemas.document_revisions import DraftPageWrite, RestoreRevisionRequest
+
+    with pytest.raises(NotFoundError):
+        await save_draft_page(
+            document_id=document_a.id,
+            page_number=1,
+            payload=DraftPageWrite(text="illegal edit", parent_revision_id=page_revision_b.id, edit_reason="probe"),
+            request=_request(path=f"/documents/{document_a.id}/draft/pages/1"),
+            if_match=1,
+            idempotency_key="binding-save-page-1",
+            current_user=doctor,
+            session=session,
+        )
+
+    denial = await session.scalar(
+        select(AuditLog)
+        .where(
+            AuditLog.actor_user_id == DOCTOR_ID,
+            AuditLog.patient_id == PATIENT_ALICE_ID,
+            AuditLog.action == "document_revision.page.save",
+            AuditLog.outcome == "denied",
+        )
+        .order_by(AuditLog.created_at.desc())
+    )
+    assert denial is not None
+
+    with pytest.raises(NotFoundError):
+        await restore_revision(
+            document_id=document_a.id,
+            revision_set_id=revision_set_a.id,
+            payload=RestoreRevisionRequest(revision_id=page_revision_b.id, reason="cross-resource restore probe"),
+            request=_request(path=f"/documents/{document_a.id}/revision-sets/{revision_set_a.id}/restore"),
+            idempotency_key="binding-restore-1",
+            current_user=records,
+            session=session,
+        )
+
+    denial_restore = await session.scalar(
+        select(AuditLog)
+        .where(
+            AuditLog.actor_user_id == records.id,
+            AuditLog.patient_id == PATIENT_ALICE_ID,
+            AuditLog.action == "document_revision.restore",
+            AuditLog.outcome == "denied",
+        )
+        .order_by(AuditLog.created_at.desc())
+    )
+    assert denial_restore is not None
+
+
+@pytest.mark.asyncio
+async def test_patient_a_user_cannot_access_graph_document_b(session_and_settings) -> None:
+    session, _ = session_and_settings
+    document_b, _, _, _ = await _make_document(session, patient_id=PATIENT_BOB_ID, actor_id=DOCTOR_ID)
+    doctor = await session.get(User, DOCTOR_ID)
+
+    from hospital_ai.api.routes.document_graph import get_document_graph, get_document_timeline
+    from hospital_ai.services.graph_query import GraphFilters
+
+    with pytest.raises(PermissionDeniedError):
+        await get_document_graph(document_b.id, GraphFilters(), session, doctor)
+    with pytest.raises(PermissionDeniedError):
+        await get_document_timeline(document_b.id, session, doctor)
+
+    denial = await session.scalar(
+        select(AuditLog)
+        .where(
+            AuditLog.actor_user_id == DOCTOR_ID,
+            AuditLog.patient_id == PATIENT_BOB_ID,
+            AuditLog.outcome == "denied",
+        )
+        .order_by(AuditLog.created_at.desc())
+    )
+    assert denial is not None
+
 
 @pytest.mark.asyncio
 async def test_graph_and_timeline_require_patient_permission(session_and_settings) -> None:
@@ -178,6 +288,17 @@ async def test_graph_and_timeline_require_patient_permission(session_and_setting
     with pytest.raises(PermissionDeniedError):
         await get_document_timeline(document.id, session, security)
 
+    denial = await session.scalar(
+        select(AuditLog)
+        .where(
+            AuditLog.actor_user_id == SECURITY_ID,
+            AuditLog.patient_id == PATIENT_ALICE_ID,
+            AuditLog.outcome == "denied",
+        )
+        .order_by(AuditLog.created_at.desc())
+    )
+    assert denial is not None
+
 
 @pytest.mark.asyncio
 async def test_raw_revision_read_requires_view_raw_capability(session_and_settings) -> None:
@@ -189,6 +310,18 @@ async def test_raw_revision_read_requires_view_raw_capability(session_and_settin
 
     with pytest.raises(PermissionDeniedError):
         await get_draft_page(document.id, 1, admin, session)
+
+    denial = await session.scalar(
+        select(AuditLog)
+        .where(
+            AuditLog.actor_user_id == ADMIN_ID,
+            AuditLog.patient_id == PATIENT_ALICE_ID,
+            AuditLog.action == "document_revision.draft.read",
+            AuditLog.outcome == "denied",
+        )
+        .order_by(AuditLog.created_at.desc())
+    )
+    assert denial is not None
 
 
 @pytest.mark.asyncio
@@ -213,3 +346,113 @@ async def test_upload_session_requires_upload_scope(session_and_settings) -> Non
             session=session,
             current_user=security,
         )
+
+    denial = await session.scalar(
+        select(AuditLog)
+        .where(
+            AuditLog.actor_user_id == SECURITY_ID,
+            AuditLog.patient_id == PATIENT_ALICE_ID,
+            AuditLog.action == "document.upload_session.create",
+            AuditLog.outcome == "denied",
+        )
+        .order_by(AuditLog.created_at.desc())
+    )
+    assert denial is not None
+
+
+@pytest.mark.asyncio
+async def test_upload_finalize_binding_rejects_cross_document_upload(session_and_settings) -> None:
+    session, _ = session_and_settings
+    document_a, _, _, _ = await _make_document(session, patient_id=PATIENT_ALICE_ID, actor_id=DOCTOR_ID)
+    document_b, _, _, _ = await _make_document(session, patient_id=PATIENT_BOB_ID, actor_id=DOCTOR_ID)
+    admin = await session.get(User, ADMIN_ID)
+
+    from hospital_ai.db.clinical_documents import DocumentUpload
+    upload_b = DocumentUpload(
+        id=uuid.uuid4(),
+        document_id=document_b.id,
+        state="pending_upload",
+        object_key="test/key.pdf",
+        expected_sha256="a" * 64,
+        byte_size=100,
+        mime_type="application/pdf",
+        actor_user_id=admin.id,
+    )
+    session.add(upload_b)
+    await session.commit()
+
+    from hospital_ai.api.routes.document_uploads import finalize_upload_session
+
+    with pytest.raises(NotFoundError):
+        await finalize_upload_session(
+            document_id=document_a.id,
+            upload_id=upload_b.id,
+            request=_request(path="/finalize"),
+            idempotency_key="finalize-bind-1",
+            session=session,
+            current_user=admin,
+        )
+
+    denial = await session.scalar(
+        select(AuditLog)
+        .where(
+            AuditLog.actor_user_id == ADMIN_ID,
+            AuditLog.patient_id == PATIENT_ALICE_ID,
+            AuditLog.action == "document.upload_session.finalize",
+            AuditLog.outcome == "denied",
+        )
+        .order_by(AuditLog.created_at.desc())
+    )
+    assert denial is not None
+
+
+@pytest.mark.asyncio
+async def test_review_item_binding_rejects_cross_document_item(session_and_settings) -> None:
+    session, _ = session_and_settings
+    document_a, _, _, _ = await _make_document(session, patient_id=PATIENT_ALICE_ID, actor_id=DOCTOR_ID)
+    document_b, _, _, _ = await _make_document(session, patient_id=PATIENT_BOB_ID, actor_id=DOCTOR_ID)
+    admin = await session.get(User, ADMIN_ID)
+
+    from hospital_ai.db.models import DocumentProcessingRun, DocumentReviewItem
+    run_id = uuid.uuid4()
+    run = DocumentProcessingRun(id=run_id, document_id=document_b.id, configuration_version="1.0", status="completed")
+    session.add(run)
+
+    item_b = DocumentReviewItem(
+        id=uuid.uuid4(),
+        document_id=document_b.id,
+        run_id=run_id,
+        field_name="patient_name",
+        original_value="Bob",
+        suggested_value="Robert",
+        review_status="pending",
+    )
+    session.add(item_b)
+    await session.commit()
+
+    from hospital_ai.api.routes.documents import ReviewItemPatchRequest, patch_review_item
+
+    with pytest.raises(NotFoundError):
+        await patch_review_item(
+            document_id=document_a.id,
+            review_item_id=item_b.id,
+            payload=ReviewItemPatchRequest(action="approve", reason="binding check", version=1),
+            request=_request(path="/review-items/patch"),
+            session=session,
+            current_user=admin,
+        )
+
+    denial = await session.scalar(
+        select(AuditLog)
+        .where(
+            AuditLog.actor_user_id == ADMIN_ID,
+            AuditLog.patient_id == PATIENT_ALICE_ID,
+            AuditLog.action == "document.review_item.patch",
+            AuditLog.outcome == "denied",
+        )
+        .order_by(AuditLog.created_at.desc())
+    )
+    assert denial is not None
+
+
+

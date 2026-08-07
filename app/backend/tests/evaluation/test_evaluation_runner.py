@@ -71,7 +71,7 @@ def _approved_benchmark_dir(tmp_path: Path) -> Path:
     for line in (BENCHMARK_DIR / "rag_sentinel_v2.jsonl").read_text(encoding="utf-8").splitlines():
         try:
             row = json.loads(line)
-        except Exception as e:
+        except Exception:
             import traceback
             traceback.print_exc()
             raise
@@ -608,7 +608,8 @@ class _SiblingEvidenceAdapter:
             )
             if other_case.allowed_evidence[0] not in registered
         )
-        artifact = build_corpus_manifest(DATA_ROOT).artifacts_by_path[sibling.source_path]
+        manifest = build_corpus_manifest(DATA_ROOT)
+        artifact = next(a for a in manifest.artifacts if a.canonical_relative_path == sibling.source_path)
         return CaseObservation(
             retrieved_evidence=(
                 RuntimeEvidenceChunk(
@@ -767,7 +768,7 @@ def test_cli_accepts_llm_judge_provider_flag(tmp_path: Path) -> None:
 
 
 def test_jsonl_threshold_check(tmp_path: Path) -> None:
-    from hospital_ai.evaluation.artifact_generator import load_measured_artifacts, check_measured_thresholds
+    from hospital_ai.evaluation.artifact_generator import check_measured_thresholds, load_measured_artifacts
 
     output_dir = tmp_path / "artifacts"
     output_dir.mkdir()

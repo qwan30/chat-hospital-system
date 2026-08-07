@@ -1,9 +1,9 @@
 from __future__ import annotations
 
+import json
 import sys
 from unittest.mock import MagicMock
 
-import json
 
 class MockPage:
     def __init__(self, page_or_text):

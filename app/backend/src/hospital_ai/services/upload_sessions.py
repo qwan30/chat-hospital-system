@@ -340,7 +340,6 @@ class UploadSessionService:
     async def _audit_and_commit(
         self, upload: DocumentUpload, actor: Optional[Any], decision: VerificationDecision, *, commit: bool = True
     ) -> None:
-        self.session.add(upload)
         if actor and hasattr(actor, "id"):
             from hospital_ai.services.audit import AuditService
 
@@ -359,8 +358,6 @@ class UploadSessionService:
             await self.session.flush()
 
     async def _record_finalization(self, document: Document, upload: DocumentUpload, actor: Optional[Any]) -> None:
-        self.session.add(upload)
-        self.session.add(document)
         if actor and hasattr(actor, "id"):
             from hospital_ai.services.audit import AuditService
 

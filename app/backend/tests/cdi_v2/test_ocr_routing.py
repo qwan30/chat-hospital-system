@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import math
+
 import pytest
 
 from hospital_ai.services.ocr_routing import OcrPageResult, OcrRouter, OcrSpanResult, PagePreflight

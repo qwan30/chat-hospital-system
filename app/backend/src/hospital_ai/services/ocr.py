@@ -173,41 +173,41 @@ class OcrService:
                     preflight = PagePreflight(native_credible=False, handwriting_probability=0.0)
                     decision = router.route(preflight)
 
+                    from hospital_ai.workers.ocr_models import OcrModelManager, OcrResourceError
                     if not self.model_manager:
-                        from hospital_ai.workers.ocr_models import OcrModelManager
-
                         self.model_manager = OcrModelManager()
 
-                    async with self.model_manager.acquire_model_with_fallback(decision.engine_family) as model:
-                        route = model.route
-                        if route == "paddle_printed":
-                            if not hasattr(model, "engine"):
-                                try:
-                                    from paddleocr import PaddleOCR
-
-                                    model.engine = PaddleOCR(
-                                        use_doc_orientation_classify=False,
-                                        use_doc_unwarping=False,
-                                        use_textline_orientation=False,
-                                    )
-                                except ImportError:
-                                    raise ExternalServiceError(
-                                        f"OCR engine is unavailable for image-only page {page_number}; "
-                                        "install the 'ocr' dependency extra."
-                                    ) from None
-                            import cv2
-                            import numpy as np
-
-                            np_arr = np.frombuffer(img_bytes, np.uint8)
-                            img = cv2.imdecode(np_arr, cv2.IMREAD_COLOR)
-                            result = model.engine.predict(img)
-                            text_extracted, confidence = _parse_paddle_v3_results(list(result))
-                            if not text_extracted:
-                                raise ExternalServiceError(f"OCR produced no text for page {page_number}.")
-                        elif route == "vietocr_handwritten":
-                            raise ExternalServiceError(f"Handwriting not supported yet for page {page_number}.")
-                        else:
-                            raise ExternalServiceError(f"Unknown route {route} for page {page_number}.")
+                    try:
+                        async with self.model_manager.acquire_model_with_fallback(decision.engine_family) as model:
+                            route = model.route
+                            if route == "paddle_printed":
+                                if not hasattr(model, "engine"):
+                                    try:
+                                        from paddleocr import PaddleOCR
+                                        model.engine = PaddleOCR(
+                                            use_doc_orientation_classify=False,
+                                            use_doc_unwarping=False,
+                                            use_textline_orientation=False,
+                                        )
+                                    except ImportError:
+                                        raise ExternalServiceError(
+                                            f"OCR engine is unavailable for image-only page {page_number}; "
+                                            "install the 'ocr' dependency extra."
+                                        ) from None
+                                import cv2
+                                import numpy as np
+                                np_arr = np.frombuffer(img_bytes, np.uint8)
+                                img = cv2.imdecode(np_arr, cv2.IMREAD_COLOR)
+                                result = model.engine.predict(img)
+                                text_extracted, confidence = _parse_paddle_v3_results(list(result))
+                                if not text_extracted:
+                                    raise ExternalServiceError(f"OCR produced no text for page {page_number}.")
+                            elif route == "vietocr_handwritten":
+                                raise ExternalServiceError(f"Handwriting not supported yet for page {page_number}.")
+                            else:
+                                raise ExternalServiceError(f"Unknown route {route} for page {page_number}.")
+                    except OcrResourceError:
+                        raise ExternalServiceError("OCR engine is unavailable")
 
                 lat = max(0, int((time.monotonic() - start_t) * 1000))
                 rss = max(1, int(current_rss_mb()))

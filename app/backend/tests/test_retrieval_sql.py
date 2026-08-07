@@ -9,12 +9,8 @@ from hospital_ai.core.security import PATIENT_READ_SCOPES
 from hospital_ai.db.migrations import DOCTOR_ID, PATIENT_ALICE_ID, PATIENT_BOB_ID
 from hospital_ai.db.models import Document, DocumentChunk, DocumentPage, PatientPermission, User
 from hospital_ai.services.embeddings import deterministic_embedding
-from hospital_ai.services.permissions import ACTIVE_PATIENT_PERMISSION_SQL
 from hospital_ai.services.retrieval import RetrievalService, _scope_matches
 from tests.conftest import create_indexed_document
-
-
-
 
 
 def test_forward_bm25_migration_creates_tsvector_and_gin_index():

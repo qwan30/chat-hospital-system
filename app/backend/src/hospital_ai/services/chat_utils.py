@@ -188,9 +188,11 @@ def meets_evidence_threshold(item: RetrievedChunk, retrieval_mode: str, threshol
             continue
 
     if not underlying_scores:
+        print(f"!!! {item.evidence_id} {item.metadata=}")
         # No score_list_* metadata — fall back to any non-zero RRF score.
         return item.score > 0.0
 
+    print(f"!!! {item.evidence_id} {item.metadata=} max_score={max(underlying_scores)}")
     return max(underlying_scores) >= threshold
 
 

@@ -6,10 +6,10 @@ try:
     import tomllib
 except ImportError:
     import tomli as tomllib
+import math
 from pathlib import Path
 from typing import Any
 
-import math
 import fitz
 import pytest
 
@@ -69,6 +69,7 @@ async def test_image_only_pdf_without_ocr_engine_fails_explicitly(
     monkeypatch.setattr(fitz, "open", lambda *args, **kwargs: EmptyMockDoc())
     
     pdf_path = tmp_path / "image-only.pdf"
+    pdf_path.write_bytes(b"dummy")
 
     real_import = builtins.__import__
 

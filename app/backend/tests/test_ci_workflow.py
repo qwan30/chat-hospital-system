@@ -188,6 +188,6 @@ def test_cdi_v2_release_gates_are_blocking():
 
     assert "⚠️ Frontend E2E: advisory — does not block merge" not in workflow_text
 
-    assert "python scripts/verify_cdi_v2_release.py --mode source" in workflow_text
+    assert "python scripts/verify_cdi_v2_release.py --mode artifact" in workflow_text
     assert "python -m pytest tests/cdi_v2/test_normative_acceptance.py -q" in workflow_text
     assert "bun run test:e2e -- cdi-v2-document-intelligence.spec.ts" in workflow_text

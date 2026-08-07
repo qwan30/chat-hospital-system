@@ -55,6 +55,14 @@ async def test_worker_processes_r2_uri_and_fingerprints_source(
         "hospital_ai.workers.queue.enqueue_cdss_analysis",
         lambda *_args, **_kwargs: "queued",
     )
+    
+    async def mock_require_finalized(*args, **kwargs):
+        return await session.get(Document, document.id)
+        
+    monkeypatch.setattr(
+        "hospital_ai.workers.extraction_jobs.require_finalized_document_for_extraction",
+        mock_require_finalized,
+    )
 
     document = Document(
         patient_id=PATIENT_ALICE_ID,
@@ -81,6 +89,22 @@ async def test_worker_processes_r2_uri_and_fingerprints_source(
     )
     session.add(upload)
     document.finalized_upload_id = upload.id
+    await session.commit()
+    await session.refresh(document)
+
+    upload = DocumentUpload(
+        document_id=document.id,
+        expected_sha256=hashlib.sha256(source).hexdigest(),
+        state="finalized",
+        object_key="r2://patients/r2-patient/documents/r2-document/source.pdf",
+        actor_user_id=RECORDS_ID,
+    )
+    session.add(upload)
+    await session.commit()
+    await session.refresh(upload)
+    
+    document.finalized_upload_id = upload.id
+    session.add(document)
     await session.commit()
 
     await jobs.process_document(session, document.id, settings)

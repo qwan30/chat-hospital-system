@@ -790,7 +790,7 @@ async def test_find_related_entities_isolates_results_by_patient(session_and_set
     assert alice_chunk.id in alice_ctx.related_chunk_ids
     assert bob_chunk.id not in alice_ctx.related_chunk_ids
     # Bob's "aspirin" must not show up in Alice's entity list.
-    alice_entity_names = {e.name for e in alice_ctx.entities}
+    alice_entity_names = {e.normalized_label for e in alice_ctx.entities}
     assert "aspirin" not in alice_entity_names
 
     # Bob-scoped query returns Bob's chunks (which include aspirin) and
@@ -798,7 +798,7 @@ async def test_find_related_entities_isolates_results_by_patient(session_and_set
     bob_ctx = await find_related_entities(session, ["metformin"], patient_id=PATIENT_BOB_ID)
     assert bob_chunk.id in bob_ctx.related_chunk_ids
     assert alice_chunk.id not in bob_ctx.related_chunk_ids
-    bob_entity_names = {e.name for e in bob_ctx.entities}
+    bob_entity_names = {e.normalized_label for e in bob_ctx.entities}
     assert "aspirin" in bob_entity_names
 
 

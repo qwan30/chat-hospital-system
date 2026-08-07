@@ -1,17 +1,9 @@
 import pytest
-
-
-class DummyResult:
-    def __init__(self, passed, evidence):
-        self.passed = passed
-        self.evidence = evidence
-
-
-class DummyHarness:
-    async def run(self, scenario: str) -> DummyResult:
-        return DummyResult(passed=False, evidence=f"Not implemented: {scenario}")
-
+from hospital_ai.main import create_app
+from tests.cdi_v2.acceptance.harness import CDIv2Harness
 
 @pytest.fixture
-def cdi_v2_harness():
-    return DummyHarness()
+def cdi_v2_harness(session_and_settings):
+    session, settings = session_and_settings
+    app = create_app(settings)
+    return CDIv2Harness(app=app, session=session, settings=settings)

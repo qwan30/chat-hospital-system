@@ -157,12 +157,14 @@ def test_retrieval_quality_gates_fail_when_answer_cases_have_nearly_no_evidence(
 
     gates = {gate.name: gate for gate in _retrieval_quality_gates(cases, results)}
 
+    assert not gates["retrieval_precision_at_5"].passed
     assert not gates["retrieval_recall_at_5"].passed
     assert not gates["retrieval_mrr"].passed
     assert not gates["retrieval_ndcg_at_5"].passed
-    assert gates["retrieval_recall_at_5"].threshold == ">= 0.90"
-    assert gates["retrieval_mrr"].threshold == ">= 0.85"
-    assert gates["retrieval_ndcg_at_5"].threshold == ">= 0.85"
+    assert gates["retrieval_precision_at_5"].threshold == "> 0.85"
+    assert gates["retrieval_recall_at_5"].threshold == "> 0.85"
+    assert gates["retrieval_mrr"].threshold == "> 0.85"
+    assert gates["retrieval_ndcg_at_5"].threshold == "> 0.85"
 
 
 def test_retrieval_quality_gates_exclude_refusal_cases_from_quality_denominator() -> None:
@@ -177,7 +179,7 @@ def test_retrieval_quality_gates_exclude_refusal_cases_from_quality_denominator(
             status="passed",
             metrics={
                 "recall_at_5": 1.0 if case.answer_policy == "answer" else 0.0,
-                "precision_at_5": 0.2 if case.answer_policy == "answer" else 0.0,
+                "precision_at_5": 1.0 if case.answer_policy == "answer" else 0.0,
                 "mrr": 1.0 if case.answer_policy == "answer" else 0.0,
                 "ndcg_at_5": 1.0 if case.answer_policy == "answer" else 0.0,
             },
@@ -187,6 +189,7 @@ def test_retrieval_quality_gates_exclude_refusal_cases_from_quality_denominator(
 
     gates = {gate.name: gate for gate in _retrieval_quality_gates(cases, results)}
 
+    assert gates["retrieval_precision_at_5"].passed
     assert gates["retrieval_recall_at_5"].passed
     assert gates["retrieval_mrr"].passed
     assert gates["retrieval_ndcg_at_5"].passed

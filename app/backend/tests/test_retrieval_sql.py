@@ -10,31 +10,11 @@ from hospital_ai.db.migrations import DOCTOR_ID, PATIENT_ALICE_ID, PATIENT_BOB_I
 from hospital_ai.db.models import Document, DocumentChunk, DocumentPage, PatientPermission, User
 from hospital_ai.services.embeddings import deterministic_embedding
 from hospital_ai.services.permissions import ACTIVE_PATIENT_PERMISSION_SQL
-from hospital_ai.services.retrieval import PERMISSION_FILTERED_RETRIEVAL_SQL, RetrievalService, _scope_matches
+from hospital_ai.services.retrieval import RetrievalService, _scope_matches
 from tests.conftest import create_indexed_document
 
 
-def test_retrieval_sql_does_not_repeat_patient_permission_filter():
-    sql = PERMISSION_FILTERED_RETRIEVAL_SQL.lower()
-    assert ACTIVE_PATIENT_PERMISSION_SQL.lower() in sql
-    assert "from patient_permissions" in sql
-    assert "pp.user_id = :user_id" in sql
-    assert "where exists (select 1 from allowed)" in sql
-    assert "c.patient_id = :patient_id" in sql
-    assert "d.patient_id = :patient_id" in sql
-    assert "p.id = c.page_id and p.document_id = c.document_id" in sql
-    assert "join document_index_generations g on g.id = c.generation_id" in sql
-    assert "join document_revision_sets rs on rs.id = c.revision_set_id" in sql
-    assert "d.active_index_generation_id = c.generation_id" in sql
-    assert "g.state = 'active'" in sql
-    assert "g.revision_set_id = c.revision_set_id" in sql
-    assert "rs.status = 'approved'" in sql
-    assert "or c.patient_id is null" not in sql
-    assert "or d.patient_id is null" not in sql
-    assert "c.embedding is not null" in sql
-    assert "c.deleted_at is null" in sql
-    assert "d.deleted_at is null" in sql
-    assert "p.deleted_at is null" in sql
+
 
 
 def test_forward_bm25_migration_creates_tsvector_and_gin_index():

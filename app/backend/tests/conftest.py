@@ -29,6 +29,8 @@ class MockPage:
                 self.width = 100
                 self.n = 3
                 self.samples = b"\x00" * (100 * 100 * 3)
+            def tobytes(self, fmt="png"):
+                return b"\x89PNGfake_png_data"
         return MockPixmap()
 
 class MockFitzDoc:

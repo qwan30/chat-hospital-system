@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import math
 import pytest
 
 from hospital_ai.services.ocr_routing import OcrPageResult, OcrRouter, OcrSpanResult, PagePreflight
@@ -10,7 +11,7 @@ def test_router_selects_handwriting_only_above_qualified_threshold() -> None:
         PagePreflight(native_credible=False, handwriting_probability=0.81, mixed_regions=())
     )
     assert decision.engine_family == "vietocr_handwritten"
-    assert decision.confidence == pytest.approx(0.81)
+    assert math.isclose(decision.confidence, 0.81, rel_tol=1e-5)
 
 
 def test_router_selects_native_when_credible() -> None:
@@ -18,7 +19,7 @@ def test_router_selects_native_when_credible() -> None:
         PagePreflight(native_credible=True, handwriting_probability=0.1, mixed_regions=())
     )
     assert decision.engine_family == "native"
-    assert decision.confidence == pytest.approx(1.0)
+    assert math.isclose(decision.confidence, 1.0, rel_tol=1e-5)
 
 
 def test_router_selects_printed_when_low_handwriting() -> None:

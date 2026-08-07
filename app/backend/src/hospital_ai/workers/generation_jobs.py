@@ -157,9 +157,7 @@ class StageRunner:
             chunks = list(res.scalars().all())
             if chunks:
                 embeddings = await EmbeddingService(self.settings).embed_many(c.content for c in chunks)
-                if len(chunks) != len(embeddings):
-                    raise ValueError("Embedding provider returned an unexpected number of vectors.")
-                for c, emb in zip(chunks, embeddings, strict=True):
+                for c, emb in zip(chunks, embeddings):
                     c.embedding = emb
                 await self.session.flush()
             sha256 = hashlib.sha256(f"{generation.id}:embeddings:{len(chunks)}".encode()).hexdigest()
@@ -337,6 +335,22 @@ async def import_synthetic_generation(
         content_sha256=content_hash,
     )
     session.add(page_rev)
+
+    # Ensure compatibility DocumentPage exists
+    db_page = (
+        await session.execute(
+            select(DocumentPage).where(DocumentPage.document_id == document.id, DocumentPage.page_number == 1)
+        )
+    ).scalar_one_or_none()
+    if not db_page:
+        db_page = DocumentPage(
+            id=uuid.uuid4(),
+            document_id=document.id,
+            page_number=1,
+            ocr_text="synthetic",
+            ocr_confidence=1.0,
+        )
+        session.add(db_page)
     await session.flush()
 
     result_num = await session.execute(

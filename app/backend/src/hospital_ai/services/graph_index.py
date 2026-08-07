@@ -49,48 +49,68 @@ class GraphIndexService:
         return bool(result.rowcount)
 
     async def _upsert_entity(self, patient_id: uuid.UUID, entity_type: str, normalized_label: str) -> GraphEntity:
-        await self._insert_ignore(
-            GraphEntity,
-            {
-                "patient_id": patient_id,
-                "entity_type": entity_type,
-                "normalized_label": normalized_label,
-            },
-            ("patient_id", "entity_type", "normalized_label"),
-        )
-        result = await self.session.execute(
-            select(GraphEntity).where(
-                GraphEntity.patient_id == patient_id,
-                GraphEntity.entity_type == entity_type,
-                GraphEntity.normalized_label == normalized_label,
+        import asyncio
+
+        from sqlalchemy.exc import NoResultFound
+
+        for attempt in range(3):
+            await self._insert_ignore(
+                GraphEntity,
+                {
+                    "patient_id": patient_id,
+                    "entity_type": entity_type,
+                    "normalized_label": normalized_label,
+                },
+                ("patient_id", "entity_type", "normalized_label"),
             )
-        )
-        return result.scalar_one()
+            try:
+                result = await self.session.execute(
+                    select(GraphEntity).where(
+                        GraphEntity.patient_id == patient_id,
+                        GraphEntity.entity_type == entity_type,
+                        GraphEntity.normalized_label == normalized_label,
+                    )
+                )
+                return result.scalar_one()
+            except NoResultFound:
+                if attempt == 2:
+                    raise
+                await asyncio.sleep(0.05 * (2 ** attempt))
 
     async def _upsert_assertion(
         self, patient_id: uuid.UUID, subject_id: uuid.UUID, object_id: uuid.UUID, item: ExtractedRelation
     ) -> GraphRelationAssertion:
-        await self._insert_ignore(
-            GraphRelationAssertion,
-            {
-                "patient_id": patient_id,
-                "subject_entity_id": subject_id,
-                "object_entity_id": object_id,
-                "relation_type": item.relation_type,
-                "normalized_value": item.normalized_value,
-            },
-            ("patient_id", "subject_entity_id", "object_entity_id", "relation_type", "normalized_value"),
-        )
-        result = await self.session.execute(
-            select(GraphRelationAssertion).where(
-                GraphRelationAssertion.patient_id == patient_id,
-                GraphRelationAssertion.subject_entity_id == subject_id,
-                GraphRelationAssertion.object_entity_id == object_id,
-                GraphRelationAssertion.relation_type == item.relation_type,
-                GraphRelationAssertion.normalized_value == item.normalized_value,
+        import asyncio
+
+        from sqlalchemy.exc import NoResultFound
+
+        for attempt in range(3):
+            await self._insert_ignore(
+                GraphRelationAssertion,
+                {
+                    "patient_id": patient_id,
+                    "subject_entity_id": subject_id,
+                    "object_entity_id": object_id,
+                    "relation_type": item.relation_type,
+                    "normalized_value": item.normalized_value,
+                },
+                ("patient_id", "subject_entity_id", "object_entity_id", "relation_type", "normalized_value"),
             )
-        )
-        return result.scalar_one()
+            try:
+                result = await self.session.execute(
+                    select(GraphRelationAssertion).where(
+                        GraphRelationAssertion.patient_id == patient_id,
+                        GraphRelationAssertion.subject_entity_id == subject_id,
+                        GraphRelationAssertion.object_entity_id == object_id,
+                        GraphRelationAssertion.relation_type == item.relation_type,
+                        GraphRelationAssertion.normalized_value == item.normalized_value,
+                    )
+                )
+                return result.scalar_one()
+            except NoResultFound:
+                if attempt == 2:
+                    raise
+                await asyncio.sleep(0.05 * (2 ** attempt))
 
     async def index_chunk(
         self,

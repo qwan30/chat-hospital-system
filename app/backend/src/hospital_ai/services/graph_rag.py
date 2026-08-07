@@ -237,7 +237,10 @@ async def extract_entities_and_relations_nlp(content: str) -> tuple[list[Extract
 
         return entities, relations
     except Exception as e:
-        logging.getLogger(__name__).warning("NLP extraction failed: %s", e)
+        logger.warning(
+            "NLP extraction failed",
+            extra={"error_code": "NLP_EXTRACTION_FAILED"}
+        )
         return _extract_explicit_relations_fallback(content)
 
 
@@ -252,14 +255,20 @@ async def index_chunk_entities(
     *,
     extractor: Optional[EntityRelationExtractor] = None,
 ) -> tuple[list, list]:
+    import time
+    start_time = time.time()
+    trace_id = uuid.uuid4().hex
+
     active_extractor = extract_entities_and_relations_nlp if extractor is None else extractor
     entities, relations = await active_extractor(content)
     logger.info(
         "graph.extraction.completed",
         extra={
+            "trace_id": trace_id,
             "document_id": str(document_id),
             "entity_count": len(entities),
             "relation_count": len(relations),
+            "latency": time.time() - start_time,
         },
     )
 
@@ -270,7 +279,12 @@ async def index_chunk_entities(
     if not chunk:
         logger.warning(
             "graph.chunk.not_found",
-            extra={"document_id": str(document_id), "chunk_id": str(chunk_id)},
+            extra={
+                "trace_id": trace_id,
+                "document_id": str(document_id), 
+                "chunk_id": str(chunk_id),
+                "error_code": "CHUNK_NOT_FOUND"
+            },
         )
         return [], []
 
@@ -282,6 +296,7 @@ async def index_chunk_entities(
     logger.info(
         "graph.index.completed",
         extra={
+            "trace_id": trace_id,
             "document_id": str(document_id),
             "chunk_id": str(chunk.id),
             "generation_id": str(chunk.generation_id),
@@ -289,6 +304,7 @@ async def index_chunk_entities(
             "mentions_inserted": result.mentions_inserted,
             "assertions_inserted": result.assertions_inserted,
             "evidence_inserted": result.evidence_inserted,
+            "latency": time.time() - start_time,
         },
     )
 

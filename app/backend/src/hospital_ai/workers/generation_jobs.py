@@ -184,6 +184,10 @@ class StageRunner:
             chunks = list(res.scalars().all())
 
             graph_service = GraphIndexService(self.session)
+            import time
+            start_time = time.time()
+            trace_id = uuid.uuid4().hex
+            
             for chunk in chunks:
                 try:
                     entities, relations = await extract_entities_and_relations_nlp(chunk.content)
@@ -193,6 +197,7 @@ class StageRunner:
                     logger.error(
                         "generation.graph.failed",
                         extra={
+                            "trace_id": trace_id,
                             "generation_id": str(generation.id),
                             "chunk_id": str(chunk.id),
                             "error_code": "GRAPH_EXTRACTION_FAILED",
@@ -204,9 +209,11 @@ class StageRunner:
             logger.info(
                 "generation.graph.completed",
                 extra={
+                    "trace_id": trace_id,
                     "generation_id": str(generation.id),
                     "chunk_count": len(chunks),
                     "output_sha256": sha256,
+                    "latency": time.time() - start_time,
                 },
             )
             return StageOutput(sha256=sha256, row_count=len(chunks))

@@ -25,6 +25,9 @@ describe("ClinicalTimelinePanel", () => {
             revision_set_id: "set-2",
             page_revision_id: "page-rev-2",
             page: 3,
+            start_offset: 10,
+            end_offset: 20,
+            bounding_boxes: [0,0,10,10],
             alignment_status: "stale",
           },
         ]}
@@ -32,7 +35,12 @@ describe("ClinicalTimelinePanel", () => {
       />,
     );
 
-    expect(screen.getByTestId("timeline-event-event-1")).toBeInTheDocument();
+    const eventEl = screen.getByTestId("timeline-event-event-1");
+    expect(eventEl).toBeInTheDocument();
+    expect(eventEl).toHaveAttribute("data-provenance-start-offset", "10");
+    expect(eventEl).toHaveAttribute("data-provenance-end-offset", "20");
+    expect(eventEl).toHaveAttribute("data-provenance-bounding-boxes", "[0,0,10,10]");
+
     expect(
       screen.getAllByText(
         (_, el) => el?.textContent?.match(/Conflict detected: value conflict/i) !== null,

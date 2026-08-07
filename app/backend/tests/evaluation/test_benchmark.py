@@ -5,7 +5,10 @@ import json
 from collections import Counter
 from pathlib import Path
 
-import fitz
+try:
+    import fitz
+except ImportError:
+    fitz = None
 import pytest
 
 from hospital_ai.evaluation.benchmark import (

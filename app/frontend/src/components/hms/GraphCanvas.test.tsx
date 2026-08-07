@@ -21,6 +21,9 @@ describe("GraphCanvas", () => {
               sublabel: "diagnosis",
               source_document_id: "doc-1",
               source_chunk_id: "chunk-1",
+              source_start_offset: 10,
+              source_end_offset: 20,
+              source_bounding_boxes: [0,0,10,10],
               x: 0,
               y: 0,
             },
@@ -57,10 +60,21 @@ describe("GraphCanvas", () => {
       "data-provenance-chunk-id",
       "chunk-1",
     );
+    expect(screen.getByTestId("graph-node-node-1")).toHaveAttribute(
+      "data-provenance-start-offset",
+      "10",
+    );
+    expect(screen.getByTestId("graph-node-node-1")).toHaveAttribute(
+      "data-provenance-end-offset",
+      "20",
+    );
+    expect(screen.getByTestId("graph-node-node-1")).toHaveAttribute(
+      "data-provenance-bounding-boxes",
+      "[0,0,10,10]",
+    );
     expect(screen.getByTestId("graph-edge-edge-1")).toHaveAttribute(
       "data-provenance-document-id",
       "doc-1",
     );
-    expect(screen.queryByText(/Exact evidence locator/i)).not.toBeInTheDocument();
   });
 });

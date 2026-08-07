@@ -16,8 +16,14 @@ from importlib.machinery import ModuleSpec
 from pathlib import Path
 from typing import Literal, Optional
 
-import fitz
-import numpy as np
+try:
+    import fitz
+except ImportError:
+    fitz = None
+try:
+    import numpy as np
+except ImportError:
+    np = None
 
 from hospital_ai.evaluation.contracts import (
     ClinicalField,

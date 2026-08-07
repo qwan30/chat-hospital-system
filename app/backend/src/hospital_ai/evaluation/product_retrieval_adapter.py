@@ -16,7 +16,10 @@ from pathlib import Path
 from typing import Any, Optional
 from uuid import UUID
 
-import fitz
+try:
+    import fitz
+except ImportError:
+    fitz = None
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 

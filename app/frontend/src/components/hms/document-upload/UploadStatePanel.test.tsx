@@ -6,6 +6,7 @@ import "@testing-library/jest-dom/vitest";
 
 describe("UploadStatePanel", () => {
   it.each([
+    ["pending", "Pending verification..."],
     ["uploaded_unverified", "Verifying upload..."],
     ["verified", "Upload verified"],
     ["finalized", "Upload finalized"],

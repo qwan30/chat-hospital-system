@@ -7,6 +7,7 @@ export type UploadUiState = {
     | "idle"
     | "creating_session"
     | "uploading"
+    | "pending"
     | "uploaded_unverified"
     | "verified"
     | "finalized"
@@ -45,6 +46,12 @@ export function UploadStatePanel({
         <div className="flex items-center gap-2">
           <Loader2 className="h-4 w-4 animate-spin" />
           <span>Verifying upload...</span>
+        </div>
+      )}
+      {state.kind === "pending" && (
+        <div className="flex items-center gap-2">
+          <Loader2 className="h-4 w-4 animate-spin" />
+          <span>Pending verification...</span>
         </div>
       )}
       {state.kind === "verified" && (

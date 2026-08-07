@@ -42,6 +42,8 @@ export function DocumentUploadFlow({
 
   const uploadResultToUiState = (result: UploadFinalizeResult): UploadUiState => {
     switch (result.state) {
+      case "pending":
+        return { kind: "pending", reason: result.reason };
       case "finalized":
         return { kind: "finalized", reason: result.reason };
       case "quarantined":
@@ -111,7 +113,7 @@ export function DocumentUploadFlow({
         setFile(null);
         if (fileInputRef.current) fileInputRef.current.value = "";
         navigate({ to: "/documents/$documentId", params: { documentId: result.document_id } });
-      } else if (nextState.kind === "verified") {
+      } else if (nextState.kind === "verified" || nextState.kind === "pending") {
         let isFinal = false;
         while (!isFinal) {
           await new Promise((resolve) => setTimeout(resolve, 2000));

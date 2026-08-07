@@ -152,7 +152,7 @@ export function GraphExplanationPanel({ explanation }: GraphExplanationPanelProp
                       Offsets: {p.start_offset}-{p.end_offset}
                     </span>
                   )}
-                  {p.bounding_boxes && <span>Region: true</span>}
+                  {Boolean(p.bounding_boxes) && <span>Region: true</span>}
                   {p.alignment_status === "aligned" &&
                   p.page_revision_id &&
                   p.page !== undefined &&

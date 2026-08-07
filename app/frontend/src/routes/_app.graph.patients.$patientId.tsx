@@ -185,7 +185,7 @@ function Page() {
                             Offsets: {s.source_start_offset}-{s.source_end_offset}
                           </span>
                         )}
-                      {s.source_bounding_boxes && <span>Region: true</span>}
+                      {Boolean(s.source_bounding_boxes) && <span>Region: true</span>}
                       {s.source_alignment_status === "aligned" &&
                       s.source_page_revision_id &&
                       s.source_page !== undefined &&

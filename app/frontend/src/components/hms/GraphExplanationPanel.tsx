@@ -136,7 +136,10 @@ export function GraphExplanationPanel({ explanation }: GraphExplanationPanelProp
                 )}
                 {p.evidence && <span className="truncate">Evidence: {p.evidence}</span>}
               </div>
-              {(p.document_id || p.revision_set_id || p.page_revision_id || p.page !== undefined) && (
+              {(p.document_id ||
+                p.revision_set_id ||
+                p.page_revision_id ||
+                p.page !== undefined) && (
                 <div className="flex flex-wrap gap-x-3 gap-y-1 border-t pt-1 text-[11px] text-muted-foreground">
                   {p.document_id && <span>Document: {p.document_id}</span>}
                   {p.revision_set_id && <span>Revision: {p.revision_set_id}</span>}

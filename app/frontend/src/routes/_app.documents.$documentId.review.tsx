@@ -69,7 +69,7 @@ function Page() {
           reason,
           page_revision_id,
         },
-        { idempotencyKey: newIdempotencyKey("patch-review-item") }
+        { idempotencyKey: newIdempotencyKey("patch-review-item") },
       ),
     onSuccess: () => {
       toast.success("Review item updated");

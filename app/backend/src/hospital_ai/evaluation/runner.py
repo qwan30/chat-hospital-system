@@ -253,6 +253,7 @@ def _retrieval_quality_gates(
     recall_at_5 = mean_metric("recall_at_5")
     mrr = mean_metric("mrr")
     ndcg_at_5 = mean_metric("ndcg_at_5")
+    precision_at_5 = mean_metric("precision_at_5")
     return (
         _gate(
             "retrieval_answer_case_coverage",
@@ -261,9 +262,10 @@ def _retrieval_quality_gates(
             len(answer_case_ids),
             "> 0 answer-policy cases",
         ),
-        _gate("retrieval_recall_at_5", "retrieval", recall_at_5 >= 0.90, recall_at_5, ">= 0.90"),
-        _gate("retrieval_mrr", "retrieval", mrr >= 0.85, mrr, ">= 0.85"),
-        _gate("retrieval_ndcg_at_5", "retrieval", ndcg_at_5 >= 0.85, ndcg_at_5, ">= 0.85"),
+        _gate("retrieval_precision_at_5", "retrieval", precision_at_5 > 0.85, precision_at_5, "> 0.85"),
+        _gate("retrieval_recall_at_5", "retrieval", recall_at_5 > 0.85, recall_at_5, "> 0.85"),
+        _gate("retrieval_mrr", "retrieval", mrr > 0.85, mrr, "> 0.85"),
+        _gate("retrieval_ndcg_at_5", "retrieval", ndcg_at_5 > 0.85, ndcg_at_5, "> 0.85"),
     )
 
 

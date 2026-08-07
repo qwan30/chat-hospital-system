@@ -1,4 +1,5 @@
 import { apiFetch } from "../api-client";
+import type { DocumentGraphFilters } from "./document-graph";
 
 export interface GraphProvenance {
   document_id?: string | null;
@@ -80,6 +81,39 @@ export interface GraphDataResponse {
   metadata?: Record<string, unknown>;
 }
 
-export async function getPatientGraph(patientId: string): Promise<GraphDataResponse> {
-  return apiFetch<GraphDataResponse>(`/graph/patients/${patientId}`);
+export async function getPatientGraph(
+  patientId: string,
+  filters?: DocumentGraphFilters,
+): Promise<GraphDataResponse> {
+  const params = new URLSearchParams();
+  if (filters) {
+    if (filters.node_limit !== undefined) params.append("node_limit", String(filters.node_limit));
+    if (filters.edge_limit !== undefined) params.append("edge_limit", String(filters.edge_limit));
+    if (filters.hop_depth !== undefined) params.append("hop_depth", String(filters.hop_depth));
+    if (filters.min_confidence !== undefined)
+      params.append("min_confidence", String(filters.min_confidence));
+    if (filters.entity_types) {
+      filters.entity_types.forEach((t) => params.append("entity_types", t));
+    }
+    if (filters.relation_types) {
+      filters.relation_types.forEach((t) => params.append("relation_types", t));
+    }
+    if (filters.document_scope) {
+      filters.document_scope.forEach((doc) => params.append("document_scope", doc));
+    }
+    if (filters.approved_revision_set_id) {
+      params.append("approved_revision_set_id", filters.approved_revision_set_id);
+    }
+    if (filters.date_from) params.append("date_from", filters.date_from);
+    if (filters.date_to) params.append("date_to", filters.date_to);
+    if (filters.layout) params.append("layout", filters.layout);
+    if (filters.include_superseded !== undefined) {
+      params.append("include_superseded", String(filters.include_superseded));
+    }
+  }
+  const queryString = params.toString();
+  const path = queryString
+    ? `/graph/patients/${patientId}?${queryString}`
+    : `/graph/patients/${patientId}`;
+  return apiFetch<GraphDataResponse>(path);
 }

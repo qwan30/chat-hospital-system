@@ -60,6 +60,11 @@ function provenanceTitle(provenance: GraphProvenance): string {
     provenance.page_revision_id && `page-revision:${provenance.page_revision_id}`,
     provenance.page !== undefined && provenance.page !== null && `page:${provenance.page}`,
     provenance.chunk_id && `chunk:${provenance.chunk_id}`,
+    provenance.start_offset !== undefined &&
+      provenance.start_offset !== null &&
+      `offset:${provenance.start_offset}-${provenance.end_offset}`,
+    provenance.bounding_boxes && `region:true`,
+    provenance.alignment_status && `alignment:${provenance.alignment_status}`,
   ].filter(Boolean);
   return values.length > 0 ? `Provenance — ${values.join("; ")}` : "Provenance unavailable";
 }

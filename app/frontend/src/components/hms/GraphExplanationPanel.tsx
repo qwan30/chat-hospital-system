@@ -14,6 +14,7 @@ export interface GraphExplanationPath {
   page?: number;
   start_offset?: number;
   end_offset?: number;
+  bounding_boxes?: unknown;
   alignment_status?: string;
 }
 
@@ -61,6 +62,7 @@ function normalizePath(value: unknown): GraphExplanationPath | null {
       typeof raw.end_offset === "number" && Number.isFinite(raw.end_offset)
         ? Math.max(0, raw.end_offset)
         : undefined,
+    bounding_boxes: raw.bounding_boxes,
     alignment_status: safeText(raw.alignment_status),
   };
 }
@@ -150,6 +152,7 @@ export function GraphExplanationPanel({ explanation }: GraphExplanationPanelProp
                       Offsets: {p.start_offset}-{p.end_offset}
                     </span>
                   )}
+                  {p.bounding_boxes && <span>Region: true</span>}
                   {p.alignment_status === "aligned" &&
                   p.page_revision_id &&
                   p.page !== undefined &&

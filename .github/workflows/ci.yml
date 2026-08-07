@@ -248,7 +248,7 @@ jobs:
         run: python scripts/verify_contracts.py
 
       - name: Verify CDI V2 release contracts
-        run: python scripts/verify_cdi_v2_release.py --mode source
+        run: python scripts/verify_cdi_v2_release.py --mode source --evidence-dir cdi-v2-release-evidence --expected-git-sha "$GITHUB_SHA"
 
       - name: Run CDI V2 normative acceptance
         run: python -m pytest tests/cdi_v2/test_normative_acceptance.py -q

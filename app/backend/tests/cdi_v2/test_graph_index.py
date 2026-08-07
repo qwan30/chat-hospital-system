@@ -177,7 +177,7 @@ async def test_cross_patient_relation_is_rejected(session_and_settings) -> None:
     entity_a = GraphEntity(patient_id=patient_alice_id, entity_type="person", normalized_label="alice")
     entity_b = GraphEntity(patient_id=patient_bob_id, entity_type="person", normalized_label="bob")
     session.add_all([entity_a, entity_b])
-    await session.flush()
+    from sqlalchemy.exc import IntegrityError, OperationalError
 
     with pytest.raises((IntegrityError, OperationalError)):
         assertion = GraphRelationAssertion(

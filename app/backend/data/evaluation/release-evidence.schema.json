@@ -1,0 +1,38 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Release Evidence Schema",
+  "type": "object",
+  "required": [
+    "gate_name",
+    "passed",
+    "source_artifact",
+    "producer_sha",
+    "schema_version",
+    "hash"
+  ],
+  "properties": {
+    "gate_name": {
+      "type": "string"
+    },
+    "passed": {
+      "type": "boolean"
+    },
+    "source_artifact": {
+      "type": "string"
+    },
+    "producer_sha": {
+      "type": "string"
+    },
+    "schema_version": {
+      "type": "string"
+    },
+    "hash": {
+      "type": "string"
+    },
+    "details": {
+      "type": "object",
+      "additionalProperties": true
+    }
+  },
+  "additionalProperties": false
+}

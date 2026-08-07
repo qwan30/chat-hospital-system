@@ -215,7 +215,7 @@ async def matrix_data(session):
 
 
 @pytest.mark.asyncio
-async def test_cross_path_matrix_shared_scope(session, matrix_data) -> None:
+async def test_cross_path_matrix_shared_scope(session, matrix_data, session_and_settings) -> None:
     doc, c_active = matrix_data
     doctor = await session.get(User, DOCTOR_ID)
 
@@ -251,5 +251,34 @@ async def test_cross_path_matrix_shared_scope(session, matrix_data) -> None:
     assert len(timeline_res["events"]) == 1
     assert timeline_res["events"][0]["evidence_ids"] == [str(c_active.id)]
 
-    # 5. Chat (Vector path implicit)
-    # Skipped full generation test, vector/bm25 asserts cover ChatService's retrieval pipeline exactly.
+    # 5. Chat
+    from hospital_ai.services.chat import ChatService
+    from hospital_ai.services.reasoning import ReasoningResult
+    
+    settings = session_and_settings[1]
+    chat_svc = ChatService(session, settings)
+    
+    evidence_passed = []
+    async def mock_run_pipeline(pipeline_name, question, evidence, conversation_history, evaluation_observer=None):
+        evidence_passed.extend(evidence)
+        cite = evidence[0].evidence_id if evidence else "N/A"
+        return ReasoningResult(
+            answer=f"Fake answer [{cite}]",
+            citations=[],
+            confidence="high",
+            disclaimer="",
+            pipeline="mock"
+        )
+    
+    chat_svc._run_pipeline = mock_run_pipeline
+    
+    await chat_svc.answer(
+        user=doctor,
+        patient_id=PATIENT_ALICE_ID,
+        question="matches",
+        top_k=10,
+        trace_id="test",
+        ip_address="127.0.0.1",
+    )
+    
+    assert [c.chunk_id for c in evidence_passed] == [c_active.id]

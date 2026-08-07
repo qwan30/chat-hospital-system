@@ -783,6 +783,9 @@ export function GraphCanvas({
                 data-provenance-page-revision-id={provenance.page_revision_id ?? undefined}
                 data-provenance-page={provenance.page ?? undefined}
                 data-provenance-chunk-id={provenance.chunk_id ?? undefined}
+                data-provenance-start-offset={provenance.start_offset ?? undefined}
+                data-provenance-end-offset={provenance.end_offset ?? undefined}
+                data-provenance-bounding-boxes={provenance.bounding_boxes ? JSON.stringify(provenance.bounding_boxes) : undefined}
                 data-provenance-alignment-status={provenance.alignment_status ?? undefined}
                 className={cn("transition-opacity", dimmed && "opacity-15")}
               >
@@ -842,6 +845,9 @@ export function GraphCanvas({
                 data-provenance-page-revision-id={provenance.page_revision_id ?? undefined}
                 data-provenance-page={provenance.page ?? undefined}
                 data-provenance-chunk-id={provenance.chunk_id ?? undefined}
+                data-provenance-start-offset={provenance.start_offset ?? undefined}
+                data-provenance-end-offset={provenance.end_offset ?? undefined}
+                data-provenance-bounding-boxes={provenance.bounding_boxes ? JSON.stringify(provenance.bounding_boxes) : undefined}
                 data-provenance-alignment-status={provenance.alignment_status ?? undefined}
                 transform={`translate(${pos.x}, ${pos.y})`}
                 className={cn(

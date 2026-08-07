@@ -583,8 +583,30 @@ jobs:
           VITE_API_URL: http://localhost:8000/api/v1
         run: bun run build
 
+      - name: Start backend services
+        working-directory: ${{ github.workspace }}
+        env:
+          HOSPITAL_AI_GEMINI_API_KEY: "dummy-key"
+          HOSPITAL_AI_JWT_HMAC_SECRET: "dummy-secret"
+        run: docker compose up -d --build
+
+      - name: Wait for backend
+        run: |
+          for i in {1..30}; do
+            if curl -s http://localhost:8000/api/v1/health | grep -q "ok"; then
+              echo "Backend is up"
+              break
+            fi
+            sleep 2
+          done
+
       - name: Run CDI V2 Playwright E2E journey
-        run: bun run test:e2e -- cdi-v2-document-intelligence.spec.ts
+        env:
+          E2E_BASE_URL: http://localhost:8082
+        run: |
+          bun run dev --port 8082 &
+          sleep 5
+          bun run test:e2e -- cdi-v2-document-intelligence.spec.ts
 
       # ── Artifacts ──
       - name: Upload Playwright reports

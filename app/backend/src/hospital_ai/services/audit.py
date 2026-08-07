@@ -25,7 +25,9 @@ class AuditService:
         ip_address: Optional[str] = None,
         metadata: Optional[dict[str, Any]] = None,
     ) -> AuditLog:
-        log = AuditLog(
+        from sqlalchemy import insert
+        stmt = insert(AuditLog).values(
+            id=uuid.uuid4(),
             actor_user_id=actor_user_id,
             action=action,
             object_type=object_type,
@@ -35,7 +37,6 @@ class AuditService:
             trace_id=trace_id,
             ip_address=ip_address,
             meta=metadata or {},
-        )
-        self.session.add(log)
-        await self.session.flush()
-        return log
+        ).returning(AuditLog)
+        res = await self.session.execute(stmt)
+        return res.scalar_one()

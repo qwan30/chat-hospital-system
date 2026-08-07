@@ -1,0 +1,1633 @@
+....................................................................F... [  8%]
+........................................................................ [ 17%]
+........................................................................ [ 25%]
+.........F.............................................................. [ 34%]
+................................................................F....... [ 42%]
+........................................................................ [ 51%]
+........................................................................ [ 59%]
+........s.ssssssss................................s..................... [ 68%]
+............................................sF..FFFFFFFF................ [ 76%]
+........................................................................ [ 85%]
+..................F................ss................................... [ 93%]
+...................................................                      [100%]
+================================== FAILURES ===================================
+_________________ test_generation_builder_build_and_activate __________________
+
+worker_fixture = (<sqlalchemy.ext.asyncio.session.AsyncSession object at 0x0000029c2d775fa0>, Settings(environment='local', api_v1_pref...bject at 0x0000029c2d7cb370>, <hospital_ai.db.clinical_documents.DocumentIndexGeneration object at 0x0000029c2d861280>)
+
+    @pytest.mark.asyncio
+    async def test_generation_builder_build_and_activate(worker_fixture) -> None:
+        session, settings, doc, gen = worker_fixture
+        from hospital_ai.workers.generation_jobs import GenerationBuilder
+    
+        builder = GenerationBuilder.from_settings(session, settings)
+>       result = await builder.build(gen.id)
+
+tests\cdi_v2\test_generation_worker.py:122: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+src\hospital_ai\workers\generation_jobs.py:308: in build
+    output = await self.stage_runner.run(stage, generation, revision_set, custom_metadata=custom_metadata)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <hospital_ai.workers.generation_jobs.StageRunner object at 0x0000029c2d80cdf0>
+stage = 'embeddings'
+generation = <hospital_ai.db.clinical_documents.DocumentIndexGeneration object at 0x0000029c2d861280>
+revision_set = <hospital_ai.db.clinical_documents.DocumentRevisionSet object at 0x0000029c2d86ef10>
+custom_metadata = None
+
+    async def run(
+        self,
+        stage: str,
+        generation: DocumentIndexGeneration,
+        revision_set: DocumentRevisionSet,
+        custom_metadata: Optional[dict[str, Any]] = None,
+    ) -> StageOutput:
+        doc = await self.session.get(Document, generation.document_id)
+        if not doc:
+            raise ValueError(f"Document {generation.document_id} not found")
+    
+        if stage == "ocr_normalization":
+            result = await self.session.execute(
+                select(DocumentRevisionPage, DocumentPageRevision)
+                .join(DocumentPageRevision, DocumentPageRevision.id == DocumentRevisionPage.page_revision_id)
+                .where(DocumentRevisionPage.revision_set_id == revision_set.id)
+                .order_by(DocumentRevisionPage.page_number)
+            )
+            rows = result.all()
+            if not rows:
+                content_str = "empty"
+            else:
+                content_str = "".join(rev.corrected_text for _, rev in rows)
+            sha256 = hashlib.sha256(content_str.encode("utf-8")).hexdigest()
+            return StageOutput(sha256=sha256, row_count=len(rows))
+    
+        elif stage == "facts":
+            sha256 = hashlib.sha256(f"{generation.id}:facts".encode()).hexdigest()
+            return StageOutput(sha256=sha256, row_count=0)
+    
+        elif stage == "chunks":
+            result = await self.session.execute(
+                select(DocumentRevisionPage, DocumentPageRevision)
+                .join(DocumentPageRevision, DocumentPageRevision.id == DocumentRevisionPage.page_revision_id)
+                .where(DocumentRevisionPage.revision_set_id == revision_set.id)
+                .order_by(DocumentRevisionPage.page_number)
+            )
+            rev_pages = result.all()
+            if not rev_pages:
+                sha256 = hashlib.sha256(b"no_chunks").hexdigest()
+                return StageOutput(sha256=sha256, row_count=0)
+    
+            pages_for_chunking = []
+            page_map: dict[int, tuple[DocumentPage, DocumentPageRevision]] = {}
+            for rev_p, page_rev in rev_pages:
+                pages_for_chunking.append(
+                    OcrPage(
+                        page_number=rev_p.page_number,
+                        text=page_rev.corrected_text,
+                        confidence=float(page_rev.confidence or 1.0),
+                    )
+                )
+                res = await self.session.execute(
+                    select(DocumentPage).where(
+                        DocumentPage.document_id == doc.id, DocumentPage.page_number == rev_p.page_number
+                    )
+                )
+                db_page = res.scalar_one_or_none()
+                if not db_page:
+                    raise ValueError(
+                        f"Missing compatibility page {rev_p.page_number}; staged generation cannot create legacy rows."
+                    )
+                page_map[rev_p.page_number] = (db_page, page_rev)
+    
+            chunks = ChunkingService().chunk_pages(pages_for_chunking)
+            for c_idx, chunk in enumerate(chunks):
+                db_page, page_rev = page_map[chunk.page_number]
+                meta_dict = {
+                    "page_number": chunk.page_number,
+                    "start_offset": chunk.start_offset,
+                    "end_offset": chunk.end_offset,
+                    "chunk_type": chunk.chunk_type,
+                }
+                if custom_metadata:
+                    meta_dict.update(custom_metadata)
+                db_chunk = DocumentChunk(
+                    id=uuid.uuid4(),
+                    document_id=doc.id,
+                    page_id=db_page.id,
+                    patient_id=doc.patient_id,
+                    chunk_index=c_idx,
+                    content=chunk.content,
+                    token_count=chunk.token_count,
+                    generation_id=generation.id,
+                    revision_set_id=revision_set.id,
+                    page_revision_id=page_rev.id,
+                    meta=meta_dict,
+                )
+                self.session.add(db_chunk)
+            await self.session.flush()
+            sha256 = hashlib.sha256(f"{generation.id}:chunks:{len(chunks)}".encode()).hexdigest()
+            return StageOutput(sha256=sha256, row_count=len(chunks))
+    
+        elif stage == "embeddings":
+            res = await self.session.execute(
+                select(DocumentChunk)
+                .where(DocumentChunk.generation_id == generation.id)
+                .order_by(DocumentChunk.chunk_index)
+            )
+            chunks = list(res.scalars().all())
+            if chunks:
+                embeddings = await EmbeddingService(self.settings).embed_many(c.content for c in chunks)
+>               for c, emb in zip(chunks, embeddings, strict=False):
+E               TypeError: zip() takes no keyword arguments
+
+src\hospital_ai\workers\generation_jobs.py:151: TypeError
+------------------------------ Captured log call ------------------------------
+ERROR    hospital_ai.workers.generation_jobs:generation_jobs.py:331 Failed building generation 78d19945-e5fa-409b-8722-cebb69d12b28: zip() takes no keyword arguments
+Traceback (most recent call last):
+  File "D:\projects\chatbot-hospital-system\app\backend\src\hospital_ai\workers\generation_jobs.py", line 308, in build
+    output = await self.stage_runner.run(stage, generation, revision_set, custom_metadata=custom_metadata)
+  File "D:\projects\chatbot-hospital-system\app\backend\src\hospital_ai\workers\generation_jobs.py", line 151, in run
+    for c, emb in zip(chunks, embeddings, strict=False):
+TypeError: zip() takes no keyword arguments
+_________ test_binding_builder_rejects_unresolved_or_ambiguous_pairs __________
+
+    def test_binding_builder_rejects_unresolved_or_ambiguous_pairs() -> None:
+        from hospital_ai.evaluation.observer import EvidenceBindingError, bind_indexed_evidence
+    
+        evidence_id, chunk_id = uuid4(), uuid4()
+>       assert bind_indexed_evidence((evidence_id,), (chunk_id,)) == {chunk_id: evidence_id}
+
+tests\evaluation\test_chat_observer.py:58: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+evidence_ids = (UUID('94031b42-4c05-403a-9096-9741fdc58f2e'),)
+chunk_ids = (UUID('abb78b5b-8695-4595-9c5f-1e681ae2eb67'),)
+
+    def bind_indexed_evidence(evidence_ids: Sequence[UUID], chunk_ids: Sequence[UUID]) -> Mapping[UUID, UUID]:
+        """Create a fail-closed chunk-to-logical-evidence binding."""
+        if len(evidence_ids) != len(chunk_ids):
+            raise EvidenceBindingError("Logical evidence remains unresolved in the indexed corpus")
+        result: dict[UUID, UUID] = {}
+>       for evidence_id, chunk_id in zip(evidence_ids, chunk_ids, strict=False):
+E       TypeError: zip() takes no keyword arguments
+
+src\hospital_ai\evaluation\observer.py:88: TypeError
+___________ test_graph_index_logs_only_safe_identifiers_and_counts ____________
+
+session_and_settings = (<sqlalchemy.ext.asyncio.session.AsyncSession object at 0x0000029c2f2225b0>, Settings(environment='local', api_v1_pref..., hms_sync_timeout_seconds=30, jwt_issuer='', jwt_audience='', jwks_url='', jwt_hmac_secret='', jwt_algorithm='RS256'))
+caplog = <_pytest.logging.LogCaptureFixture object at 0x0000029c332c8d90>
+
+    @pytest.mark.asyncio
+    async def test_graph_index_logs_only_safe_identifiers_and_counts(session_and_settings, caplog) -> None:
+        session, _ = session_and_settings
+        clinical_text = "SECRET_CLINICAL_TEXT metformin patient detail"
+        doc = await create_indexed_document(
+            session,
+            patient_id=PATIENT_ALICE_ID,
+            uploaded_by=DOCTOR_ID,
+            title="Logging safety note",
+            content=clinical_text,
+        )
+        chunk = (await session.execute(select(DocumentChunk).where(DocumentChunk.document_id == doc.id))).scalar_one()
+    
+        async def extractor(_content: str):
+            return [ExtractedEntity(normalized_label="secret medication", entity_type="drug")], []
+    
+        caplog.set_level(logging.INFO, logger="hospital_ai.services.graph_rag")
+        await index_chunk_entities(session, chunk.id, doc.id, clinical_text, extractor=extractor)
+    
+        messages = " ".join(record.getMessage() for record in caplog.records)
+>       assert "graph.extraction.completed" in messages
+E       AssertionError: assert 'graph.extraction.completed' in ''
+
+tests\security\test_graph_logging.py:34: AssertionError
+__ test_hms_appointment_import_becomes_permission_filtered_patient_evidence ___
+
+session_and_settings = (<sqlalchemy.ext.asyncio.session.AsyncSession object at 0x0000029c362a9dc0>, Settings(environment='local', api_v1_pref..., hms_sync_timeout_seconds=30, jwt_issuer='', jwt_audience='', jwks_url='', jwt_hmac_secret='', jwt_algorithm='RS256'))
+
+    @pytest.mark.asyncio
+    async def test_hms_appointment_import_becomes_permission_filtered_patient_evidence(session_and_settings):
+        session, settings = session_and_settings
+        records_user = await session.get(User, RECORDS_ID)
+        doctor = await session.get(User, DOCTOR_ID)
+    
+>       imported = await import_hms_appointment_summary(
+            payload=_appointment_payload(),
+            request=_request(),
+            session=session,
+            current_user=records_user,
+            settings=settings,
+        )
+
+tests\test_hms_appointment_import.py:63: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+src\hospital_ai\api\routes\hms.py:42: in import_hms_appointment_summary
+    document = await HmsAppointmentEvidenceImporter(session, settings).import_summary(
+src\hospital_ai\services\hms_appointments.py:95: in import_summary
+    await import_synthetic_generation(
+src\hospital_ai\workers\generation_jobs.py:427: in import_synthetic_generation
+    return await builder.build(gen.id, custom_metadata=metadata)
+src\hospital_ai\workers\generation_jobs.py:308: in build
+    output = await self.stage_runner.run(stage, generation, revision_set, custom_metadata=custom_metadata)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <hospital_ai.workers.generation_jobs.StageRunner object at 0x0000029c359a3610>
+stage = 'embeddings'
+generation = <hospital_ai.db.clinical_documents.DocumentIndexGeneration object at 0x0000029c359a28b0>
+revision_set = <hospital_ai.db.clinical_documents.DocumentRevisionSet object at 0x0000029c36283100>
+custom_metadata = {'appointment_date': '2026-04-28', 'appointment_status': 'CHECKED_IN', 'approval_state': 'synthetic_or_deidentified_only', 'contains_phi': True, ...}
+
+    async def run(
+        self,
+        stage: str,
+        generation: DocumentIndexGeneration,
+        revision_set: DocumentRevisionSet,
+        custom_metadata: Optional[dict[str, Any]] = None,
+    ) -> StageOutput:
+        doc = await self.session.get(Document, generation.document_id)
+        if not doc:
+            raise ValueError(f"Document {generation.document_id} not found")
+    
+        if stage == "ocr_normalization":
+            result = await self.session.execute(
+                select(DocumentRevisionPage, DocumentPageRevision)
+                .join(DocumentPageRevision, DocumentPageRevision.id == DocumentRevisionPage.page_revision_id)
+                .where(DocumentRevisionPage.revision_set_id == revision_set.id)
+                .order_by(DocumentRevisionPage.page_number)
+            )
+            rows = result.all()
+            if not rows:
+                content_str = "empty"
+            else:
+                content_str = "".join(rev.corrected_text for _, rev in rows)
+            sha256 = hashlib.sha256(content_str.encode("utf-8")).hexdigest()
+            return StageOutput(sha256=sha256, row_count=len(rows))
+    
+        elif stage == "facts":
+            sha256 = hashlib.sha256(f"{generation.id}:facts".encode()).hexdigest()
+            return StageOutput(sha256=sha256, row_count=0)
+    
+        elif stage == "chunks":
+            result = await self.session.execute(
+                select(DocumentRevisionPage, DocumentPageRevision)
+                .join(DocumentPageRevision, DocumentPageRevision.id == DocumentRevisionPage.page_revision_id)
+                .where(DocumentRevisionPage.revision_set_id == revision_set.id)
+                .order_by(DocumentRevisionPage.page_number)
+            )
+            rev_pages = result.all()
+            if not rev_pages:
+                sha256 = hashlib.sha256(b"no_chunks").hexdigest()
+                return StageOutput(sha256=sha256, row_count=0)
+    
+            pages_for_chunking = []
+            page_map: dict[int, tuple[DocumentPage, DocumentPageRevision]] = {}
+            for rev_p, page_rev in rev_pages:
+                pages_for_chunking.append(
+                    OcrPage(
+                        page_number=rev_p.page_number,
+                        text=page_rev.corrected_text,
+                        confidence=float(page_rev.confidence or 1.0),
+                    )
+                )
+                res = await self.session.execute(
+                    select(DocumentPage).where(
+                        DocumentPage.document_id == doc.id, DocumentPage.page_number == rev_p.page_number
+                    )
+                )
+                db_page = res.scalar_one_or_none()
+                if not db_page:
+                    raise ValueError(
+                        f"Missing compatibility page {rev_p.page_number}; staged generation cannot create legacy rows."
+                    )
+                page_map[rev_p.page_number] = (db_page, page_rev)
+    
+            chunks = ChunkingService().chunk_pages(pages_for_chunking)
+            for c_idx, chunk in enumerate(chunks):
+                db_page, page_rev = page_map[chunk.page_number]
+                meta_dict = {
+                    "page_number": chunk.page_number,
+                    "start_offset": chunk.start_offset,
+                    "end_offset": chunk.end_offset,
+                    "chunk_type": chunk.chunk_type,
+                }
+                if custom_metadata:
+                    meta_dict.update(custom_metadata)
+                db_chunk = DocumentChunk(
+                    id=uuid.uuid4(),
+                    document_id=doc.id,
+                    page_id=db_page.id,
+                    patient_id=doc.patient_id,
+                    chunk_index=c_idx,
+                    content=chunk.content,
+                    token_count=chunk.token_count,
+                    generation_id=generation.id,
+                    revision_set_id=revision_set.id,
+                    page_revision_id=page_rev.id,
+                    meta=meta_dict,
+                )
+                self.session.add(db_chunk)
+            await self.session.flush()
+            sha256 = hashlib.sha256(f"{generation.id}:chunks:{len(chunks)}".encode()).hexdigest()
+            return StageOutput(sha256=sha256, row_count=len(chunks))
+    
+        elif stage == "embeddings":
+            res = await self.session.execute(
+                select(DocumentChunk)
+                .where(DocumentChunk.generation_id == generation.id)
+                .order_by(DocumentChunk.chunk_index)
+            )
+            chunks = list(res.scalars().all())
+            if chunks:
+                embeddings = await EmbeddingService(self.settings).embed_many(c.content for c in chunks)
+>               for c, emb in zip(chunks, embeddings, strict=False):
+E               TypeError: zip() takes no keyword arguments
+
+src\hospital_ai\workers\generation_jobs.py:151: TypeError
+____ test_revoked_permission_blocks_hms_appointment_evidence_before_query _____
+
+session_and_settings = (<sqlalchemy.ext.asyncio.session.AsyncSession object at 0x0000029c2ec01a90>, Settings(environment='local', api_v1_pref..., hms_sync_timeout_seconds=30, jwt_issuer='', jwt_audience='', jwks_url='', jwt_hmac_secret='', jwt_algorithm='RS256'))
+
+    @pytest.mark.asyncio
+    async def test_revoked_permission_blocks_hms_appointment_evidence_before_query(session_and_settings):
+        session, settings = session_and_settings
+        records_user = await session.get(User, RECORDS_ID)
+        doctor = await session.get(User, DOCTOR_ID)
+>       await import_hms_appointment_summary(
+            payload=_appointment_payload(appointment_id=uuid.UUID("30000000-0000-0000-0000-000000000102")),
+            request=_request(),
+            session=session,
+            current_user=records_user,
+            settings=settings,
+        )
+
+tests\test_hms_appointment_import.py:132: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+src\hospital_ai\api\routes\hms.py:42: in import_hms_appointment_summary
+    document = await HmsAppointmentEvidenceImporter(session, settings).import_summary(
+src\hospital_ai\services\hms_appointments.py:95: in import_summary
+    await import_synthetic_generation(
+src\hospital_ai\workers\generation_jobs.py:427: in import_synthetic_generation
+    return await builder.build(gen.id, custom_metadata=metadata)
+src\hospital_ai\workers\generation_jobs.py:308: in build
+    output = await self.stage_runner.run(stage, generation, revision_set, custom_metadata=custom_metadata)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <hospital_ai.workers.generation_jobs.StageRunner object at 0x0000029c362955b0>
+stage = 'embeddings'
+generation = <hospital_ai.db.clinical_documents.DocumentIndexGeneration object at 0x0000029c30e183d0>
+revision_set = <hospital_ai.db.clinical_documents.DocumentRevisionSet object at 0x0000029c33342280>
+custom_metadata = {'appointment_date': '2026-04-28', 'appointment_status': 'CHECKED_IN', 'approval_state': 'synthetic_or_deidentified_only', 'contains_phi': True, ...}
+
+    async def run(
+        self,
+        stage: str,
+        generation: DocumentIndexGeneration,
+        revision_set: DocumentRevisionSet,
+        custom_metadata: Optional[dict[str, Any]] = None,
+    ) -> StageOutput:
+        doc = await self.session.get(Document, generation.document_id)
+        if not doc:
+            raise ValueError(f"Document {generation.document_id} not found")
+    
+        if stage == "ocr_normalization":
+            result = await self.session.execute(
+                select(DocumentRevisionPage, DocumentPageRevision)
+                .join(DocumentPageRevision, DocumentPageRevision.id == DocumentRevisionPage.page_revision_id)
+                .where(DocumentRevisionPage.revision_set_id == revision_set.id)
+                .order_by(DocumentRevisionPage.page_number)
+            )
+            rows = result.all()
+            if not rows:
+                content_str = "empty"
+            else:
+                content_str = "".join(rev.corrected_text for _, rev in rows)
+            sha256 = hashlib.sha256(content_str.encode("utf-8")).hexdigest()
+            return StageOutput(sha256=sha256, row_count=len(rows))
+    
+        elif stage == "facts":
+            sha256 = hashlib.sha256(f"{generation.id}:facts".encode()).hexdigest()
+            return StageOutput(sha256=sha256, row_count=0)
+    
+        elif stage == "chunks":
+            result = await self.session.execute(
+                select(DocumentRevisionPage, DocumentPageRevision)
+                .join(DocumentPageRevision, DocumentPageRevision.id == DocumentRevisionPage.page_revision_id)
+                .where(DocumentRevisionPage.revision_set_id == revision_set.id)
+                .order_by(DocumentRevisionPage.page_number)
+            )
+            rev_pages = result.all()
+            if not rev_pages:
+                sha256 = hashlib.sha256(b"no_chunks").hexdigest()
+                return StageOutput(sha256=sha256, row_count=0)
+    
+            pages_for_chunking = []
+            page_map: dict[int, tuple[DocumentPage, DocumentPageRevision]] = {}
+            for rev_p, page_rev in rev_pages:
+                pages_for_chunking.append(
+                    OcrPage(
+                        page_number=rev_p.page_number,
+                        text=page_rev.corrected_text,
+                        confidence=float(page_rev.confidence or 1.0),
+                    )
+                )
+                res = await self.session.execute(
+                    select(DocumentPage).where(
+                        DocumentPage.document_id == doc.id, DocumentPage.page_number == rev_p.page_number
+                    )
+                )
+                db_page = res.scalar_one_or_none()
+                if not db_page:
+                    raise ValueError(
+                        f"Missing compatibility page {rev_p.page_number}; staged generation cannot create legacy rows."
+                    )
+                page_map[rev_p.page_number] = (db_page, page_rev)
+    
+            chunks = ChunkingService().chunk_pages(pages_for_chunking)
+            for c_idx, chunk in enumerate(chunks):
+                db_page, page_rev = page_map[chunk.page_number]
+                meta_dict = {
+                    "page_number": chunk.page_number,
+                    "start_offset": chunk.start_offset,
+                    "end_offset": chunk.end_offset,
+                    "chunk_type": chunk.chunk_type,
+                }
+                if custom_metadata:
+                    meta_dict.update(custom_metadata)
+                db_chunk = DocumentChunk(
+                    id=uuid.uuid4(),
+                    document_id=doc.id,
+                    page_id=db_page.id,
+                    patient_id=doc.patient_id,
+                    chunk_index=c_idx,
+                    content=chunk.content,
+                    token_count=chunk.token_count,
+                    generation_id=generation.id,
+                    revision_set_id=revision_set.id,
+                    page_revision_id=page_rev.id,
+                    meta=meta_dict,
+                )
+                self.session.add(db_chunk)
+            await self.session.flush()
+            sha256 = hashlib.sha256(f"{generation.id}:chunks:{len(chunks)}".encode()).hexdigest()
+            return StageOutput(sha256=sha256, row_count=len(chunks))
+    
+        elif stage == "embeddings":
+            res = await self.session.execute(
+                select(DocumentChunk)
+                .where(DocumentChunk.generation_id == generation.id)
+                .order_by(DocumentChunk.chunk_index)
+            )
+            chunks = list(res.scalars().all())
+            if chunks:
+                embeddings = await EmbeddingService(self.settings).embed_many(c.content for c in chunks)
+>               for c, emb in zip(chunks, embeddings, strict=False):
+E               TypeError: zip() takes no keyword arguments
+
+src\hospital_ai\workers\generation_jobs.py:151: TypeError
+_______________ test_deleted_hms_source_record_is_not_retrieved _______________
+
+session_and_settings = (<sqlalchemy.ext.asyncio.session.AsyncSession object at 0x0000029c341ae8e0>, Settings(environment='local', api_v1_pref..., hms_sync_timeout_seconds=30, jwt_issuer='', jwt_audience='', jwks_url='', jwt_hmac_secret='', jwt_algorithm='RS256'))
+
+    @pytest.mark.asyncio
+    async def test_deleted_hms_source_record_is_not_retrieved(session_and_settings):
+        session, settings = session_and_settings
+        records_user = await session.get(User, RECORDS_ID)
+        doctor = await session.get(User, DOCTOR_ID)
+>       imported = await import_hms_appointment_summary(
+            payload=_appointment_payload(appointment_id=uuid.UUID("30000000-0000-0000-0000-000000000103")),
+            request=_request(),
+            session=session,
+            current_user=records_user,
+            settings=settings,
+        )
+
+tests\test_hms_appointment_import.py:177: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+src\hospital_ai\api\routes\hms.py:42: in import_hms_appointment_summary
+    document = await HmsAppointmentEvidenceImporter(session, settings).import_summary(
+src\hospital_ai\services\hms_appointments.py:95: in import_summary
+    await import_synthetic_generation(
+src\hospital_ai\workers\generation_jobs.py:427: in import_synthetic_generation
+    return await builder.build(gen.id, custom_metadata=metadata)
+src\hospital_ai\workers\generation_jobs.py:308: in build
+    output = await self.stage_runner.run(stage, generation, revision_set, custom_metadata=custom_metadata)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <hospital_ai.workers.generation_jobs.StageRunner object at 0x0000029c34182970>
+stage = 'embeddings'
+generation = <hospital_ai.db.clinical_documents.DocumentIndexGeneration object at 0x0000029c35f70070>
+revision_set = <hospital_ai.db.clinical_documents.DocumentRevisionSet object at 0x0000029c347418e0>
+custom_metadata = {'appointment_date': '2026-04-28', 'appointment_status': 'CHECKED_IN', 'approval_state': 'synthetic_or_deidentified_only', 'contains_phi': True, ...}
+
+    async def run(
+        self,
+        stage: str,
+        generation: DocumentIndexGeneration,
+        revision_set: DocumentRevisionSet,
+        custom_metadata: Optional[dict[str, Any]] = None,
+    ) -> StageOutput:
+        doc = await self.session.get(Document, generation.document_id)
+        if not doc:
+            raise ValueError(f"Document {generation.document_id} not found")
+    
+        if stage == "ocr_normalization":
+            result = await self.session.execute(
+                select(DocumentRevisionPage, DocumentPageRevision)
+                .join(DocumentPageRevision, DocumentPageRevision.id == DocumentRevisionPage.page_revision_id)
+                .where(DocumentRevisionPage.revision_set_id == revision_set.id)
+                .order_by(DocumentRevisionPage.page_number)
+            )
+            rows = result.all()
+            if not rows:
+                content_str = "empty"
+            else:
+                content_str = "".join(rev.corrected_text for _, rev in rows)
+            sha256 = hashlib.sha256(content_str.encode("utf-8")).hexdigest()
+            return StageOutput(sha256=sha256, row_count=len(rows))
+    
+        elif stage == "facts":
+            sha256 = hashlib.sha256(f"{generation.id}:facts".encode()).hexdigest()
+            return StageOutput(sha256=sha256, row_count=0)
+    
+        elif stage == "chunks":
+            result = await self.session.execute(
+                select(DocumentRevisionPage, DocumentPageRevision)
+                .join(DocumentPageRevision, DocumentPageRevision.id == DocumentRevisionPage.page_revision_id)
+                .where(DocumentRevisionPage.revision_set_id == revision_set.id)
+                .order_by(DocumentRevisionPage.page_number)
+            )
+            rev_pages = result.all()
+            if not rev_pages:
+                sha256 = hashlib.sha256(b"no_chunks").hexdigest()
+                return StageOutput(sha256=sha256, row_count=0)
+    
+            pages_for_chunking = []
+            page_map: dict[int, tuple[DocumentPage, DocumentPageRevision]] = {}
+            for rev_p, page_rev in rev_pages:
+                pages_for_chunking.append(
+                    OcrPage(
+                        page_number=rev_p.page_number,
+                        text=page_rev.corrected_text,
+                        confidence=float(page_rev.confidence or 1.0),
+                    )
+                )
+                res = await self.session.execute(
+                    select(DocumentPage).where(
+                        DocumentPage.document_id == doc.id, DocumentPage.page_number == rev_p.page_number
+                    )
+                )
+                db_page = res.scalar_one_or_none()
+                if not db_page:
+                    raise ValueError(
+                        f"Missing compatibility page {rev_p.page_number}; staged generation cannot create legacy rows."
+                    )
+                page_map[rev_p.page_number] = (db_page, page_rev)
+    
+            chunks = ChunkingService().chunk_pages(pages_for_chunking)
+            for c_idx, chunk in enumerate(chunks):
+                db_page, page_rev = page_map[chunk.page_number]
+                meta_dict = {
+                    "page_number": chunk.page_number,
+                    "start_offset": chunk.start_offset,
+                    "end_offset": chunk.end_offset,
+                    "chunk_type": chunk.chunk_type,
+                }
+                if custom_metadata:
+                    meta_dict.update(custom_metadata)
+                db_chunk = DocumentChunk(
+                    id=uuid.uuid4(),
+                    document_id=doc.id,
+                    page_id=db_page.id,
+                    patient_id=doc.patient_id,
+                    chunk_index=c_idx,
+                    content=chunk.content,
+                    token_count=chunk.token_count,
+                    generation_id=generation.id,
+                    revision_set_id=revision_set.id,
+                    page_revision_id=page_rev.id,
+                    meta=meta_dict,
+                )
+                self.session.add(db_chunk)
+            await self.session.flush()
+            sha256 = hashlib.sha256(f"{generation.id}:chunks:{len(chunks)}".encode()).hexdigest()
+            return StageOutput(sha256=sha256, row_count=len(chunks))
+    
+        elif stage == "embeddings":
+            res = await self.session.execute(
+                select(DocumentChunk)
+                .where(DocumentChunk.generation_id == generation.id)
+                .order_by(DocumentChunk.chunk_index)
+            )
+            chunks = list(res.scalars().all())
+            if chunks:
+                embeddings = await EmbeddingService(self.settings).embed_many(c.content for c in chunks)
+>               for c, emb in zip(chunks, embeddings, strict=False):
+E               TypeError: zip() takes no keyword arguments
+
+src\hospital_ai\workers\generation_jobs.py:151: TypeError
+__________________ test_sync_appointments_creates_documents ___________________
+
+session_and_settings = (<sqlalchemy.ext.asyncio.session.AsyncSession object at 0x0000029c316283d0>, Settings(environment='local', api_v1_pref..., hms_sync_timeout_seconds=30, jwt_issuer='', jwt_audience='', jwks_url='', jwt_hmac_secret='', jwt_algorithm='RS256'))
+trace_id = 'test-trace-67a6a86e'
+
+    @pytest.mark.asyncio
+    async def test_sync_appointments_creates_documents(
+        session_and_settings: tuple[AsyncSession, Settings],
+        trace_id: str,
+    ) -> None:
+        session, settings = session_and_settings
+    
+        # Get first patient and user
+        patient = (await session.execute(select(Patient).limit(1))).scalar_one()
+        user = (await session.execute(select(User).limit(1))).scalar_one()
+    
+        service = HmsSyncService(session, settings)
+    
+        with patch.object(service.hms, "get_appointments", new_callable=AsyncMock) as mock_get:
+            mock_get.return_value = SAMPLE_APPOINTMENTS
+    
+>           docs = await service.sync_appointments(
+                patient_id=patient.id,
+                actor_user_id=user.id,
+                trace_id=trace_id,
+            )
+
+tests\test_hms_sync.py:82: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+src\hospital_ai\services\hms_sync.py:58: in sync_appointments
+    doc = await self._ingest_record(
+src\hospital_ai\services\hms_sync.py:244: in _ingest_record
+    await import_synthetic_generation(
+src\hospital_ai\workers\generation_jobs.py:427: in import_synthetic_generation
+    return await builder.build(gen.id, custom_metadata=metadata)
+src\hospital_ai\workers\generation_jobs.py:308: in build
+    output = await self.stage_runner.run(stage, generation, revision_set, custom_metadata=custom_metadata)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <hospital_ai.workers.generation_jobs.StageRunner object at 0x0000029c2efac730>
+stage = 'embeddings'
+generation = <hospital_ai.db.clinical_documents.DocumentIndexGeneration object at 0x0000029c359a2ca0>
+revision_set = <hospital_ai.db.clinical_documents.DocumentRevisionSet object at 0x0000029c3597db50>
+custom_metadata = {'contains_phi': True, 'date': '2025-03-15', 'department': 'Cardiology', 'doctorName': 'Dr. Smith', ...}
+
+    async def run(
+        self,
+        stage: str,
+        generation: DocumentIndexGeneration,
+        revision_set: DocumentRevisionSet,
+        custom_metadata: Optional[dict[str, Any]] = None,
+    ) -> StageOutput:
+        doc = await self.session.get(Document, generation.document_id)
+        if not doc:
+            raise ValueError(f"Document {generation.document_id} not found")
+    
+        if stage == "ocr_normalization":
+            result = await self.session.execute(
+                select(DocumentRevisionPage, DocumentPageRevision)
+                .join(DocumentPageRevision, DocumentPageRevision.id == DocumentRevisionPage.page_revision_id)
+                .where(DocumentRevisionPage.revision_set_id == revision_set.id)
+                .order_by(DocumentRevisionPage.page_number)
+            )
+            rows = result.all()
+            if not rows:
+                content_str = "empty"
+            else:
+                content_str = "".join(rev.corrected_text for _, rev in rows)
+            sha256 = hashlib.sha256(content_str.encode("utf-8")).hexdigest()
+            return StageOutput(sha256=sha256, row_count=len(rows))
+    
+        elif stage == "facts":
+            sha256 = hashlib.sha256(f"{generation.id}:facts".encode()).hexdigest()
+            return StageOutput(sha256=sha256, row_count=0)
+    
+        elif stage == "chunks":
+            result = await self.session.execute(
+                select(DocumentRevisionPage, DocumentPageRevision)
+                .join(DocumentPageRevision, DocumentPageRevision.id == DocumentRevisionPage.page_revision_id)
+                .where(DocumentRevisionPage.revision_set_id == revision_set.id)
+                .order_by(DocumentRevisionPage.page_number)
+            )
+            rev_pages = result.all()
+            if not rev_pages:
+                sha256 = hashlib.sha256(b"no_chunks").hexdigest()
+                return StageOutput(sha256=sha256, row_count=0)
+    
+            pages_for_chunking = []
+            page_map: dict[int, tuple[DocumentPage, DocumentPageRevision]] = {}
+            for rev_p, page_rev in rev_pages:
+                pages_for_chunking.append(
+                    OcrPage(
+                        page_number=rev_p.page_number,
+                        text=page_rev.corrected_text,
+                        confidence=float(page_rev.confidence or 1.0),
+                    )
+                )
+                res = await self.session.execute(
+                    select(DocumentPage).where(
+                        DocumentPage.document_id == doc.id, DocumentPage.page_number == rev_p.page_number
+                    )
+                )
+                db_page = res.scalar_one_or_none()
+                if not db_page:
+                    raise ValueError(
+                        f"Missing compatibility page {rev_p.page_number}; staged generation cannot create legacy rows."
+                    )
+                page_map[rev_p.page_number] = (db_page, page_rev)
+    
+            chunks = ChunkingService().chunk_pages(pages_for_chunking)
+            for c_idx, chunk in enumerate(chunks):
+                db_page, page_rev = page_map[chunk.page_number]
+                meta_dict = {
+                    "page_number": chunk.page_number,
+                    "start_offset": chunk.start_offset,
+                    "end_offset": chunk.end_offset,
+                    "chunk_type": chunk.chunk_type,
+                }
+                if custom_metadata:
+                    meta_dict.update(custom_metadata)
+                db_chunk = DocumentChunk(
+                    id=uuid.uuid4(),
+                    document_id=doc.id,
+                    page_id=db_page.id,
+                    patient_id=doc.patient_id,
+                    chunk_index=c_idx,
+                    content=chunk.content,
+                    token_count=chunk.token_count,
+                    generation_id=generation.id,
+                    revision_set_id=revision_set.id,
+                    page_revision_id=page_rev.id,
+                    meta=meta_dict,
+                )
+                self.session.add(db_chunk)
+            await self.session.flush()
+            sha256 = hashlib.sha256(f"{generation.id}:chunks:{len(chunks)}".encode()).hexdigest()
+            return StageOutput(sha256=sha256, row_count=len(chunks))
+    
+        elif stage == "embeddings":
+            res = await self.session.execute(
+                select(DocumentChunk)
+                .where(DocumentChunk.generation_id == generation.id)
+                .order_by(DocumentChunk.chunk_index)
+            )
+            chunks = list(res.scalars().all())
+            if chunks:
+                embeddings = await EmbeddingService(self.settings).embed_many(c.content for c in chunks)
+>               for c, emb in zip(chunks, embeddings, strict=False):
+E               TypeError: zip() takes no keyword arguments
+
+src\hospital_ai\workers\generation_jobs.py:151: TypeError
+___________________ test_sync_lab_results_creates_documents ___________________
+
+session_and_settings = (<sqlalchemy.ext.asyncio.session.AsyncSession object at 0x0000029c33376a30>, Settings(environment='local', api_v1_pref..., hms_sync_timeout_seconds=30, jwt_issuer='', jwt_audience='', jwks_url='', jwt_hmac_secret='', jwt_algorithm='RS256'))
+trace_id = 'test-trace-b944d3bf'
+
+    @pytest.mark.asyncio
+    async def test_sync_lab_results_creates_documents(
+        session_and_settings: tuple[AsyncSession, Settings],
+        trace_id: str,
+    ) -> None:
+        session, settings = session_and_settings
+        patient = (await session.execute(select(Patient).limit(1))).scalar_one()
+        user = (await session.execute(select(User).limit(1))).scalar_one()
+    
+        service = HmsSyncService(session, settings)
+    
+        with patch.object(service.hms, "get_lab_results", new_callable=AsyncMock) as mock_get:
+            mock_get.return_value = SAMPLE_LAB_RESULTS
+    
+>           docs = await service.sync_lab_results(
+                patient_id=patient.id,
+                actor_user_id=user.id,
+                trace_id=trace_id,
+            )
+
+tests\test_hms_sync.py:110: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+src\hospital_ai\services\hms_sync.py:94: in sync_lab_results
+    doc = await self._ingest_record(
+src\hospital_ai\services\hms_sync.py:244: in _ingest_record
+    await import_synthetic_generation(
+src\hospital_ai\workers\generation_jobs.py:427: in import_synthetic_generation
+    return await builder.build(gen.id, custom_metadata=metadata)
+src\hospital_ai\workers\generation_jobs.py:308: in build
+    output = await self.stage_runner.run(stage, generation, revision_set, custom_metadata=custom_metadata)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <hospital_ai.workers.generation_jobs.StageRunner object at 0x0000029c2f0abe80>
+stage = 'embeddings'
+generation = <hospital_ai.db.clinical_documents.DocumentIndexGeneration object at 0x0000029c31900250>
+revision_set = <hospital_ai.db.clinical_documents.DocumentRevisionSet object at 0x0000029c3305b160>
+custom_metadata = {'contains_phi': True, 'date': '2025-03-16', 'id': 201, 'imported_at': '2026-08-07T18:26:56.522948+00:00', ...}
+
+    async def run(
+        self,
+        stage: str,
+        generation: DocumentIndexGeneration,
+        revision_set: DocumentRevisionSet,
+        custom_metadata: Optional[dict[str, Any]] = None,
+    ) -> StageOutput:
+        doc = await self.session.get(Document, generation.document_id)
+        if not doc:
+            raise ValueError(f"Document {generation.document_id} not found")
+    
+        if stage == "ocr_normalization":
+            result = await self.session.execute(
+                select(DocumentRevisionPage, DocumentPageRevision)
+                .join(DocumentPageRevision, DocumentPageRevision.id == DocumentRevisionPage.page_revision_id)
+                .where(DocumentRevisionPage.revision_set_id == revision_set.id)
+                .order_by(DocumentRevisionPage.page_number)
+            )
+            rows = result.all()
+            if not rows:
+                content_str = "empty"
+            else:
+                content_str = "".join(rev.corrected_text for _, rev in rows)
+            sha256 = hashlib.sha256(content_str.encode("utf-8")).hexdigest()
+            return StageOutput(sha256=sha256, row_count=len(rows))
+    
+        elif stage == "facts":
+            sha256 = hashlib.sha256(f"{generation.id}:facts".encode()).hexdigest()
+            return StageOutput(sha256=sha256, row_count=0)
+    
+        elif stage == "chunks":
+            result = await self.session.execute(
+                select(DocumentRevisionPage, DocumentPageRevision)
+                .join(DocumentPageRevision, DocumentPageRevision.id == DocumentRevisionPage.page_revision_id)
+                .where(DocumentRevisionPage.revision_set_id == revision_set.id)
+                .order_by(DocumentRevisionPage.page_number)
+            )
+            rev_pages = result.all()
+            if not rev_pages:
+                sha256 = hashlib.sha256(b"no_chunks").hexdigest()
+                return StageOutput(sha256=sha256, row_count=0)
+    
+            pages_for_chunking = []
+            page_map: dict[int, tuple[DocumentPage, DocumentPageRevision]] = {}
+            for rev_p, page_rev in rev_pages:
+                pages_for_chunking.append(
+                    OcrPage(
+                        page_number=rev_p.page_number,
+                        text=page_rev.corrected_text,
+                        confidence=float(page_rev.confidence or 1.0),
+                    )
+                )
+                res = await self.session.execute(
+                    select(DocumentPage).where(
+                        DocumentPage.document_id == doc.id, DocumentPage.page_number == rev_p.page_number
+                    )
+                )
+                db_page = res.scalar_one_or_none()
+                if not db_page:
+                    raise ValueError(
+                        f"Missing compatibility page {rev_p.page_number}; staged generation cannot create legacy rows."
+                    )
+                page_map[rev_p.page_number] = (db_page, page_rev)
+    
+            chunks = ChunkingService().chunk_pages(pages_for_chunking)
+            for c_idx, chunk in enumerate(chunks):
+                db_page, page_rev = page_map[chunk.page_number]
+                meta_dict = {
+                    "page_number": chunk.page_number,
+                    "start_offset": chunk.start_offset,
+                    "end_offset": chunk.end_offset,
+                    "chunk_type": chunk.chunk_type,
+                }
+                if custom_metadata:
+                    meta_dict.update(custom_metadata)
+                db_chunk = DocumentChunk(
+                    id=uuid.uuid4(),
+                    document_id=doc.id,
+                    page_id=db_page.id,
+                    patient_id=doc.patient_id,
+                    chunk_index=c_idx,
+                    content=chunk.content,
+                    token_count=chunk.token_count,
+                    generation_id=generation.id,
+                    revision_set_id=revision_set.id,
+                    page_revision_id=page_rev.id,
+                    meta=meta_dict,
+                )
+                self.session.add(db_chunk)
+            await self.session.flush()
+            sha256 = hashlib.sha256(f"{generation.id}:chunks:{len(chunks)}".encode()).hexdigest()
+            return StageOutput(sha256=sha256, row_count=len(chunks))
+    
+        elif stage == "embeddings":
+            res = await self.session.execute(
+                select(DocumentChunk)
+                .where(DocumentChunk.generation_id == generation.id)
+                .order_by(DocumentChunk.chunk_index)
+            )
+            chunks = list(res.scalars().all())
+            if chunks:
+                embeddings = await EmbeddingService(self.settings).embed_many(c.content for c in chunks)
+>               for c, emb in zip(chunks, embeddings, strict=False):
+E               TypeError: zip() takes no keyword arguments
+
+src\hospital_ai\workers\generation_jobs.py:151: TypeError
+_________________ test_sync_medical_records_creates_documents _________________
+
+session_and_settings = (<sqlalchemy.ext.asyncio.session.AsyncSession object at 0x0000029c32fde220>, Settings(environment='local', api_v1_pref..., hms_sync_timeout_seconds=30, jwt_issuer='', jwt_audience='', jwks_url='', jwt_hmac_secret='', jwt_algorithm='RS256'))
+trace_id = 'test-trace-faccff05'
+
+    @pytest.mark.asyncio
+    async def test_sync_medical_records_creates_documents(
+        session_and_settings: tuple[AsyncSession, Settings],
+        trace_id: str,
+    ) -> None:
+        session, settings = session_and_settings
+        patient = (await session.execute(select(Patient).limit(1))).scalar_one()
+        user = (await session.execute(select(User).limit(1))).scalar_one()
+    
+        service = HmsSyncService(session, settings)
+    
+        with patch.object(service.hms, "get_medical_records", new_callable=AsyncMock) as mock_get:
+            mock_get.return_value = SAMPLE_MEDICAL_RECORDS
+    
+>           docs = await service.sync_medical_records(
+                patient_id=patient.id,
+                actor_user_id=user.id,
+                trace_id=trace_id,
+            )
+
+tests\test_hms_sync.py:135: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+src\hospital_ai\services\hms_sync.py:130: in sync_medical_records
+    doc = await self._ingest_record(
+src\hospital_ai\services\hms_sync.py:244: in _ingest_record
+    await import_synthetic_generation(
+src\hospital_ai\workers\generation_jobs.py:427: in import_synthetic_generation
+    return await builder.build(gen.id, custom_metadata=metadata)
+src\hospital_ai\workers\generation_jobs.py:308: in build
+    output = await self.stage_runner.run(stage, generation, revision_set, custom_metadata=custom_metadata)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <hospital_ai.workers.generation_jobs.StageRunner object at 0x0000029c36248250>
+stage = 'embeddings'
+generation = <hospital_ai.db.clinical_documents.DocumentIndexGeneration object at 0x0000029c318343d0>
+revision_set = <hospital_ai.db.clinical_documents.DocumentRevisionSet object at 0x0000029c31957040>
+custom_metadata = {'contains_phi': True, 'date': '2025-03-15', 'diagnosis': 'Hypertension', 'diagnosisCode': 'I10', ...}
+
+    async def run(
+        self,
+        stage: str,
+        generation: DocumentIndexGeneration,
+        revision_set: DocumentRevisionSet,
+        custom_metadata: Optional[dict[str, Any]] = None,
+    ) -> StageOutput:
+        doc = await self.session.get(Document, generation.document_id)
+        if not doc:
+            raise ValueError(f"Document {generation.document_id} not found")
+    
+        if stage == "ocr_normalization":
+            result = await self.session.execute(
+                select(DocumentRevisionPage, DocumentPageRevision)
+                .join(DocumentPageRevision, DocumentPageRevision.id == DocumentRevisionPage.page_revision_id)
+                .where(DocumentRevisionPage.revision_set_id == revision_set.id)
+                .order_by(DocumentRevisionPage.page_number)
+            )
+            rows = result.all()
+            if not rows:
+                content_str = "empty"
+            else:
+                content_str = "".join(rev.corrected_text for _, rev in rows)
+            sha256 = hashlib.sha256(content_str.encode("utf-8")).hexdigest()
+            return StageOutput(sha256=sha256, row_count=len(rows))
+    
+        elif stage == "facts":
+            sha256 = hashlib.sha256(f"{generation.id}:facts".encode()).hexdigest()
+            return StageOutput(sha256=sha256, row_count=0)
+    
+        elif stage == "chunks":
+            result = await self.session.execute(
+                select(DocumentRevisionPage, DocumentPageRevision)
+                .join(DocumentPageRevision, DocumentPageRevision.id == DocumentRevisionPage.page_revision_id)
+                .where(DocumentRevisionPage.revision_set_id == revision_set.id)
+                .order_by(DocumentRevisionPage.page_number)
+            )
+            rev_pages = result.all()
+            if not rev_pages:
+                sha256 = hashlib.sha256(b"no_chunks").hexdigest()
+                return StageOutput(sha256=sha256, row_count=0)
+    
+            pages_for_chunking = []
+            page_map: dict[int, tuple[DocumentPage, DocumentPageRevision]] = {}
+            for rev_p, page_rev in rev_pages:
+                pages_for_chunking.append(
+                    OcrPage(
+                        page_number=rev_p.page_number,
+                        text=page_rev.corrected_text,
+                        confidence=float(page_rev.confidence or 1.0),
+                    )
+                )
+                res = await self.session.execute(
+                    select(DocumentPage).where(
+                        DocumentPage.document_id == doc.id, DocumentPage.page_number == rev_p.page_number
+                    )
+                )
+                db_page = res.scalar_one_or_none()
+                if not db_page:
+                    raise ValueError(
+                        f"Missing compatibility page {rev_p.page_number}; staged generation cannot create legacy rows."
+                    )
+                page_map[rev_p.page_number] = (db_page, page_rev)
+    
+            chunks = ChunkingService().chunk_pages(pages_for_chunking)
+            for c_idx, chunk in enumerate(chunks):
+                db_page, page_rev = page_map[chunk.page_number]
+                meta_dict = {
+                    "page_number": chunk.page_number,
+                    "start_offset": chunk.start_offset,
+                    "end_offset": chunk.end_offset,
+                    "chunk_type": chunk.chunk_type,
+                }
+                if custom_metadata:
+                    meta_dict.update(custom_metadata)
+                db_chunk = DocumentChunk(
+                    id=uuid.uuid4(),
+                    document_id=doc.id,
+                    page_id=db_page.id,
+                    patient_id=doc.patient_id,
+                    chunk_index=c_idx,
+                    content=chunk.content,
+                    token_count=chunk.token_count,
+                    generation_id=generation.id,
+                    revision_set_id=revision_set.id,
+                    page_revision_id=page_rev.id,
+                    meta=meta_dict,
+                )
+                self.session.add(db_chunk)
+            await self.session.flush()
+            sha256 = hashlib.sha256(f"{generation.id}:chunks:{len(chunks)}".encode()).hexdigest()
+            return StageOutput(sha256=sha256, row_count=len(chunks))
+    
+        elif stage == "embeddings":
+            res = await self.session.execute(
+                select(DocumentChunk)
+                .where(DocumentChunk.generation_id == generation.id)
+                .order_by(DocumentChunk.chunk_index)
+            )
+            chunks = list(res.scalars().all())
+            if chunks:
+                embeddings = await EmbeddingService(self.settings).embed_many(c.content for c in chunks)
+>               for c, emb in zip(chunks, embeddings, strict=False):
+E               TypeError: zip() takes no keyword arguments
+
+src\hospital_ai\workers\generation_jobs.py:151: TypeError
+_____________________ test_sync_full_runs_all_sync_types ______________________
+
+session_and_settings = (<sqlalchemy.ext.asyncio.session.AsyncSession object at 0x0000029c30c55730>, Settings(environment='local', api_v1_pref..., hms_sync_timeout_seconds=30, jwt_issuer='', jwt_audience='', jwks_url='', jwt_hmac_secret='', jwt_algorithm='RS256'))
+trace_id = 'test-trace-348e5b24'
+
+    @pytest.mark.asyncio
+    async def test_sync_full_runs_all_sync_types(
+        session_and_settings: tuple[AsyncSession, Settings],
+        trace_id: str,
+    ) -> None:
+        session, settings = session_and_settings
+        patient = (await session.execute(select(Patient).limit(1))).scalar_one()
+        user = (await session.execute(select(User).limit(1))).scalar_one()
+    
+        service = HmsSyncService(session, settings)
+    
+        with (
+            patch.object(service.hms, "get_appointments", new_callable=AsyncMock) as mock_appts,
+            patch.object(service.hms, "get_lab_results", new_callable=AsyncMock) as mock_labs,
+            patch.object(service.hms, "get_medical_records", new_callable=AsyncMock) as mock_records,
+        ):
+            mock_appts.return_value = SAMPLE_APPOINTMENTS
+            mock_labs.return_value = SAMPLE_LAB_RESULTS
+            mock_records.return_value = SAMPLE_MEDICAL_RECORDS
+    
+>           result = await service.sync_full(
+                patient_id=patient.id,
+                actor_user_id=user.id,
+                trace_id=trace_id,
+            )
+
+tests\test_hms_sync.py:166: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+src\hospital_ai\services\hms_sync.py:164: in sync_full
+    appts = await self.sync_appointments(**kwargs)
+src\hospital_ai\services\hms_sync.py:58: in sync_appointments
+    doc = await self._ingest_record(
+src\hospital_ai\services\hms_sync.py:244: in _ingest_record
+    await import_synthetic_generation(
+src\hospital_ai\workers\generation_jobs.py:427: in import_synthetic_generation
+    return await builder.build(gen.id, custom_metadata=metadata)
+src\hospital_ai\workers\generation_jobs.py:308: in build
+    output = await self.stage_runner.run(stage, generation, revision_set, custom_metadata=custom_metadata)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <hospital_ai.workers.generation_jobs.StageRunner object at 0x0000029c2d592cd0>
+stage = 'embeddings'
+generation = <hospital_ai.db.clinical_documents.DocumentIndexGeneration object at 0x0000029c2d3df160>
+revision_set = <hospital_ai.db.clinical_documents.DocumentRevisionSet object at 0x0000029c3122c940>
+custom_metadata = {'contains_phi': True, 'date': '2025-03-15', 'department': 'Cardiology', 'doctorName': 'Dr. Smith', ...}
+
+    async def run(
+        self,
+        stage: str,
+        generation: DocumentIndexGeneration,
+        revision_set: DocumentRevisionSet,
+        custom_metadata: Optional[dict[str, Any]] = None,
+    ) -> StageOutput:
+        doc = await self.session.get(Document, generation.document_id)
+        if not doc:
+            raise ValueError(f"Document {generation.document_id} not found")
+    
+        if stage == "ocr_normalization":
+            result = await self.session.execute(
+                select(DocumentRevisionPage, DocumentPageRevision)
+                .join(DocumentPageRevision, DocumentPageRevision.id == DocumentRevisionPage.page_revision_id)
+                .where(DocumentRevisionPage.revision_set_id == revision_set.id)
+                .order_by(DocumentRevisionPage.page_number)
+            )
+            rows = result.all()
+            if not rows:
+                content_str = "empty"
+            else:
+                content_str = "".join(rev.corrected_text for _, rev in rows)
+            sha256 = hashlib.sha256(content_str.encode("utf-8")).hexdigest()
+            return StageOutput(sha256=sha256, row_count=len(rows))
+    
+        elif stage == "facts":
+            sha256 = hashlib.sha256(f"{generation.id}:facts".encode()).hexdigest()
+            return StageOutput(sha256=sha256, row_count=0)
+    
+        elif stage == "chunks":
+            result = await self.session.execute(
+                select(DocumentRevisionPage, DocumentPageRevision)
+                .join(DocumentPageRevision, DocumentPageRevision.id == DocumentRevisionPage.page_revision_id)
+                .where(DocumentRevisionPage.revision_set_id == revision_set.id)
+                .order_by(DocumentRevisionPage.page_number)
+            )
+            rev_pages = result.all()
+            if not rev_pages:
+                sha256 = hashlib.sha256(b"no_chunks").hexdigest()
+                return StageOutput(sha256=sha256, row_count=0)
+    
+            pages_for_chunking = []
+            page_map: dict[int, tuple[DocumentPage, DocumentPageRevision]] = {}
+            for rev_p, page_rev in rev_pages:
+                pages_for_chunking.append(
+                    OcrPage(
+                        page_number=rev_p.page_number,
+                        text=page_rev.corrected_text,
+                        confidence=float(page_rev.confidence or 1.0),
+                    )
+                )
+                res = await self.session.execute(
+                    select(DocumentPage).where(
+                        DocumentPage.document_id == doc.id, DocumentPage.page_number == rev_p.page_number
+                    )
+                )
+                db_page = res.scalar_one_or_none()
+                if not db_page:
+                    raise ValueError(
+                        f"Missing compatibility page {rev_p.page_number}; staged generation cannot create legacy rows."
+                    )
+                page_map[rev_p.page_number] = (db_page, page_rev)
+    
+            chunks = ChunkingService().chunk_pages(pages_for_chunking)
+            for c_idx, chunk in enumerate(chunks):
+                db_page, page_rev = page_map[chunk.page_number]
+                meta_dict = {
+                    "page_number": chunk.page_number,
+                    "start_offset": chunk.start_offset,
+                    "end_offset": chunk.end_offset,
+                    "chunk_type": chunk.chunk_type,
+                }
+                if custom_metadata:
+                    meta_dict.update(custom_metadata)
+                db_chunk = DocumentChunk(
+                    id=uuid.uuid4(),
+                    document_id=doc.id,
+                    page_id=db_page.id,
+                    patient_id=doc.patient_id,
+                    chunk_index=c_idx,
+                    content=chunk.content,
+                    token_count=chunk.token_count,
+                    generation_id=generation.id,
+                    revision_set_id=revision_set.id,
+                    page_revision_id=page_rev.id,
+                    meta=meta_dict,
+                )
+                self.session.add(db_chunk)
+            await self.session.flush()
+            sha256 = hashlib.sha256(f"{generation.id}:chunks:{len(chunks)}".encode()).hexdigest()
+            return StageOutput(sha256=sha256, row_count=len(chunks))
+    
+        elif stage == "embeddings":
+            res = await self.session.execute(
+                select(DocumentChunk)
+                .where(DocumentChunk.generation_id == generation.id)
+                .order_by(DocumentChunk.chunk_index)
+            )
+            chunks = list(res.scalars().all())
+            if chunks:
+                embeddings = await EmbeddingService(self.settings).embed_many(c.content for c in chunks)
+>               for c, emb in zip(chunks, embeddings, strict=False):
+E               TypeError: zip() takes no keyword arguments
+
+src\hospital_ai\workers\generation_jobs.py:151: TypeError
+_____________________ test_sync_creates_searchable_chunks _____________________
+
+session_and_settings = (<sqlalchemy.ext.asyncio.session.AsyncSession object at 0x0000029c2f8d84f0>, Settings(environment='local', api_v1_pref..., hms_sync_timeout_seconds=30, jwt_issuer='', jwt_audience='', jwks_url='', jwt_hmac_secret='', jwt_algorithm='RS256'))
+trace_id = 'test-trace-612eff5e'
+
+    @pytest.mark.asyncio
+    async def test_sync_creates_searchable_chunks(
+        session_and_settings: tuple[AsyncSession, Settings],
+        trace_id: str,
+    ) -> None:
+        """Verify that synced documents have embedded chunks with content."""
+        session, settings = session_and_settings
+        patient = (await session.execute(select(Patient).limit(1))).scalar_one()
+        user = (await session.execute(select(User).limit(1))).scalar_one()
+    
+        service = HmsSyncService(session, settings)
+    
+        with patch.object(service.hms, "get_appointments", new_callable=AsyncMock) as mock_get:
+            mock_get.return_value = [SAMPLE_APPOINTMENTS[0]]
+    
+>           docs = await service.sync_appointments(
+                patient_id=patient.id,
+                actor_user_id=user.id,
+                trace_id=trace_id,
+            )
+
+tests\test_hms_sync.py:193: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+src\hospital_ai\services\hms_sync.py:58: in sync_appointments
+    doc = await self._ingest_record(
+src\hospital_ai\services\hms_sync.py:244: in _ingest_record
+    await import_synthetic_generation(
+src\hospital_ai\workers\generation_jobs.py:427: in import_synthetic_generation
+    return await builder.build(gen.id, custom_metadata=metadata)
+src\hospital_ai\workers\generation_jobs.py:308: in build
+    output = await self.stage_runner.run(stage, generation, revision_set, custom_metadata=custom_metadata)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <hospital_ai.workers.generation_jobs.StageRunner object at 0x0000029c30cb4880>
+stage = 'embeddings'
+generation = <hospital_ai.db.clinical_documents.DocumentIndexGeneration object at 0x0000029c2f6215e0>
+revision_set = <hospital_ai.db.clinical_documents.DocumentRevisionSet object at 0x0000029c2f923190>
+custom_metadata = {'contains_phi': True, 'date': '2025-03-15', 'department': 'Cardiology', 'doctorName': 'Dr. Smith', ...}
+
+    async def run(
+        self,
+        stage: str,
+        generation: DocumentIndexGeneration,
+        revision_set: DocumentRevisionSet,
+        custom_metadata: Optional[dict[str, Any]] = None,
+    ) -> StageOutput:
+        doc = await self.session.get(Document, generation.document_id)
+        if not doc:
+            raise ValueError(f"Document {generation.document_id} not found")
+    
+        if stage == "ocr_normalization":
+            result = await self.session.execute(
+                select(DocumentRevisionPage, DocumentPageRevision)
+                .join(DocumentPageRevision, DocumentPageRevision.id == DocumentRevisionPage.page_revision_id)
+                .where(DocumentRevisionPage.revision_set_id == revision_set.id)
+                .order_by(DocumentRevisionPage.page_number)
+            )
+            rows = result.all()
+            if not rows:
+                content_str = "empty"
+            else:
+                content_str = "".join(rev.corrected_text for _, rev in rows)
+            sha256 = hashlib.sha256(content_str.encode("utf-8")).hexdigest()
+            return StageOutput(sha256=sha256, row_count=len(rows))
+    
+        elif stage == "facts":
+            sha256 = hashlib.sha256(f"{generation.id}:facts".encode()).hexdigest()
+            return StageOutput(sha256=sha256, row_count=0)
+    
+        elif stage == "chunks":
+            result = await self.session.execute(
+                select(DocumentRevisionPage, DocumentPageRevision)
+                .join(DocumentPageRevision, DocumentPageRevision.id == DocumentRevisionPage.page_revision_id)
+                .where(DocumentRevisionPage.revision_set_id == revision_set.id)
+                .order_by(DocumentRevisionPage.page_number)
+            )
+            rev_pages = result.all()
+            if not rev_pages:
+                sha256 = hashlib.sha256(b"no_chunks").hexdigest()
+                return StageOutput(sha256=sha256, row_count=0)
+    
+            pages_for_chunking = []
+            page_map: dict[int, tuple[DocumentPage, DocumentPageRevision]] = {}
+            for rev_p, page_rev in rev_pages:
+                pages_for_chunking.append(
+                    OcrPage(
+                        page_number=rev_p.page_number,
+                        text=page_rev.corrected_text,
+                        confidence=float(page_rev.confidence or 1.0),
+                    )
+                )
+                res = await self.session.execute(
+                    select(DocumentPage).where(
+                        DocumentPage.document_id == doc.id, DocumentPage.page_number == rev_p.page_number
+                    )
+                )
+                db_page = res.scalar_one_or_none()
+                if not db_page:
+                    raise ValueError(
+                        f"Missing compatibility page {rev_p.page_number}; staged generation cannot create legacy rows."
+                    )
+                page_map[rev_p.page_number] = (db_page, page_rev)
+    
+            chunks = ChunkingService().chunk_pages(pages_for_chunking)
+            for c_idx, chunk in enumerate(chunks):
+                db_page, page_rev = page_map[chunk.page_number]
+                meta_dict = {
+                    "page_number": chunk.page_number,
+                    "start_offset": chunk.start_offset,
+                    "end_offset": chunk.end_offset,
+                    "chunk_type": chunk.chunk_type,
+                }
+                if custom_metadata:
+                    meta_dict.update(custom_metadata)
+                db_chunk = DocumentChunk(
+                    id=uuid.uuid4(),
+                    document_id=doc.id,
+                    page_id=db_page.id,
+                    patient_id=doc.patient_id,
+                    chunk_index=c_idx,
+                    content=chunk.content,
+                    token_count=chunk.token_count,
+                    generation_id=generation.id,
+                    revision_set_id=revision_set.id,
+                    page_revision_id=page_rev.id,
+                    meta=meta_dict,
+                )
+                self.session.add(db_chunk)
+            await self.session.flush()
+            sha256 = hashlib.sha256(f"{generation.id}:chunks:{len(chunks)}".encode()).hexdigest()
+            return StageOutput(sha256=sha256, row_count=len(chunks))
+    
+        elif stage == "embeddings":
+            res = await self.session.execute(
+                select(DocumentChunk)
+                .where(DocumentChunk.generation_id == generation.id)
+                .order_by(DocumentChunk.chunk_index)
+            )
+            chunks = list(res.scalars().all())
+            if chunks:
+                embeddings = await EmbeddingService(self.settings).embed_many(c.content for c in chunks)
+>               for c, emb in zip(chunks, embeddings, strict=False):
+E               TypeError: zip() takes no keyword arguments
+
+src\hospital_ai\workers\generation_jobs.py:151: TypeError
+______________________ test_sync_skip_unchanged_content _______________________
+
+session_and_settings = (<sqlalchemy.ext.asyncio.session.AsyncSession object at 0x0000029c2ce870d0>, Settings(environment='local', api_v1_pref..., hms_sync_timeout_seconds=30, jwt_issuer='', jwt_audience='', jwks_url='', jwt_hmac_secret='', jwt_algorithm='RS256'))
+trace_id = 'test-trace-af168a13'
+
+    @pytest.mark.asyncio
+    async def test_sync_skip_unchanged_content(
+        session_and_settings: tuple[AsyncSession, Settings],
+        trace_id: str,
+    ) -> None:
+        """Second sync with same content should not re-index."""
+        session, settings = session_and_settings
+        patient = (await session.execute(select(Patient).limit(1))).scalar_one()
+        user = (await session.execute(select(User).limit(1))).scalar_one()
+    
+        service = HmsSyncService(session, settings)
+    
+        with patch.object(service.hms, "get_appointments", new_callable=AsyncMock) as mock_get:
+            mock_get.return_value = [SAMPLE_APPOINTMENTS[0]]
+    
+            # First sync
+>           docs1 = await service.sync_appointments(
+                patient_id=patient.id,
+                actor_user_id=user.id,
+                trace_id=trace_id,
+            )
+
+tests\test_hms_sync.py:226: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+src\hospital_ai\services\hms_sync.py:58: in sync_appointments
+    doc = await self._ingest_record(
+src\hospital_ai\services\hms_sync.py:244: in _ingest_record
+    await import_synthetic_generation(
+src\hospital_ai\workers\generation_jobs.py:427: in import_synthetic_generation
+    return await builder.build(gen.id, custom_metadata=metadata)
+src\hospital_ai\workers\generation_jobs.py:308: in build
+    output = await self.stage_runner.run(stage, generation, revision_set, custom_metadata=custom_metadata)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <hospital_ai.workers.generation_jobs.StageRunner object at 0x0000029c2f5528b0>
+stage = 'embeddings'
+generation = <hospital_ai.db.clinical_documents.DocumentIndexGeneration object at 0x0000029c2d739820>
+revision_set = <hospital_ai.db.clinical_documents.DocumentRevisionSet object at 0x0000029c2efb4bb0>
+custom_metadata = {'contains_phi': True, 'date': '2025-03-15', 'department': 'Cardiology', 'doctorName': 'Dr. Smith', ...}
+
+    async def run(
+        self,
+        stage: str,
+        generation: DocumentIndexGeneration,
+        revision_set: DocumentRevisionSet,
+        custom_metadata: Optional[dict[str, Any]] = None,
+    ) -> StageOutput:
+        doc = await self.session.get(Document, generation.document_id)
+        if not doc:
+            raise ValueError(f"Document {generation.document_id} not found")
+    
+        if stage == "ocr_normalization":
+            result = await self.session.execute(
+                select(DocumentRevisionPage, DocumentPageRevision)
+                .join(DocumentPageRevision, DocumentPageRevision.id == DocumentRevisionPage.page_revision_id)
+                .where(DocumentRevisionPage.revision_set_id == revision_set.id)
+                .order_by(DocumentRevisionPage.page_number)
+            )
+            rows = result.all()
+            if not rows:
+                content_str = "empty"
+            else:
+                content_str = "".join(rev.corrected_text for _, rev in rows)
+            sha256 = hashlib.sha256(content_str.encode("utf-8")).hexdigest()
+            return StageOutput(sha256=sha256, row_count=len(rows))
+    
+        elif stage == "facts":
+            sha256 = hashlib.sha256(f"{generation.id}:facts".encode()).hexdigest()
+            return StageOutput(sha256=sha256, row_count=0)
+    
+        elif stage == "chunks":
+            result = await self.session.execute(
+                select(DocumentRevisionPage, DocumentPageRevision)
+                .join(DocumentPageRevision, DocumentPageRevision.id == DocumentRevisionPage.page_revision_id)
+                .where(DocumentRevisionPage.revision_set_id == revision_set.id)
+                .order_by(DocumentRevisionPage.page_number)
+            )
+            rev_pages = result.all()
+            if not rev_pages:
+                sha256 = hashlib.sha256(b"no_chunks").hexdigest()
+                return StageOutput(sha256=sha256, row_count=0)
+    
+            pages_for_chunking = []
+            page_map: dict[int, tuple[DocumentPage, DocumentPageRevision]] = {}
+            for rev_p, page_rev in rev_pages:
+                pages_for_chunking.append(
+                    OcrPage(
+                        page_number=rev_p.page_number,
+                        text=page_rev.corrected_text,
+                        confidence=float(page_rev.confidence or 1.0),
+                    )
+                )
+                res = await self.session.execute(
+                    select(DocumentPage).where(
+                        DocumentPage.document_id == doc.id, DocumentPage.page_number == rev_p.page_number
+                    )
+                )
+                db_page = res.scalar_one_or_none()
+                if not db_page:
+                    raise ValueError(
+                        f"Missing compatibility page {rev_p.page_number}; staged generation cannot create legacy rows."
+                    )
+                page_map[rev_p.page_number] = (db_page, page_rev)
+    
+            chunks = ChunkingService().chunk_pages(pages_for_chunking)
+            for c_idx, chunk in enumerate(chunks):
+                db_page, page_rev = page_map[chunk.page_number]
+                meta_dict = {
+                    "page_number": chunk.page_number,
+                    "start_offset": chunk.start_offset,
+                    "end_offset": chunk.end_offset,
+                    "chunk_type": chunk.chunk_type,
+                }
+                if custom_metadata:
+                    meta_dict.update(custom_metadata)
+                db_chunk = DocumentChunk(
+                    id=uuid.uuid4(),
+                    document_id=doc.id,
+                    page_id=db_page.id,
+                    patient_id=doc.patient_id,
+                    chunk_index=c_idx,
+                    content=chunk.content,
+                    token_count=chunk.token_count,
+                    generation_id=generation.id,
+                    revision_set_id=revision_set.id,
+                    page_revision_id=page_rev.id,
+                    meta=meta_dict,
+                )
+                self.session.add(db_chunk)
+            await self.session.flush()
+            sha256 = hashlib.sha256(f"{generation.id}:chunks:{len(chunks)}".encode()).hexdigest()
+            return StageOutput(sha256=sha256, row_count=len(chunks))
+    
+        elif stage == "embeddings":
+            res = await self.session.execute(
+                select(DocumentChunk)
+                .where(DocumentChunk.generation_id == generation.id)
+                .order_by(DocumentChunk.chunk_index)
+            )
+            chunks = list(res.scalars().all())
+            if chunks:
+                embeddings = await EmbeddingService(self.settings).embed_many(c.content for c in chunks)
+>               for c, emb in zip(chunks, embeddings, strict=False):
+E               TypeError: zip() takes no keyword arguments
+
+src\hospital_ai\workers\generation_jobs.py:151: TypeError
+________________ TestCrossEncoderReranker.test_with_mock_model ________________
+
+self = <tests.test_reranking.TestCrossEncoderReranker object at 0x0000029c2c90c5e0>
+
+    def test_with_mock_model(self):
+        """Simulate a working cross-encoder model."""
+        mock_model = MagicMock()
+        # Return descending scores ù last chunk gets the highest
+        mock_model.predict.return_value = [0.9, 0.1, 0.7, 0.05, 0.85]
+    
+        reranker = CrossEncoderReranker(model_name="test-model")
+        reranker._model = mock_model
+    
+>       result = reranker.rerank("Metformin diabetes", SAMPLE_CHUNKS, top_k=3)
+
+tests\test_reranking.py:135: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <hospital_ai.services.reranking.CrossEncoderReranker object at 0x0000029c2eb963d0>
+query = 'Metformin diabetes'
+chunks = [RetrievedChunk(evidence_id='E1', document_id=UUID('6708f381-a556-4af1-a255-2564bc98665a'), document_title='test_doc.p...approval_state=None, retrieval_method=None, source_hash=None, start_offset=None, end_offset=None, bounding_boxes=None)]
+
+    def rerank(self, query: str, chunks: list[RetrievedChunk], *, top_k: int = 5) -> list[RetrievedChunk]:
+        if not chunks:
+            return []
+    
+        model = self._get_model()
+        if model is None:
+            logger.warning("Cross-encoder unavailable, falling back to keyword reranker")
+            return KeywordReranker().rerank(query, chunks, top_k=top_k)
+    
+        # Prepare (query, passage) pairs for the cross-encoder
+        pairs = [(query, chunk.content) for chunk in chunks]
+    
+        try:
+            scores = model.predict(pairs)
+        except Exception as exc:
+            logger.error("Cross-encoder prediction failed: %s", exc)
+            return KeywordReranker().rerank(query, chunks, top_k=top_k)
+    
+        # Normalize scores to [0, 1] range using sigmoid if needed
+        normalized = _normalize_scores([float(s) for s in scores])
+    
+>       scored = list(zip(normalized, chunks))
+E       TypeError: zip() takes no keyword arguments
+
+src\hospital_ai\services\reranking.py:149: TypeError
+============================== warnings summary ===============================
+C:\mingw64\mingw64\lib\python3.9\site-packages\starlette\formparsers.py:10
+  C:\mingw64\mingw64\lib\python3.9\site-packages\starlette\formparsers.py:10: PendingDeprecationWarning: Please use `import python_multipart` instead.
+    import multipart
+
+tests/cdi_v2/test_revision_generation_migration.py::test_cdi_v2_migration_retains_legacy_data
+tests/cdi_v2/test_revision_generation_migration.py::test_cdi_v2_migration_retains_legacy_data
+  C:\mingw64\mingw64\lib\python3.9\site-packages\alembic\config.py:598: DeprecationWarning: No path_separator found in configuration; falling back to legacy splitting on spaces, commas, and colons for prepend_sys_path.  Consider adding path_separator=os to Alembic config.
+    util.warn_deprecated(
+
+tests/cdi_v2/test_upload_sessions.py::test_presigned_put_requires_conditional_create
+  C:\mingw64\mingw64\lib\python3.9\site-packages\boto3\compat.py:89: PythonDeprecationWarning: Boto3 will no longer support Python 3.9 starting April 29, 2026. To continue receiving service updates, bug fixes, and security updates please upgrade to Python 3.10 or later. More information can be found here: https://aws.amazon.com/blogs/developer/python-support-policy-updates-for-aws-sdks-and-tools/
+    warnings.warn(warning, PythonDeprecationWarning)
+
+tests/cdi_v2/test_upload_sessions.py::test_concurrent_finalize_handles_safely
+  D:\projects\chatbot-hospital-system\app\backend\src\hospital_ai\services\upload_sessions.py:352: SAWarning: Usage of the 'Session.add()' operation is not currently supported within the execution stage of the flush process. Results may not be consistent.  Consider using alternative event listeners or connection-level operations instead.
+    self.session.add(upload)
+
+tests/cdi_v2/test_upload_sessions.py::test_concurrent_finalize_handles_safely
+  D:\projects\chatbot-hospital-system\app\backend\src\hospital_ai\services\upload_sessions.py:353: SAWarning: Usage of the 'Session.add()' operation is not currently supported within the execution stage of the flush process. Results may not be consistent.  Consider using alternative event listeners or connection-level operations instead.
+    self.session.add(document)
+
+tests/cdi_v2/test_upload_sessions.py::test_concurrent_finalize_handles_safely
+  D:\projects\chatbot-hospital-system\app\backend\src\hospital_ai\services\audit.py:39: SAWarning: Usage of the 'Session.add()' operation is not currently supported within the execution stage of the flush process. Results may not be consistent.  Consider using alternative event listeners or connection-level operations instead.
+    self.session.add(log)
+
+tests/test_auth.py::test_get_current_user_valid_jwt_token
+tests/test_auth.py::test_get_current_user_jwt_fallback_to_static
+  C:\mingw64\mingw64\lib\python3.9\site-packages\jwt\api_jwt.py:147: InsecureKeyLengthWarning: The HMAC key is 11 bytes long, which is below the minimum recommended length of 32 bytes for SHA256. See RFC 7518 Section 3.2.
+    return self._jws.encode(
+
+tests/test_auth.py::test_get_current_user_valid_jwt_token
+tests/test_auth.py::test_get_current_user_jwt_fallback_to_static
+  C:\mingw64\mingw64\lib\python3.9\site-packages\jwt\api_jwt.py:368: InsecureKeyLengthWarning: The HMAC key is 11 bytes long, which is below the minimum recommended length of 32 bytes for SHA256. See RFC 7518 Section 3.2.
+    decoded = self.decode_complete(
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ===========================
+FAILED tests/cdi_v2/test_generation_worker.py::test_generation_builder_build_and_activate
+FAILED tests/evaluation/test_chat_observer.py::test_binding_builder_rejects_unresolved_or_ambiguous_pairs
+FAILED tests/security/test_graph_logging.py::test_graph_index_logs_only_safe_identifiers_and_counts
+FAILED tests/test_hms_appointment_import.py::test_hms_appointment_import_becomes_permission_filtered_patient_evidence
+FAILED tests/test_hms_appointment_import.py::test_revoked_permission_blocks_hms_appointment_evidence_before_query
+FAILED tests/test_hms_appointment_import.py::test_deleted_hms_source_record_is_not_retrieved
+FAILED tests/test_hms_sync.py::test_sync_appointments_creates_documents - Typ...
+FAILED tests/test_hms_sync.py::test_sync_lab_results_creates_documents - Type...
+FAILED tests/test_hms_sync.py::test_sync_medical_records_creates_documents - ...
+FAILED tests/test_hms_sync.py::test_sync_full_runs_all_sync_types - TypeError...
+FAILED tests/test_hms_sync.py::test_sync_creates_searchable_chunks - TypeErro...
+FAILED tests/test_hms_sync.py::test_sync_skip_unchanged_content - TypeError: ...
+FAILED tests/test_reranking.py::TestCrossEncoderReranker::test_with_mock_model
+13 failed, 817 passed, 13 skipped, 11 warnings in 306.63s (0:05:06)

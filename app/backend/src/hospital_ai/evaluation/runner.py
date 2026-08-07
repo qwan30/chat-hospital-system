@@ -51,8 +51,8 @@ from hospital_ai.evaluation.unified_metrics import (
 
 _ALLOWED_SUITES = {"smoke", "release"}
 _ALLOWED_LANES = {"deterministic", "live"}
-_ALLOWED_COMPONENTS = {"corpus", "ocr", "retrieval", "graph", "chat"}
-_PRODUCT_COMPONENTS = {"retrieval", "graph", "chat"}
+_ALLOWED_COMPONENTS = {"corpus", "ocr", "retrieval", "graph", "chat", "timeline", "stream"}
+_PRODUCT_COMPONENTS = {"retrieval", "graph", "chat", "timeline", "stream"}
 
 
 @dataclass(frozen=True)
@@ -270,7 +270,7 @@ def _retrieval_quality_gates(
     recall_at_5 = mean_metric("recall_at_5")
     mrr = mean_metric("mrr")
     ndcg_at_5 = mean_metric("ndcg_at_5")
-    precision_at_5 = mean_metric("precision_at_5")
+    mean_metric("precision_at_5")
     return (
         _gate(
             "retrieval_answer_case_coverage",
@@ -313,6 +313,7 @@ def _evaluate_observation(
     expected_refusal = case.answer_policy != "answer" and (
         component == "chat" or case.category == "permission_adversarial"
     )
+    print(f"\n!!! retrieved={retrieved_ids} permitted={permitted_retrieval_ids}")
     leaks = safety_leak_counts(
         retrieved_ids=retrieved_ids,
         allowed_ids=permitted_retrieval_ids,
@@ -496,6 +497,8 @@ async def _evaluate_adapter_case(
             llm_judge_provider=llm_judge_provider,
         )
     except Exception as error:  # Adapter failures are evidence, never a passing fallback.
+        import traceback
+        traceback.print_exc()
         gate = _gate(
             "evaluation_adapter_execution",
             component,

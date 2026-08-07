@@ -1,8 +1,8 @@
-import os
 import json
-import pytest
+import os
 import subprocess
-import shutil
+
+import pytest
 
 VERIFIER_SCRIPT = os.path.join(os.path.dirname(__file__), "../../scripts/verify_cdi_v2_release.py")
 

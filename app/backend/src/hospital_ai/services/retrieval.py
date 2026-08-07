@@ -7,7 +7,7 @@ from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
 from typing import Any, Optional
 
-from sqlalchemy import and_, bindparam, func, select, text
+from sqlalchemy import and_, func, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from hospital_ai.core.security import ROLE_PERMISSIONS
@@ -239,17 +239,16 @@ class RetrievalService:
             query_text=actual_query,
             top_k=fetch_k,
         )
-        if self.evaluation_observer is not None:
-            self.evaluation_observer.record_candidates(bm25_results)
-        bm25_results = await self._apply_role_filters(bm25_results, user_id)
-        if self.evaluation_observer is not None:
-            self.evaluation_observer.record_authorized_candidates(bm25_results)
 
         fused = reciprocal_rank_fusion(
             vector_results,
             bm25_results,
             top_k=top_k,
         )
+
+        fused = await self._apply_role_filters(fused, user_id)
+        if self.evaluation_observer is not None:
+            self.evaluation_observer.record_authorized_candidates(fused)
 
         duration = time.perf_counter() - start_time
         RAG_RETRIEVAL_DURATION.labels(mode="hybrid").observe(duration)

@@ -166,12 +166,13 @@ async def test_finalize_upload_session(session_and_settings, monkeypatch: pytest
 @pytest.mark.asyncio
 async def test_finalize_upload_session_failure_releases_idempotency_key(session_and_settings, monkeypatch: pytest.MonkeyPatch) -> None:
     session, _ = session_and_settings
-    from hospital_ai.api.routes import document_uploads as upload_routes
-    from hospital_ai.schemas.document_uploads import UploadSessionCreate
-    from hospital_ai.core.errors import ValidationAppError
-    from hospital_ai.services.storage import StorageObjectHead
     import hashlib
     import io
+
+    from hospital_ai.api.routes import document_uploads as upload_routes
+    from hospital_ai.core.errors import ValidationAppError
+    from hospital_ai.schemas.document_uploads import UploadSessionCreate
+    from hospital_ai.services.storage import StorageObjectHead
 
     doctor = await session.get(User, DOCTOR_ID)
     if not doctor:
@@ -222,7 +223,7 @@ async def test_finalize_upload_session_failure_releases_idempotency_key(session_
             current_user=doctor,
         )
 
-    records = list((await session.execute(select(IdempotencyRecord).where(IdempotencyRecord.key_hash == hashlib.sha256("finalize-fail-1".encode()).hexdigest()))).scalars())
+    records = list((await session.execute(select(IdempotencyRecord).where(IdempotencyRecord.key_hash == hashlib.sha256(b"finalize-fail-1").hexdigest()))).scalars())
     assert len(records) == 0
 
 

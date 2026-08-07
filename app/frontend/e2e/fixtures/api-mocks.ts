@@ -196,7 +196,7 @@ export async function mountApiMocks(page: Page): Promise<void> {
   await page.route("**/api/v1/**", async (route) => {
     // Don't intercept streaming/SSE — let those fail naturally.
     const url = route.request().url();
-    if (url.includes("/stream") || url.includes("/chat/send")) {
+    if (url.includes("/chat/stream")) {
       await route.abort("connectionrefused");
       return;
     }

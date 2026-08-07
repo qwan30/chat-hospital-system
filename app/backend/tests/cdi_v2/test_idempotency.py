@@ -48,8 +48,9 @@ async def test_started_duplicate_returns_explicit_retry_response(session_and_set
 async def test_concurrent_begin_enforces_unique_key_and_in_progress(session_and_settings) -> None:
     session, _ = session_and_settings
     actor_user_id = uuid.uuid4()
-    from sqlalchemy.ext.asyncio import async_sessionmaker
     import asyncio
+
+    from sqlalchemy.ext.asyncio import async_sessionmaker
 
     session_factory = async_sessionmaker(session.bind, expire_on_commit=False)
     decisions = []

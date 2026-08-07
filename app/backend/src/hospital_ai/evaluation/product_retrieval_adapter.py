@@ -335,16 +335,25 @@ class ProductRetrievalAdapter:
     def _content_for_locator(payload: bytes, artifact: SourceArtifact, locator: EvidenceLocator) -> str:
         if artifact.mime_type == "application/pdf":
             try:
-                document = fitz.open(stream=payload, filetype="pdf")
-                try:
+                if fitz is not None:
+                    document = fitz.open(stream=payload, filetype="pdf")
+                    try:
+                        if locator.page_number is None:
+                            return "\n".join(page.get_text("text").strip() for page in document).strip()
+                        if locator.page_number > document.page_count:
+                            raise EvidenceResolutionError("PDF locator page is outside the canonical source")
+                        return document.load_page(locator.page_number - 1).get_text("text").strip()
+                    finally:
+                        document.close()
+                else:
+                    import pypdf
+                    reader = pypdf.PdfReader(io.BytesIO(payload))
                     if locator.page_number is None:
-                        return "\n".join(page.get_text("text").strip() for page in document).strip()
-                    if locator.page_number > document.page_count:
+                        return "\n".join(page.extract_text().strip() for page in reader.pages).strip()
+                    if locator.page_number > len(reader.pages):
                         raise EvidenceResolutionError("PDF locator page is outside the canonical source")
-                    return document.load_page(locator.page_number - 1).get_text("text").strip()
-                finally:
-                    document.close()
-            except fitz.FileDataError as error:
+                    return reader.pages[locator.page_number - 1].extract_text().strip()
+            except Exception as error:
                 raise EvidenceResolutionError("canonical PDF source cannot be read") from error
         if artifact.mime_type == "text/csv":
             decoded = payload.decode("utf-8")

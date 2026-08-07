@@ -1,0 +1,19 @@
+{
+  "run_id": "ai-eval-fca636e3b8f5d2d3",
+  "timestamp": "2026-08-07T17:40:59Z",
+  "git_sha": "733954135a3da076ed4906b5d0d9eb1b9d86aa8c",
+  "corpus_version": "synthetic-100-v2",
+  "corpus_hash": "0000",
+  "source_hashes": {},
+  "approved_revisions": [],
+  "model_version": "not-configured",
+  "embedding_version": "v1",
+  "graph_version": "v1",
+  "prompt_version": "not-applicable-deterministic",
+  "evaluator_version": "v3",
+  "metric_version": "v3",
+  "limitations": [],
+  "metrics": {},
+  "hard_gates_passed": true,
+  "blocking_state": false
+}

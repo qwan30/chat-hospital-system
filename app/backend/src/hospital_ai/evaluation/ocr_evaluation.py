@@ -292,9 +292,26 @@ def build_ocr_gold_pages(
     pages: list[OcrGoldPage] = []
     for artifact in document_artifacts:
         source = data_root / artifact.canonical_relative_path
-        with fitz.open(source) as document:
-            for page_index, page in enumerate(document):
-                text = page.get_text("text")
+        if fitz is not None:
+            with fitz.open(source) as document:
+                for page_index, page in enumerate(document):
+                    text = page.get_text("text")
+                    pages.append(
+                        OcrGoldPage(
+                            source_path=artifact.canonical_relative_path,
+                            source_sha256=artifact.source_sha256,
+                            page_number=page_index + 1,
+                            native_text=text,
+                            clinical_fields=_clinical_fields(text),
+                        )
+                    )
+                    if limit is not None and len(pages) >= limit:
+                        return tuple(pages)
+        else:
+            import pypdf
+            reader = pypdf.PdfReader(str(source))
+            for page_index, page in enumerate(reader.pages):
+                text = page.extract_text() or ""
                 pages.append(
                     OcrGoldPage(
                         source_path=artifact.canonical_relative_path,

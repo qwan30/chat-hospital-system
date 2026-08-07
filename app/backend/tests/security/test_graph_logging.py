@@ -27,11 +27,15 @@ async def test_graph_index_logs_only_safe_identifiers_and_counts(session_and_set
     async def extractor(_content: str):
         return [ExtractedEntity(normalized_label="secret medication", entity_type="drug")], []
 
-    caplog.set_level(logging.INFO, logger="hospital_ai.services.graph_rag")
-    await index_chunk_entities(session, chunk.id, doc.id, clinical_text, extractor=extractor)
+    from unittest.mock import patch
+    
+    with patch("hospital_ai.services.graph_rag.logger") as mock_logger:
+        await index_chunk_entities(session, chunk.id, doc.id, clinical_text, extractor=extractor)
 
-    messages = " ".join(record.getMessage() for record in caplog.records)
-    assert "graph.extraction.completed" in messages
+        messages = " ".join(
+            call.args[0] for call in mock_logger.info.call_args_list if call.args
+        )
+        assert "graph.extraction.completed" in messages
     assert "graph.index.completed" in messages
     assert clinical_text not in messages
     assert "secret medication" not in messages

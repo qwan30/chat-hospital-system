@@ -24,6 +24,7 @@ export interface TimelineEventProjection {
 }
 
 export interface DocumentTimelineFilters {
+  revision?: string;
   date_from?: string;
   date_to?: string;
   min_confidence?: number;

@@ -33,7 +33,7 @@ describe("ClinicalTimelinePanel", () => {
     );
 
     expect(screen.getByTestId("timeline-event-event-1")).toBeInTheDocument();
-    expect(screen.getByText(/Conflict detected: value conflict/i)).toBeInTheDocument();
+    expect(screen.getByText((_, el) => el?.textContent?.match(/Conflict detected: value conflict/i) !== null)).toBeInTheDocument();
     expect(screen.getByText(/Document: doc-1/i)).toBeInTheDocument();
     expect(screen.getByText(/Revision: set-2/i)).toBeInTheDocument();
     expect(screen.getByText(/Page: 3/i)).toBeInTheDocument();

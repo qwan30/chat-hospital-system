@@ -101,9 +101,13 @@ export const getDocumentPage = async (
   return apiFetch<DocumentPageRead>(`/documents/${documentId}/pages/${pageNumber}`);
 };
 
-export const retryIndex = async (id: string): Promise<DocumentRead> => {
+export const retryIndex = async (
+  id: string,
+  options: { idempotencyKey: string; lockVersion?: number },
+): Promise<DocumentRead> => {
   return apiFetch<DocumentRead>(`/documents/${id}/retry-index`, {
     method: "POST",
+    headers: mutationHeaders(options),
   });
 };
 
@@ -206,11 +210,13 @@ export const patchReviewItem = async (
   documentId: string,
   reviewItemId: string,
   payload: ReviewItemPatchRequest,
+  options: { idempotencyKey: string; lockVersion?: number },
 ): Promise<ReviewItemPatchResponse> => {
   return apiFetch<ReviewItemPatchResponse>(
     `/documents/${documentId}/review-items/${reviewItemId}`,
     {
       method: "PATCH",
+      headers: mutationHeaders(options),
       body: JSON.stringify(payload),
     },
   );

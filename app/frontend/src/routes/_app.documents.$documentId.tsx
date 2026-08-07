@@ -8,6 +8,7 @@ import { getDocument, retryIndex, getDocumentIntelligence } from "@/lib/api/docu
 import { Loader2 } from "lucide-react";
 import { DocumentWorkspace } from "@/components/hms/document-workspace/DocumentWorkspace";
 import { ErrorState } from "@/components/hms/ErrorState";
+import { newIdempotencyKey } from "@/lib/idempotency";
 
 export const Route = createFileRoute("/_app/documents/$documentId")({
   head: () => ({ meta: [{ title: "Document — HMS AI Copilot" }] }),
@@ -41,7 +42,7 @@ function Page() {
   });
 
   const retryMutation = useMutation({
-    mutationFn: () => retryIndex(documentId),
+    mutationFn: () => retryIndex(documentId, { idempotencyKey: newIdempotencyKey("retry-index") }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["document", documentId] });
       queryClient.invalidateQueries({ queryKey: ["documents"] });

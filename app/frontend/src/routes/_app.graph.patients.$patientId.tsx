@@ -17,6 +17,7 @@ import { StreamingControls } from "@/components/hms/StreamingControls";
 import { useStreamSteps } from "@/hooks/use-stream-steps";
 import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { useSession } from "@/lib/session";
 
 export const Route = createFileRoute("/_app/graph/patients/$patientId")({
   head: () => ({ meta: [{ title: "Patient graph — HMS AI Copilot" }] }),
@@ -32,13 +33,27 @@ function Page() {
     isLoading,
     error,
   } = useQuery({
-    queryKey: ["graph", patientId],
-    queryFn: () => getPatientGraph(patientId),
+    queryKey: ["graph", patientId, filters],
+    queryFn: () => getPatientGraph(patientId, filters),
   });
 
+  const { session } = useSession();
   const search = useSearch({ strict: false }) as { simulate?: string };
   const force = search?.simulate === "stream-fail";
-  const supportedFilters: readonly GraphFilterKey[] = ["node_limit", "edge_limit", "layout"];
+  const supportedFilters: readonly GraphFilterKey[] = [
+    "node_limit",
+    "edge_limit",
+    "hop_depth",
+    "entity_types",
+    "relation_types",
+    "min_confidence",
+    "document_scope",
+    "approved_revision_set_id",
+    "date_from",
+    "date_to",
+    "layout",
+    "include_superseded",
+  ];
 
   const path = patientGraph?.reasoning_path?.[0] || { steps: [], rationale: "" };
   const streamLength = path.steps.length || 0;
@@ -109,6 +124,13 @@ function Page() {
             filters={filters}
             onChange={setFilters}
             supportedFilters={supportedFilters}
+            capabilities={
+              session?.role === "cardiologist" ||
+              session?.role === "hospitalist" ||
+              session?.role === "pharmacist"
+                ? ["superseded_evidence.read"]
+                : []
+            }
           />
 
           <Card>
@@ -139,11 +161,43 @@ function Page() {
                   </div>
                   <p className="mt-2 text-xs text-foreground">{s.relation}</p>
                   <p className="mt-1 text-[11px] text-muted-foreground">Evidence: {s.evidence}</p>
-                  {s.source_document_id && (
-                    <p className="mt-1 text-[11px] text-muted-foreground">
-                      Document: {s.source_document_id}
-                      {s.source_chunk_id ? ` · Chunk: ${s.source_chunk_id}` : ""}
-                    </p>
+                  {(s.source_document_id ||
+                    s.source_revision_set_id ||
+                    s.source_page_revision_id ||
+                    s.source_page !== undefined) && (
+                    <div className="mt-2 flex flex-wrap gap-x-2 gap-y-1 text-[11px] text-muted-foreground border-t pt-1">
+                      {s.source_document_id && <span>Document: {s.source_document_id}</span>}
+                      {s.source_revision_set_id && (
+                        <span>Revision: {s.source_revision_set_id}</span>
+                      )}
+                      {s.source_page_revision_id && (
+                        <span>Page revision: {s.source_page_revision_id}</span>
+                      )}
+                      {s.source_page !== undefined && s.source_page !== null && (
+                        <span>Page: {s.source_page}</span>
+                      )}
+                      {s.source_chunk_id && <span>Chunk: {s.source_chunk_id}</span>}
+                      {s.source_start_offset !== undefined &&
+                        s.source_end_offset !== undefined &&
+                        s.source_start_offset !== null &&
+                        s.source_end_offset !== null && (
+                          <span>
+                            Offsets: {s.source_start_offset}-{s.source_end_offset}
+                          </span>
+                        )}
+                      {s.source_bounding_boxes && <span>Region: true</span>}
+                      {s.source_alignment_status === "aligned" &&
+                      s.source_page_revision_id &&
+                      s.source_page !== undefined &&
+                      s.source_start_offset !== undefined &&
+                      s.source_end_offset !== undefined ? (
+                        <span className="font-medium text-success">Exact evidence locator</span>
+                      ) : s.source_alignment_status && s.source_alignment_status !== "aligned" ? (
+                        <span className="font-medium text-warning">
+                          Geometry {s.source_alignment_status}
+                        </span>
+                      ) : null}
+                    </div>
                   )}
                 </div>
               ))}

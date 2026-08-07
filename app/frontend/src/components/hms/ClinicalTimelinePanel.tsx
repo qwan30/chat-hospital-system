@@ -158,6 +158,7 @@ export function ClinicalTimelinePanel({ events, onSelectEvidence }: ClinicalTime
                         Offsets: {ev.start_offset}-{ev.end_offset}
                       </span>
                     )}
+                    {ev.bounding_boxes && <span>Region: true</span>}
                     {ev.alignment_status === "aligned" &&
                     ev.page_revision_id &&
                     ev.page !== undefined &&

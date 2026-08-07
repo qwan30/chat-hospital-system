@@ -14,6 +14,7 @@ export interface GraphExplanationPath {
   page?: number;
   start_offset?: number;
   end_offset?: number;
+  bounding_boxes?: unknown;
   alignment_status?: string;
 }
 
@@ -27,6 +28,62 @@ export interface GraphExplanationData {
 
 export interface GraphExplanationPanelProps {
   explanation?: unknown;
+}
+
+function safeText(value: unknown): string | undefined {
+  if (typeof value === "string") return value;
+  if (typeof value === "number" && Number.isFinite(value)) return String(value);
+  return undefined;
+}
+
+function normalizePath(value: unknown): GraphExplanationPath | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const raw = value as Record<string, unknown>;
+  const confidence =
+    typeof raw.confidence === "number" && Number.isFinite(raw.confidence)
+      ? Math.min(1, Math.max(0, raw.confidence))
+      : undefined;
+  return {
+    from: safeText(raw.from),
+    relation: safeText(raw.relation),
+    to: safeText(raw.to),
+    confidence,
+    evidence: safeText(raw.evidence),
+    document_id: safeText(raw.document_id),
+    revision_set_id: safeText(raw.revision_set_id),
+    page_revision_id: safeText(raw.page_revision_id),
+    page:
+      typeof raw.page === "number" && Number.isFinite(raw.page) ? Math.max(1, raw.page) : undefined,
+    start_offset:
+      typeof raw.start_offset === "number" && Number.isFinite(raw.start_offset)
+        ? Math.max(0, raw.start_offset)
+        : undefined,
+    end_offset:
+      typeof raw.end_offset === "number" && Number.isFinite(raw.end_offset)
+        ? Math.max(0, raw.end_offset)
+        : undefined,
+    bounding_boxes: raw.bounding_boxes,
+    alignment_status: safeText(raw.alignment_status),
+  };
+}
+
+function normalizeExplanation(explanation: unknown): {
+  summary?: string;
+  paths: GraphExplanationPath[];
+} {
+  if (typeof explanation === "string") return { summary: explanation, paths: [] };
+  if (!explanation || typeof explanation !== "object" || Array.isArray(explanation)) {
+    return { paths: [] };
+  }
+
+  const raw = explanation as Record<string, unknown>;
+  const paths = Array.isArray(raw.paths)
+    ? raw.paths
+        .map(normalizePath)
+        .filter((path): path is GraphExplanationPath => path !== null)
+        .slice(0, 100)
+    : [];
+  return { summary: safeText(raw.summary) ?? safeText(raw.rationale), paths };
 }
 
 export function GraphExplanationPanel({ explanation }: GraphExplanationPanelProps) {
@@ -98,6 +155,7 @@ export function GraphExplanationPanel({ explanation }: GraphExplanationPanelProp
                       Offsets: {p.start_offset}-{p.end_offset}
                     </span>
                   )}
+                  {p.bounding_boxes && <span>Region: true</span>}
                   {p.alignment_status === "aligned" &&
                   p.page_revision_id &&
                   p.page !== undefined &&

@@ -139,9 +139,11 @@ describe("DocumentUploadFlow", () => {
       presigned_url: "https://r2.example.com/upload",
     };
     vi.mocked(createUploadSession).mockResolvedValue(sessionMock);
-    
+
     // Mock putPresignedObject to throw a 412 conflict error
-    vi.mocked(putPresignedObject).mockRejectedValue(new Error("Immutable object key already exists"));
+    vi.mocked(putPresignedObject).mockRejectedValue(
+      new Error("Immutable object key already exists"),
+    );
 
     render(<DocumentUploadFlow patientId="patient-1" />);
     await completeUpload(user, syntheticPdf);

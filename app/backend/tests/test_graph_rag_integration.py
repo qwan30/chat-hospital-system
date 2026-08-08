@@ -184,6 +184,19 @@ async def test_index_chunk_entities_with_offline_extractor_never_gets_llm_manage
         ).scalars()
     )
 
+    from hospital_ai.db.clinical_graph import GraphEntity, GraphRelationAssertion
+
+    entities = list(
+        (await session.execute(select(GraphEntity).where(GraphEntity.patient_id == PATIENT_ALICE_ID))).scalars()
+    )
+    relations = list(
+        (
+            await session.execute(
+                select(GraphRelationAssertion).where(GraphRelationAssertion.patient_id == PATIENT_ALICE_ID)
+            )
+        ).scalars()
+    )
+
     assert sorted([entity.normalized_label for entity in entities]) == ["diabetes", "metformin"]
     assert [(relation.relation_type) for relation in relations] == ["treats"]
 

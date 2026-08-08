@@ -3,7 +3,8 @@ from __future__ import annotations
 from datetime import UTC, datetime, timedelta
 
 import pytest
-from sqlalchemy import select, update
+from sqlalchemy import String, select, update
+from sqlalchemy.dialects.postgresql import dialect as postgresql_dialect
 
 from hospital_ai.core.security import PATIENT_READ_SCOPES
 from hospital_ai.db.migrations import DOCTOR_ID, PATIENT_ALICE_ID, PATIENT_BOB_ID
@@ -39,6 +40,37 @@ def test_role_scope_matching_is_exact_after_normalization():
     assert not _scope_matches("medication", "medications")
     assert not _scope_matches("medication", "medication_safety")
     assert not _scope_matches("labs", "lab")
+
+
+@pytest.mark.asyncio
+async def test_postgres_vector_query_embedding_uses_string_bind_for_explicit_cast(monkeypatch):
+    class Result:
+        def all(self):
+            return []
+
+    class Session:
+        def __init__(self):
+            self.statement = None
+
+        async def execute(self, statement, params=None):
+            self.statement = statement
+            return Result()
+
+    session = Session()
+    monkeypatch.setattr(
+        "hospital_ai.services.retrieval.ActiveEvidenceScope.authorized_chunk_ids",
+        lambda self, *, user_id, patient_id: [],
+    )
+
+    await RetrievalService(session)._search_postgres(
+        user_id=DOCTOR_ID,
+        patient_id=PATIENT_ALICE_ID,
+        query_embedding=[0.1, 0.2],
+        top_k=1,
+    )
+
+    compiled = session.statement.compile(dialect=postgresql_dialect())
+    assert isinstance(compiled.binds["query_embedding"].type, String)
 
 
 @pytest.mark.asyncio

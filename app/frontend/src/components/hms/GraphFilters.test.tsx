@@ -106,4 +106,19 @@ describe("GraphFilters", () => {
     expect(screen.getByText(/Doc A, Page 1/i)).toBeInTheDocument();
     expect(screen.getByText(/Clinical Guidelines/i)).toBeInTheDocument();
   });
+
+  it("does not render controls that the connected route does not support", () => {
+    render(
+      <GraphFilters
+        filters={DEFAULT_GRAPH_FILTERS}
+        onChange={vi.fn()}
+        supportedFilters={["node_limit", "edge_limit", "layout"]}
+      />,
+    );
+
+    expect(screen.getByLabelText("Node Limit")).toBeInTheDocument();
+    expect(screen.getByLabelText("Edge Limit")).toBeInTheDocument();
+    expect(screen.queryByLabelText("Hop Depth")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Minimum Confidence")).not.toBeInTheDocument();
+  });
 });

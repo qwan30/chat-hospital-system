@@ -292,7 +292,7 @@ async def main() -> None:
         # 3. Alice — Prescription & Labs ──────────────────────────────────────
         ALICE_CHUNK_PRESC = uuid.UUID("50000000-0000-0000-0000-000000000001")
         ALICE_PAGE_PRESC = uuid.UUID("50000000-0000-0000-0000-000000000011")
-        alice_presc_chunk = await _add_document(  # noqa: F841
+        await _add_document(
             session,
             doc_id=DOC_ALICE_PRESCRIPTION_ID,
             patient_id=PATIENT_ALICE_ID,
@@ -341,7 +341,7 @@ async def main() -> None:
 
         ALICE_CHUNK_LAB = uuid.UUID("50000000-0000-0000-0000-000000000002")
         ALICE_PAGE_LAB = uuid.UUID("50000000-0000-0000-0000-000000000012")
-        alice_lab_chunk = await _add_document(  # noqa: F841
+        await _add_document(
             session,
             doc_id=DOC_ALICE_LAB_ID,
             patient_id=PATIENT_ALICE_ID,
@@ -380,7 +380,7 @@ async def main() -> None:
         # 4. Bob — Prescription, Labs, Discharge ──────────────────────────────
         BOB_CHUNK_PRESC = uuid.UUID("50000000-0000-0000-0000-000000000003")
         BOB_PAGE_PRESC = uuid.UUID("50000000-0000-0000-0000-000000000013")
-        bob_presc_chunk = await _add_document(  # noqa: F841
+        await _add_document(
             session,
             doc_id=DOC_BOB_PRESCRIPTION_ID,
             patient_id=PATIENT_BOB_ID,
@@ -437,7 +437,7 @@ async def main() -> None:
 
         BOB_CHUNK_LAB = uuid.UUID("50000000-0000-0000-0000-000000000004")
         BOB_PAGE_LAB = uuid.UUID("50000000-0000-0000-0000-000000000014")
-        bob_lab_chunk = await _add_document(  # noqa: F841
+        await _add_document(
             session,
             doc_id=DOC_BOB_LAB_ID,
             patient_id=PATIENT_BOB_ID,
@@ -477,7 +477,7 @@ async def main() -> None:
 
         BOB_CHUNK_DISCHARGE = uuid.UUID("50000000-0000-0000-0000-000000000005")
         BOB_PAGE_DISCHARGE = uuid.UUID("50000000-0000-0000-0000-000000000015")
-        bob_discharge_chunk = await _add_document(  # noqa: F841
+        await _add_document(
             session,
             doc_id=DOC_BOB_DISCHARGE_ID,
             patient_id=PATIENT_BOB_ID,
@@ -530,7 +530,7 @@ async def main() -> None:
         # 5. Eleanor — Prescription & Labs ───────────────────────────────────
         ELEANOR_CHUNK_PRESC = uuid.UUID("50000000-0000-0000-0000-000000000006")
         ELEANOR_PAGE_PRESC = uuid.UUID("50000000-0000-0000-0000-000000000016")
-        eleanor_presc_chunk = await _add_document(  # noqa: F841
+        await _add_document(
             session,
             doc_id=DOC_ELEANOR_PRESCRIPTION_ID,
             patient_id=PATIENT_ELEANOR_ID,
@@ -582,7 +582,7 @@ async def main() -> None:
 
         ELEANOR_CHUNK_LAB = uuid.UUID("50000000-0000-0000-0000-000000000007")
         ELEANOR_PAGE_LAB = uuid.UUID("50000000-0000-0000-0000-000000000017")
-        eleanor_lab_chunk = await _add_document(  # noqa: F841
+        await _add_document(
             session,
             doc_id=DOC_ELEANOR_LAB_ID,
             patient_id=PATIENT_ELEANOR_ID,

@@ -65,9 +65,13 @@ class ModelRegistry:
 class Telemetry:
     def __init__(self) -> None:
         self.oom_events: list[dict[str, object]] = []
+        self.fallback_events: list[dict[str, object]] = []
 
     async def record_oom(self, route: str, revision: str, rss_mb: float) -> None:
         self.oom_events.append({"route": route, "revision": revision, "rss_mb": rss_mb})
+
+    async def record_fallback(self, from_route: str, to_route: str, reason: str) -> None:
+        self.fallback_events.append({"from_route": from_route, "to_route": to_route, "reason": reason})
 
 
 def verify_sha256(path: str, expected_sha256: str) -> None:
@@ -150,6 +154,16 @@ class OcrModelManager:
 
     @classmethod
     def from_settings(cls, settings, *, registry: Optional[ModelRegistry] = None) -> OcrModelManager:
+        if registry is None:
+            manifest_path = getattr(settings, "ocr_model_manifest_path", None)
+            if manifest_path is None:
+                default_manifest = Path(getattr(settings, "ocr_models_path", ".models")) / "manifest.json"
+                if default_manifest.is_file():
+                    manifest_path = default_manifest
+            if manifest_path is not None and Path(manifest_path).is_file():
+                registry = ModelRegistry.from_manifest(manifest_path)
+            else:
+                registry = ModelRegistry()
         return cls(
             registry=registry,
             memory_budget_mb=settings.ocr_memory_budget_mb,
@@ -159,6 +173,10 @@ class OcrModelManager:
     @asynccontextmanager
     async def acquire_model(self, route: str) -> AsyncIterator[Recognizer]:
         async with self._single_worker:
+            if self.memory_budget_mb <= 4096:
+                for loaded_route in list(self._loaded.keys()):
+                    if loaded_route != route:
+                        await self.unload(loaded_route)
             artifact = self.registry.require_approved(route)
             pending = self._idle_unload_handles.pop(route, None)
             if pending is not None:
@@ -173,5 +191,37 @@ class OcrModelManager:
                 await self.telemetry.record_oom(route, artifact.revision, current_rss_mb())
                 await self.unload(route)
                 raise OcrResourceError("OCR model exceeded the configured memory budget.") from exc
+            except (RuntimeError, Exception) as exc:
+                if "out of memory" in str(exc).lower() or "oom" in str(exc).lower() or "alloc" in str(exc).lower():
+                    await self.telemetry.record_oom(route, artifact.revision, current_rss_mb())
+                    await self.unload(route)
+                    raise OcrResourceError("OCR model exceeded the configured memory budget.") from exc
+                raise
             finally:
-                self._schedule_idle_unload(route)
+                if route in self._loaded:
+                    self._schedule_idle_unload(route)
+
+    @asynccontextmanager
+    async def acquire_model_with_fallback(self, route: str) -> AsyncIterator[Recognizer]:
+        fallback_map = {
+            "vietocr_handwritten": "paddle_printed",
+            "trocr_handwritten": "paddle_printed",
+            "paddle_printed": "native",
+            "force_oom": "native",
+        }
+        current_route = route
+        yielded = False
+        while True:
+            try:
+                async with self.acquire_model(current_route) as model:
+                    yielded = True
+                    yield model
+                return
+            except OcrResourceError as exc:
+                if yielded:
+                    raise
+                fallback = fallback_map.get(current_route)
+                if not fallback:
+                    raise
+                await self.telemetry.record_fallback(current_route, fallback, str(exc))
+                current_route = fallback

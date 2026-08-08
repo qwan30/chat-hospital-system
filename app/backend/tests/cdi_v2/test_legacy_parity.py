@@ -5,6 +5,7 @@ import uuid
 import pytest
 
 from hospital_ai.core.config import get_settings
+from hospital_ai.db.clinical_graph import LegacyGraphEntity, LegacyGraphRelation
 from hospital_ai.db.migrations import DOCTOR_ID, PATIENT_ALICE_ID, PATIENT_BOB_ID
 from hospital_ai.db.models import Document, DocumentChunk, DocumentPage, User
 from hospital_ai.migrations.cdi_v2_backfill import BackfillPolicy, CdiV2Backfill
@@ -59,8 +60,42 @@ async def test_parity_verification_succeeds_on_clean_synthetic(session) -> None:
         chunk_index=0,
         content="Clean parity text",
         token_count=3,
+        text_start_offset=0,
+        text_end_offset=17,
     )
     session.add(chunk)
+    await session.flush()
+
+    entity1 = LegacyGraphEntity(
+        id=uuid.uuid4(),
+        source_document_id=doc.id,
+        source_chunk_id=chunk.id,
+        name="Hypertension",
+        entity_type="Condition",
+        confidence=1.0,
+    )
+    session.add(entity1)
+
+    entity2 = LegacyGraphEntity(
+        id=uuid.uuid4(),
+        source_document_id=doc.id,
+        source_chunk_id=chunk.id,
+        name="Lisinopril",
+        entity_type="Medication",
+        confidence=1.0,
+    )
+    session.add(entity2)
+
+    relation = LegacyGraphRelation(
+        id=uuid.uuid4(),
+        source_entity_id=entity1.id,
+        target_entity_id=entity2.id,
+        relation_type="Treated_By",
+        weight=1.0,
+        source_chunk_id=chunk.id,
+    )
+    session.add(relation)
+
     await session.flush()
     await session.commit()
 

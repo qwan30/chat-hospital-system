@@ -9,6 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from hospital_ai.core.errors import NotFoundError, PermissionDeniedError
 from hospital_ai.db.clinical_documents import (
+    DocumentDraftHead,
     DocumentIndexGeneration,
     DocumentPageRevision,
     DocumentRevisionPage,
@@ -135,33 +136,39 @@ async def load_document_revision_aggregate(
 
     revision_page = None
     if page_number is not None:
-        if revision_set is None:
-            await _raise_aggregate_not_found(
-                session,
-                document=document,
-                actor=actor,
-                action=action,
-                object_id=document.id,
-                trace_id=trace_id,
-                reason="revision_set_required_for_page",
+        if revision_set is not None:
+            revision_page = await session.scalar(
+                select(DocumentRevisionPage).where(
+                    DocumentRevisionPage.revision_set_id == revision_set.id,
+                    DocumentRevisionPage.page_number == page_number,
+                )
             )
-        revision_page = await session.scalar(
-            select(DocumentRevisionPage).where(
-                DocumentRevisionPage.revision_set_id == revision_set.id,
-                DocumentRevisionPage.page_number == page_number,
-            )
-        )
-        if revision_page is None:
-            await _raise_aggregate_not_found(
-                session,
-                document=document,
-                actor=actor,
-                action=action,
-                object_id=revision_set.id,
-                trace_id=trace_id,
-                reason="revision_page_not_found",
-            )
-        page_revision_id = revision_page.page_revision_id
+            if revision_page is None:
+                await _raise_aggregate_not_found(
+                    session,
+                    document=document,
+                    actor=actor,
+                    action=action,
+                    object_id=revision_set.id,
+                    trace_id=trace_id,
+                    reason="revision_page_not_found",
+                )
+            if page_revision_id is None:
+                page_revision_id = revision_page.page_revision_id
+        elif page_revision_id is None:
+            head = await session.get(DocumentDraftHead, document.id)
+            if head and str(page_number) in head.selected_pages:
+                page_revision_id = uuid.UUID(head.selected_pages[str(page_number)])
+            else:
+                await _raise_aggregate_not_found(
+                    session,
+                    document=document,
+                    actor=actor,
+                    action=action,
+                    object_id=document.id,
+                    trace_id=trace_id,
+                    reason="draft_page_not_found",
+                )
 
     page_revision = None
     if page_revision_id is not None:

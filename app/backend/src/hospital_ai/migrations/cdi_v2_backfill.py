@@ -11,6 +11,7 @@ from typing import Any, Optional
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from hospital_ai.core.security import new_trace_id
 from hospital_ai.db.clinical_documents import (
     DocumentDraftHead,
     DocumentIndexGeneration,
@@ -19,7 +20,8 @@ from hospital_ai.db.clinical_documents import (
     DocumentRevisionSet,
 )
 from hospital_ai.db.clinical_graph import LegacyGraphEntity
-from hospital_ai.db.models import Document, DocumentChunk, DocumentPage
+from hospital_ai.db.models import AuditLog, Document, DocumentChunk, DocumentPage
+from hospital_ai.services.audit import AuditService
 
 logger = logging.getLogger(__name__)
 
@@ -69,9 +71,16 @@ class BackfillResult:
 
 
 class CdiV2Backfill:
-    def __init__(self, session: AsyncSession, policy: Optional[BackfillPolicy] = None) -> None:
+    def __init__(
+        self,
+        session: AsyncSession,
+        policy: Optional[BackfillPolicy] = None,
+        *,
+        dry_run: bool = False,
+    ) -> None:
         self.session = session
         self.policy = policy or BackfillPolicy()
+        self.dry_run = dry_run
 
     async def _lock_document(self, document_id: uuid.UUID) -> Document:
         doc = await self.session.get(Document, document_id)
@@ -254,6 +263,31 @@ class CdiV2Backfill:
 
     async def _record_checkpoint(self, document_id: uuid.UUID, phase: str) -> None:
         logger.debug("Backfill checkpoint: doc=%s phase=%s", document_id, phase)
+        if self.dry_run:
+            return
+
+        existing = await self.session.execute(
+            select(AuditLog).where(
+                AuditLog.action == "cdi_v2_backfill.checkpoint",
+                AuditLog.object_id == document_id,
+            )
+        )
+        if any(log.meta.get("phase") == phase for log in existing.scalars()):
+            return
+
+        document = await self.session.get(Document, document_id)
+        if not document:
+            raise ValueError(f"Document {document_id} not found")
+        await AuditService(self.session).record(
+            actor_user_id=document.uploaded_by,
+            action="cdi_v2_backfill.checkpoint",
+            object_type="document",
+            object_id=document.id,
+            patient_id=document.patient_id,
+            outcome="allowed",
+            trace_id=new_trace_id(),
+            metadata={"phase": phase},
+        )
 
     async def run_document(self, document_id: uuid.UUID) -> BackfillResult:
         document = await self._lock_document(document_id)
@@ -271,8 +305,12 @@ class CdiV2Backfill:
             generation = await self._attach_verified_legacy_generation(document, submitted)
             await self._record_checkpoint(document.id, "legacy_generations")
         await self._record_checkpoint(document.id, "complete")
-        await self.session.commit()
-        return BackfillResult.from_rows(page_revisions, head, submitted, generation)
+        result = BackfillResult.from_rows(page_revisions, head, submitted, generation)
+        if self.dry_run:
+            await self.session.rollback()
+        else:
+            await self.session.commit()
+        return result
 
     async def compute_parity_report(self, document_ids: Optional[list[uuid.UUID]] = None) -> dict[str, Any]:
         query = select(Document)

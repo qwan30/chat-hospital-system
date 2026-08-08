@@ -3,7 +3,11 @@ import { ArrowRight, Network, Download, Share2, Sparkles } from "lucide-react";
 import { AppShell } from "@/components/shell/AppShell";
 import { PageHeader } from "@/components/hms/PageHeader";
 import { GraphCanvas } from "@/components/hms/GraphCanvas";
-import { GraphFilters, DEFAULT_GRAPH_FILTERS } from "@/components/hms/GraphFilters";
+import {
+  GraphFilters,
+  DEFAULT_GRAPH_FILTERS,
+  type GraphFilterKey,
+} from "@/components/hms/GraphFilters";
 import { getPatientGraph, type GraphPathStep } from "@/lib/api/graph";
 import type { DocumentGraphFilters } from "@/lib/api/document-graph";
 import { Badge } from "@/components/ui/badge";
@@ -34,6 +38,7 @@ function Page() {
 
   const search = useSearch({ strict: false }) as { simulate?: string };
   const force = search?.simulate === "stream-fail";
+  const supportedFilters: readonly GraphFilterKey[] = ["node_limit", "edge_limit", "layout"];
 
   const path = patientGraph?.reasoning_path?.[0] || { steps: [], rationale: "" };
   const streamLength = path.steps.length || 0;
@@ -100,7 +105,11 @@ function Page() {
         <GraphCanvas data={patientGraph} filters={filters} />
 
         <div className="space-y-4">
-          <GraphFilters filters={filters} onChange={setFilters} />
+          <GraphFilters
+            filters={filters}
+            onChange={setFilters}
+            supportedFilters={supportedFilters}
+          />
 
           <Card>
             <CardHeader className="pb-3">
@@ -130,6 +139,12 @@ function Page() {
                   </div>
                   <p className="mt-2 text-xs text-foreground">{s.relation}</p>
                   <p className="mt-1 text-[11px] text-muted-foreground">Evidence: {s.evidence}</p>
+                  {s.source_document_id && (
+                    <p className="mt-1 text-[11px] text-muted-foreground">
+                      Document: {s.source_document_id}
+                      {s.source_chunk_id ? ` · Chunk: ${s.source_chunk_id}` : ""}
+                    </p>
+                  )}
                 </div>
               ))}
               {stream.status === "streaming" && stream.revealed < streamLength ? (

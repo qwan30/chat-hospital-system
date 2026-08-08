@@ -98,10 +98,26 @@ class CompositeLoader:
 
     def _fallback_ocr(self, file_path: Path, mime_type: str) -> list[LoadedPage]:
         """Fall back to the existing OCR service for images and scanned documents."""
+        import asyncio
+        import concurrent.futures
+
         from hospital_ai.services.ocr import OcrService
 
         ocr = OcrService()
-        ocr_pages = ocr.extract_page_results(storage_uri=str(file_path), mime_type=mime_type)
+
+        async def _do_extract():
+            return await ocr.extract_page_results(storage_uri=str(file_path), mime_type=mime_type)
+
+        try:
+            loop = asyncio.get_running_loop()
+        except RuntimeError:
+            loop = None
+
+        if loop and loop.is_running():
+            with concurrent.futures.ThreadPoolExecutor(1) as pool:
+                ocr_pages = pool.submit(asyncio.run, _do_extract()).result()
+        else:
+            ocr_pages = asyncio.run(_do_extract())
         return [
             LoadedPage(
                 page_number=page.page_number,
@@ -143,7 +159,22 @@ class CompositeLoader:
                 )
             return res
         except ExternalServiceError:
-            return OcrService().extract_page_results(storage_uri=str(file_path), mime_type=mime_type)
+            import asyncio
+            import concurrent.futures
+
+            async def _do_extract():
+                return await OcrService().extract_page_results(storage_uri=str(file_path), mime_type=mime_type)
+
+            try:
+                loop = asyncio.get_running_loop()
+            except RuntimeError:
+                loop = None
+
+            if loop and loop.is_running():
+                with concurrent.futures.ThreadPoolExecutor(1) as pool:
+                    return pool.submit(asyncio.run, _do_extract()).result()
+            else:
+                return asyncio.run(_do_extract())
 
     def register(self, loader: BaseDocumentLoader) -> None:
         """Register an additional loader."""

@@ -28,7 +28,7 @@ def upgrade() -> None:
         sa.Column("id", sa.Uuid(), nullable=False),
         sa.Column("document_id", sa.Uuid(), nullable=False),
         sa.Column("configuration_version", sa.String(length=64), nullable=False),
-        sa.Column("status", sa.String(length=32), nullable=False),
+        sa.Column("status", sa.String(length=32), nullable=False, server_default="pending"),
         sa.Column("started_at", sa.DateTime(timezone=True), nullable=True),
         sa.Column("completed_at", sa.DateTime(timezone=True), nullable=True),
         sa.Column("error_message", sa.Text(), nullable=True),
@@ -63,7 +63,7 @@ def upgrade() -> None:
         sa.Column("confidence", sa.Numeric(), nullable=True),
         sa.Column("source_page", sa.Integer(), nullable=True),
         sa.Column("bounding_box", sa.JSON(), nullable=True),
-        sa.Column("status", sa.String(length=32), nullable=False),
+        sa.Column("status", sa.String(length=32), nullable=False, server_default="unverified"),
         sa.Column(
             "created_at", sa.DateTime(timezone=True), server_default=sa.text("(CURRENT_TIMESTAMP)"), nullable=False
         ),
@@ -94,7 +94,7 @@ def upgrade() -> None:
         sa.Column("field_name", sa.String(length=128), nullable=False),
         sa.Column("original_value", hospital_ai.db.models.EncryptedText(), nullable=True),
         sa.Column("suggested_value", hospital_ai.db.models.EncryptedText(), nullable=True),
-        sa.Column("review_status", sa.String(length=32), nullable=False),
+        sa.Column("review_status", sa.String(length=32), nullable=False, server_default="pending"),
         sa.Column("reviewed_by_user_id", sa.Uuid(), nullable=True),
         sa.Column("reviewed_at", sa.DateTime(timezone=True), nullable=True),
         sa.Column(

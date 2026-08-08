@@ -217,7 +217,7 @@ def upgrade() -> None:
         sa.Column("document_id", sa.Uuid(), nullable=False),
         sa.Column("revision_set_id", sa.Uuid(), nullable=False),
         sa.Column("retry_of_generation_id", sa.Uuid(), nullable=True),
-        sa.Column("state", sa.String(length=16), nullable=False),
+        sa.Column("state", sa.String(length=16), nullable=False, server_default="building"),
         sa.Column("revision_set_sha256", sa.String(length=64), nullable=False),
         sa.Column("generation_sha256", sa.String(length=64), nullable=True),
         sa.Column(
@@ -428,9 +428,7 @@ def upgrade() -> None:
         batch_op.add_column(sa.Column("bounding_boxes", sa.JSON(), nullable=True))
         batch_op.add_column(sa.Column("access_tags", sa.JSON(), nullable=True))
         batch_op.drop_constraint("uq_document_chunk_index", type_="unique")
-        batch_op.create_unique_constraint(
-            "uq_document_chunk_index", ["document_id", "generation_id", "chunk_index"]
-        )
+        batch_op.create_unique_constraint("uq_document_chunk_index", ["document_id", "generation_id", "chunk_index"])
         batch_op.create_index(batch_op.f("ix_document_chunks_generation_id"), ["generation_id"], unique=False)
         batch_op.create_index(batch_op.f("ix_document_chunks_page_revision_id"), ["page_revision_id"], unique=False)
         batch_op.create_index(batch_op.f("ix_document_chunks_revision_set_id"), ["revision_set_id"], unique=False)
@@ -453,7 +451,7 @@ def upgrade() -> None:
         batch_op.add_column(sa.Column("active_index_generation_id", sa.Uuid(), nullable=True))
         batch_op.add_column(sa.Column("finalized_upload_id", sa.Uuid(), nullable=True))
         batch_op.add_column(sa.Column("is_synthetic", sa.Boolean(), server_default="false", nullable=False))
-        batch_op.add_column(sa.Column("retention_state", sa.String(length=32), nullable=False))
+        batch_op.add_column(sa.Column("retention_state", sa.String(length=32), nullable=True, server_default="active"))
         batch_op.create_foreign_key(
             "fk_documents_finalized_upload_id", "document_uploads", ["finalized_upload_id"], ["id"], use_alter=True
         )  # noqa: E501
@@ -471,6 +469,10 @@ def upgrade() -> None:
             ["id"],
             use_alter=True,
         )  # noqa: E501
+
+    op.execute("UPDATE documents SET retention_state = 'active' WHERE retention_state IS NULL")
+    with op.batch_alter_table("documents", schema=None) as batch_op:
+        batch_op.alter_column("retention_state", nullable=False, server_default=None)
 
     with op.batch_alter_table("retrieved_evidence", schema=None) as batch_op:
         batch_op.add_column(sa.Column("generation_id", sa.Uuid(), nullable=True))

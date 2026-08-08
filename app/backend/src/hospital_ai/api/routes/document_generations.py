@@ -5,9 +5,9 @@ from fastapi import APIRouter, Depends, Header, HTTPException, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from hospital_ai.api.deps import get_current_user, get_session
-from hospital_ai.core.errors import ConflictError, NotFoundError
+from hospital_ai.core.errors import ConflictError
 from hospital_ai.core.security import new_trace_id
-from hospital_ai.db.models import Document, User
+from hospital_ai.db.models import User
 from hospital_ai.schemas.document_generations import (
     DocumentIndexGenerationRead,
     GenerationRollbackRead,
@@ -39,13 +39,6 @@ def _parse_obj(cls: any, obj: any) -> any:
     if hasattr(cls, "model_validate"):
         return cls.model_validate(obj)
     return cls.parse_obj(obj)
-
-
-async def _get_document_or_404(session: AsyncSession, document_id: uuid.UUID) -> Document:
-    doc = await session.get(Document, document_id)
-    if not doc:
-        raise NotFoundError(f"Document not found: {document_id}")
-    return doc
 
 
 @router.post(
@@ -81,8 +74,9 @@ async def rollback_generation(
     idemp = IdempotencyService(session, current_user.id)
     req_str = _dump_json(payload)
     req_dict = json.loads(req_str)
+    req_dict["document_id"] = str(document_id)
     req_dict["target_generation_id"] = str(generation_id)
-    decision = await idemp.begin(f"generation.rollback.{document_id}", idempotency_key, req_dict)
+    decision = await idemp.begin("document.generation.rollback", idempotency_key, req_dict)
     if decision.is_in_progress:
         raise ConflictError("Request is already in progress; retry later.")
     if decision.is_replay:
@@ -160,7 +154,7 @@ async def retry_generation(
 
     idemp = IdempotencyService(session, current_user.id)
     decision = await idemp.begin(
-        f"generation.retry.{document_id}:{generation_id}",
+        "document.generation.retry",
         idempotency_key,
         {"document_id": str(document_id), "generation_id": str(generation_id)},
     )

@@ -1,5 +1,18 @@
 import { apiFetch } from "../api-client";
 
+export interface GraphProvenance {
+  document_id?: string | null;
+  generation_id?: string | null;
+  revision_set_id?: string | null;
+  page_revision_id?: string | null;
+  page?: number | null;
+  chunk_id?: string | null;
+  start_offset?: number | null;
+  end_offset?: number | null;
+  bounding_boxes?: unknown;
+  alignment_status?: string | null;
+}
+
 export interface GraphNode {
   id: string;
   type: string;
@@ -7,6 +20,14 @@ export interface GraphNode {
   sublabel?: string | null;
   source_document_id?: string | null;
   source_chunk_id?: string | null;
+  source_generation_id?: string | null;
+  source_revision_set_id?: string | null;
+  source_page_revision_id?: string | null;
+  source_page?: number | null;
+  source_start_offset?: number | null;
+  source_end_offset?: number | null;
+  source_bounding_boxes?: unknown;
+  source_alignment_status?: string | null;
   x: number;
   y: number;
 }
@@ -18,6 +39,14 @@ export interface GraphEdge {
   label: string;
   source_document_id?: string | null;
   source_chunk_id?: string | null;
+  source_generation_id?: string | null;
+  source_revision_set_id?: string | null;
+  source_page_revision_id?: string | null;
+  source_page?: number | null;
+  source_start_offset?: number | null;
+  source_end_offset?: number | null;
+  source_bounding_boxes?: unknown;
+  source_alignment_status?: string | null;
 }
 
 export interface GraphPathStep {
@@ -27,6 +56,14 @@ export interface GraphPathStep {
   evidence: string;
   source_document_id?: string | null;
   source_chunk_id?: string | null;
+  source_generation_id?: string | null;
+  source_revision_set_id?: string | null;
+  source_page_revision_id?: string | null;
+  source_page?: number | null;
+  source_start_offset?: number | null;
+  source_end_offset?: number | null;
+  source_bounding_boxes?: unknown;
+  source_alignment_status?: string | null;
 }
 
 export interface GraphPath {

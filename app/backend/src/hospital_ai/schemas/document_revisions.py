@@ -2,13 +2,16 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime
+
 from pydantic import BaseModel, ConfigDict
+
 
 class DraftPageWrite(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     text: str
     parent_revision_id: uuid.UUID
     edit_reason: str = ""
+
 
 class DraftPageRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
@@ -17,6 +20,7 @@ class DraftPageRead(BaseModel):
     page_number: int
     text: str
     status: str
+
 
 class RevisionSetRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
@@ -30,18 +34,22 @@ class RevisionSetRead(BaseModel):
     approved_by_user_id: uuid.UUID | None = None
     approved_at: datetime | None = None
 
+
 class ApproveRevisionRequest(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     demo_mode: bool = False
+
 
 class RejectRevisionRequest(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     reason: str = ""
 
+
 class RestoreRevisionRequest(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     revision_id: uuid.UUID
     reason: str = ""
+
 
 class GenerationAcceptedRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)

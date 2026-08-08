@@ -12,6 +12,7 @@ from hospital_ai.services.upload_sessions import UploadSessionService
 
 router = APIRouter()
 
+
 @router.post("/upload-sessions", response_model=UploadSessionRead, status_code=201)
 async def create_upload_session(
     payload: UploadSessionCreate,
@@ -23,6 +24,7 @@ async def create_upload_session(
     return await UploadSessionService.from_request(session, request).create(
         actor=current_user, payload=payload, idempotency_key=idempotency_key
     )
+
 
 @router.post("/{document_id}/uploads/{upload_id}/finalize", response_model=UploadFinalizeResult, status_code=200)
 async def finalize_upload_session(

@@ -3,14 +3,13 @@ from __future__ import annotations
 import hashlib
 import uuid
 from dataclasses import dataclass
-from datetime import datetime, UTC
-from typing import Any, Optional
+from datetime import UTC, datetime
+from typing import Optional
 
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from hospital_ai.core.errors import ConflictError, NotFoundError
-from hospital_ai.db.models import Document
 from hospital_ai.db.clinical_documents import (
     DocumentDraftHead,
     DocumentIndexGeneration,
@@ -19,6 +18,7 @@ from hospital_ai.db.clinical_documents import (
     DocumentRevisionPage,
     DocumentRevisionSet,
 )
+from hospital_ai.db.models import Document
 from hospital_ai.services.audit import AuditService
 
 
@@ -150,7 +150,9 @@ class RevisionService:
         )
         self.session.add(event)
 
-    async def save_page(self, document_id: uuid.UUID, page_number: int, command: SavePageCommand) -> DraftMutationResult:
+    async def save_page(
+        self, document_id: uuid.UUID, page_number: int, command: SavePageCommand
+    ) -> DraftMutationResult:
         head = await self._lock_draft_head(document_id)
         if head.lock_version != command.lock_version:
             await AuditService(self.session).record(
@@ -301,7 +303,9 @@ class RevisionService:
     async def reject(self, revision_set_id: uuid.UUID, command: RejectCommand) -> RevisionSetResult:
         revision_set = await self._lock_submitted_set(revision_set_id)
         revision_set.status = "rejected"
-        await self._append_event(revision_set.document_id, command.actor_id, "revision_set_rejected", [], reason=command.reason)
+        await self._append_event(
+            revision_set.document_id, command.actor_id, "revision_set_rejected", [], reason=command.reason
+        )
         await AuditService(self.session).record(
             actor_user_id=command.actor_id,
             action="document_revision.reject",
@@ -351,7 +355,9 @@ class RevisionService:
         head.selected_pages = {**head.selected_pages, str(page_number): str(revision.id)}
         head.lock_version += 1
         head.updated_by_user_id = command.actor_id
-        await self._append_event(document_id, command.actor_id, "revision_restored", [revision.id], reason=command.reason)
+        await self._append_event(
+            document_id, command.actor_id, "revision_restored", [revision.id], reason=command.reason
+        )
         await AuditService(self.session).record(
             actor_user_id=command.actor_id,
             action="document_revision.restore",

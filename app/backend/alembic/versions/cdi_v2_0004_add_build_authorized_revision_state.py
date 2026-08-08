@@ -1,7 +1,7 @@
 """allow build-authorized revision sets
 
-Revision ID: cdi_v2_0004
-Revises: cdi_v2_0003
+Revision ID: cdi_v2_0005
+Revises: cdi_v2_0004
 Create Date: 2026-08-05 18:00:00.000000
 """
 
@@ -10,8 +10,8 @@ from typing import Union
 
 from alembic import op
 
-revision: str = "cdi_v2_0004"
-down_revision: Union[str, None] = "cdi_v2_0003"
+revision: str = "cdi_v2_0005"
+down_revision: Union[str, None] = "cdi_v2_0004"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 

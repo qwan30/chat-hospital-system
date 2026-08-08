@@ -102,9 +102,22 @@ class GraphRelationEvidence(Base):
 class LegacyGraphEntity(Base):
     __tablename__ = "legacy_graph_entities"
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
-    patient_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("patients.id"), nullable=False, index=True)
-    source_document_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("documents.id"), nullable=False)
-    source_chunk_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("document_chunks.id"), nullable=False)
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     entity_type: Mapped[str] = mapped_column(String(64), nullable=False)
+    source_chunk_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("document_chunks.id"), nullable=False, index=True)
+    source_document_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("documents.id"), nullable=False, index=True)
     confidence: Mapped[float] = mapped_column(nullable=False, default=1.0)
+
+
+class LegacyGraphRelation(TimestampMixin, Base):
+    __tablename__ = "legacy_graph_relations"
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    source_entity_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("legacy_graph_entities.id"), nullable=False, index=True
+    )
+    target_entity_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("legacy_graph_entities.id"), nullable=False, index=True
+    )
+    relation_type: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
+    weight: Mapped[float] = mapped_column(nullable=False, default=1.0)
+    source_chunk_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("document_chunks.id"), nullable=False, index=True)

@@ -1,8 +1,8 @@
 /**
  * @vitest-environment jsdom
  */
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { render, screen, fireEvent, waitFor, cleanup } from "@testing-library/react";
 import { DocumentWorkspace } from "./DocumentWorkspace";
 import { GeometryOverlay } from "./GeometryOverlay";
 import { restoreRevision } from "@/lib/api/document-revisions";
@@ -11,6 +11,22 @@ import "@testing-library/jest-dom/vitest";
 
 vi.mock("@/lib/api/document-revisions", () => ({
   restoreRevision: vi.fn(),
+  submitDraft: vi.fn(),
+  approveRevisionSet: vi.fn(),
+  getDraftPage: vi.fn().mockResolvedValue({
+    page_revision_id: "draft-page-1",
+    lock_version: 1,
+    page_number: 1,
+    text: "draft text",
+    status: "draft",
+  }),
+  getRevisionPage: vi.fn().mockResolvedValue({
+    page_revision_id: "revision-page-1",
+    lock_version: 1,
+    page_number: 1,
+    text: "historical text",
+    status: "approved",
+  }),
   listRevisionSets: vi
     .fn()
     .mockResolvedValue([{ revision_set_id: "rev-1", revision_number: 1, status: "approved" }]),
@@ -35,6 +51,12 @@ beforeEach(() => {
 });
 
 const queryClient = new QueryClient();
+
+afterEach(() => {
+  cleanup();
+  queryClient.clear();
+  vi.clearAllMocks();
+});
 
 describe("DocumentWorkspace", () => {
   it("keeps a historical revision read-only and restores as a new child", async () => {

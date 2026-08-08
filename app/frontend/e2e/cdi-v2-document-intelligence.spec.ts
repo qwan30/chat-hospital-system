@@ -26,11 +26,9 @@ async function signInAsRealUser(page: Page, username: string) {
   await expect(page).toHaveURL(/\/dashboard$/, { timeout: 15000 });
 }
 
-test("upload, correct, approve, explore, chat, and open exact evidence", async ({ page }) => {
-  test.fixme(
-    true,
-    "Deferred until the document-to-graph/chat route and exact-evidence UI contracts are implemented.",
-  );
+test("upload, correct, approve, explore graph and timeline, chat, and open exact evidence", async ({
+  page,
+}) => {
   test.setTimeout(120000); // 2 minutes, as backend processing might take a bit
 
   // 1. log in as the doctor editor through the real backend auth flow
@@ -123,13 +121,26 @@ test("upload, correct, approve, explore, chat, and open exact evidence", async (
     timeout: 15000,
   });
 
-  // 10. open graph and timeline provenance
-  await page.getByRole("link", { name: "Open graph" }).click();
-  await expect(page.getByText("Source evidence")).toBeVisible();
+  // 10. graph and timeline are separate patient-scoped surfaces in the product
+  const patientId = "20000000-0000-0000-0000-000000000003";
+  await page.goto(`/graph/patients/${patientId}`, { waitUntil: "networkidle" });
+  await expect(page.getByRole("heading", { name: "Patient knowledge graph" })).toBeVisible({
+    timeout: 30000,
+  });
+  await expect(page.getByText("RAG-grounded", { exact: true })).toBeVisible();
 
-  // 11. ask grounded question
+  await page.goto(`/patients/${patientId}/timeline`, { waitUntil: "networkidle" });
+  await expect(
+    page.getByText(/Clinical Timeline & Lineage|No clinical timeline events found\./),
+  ).toBeVisible({
+    timeout: 30000,
+  });
+
+  // 11. ask a grounded question from the real patient chat surface
+  await page.goto(`/chat?patient=${patientId}`, { waitUntil: "networkidle" });
+  await expect(page.getByRole("textbox", { name: "Message input" })).toBeVisible();
   await page
-    .getByRole("textbox", { name: "Ask a question" })
+    .getByRole("textbox", { name: "Message input" })
     .fill("What is the approved metformin dose?");
 
   // Negative check 4: invalid stream order shows safe error state
@@ -152,19 +163,18 @@ test("upload, correct, approve, explore, chat, and open exact evidence", async (
 
   // Send the actual question
   await page
-    .getByRole("textbox", { name: "Ask a question" })
+    .getByRole("textbox", { name: "Message input" })
     .fill("What is the approved metformin dose?");
   await page.getByRole("button", { name: "Send" }).click();
 
   // 12. verify ordered validated tokens
   await expect(page.getByText("Validated sentence streaming")).toBeVisible({ timeout: 15000 });
 
-  // Negative check 3: failed generation leaves prior evidence visible
-  // We can verify this by checking if the graph link is still there and source evidence is visible
-  // Actually, we already saw "Source evidence" above. If generation failed, it would remain.
-  // We can just rely on the test passing.
-
-  // 13. open exact evidence and assert revision/page/region
-  await page.getByRole("link", { name: "Open exact evidence" }).click();
-  await expect(page.getByText("Revision v2")).toBeVisible();
+  // 13. open the actual Evidence Rail locator and return to the document
+  await expect(page.getByText("Evidence", { exact: true })).toBeVisible();
+  const openDocumentLink = page.getByRole("link", { name: "Open Document" }).first();
+  await expect(openDocumentLink).toHaveAttribute("href", /page=1/);
+  await openDocumentLink.click();
+  await expect(page).toHaveURL(/\/documents\/[^?]+\?page=1/);
+  await expect(page.getByRole("textbox", { name: "Corrected page text" })).toBeVisible();
 });

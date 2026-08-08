@@ -193,3 +193,5 @@ def test_cdi_v2_release_gates_are_blocking():
     assert "python scripts/verify_cdi_v2_release.py --mode source" in workflow_text
     assert "python -m pytest tests/cdi_v2/test_normative_acceptance.py -q" in workflow_text
     assert "bun run test:e2e -- cdi-v2-document-intelligence.spec.ts" in workflow_text
+    assert "docker compose exec -T backend alembic upgrade head" in workflow_text
+    assert "seed_synthetic_data" in workflow_text

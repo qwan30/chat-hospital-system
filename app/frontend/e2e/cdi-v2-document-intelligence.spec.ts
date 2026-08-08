@@ -23,6 +23,7 @@ async function signInAsRealUser(page: Page, username: string) {
   await realLoginPanel.getByLabel("Username").fill(username);
   await realLoginPanel.getByLabel("Password").fill("demo");
   await realLoginPanel.getByRole("button", { name: "Sign in", exact: true }).click();
+  await expect(page).toHaveURL(/\/dashboard$/, { timeout: 15000 });
 }
 
 test("upload, correct, approve, explore, chat, and open exact evidence", async ({ page }) => {

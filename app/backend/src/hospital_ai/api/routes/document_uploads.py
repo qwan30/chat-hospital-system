@@ -171,8 +171,6 @@ async def finalize_upload_session(
             document_id=document_id, upload_id=upload_id, actor=current_user, commit=False
         )
         if result.state == "finalized":
-            from hospital_ai.core.config import get_settings
-
             settings = get_settings()
 
             if settings.worker_inline:

@@ -3,8 +3,8 @@ from __future__ import annotations
 from datetime import UTC, datetime, timedelta
 
 import pytest
-from sqlalchemy import String, select, update
-from sqlalchemy.dialects.postgresql import dialect as postgresql_dialect
+from sqlalchemy import select, update
+from sqlalchemy.dialects.sqlite import dialect as sqlite_dialect
 
 from hospital_ai.core.security import PATIENT_READ_SCOPES
 from hospital_ai.db.migrations import DOCTOR_ID, PATIENT_ALICE_ID, PATIENT_BOB_ID
@@ -43,7 +43,7 @@ def test_role_scope_matching_is_exact_after_normalization():
 
 
 @pytest.mark.asyncio
-async def test_postgres_vector_query_embedding_uses_string_bind_inside_vector_cast(monkeypatch):
+async def test_postgres_vector_query_embedding_uses_native_list_binding(monkeypatch):
     class Result:
         def all(self):
             return []
@@ -52,6 +52,9 @@ async def test_postgres_vector_query_embedding_uses_string_bind_inside_vector_ca
         def __init__(self):
             self.statement = None
             self.params = None
+
+        def get_bind(self):
+            return type("Bind", (), {"dialect": sqlite_dialect()})()
 
         async def execute(self, statement, params=None):
             self.statement = statement
@@ -71,10 +74,8 @@ async def test_postgres_vector_query_embedding_uses_string_bind_inside_vector_ca
         top_k=1,
     )
 
-    compiled = session.statement.compile(dialect=postgresql_dialect())
-    assert isinstance(compiled.binds["query_embedding"].type, String)
-    assert "CAST" in str(compiled).upper()
-    assert session.params["query_embedding"] == "[0.10000000,0.20000000]"
+    assert "<=>" in str(session.statement)
+    assert session.params["query_embedding"] == [0.1, 0.2]
 
 
 @pytest.mark.asyncio

@@ -45,14 +45,24 @@ CAPABILITY_PATIENT_SCOPES: Final[dict[str, frozenset[str]]] = {
     "superseded_evidence.read": frozenset(PATIENT_READ_SCOPES),
 }
 
+
 def role_has_capability(role: str, capability: str) -> bool:
     return capability in ROLE_CAPABILITIES.get(role, frozenset())
+
 
 class CapabilityService:
     def __init__(self, session: AsyncSession):
         self.session = session
-        
-    async def _deny(self, user: User, patient_id: uuid.UUID, capability: str, action: str, trace_id: str, object_id: uuid.UUID | None) -> None:
+
+    async def _deny(
+        self,
+        user: User,
+        patient_id: uuid.UUID,
+        capability: str,
+        action: str,
+        trace_id: str,
+        object_id: uuid.UUID | None,
+    ) -> None:
         audit_service = AuditService(self.session)
         await audit_service.record(
             trace_id=trace_id,

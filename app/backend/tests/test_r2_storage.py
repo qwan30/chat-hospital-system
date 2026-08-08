@@ -35,6 +35,7 @@ class _FakeS3:
     def head_object(self, *, Bucket: str, Key: str) -> dict[str, Any]:
         if Key not in self.objects:
             from botocore.exceptions import ClientError
+
             raise ClientError({"Error": {"Code": "404"}}, "head_object")
         return {"ContentLength": len(self.objects[Key]), "ETag": '"etag"', "ContentType": "application/pdf"}
 

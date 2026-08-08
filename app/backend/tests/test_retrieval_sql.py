@@ -3,7 +3,8 @@ from __future__ import annotations
 from datetime import UTC, datetime, timedelta
 
 import pytest
-from sqlalchemy import select, update
+from sqlalchemy import String, select, update
+from sqlalchemy.dialects.postgresql import dialect as postgresql_dialect
 
 from hospital_ai.core.security import PATIENT_READ_SCOPES
 from hospital_ai.db.migrations import DOCTOR_ID, PATIENT_ALICE_ID, PATIENT_BOB_ID
@@ -42,16 +43,18 @@ def test_role_scope_matching_is_exact_after_normalization():
 
 
 @pytest.mark.asyncio
-async def test_postgres_vector_query_embedding_uses_native_list_binding(monkeypatch):
+async def test_postgres_vector_query_embedding_uses_string_bind_inside_vector_cast(monkeypatch):
     class Result:
         def all(self):
             return []
 
     class Session:
         def __init__(self):
+            self.statement = None
             self.params = None
 
         async def execute(self, statement, params=None):
+            self.statement = statement
             self.params = params
             return Result()
 
@@ -68,7 +71,10 @@ async def test_postgres_vector_query_embedding_uses_native_list_binding(monkeypa
         top_k=1,
     )
 
-    assert session.params["query_embedding"] == [0.1, 0.2]
+    compiled = session.statement.compile(dialect=postgresql_dialect())
+    assert isinstance(compiled.binds["query_embedding"].type, String)
+    assert "CAST" in str(compiled).upper()
+    assert session.params["query_embedding"] == "[0.10000000,0.20000000]"
 
 
 @pytest.mark.asyncio

@@ -12,6 +12,7 @@ from urllib.parse import urlsplit
 import boto3
 from botocore.exceptions import ClientError
 from fastapi import UploadFile
+from werkzeug.utils import secure_filename
 
 from hospital_ai.core.config import Settings
 from hospital_ai.core.errors import ValidationAppError
@@ -160,7 +161,7 @@ class LocalStorageService:
         return resolved
 
     def create_presigned_put(self, *, key: str, content_type: str, expires_seconds: int) -> PresignedPut:
-        validated_key = validate_storage_object_key(key, allowed_prefixes=("source/", "patients/"))
+        validated_key = _validated_local_storage_key(key)
         root = os.path.realpath(os.fspath(self.root))
         target = os.path.realpath(os.path.join(root, validated_key))
         if target != root and not target.startswith(root + os.sep):
@@ -173,7 +174,7 @@ class LocalStorageService:
         )
 
     def head_object(self, key: str) -> StorageObjectHead:
-        validated_key = validate_storage_object_key(key, allowed_prefixes=("source/", "patients/"))
+        validated_key = _validated_local_storage_key(key)
         root = os.path.realpath(os.fspath(self.root))
         target = os.path.realpath(os.path.join(root, validated_key))
         if target != root and not target.startswith(root + os.sep):
@@ -362,6 +363,15 @@ def validate_storage_object_key(key: str, *, allowed_prefixes: tuple[str, ...] =
     if allowed_prefixes and not any(key.startswith(prefix) for prefix in allowed_prefixes):
         raise ValueError("Storage object key uses an unexpected prefix.")
     return key
+
+
+def _validated_local_storage_key(key: str) -> str:
+    validated_key = validate_storage_object_key(key, allowed_prefixes=("source/", "patients/"))
+    segments = validated_key.split("/")
+    safe_segments = [secure_filename(segment) for segment in segments]
+    if safe_segments != segments or any(not segment for segment in safe_segments):
+        raise ValueError("Storage object key contains an unsafe filename segment.")
+    return "/".join(safe_segments)
 
 
 def get_storage_service(settings: Settings) -> StorageService:

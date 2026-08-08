@@ -1,17 +1,35 @@
-import { test, expect } from "@playwright/test";
-import * as path from "path";
+import { expect, test, type Page } from "@playwright/test";
+import { fileURLToPath } from "node:url";
+
+async function signInAsRealUser(page: Page, username: string) {
+  await page.goto("/auth/login", { waitUntil: "networkidle" });
+
+  const realLoginTab = page.getByRole("tab", { name: "Real Login" });
+  await expect(realLoginTab).toBeVisible();
+  await expect
+    .poll(
+      async () => {
+        if ((await realLoginTab.getAttribute("aria-selected")) !== "true") {
+          await realLoginTab.click();
+        }
+        return realLoginTab.getAttribute("aria-selected");
+      },
+      { timeout: 10000 },
+    )
+    .toBe("true");
+
+  const realLoginPanel = page.getByRole("tabpanel", { name: "Real Login" });
+  await expect(realLoginPanel).toBeVisible();
+  await realLoginPanel.getByLabel("Username").fill(username);
+  await realLoginPanel.getByLabel("Password").fill("demo");
+  await realLoginPanel.getByRole("button", { name: "Sign in", exact: true }).click();
+}
 
 test("upload, correct, approve, explore, chat, and open exact evidence", async ({ page }) => {
   test.setTimeout(120000); // 2 minutes, as backend processing might take a bit
 
-  // 1. log in as editor (Pharmacist)
-  await page.goto("/auth/login");
-  await page.getByRole("tab", { name: "Demo Role" }).click();
-  await page.locator("button:has-text('Pharmacist')").click();
-  await page
-    .getByRole("tabpanel", { name: "Demo Role" })
-    .getByRole("button", { name: "Sign in", exact: true })
-    .click();
+  // 1. log in as the doctor editor through the real backend auth flow
+  await signInAsRealUser(page, "doctor@example.test");
   await expect(page.getByText("Welcome")).toBeVisible({ timeout: 15000 });
 
   // 2. create direct upload session and PUT synthetic scan
@@ -22,9 +40,11 @@ test("upload, correct, approve, explore, chat, and open exact evidence", async (
   await page.getByLabel("Document Title").fill("Synthetic E2E Scan");
   await page.getByLabel("Document Type").selectOption("scan");
 
-  const testPdfPath = path.resolve(
-    __dirname,
-    "../../backend/data/hosp_ai_synthetic_dataset/app/backend/data/patients_documents/patient_MRN0001_lab_result.pdf",
+  const testPdfPath = fileURLToPath(
+    new URL(
+      "../../backend/data/hosp_ai_synthetic_dataset/app/backend/data/patients_documents/patient_MRN0001_lab_result.pdf",
+      import.meta.url,
+    ),
   );
   await page.setInputFiles('input[type="file"]', testPdfPath);
   await page.getByRole("button", { name: "Upload document" }).click();
@@ -76,16 +96,10 @@ test("upload, correct, approve, explore, chat, and open exact evidence", async (
 
   const docUrl = page.url();
 
-  // 7. log in as different approver (Cardiologist)
+  // 7. log in as a distinct admin approver through the real backend auth flow
   // We can just navigate to /auth/login, it will wipe the session in memory?
   // Actually, there's no sign out button in the test right now, so let's try just going to login
-  await page.goto("/auth/login");
-  await page.getByRole("tab", { name: "Demo Role" }).click();
-  await page.locator("button:has-text('Cardiologist')").click();
-  await page
-    .getByRole("tabpanel", { name: "Demo Role" })
-    .getByRole("button", { name: "Sign in", exact: true })
-    .click();
+  await signInAsRealUser(page, "admin@example.test");
   await expect(page.getByText("Welcome")).toBeVisible();
 
   // 8. approve

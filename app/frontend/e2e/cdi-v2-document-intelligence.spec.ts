@@ -155,10 +155,11 @@ test("upload, correct, approve, explore graph and timeline, chat, and open exact
 
   // Negative check 4: invalid stream order shows safe error state
   await page.route(
-    "**/chat/stream",
+    "**/api/v1/chat/stream",
     async (route) => {
       // Return an invalid stream order: tokens before metadata
-      const invalidPayload = `event: token\ndata: {"text":"hello"}\n\n`;
+      const invalidPayload =
+        'data: {"type":"token","sequence":1,"content":"hello","validation_mode":"sentence_buffered"}\n\n';
       await route.fulfill({
         status: 200,
         contentType: "text/event-stream",

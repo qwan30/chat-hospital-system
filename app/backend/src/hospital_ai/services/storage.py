@@ -162,7 +162,11 @@ class LocalStorageService:
 
     def create_presigned_put(self, *, key: str, content_type: str, expires_seconds: int) -> PresignedPut:
         validated_key = validate_storage_object_key(key, allowed_prefixes=("source/", "patients/"))
-        target_path = self._resolve_local_path(validated_key)
+        root = os.path.realpath(os.fspath(self.root))
+        target = os.path.realpath(os.path.join(root, validated_key))
+        if target != root and not target.startswith(root + os.sep):
+            raise ValueError("Storage URI points outside the configured local storage root.")
+        target_path = Path(target)
         target_path.parent.mkdir(parents=True, exist_ok=True)
         return PresignedPut(
             url=f"local://{validated_key}",
@@ -171,7 +175,11 @@ class LocalStorageService:
 
     def head_object(self, key: str) -> StorageObjectHead:
         validated_key = validate_storage_object_key(key, allowed_prefixes=("source/", "patients/"))
-        target_path = self._resolve_local_path(validated_key)
+        root = os.path.realpath(os.fspath(self.root))
+        target = os.path.realpath(os.path.join(root, validated_key))
+        if target != root and not target.startswith(root + os.sep):
+            raise ValueError("Storage URI points outside the configured local storage root.")
+        target_path = Path(target)
         if not target_path.exists():
             raise FileNotFoundError("Storage object not found.")
         return StorageObjectHead(

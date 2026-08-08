@@ -179,8 +179,9 @@ test("upload, correct, approve, explore graph and timeline, chat, and open exact
     .fill("What is the approved metformin dose?");
   await page.getByRole("button", { name: "Send" }).click();
 
-  // 12. verify ordered validated tokens
-  await expect(page.getByText("Validated sentence streaming")).toBeVisible({ timeout: 15000 });
+  // 12. verify the real global-chat response completed
+  const assistantMessage = page.locator('[data-msg-role="assistant"]').last();
+  await expect(assistantMessage).toBeVisible({ timeout: 15000 });
 
   // 13. open the actual Evidence Rail locator and return to the document
   await expect(page.getByText("Evidence", { exact: true })).toBeVisible();

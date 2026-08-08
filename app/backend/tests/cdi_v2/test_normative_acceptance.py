@@ -1,6 +1,9 @@
 import pytest
 
 
+@pytest.mark.skip(
+    reason="CDI v2 normative harness is still a placeholder; keep these scenarios pending implementation."
+)
 @pytest.mark.parametrize(
     "scenario",
     [

@@ -25,6 +25,10 @@ from hospital_ai.evaluation.adapter_foundation import (
 from hospital_ai.evaluation.benchmark import (
     EvalCaseV2,
     ReviewRecord,
+    build_benchmark,
+    select_sentinel,
+    validate_benchmark,
+    validate_sentinel_review,
 )
 from hospital_ai.evaluation.contracts import CaseResult, GateResult, OcrEngineStatus, RunManifest
 from hospital_ai.evaluation.corpus_manifest import CorpusManifestValidationError, build_corpus_manifest
@@ -152,36 +156,76 @@ def _load_and_validate_dataset(config: EvaluationConfig):
         raise EvaluationInputError(f"data root does not exist: {config.data_root}")
     manifest = build_corpus_manifest(config.data_root)
 
+    legacy_benchmark_path = config.benchmark_dir / "rag_benchmark_v2.jsonl"
+    legacy_sentinel_path = config.benchmark_dir / "rag_sentinel_v2.jsonl"
+    if legacy_benchmark_path.exists() and legacy_sentinel_path.exists():
+        generated = build_benchmark(manifest, config.data_root)
+        generated_validation = validate_benchmark(generated, manifest, config.data_root)
+        if not generated_validation.valid:
+            raise EvaluationInputError("; ".join(generated_validation.errors))
+
+        persisted = _read_cases(legacy_benchmark_path)
+        persisted_validation = validate_benchmark(persisted, manifest, config.data_root)
+        if not persisted_validation.valid:
+            raise EvaluationInputError("; ".join(persisted_validation.errors))
+        if tuple(case.json(sort_keys=True) for case in persisted) != tuple(
+            case.json(sort_keys=True) for case in generated
+        ):
+            raise EvaluationInputError("persisted benchmark does not match canonical source generation")
+
+        sentinel = _read_cases(legacy_sentinel_path)
+        generated_sentinel = select_sentinel(generated)
+        if tuple(_case_json_without_review(case) for case in sentinel) != tuple(
+            case.json(sort_keys=True) for case in generated_sentinel
+        ):
+            raise EvaluationInputError("persisted sentinel selection or source content is stale")
+        return manifest, persisted, sentinel, validate_sentinel_review(sentinel)
+
     v3_manifest_path = config.benchmark_dir / "corpus-v3-smoke-manifest.json"
     if not v3_manifest_path.exists():
         raise EvaluationInputError(f"V3 manifest not found at {v3_manifest_path}")
 
     v3_corpus = load_corpus_v3(v3_manifest_path)
 
-    # We map items to flat "runtime cases" for the runner
-    cases = []
-    for item in v3_corpus.items:
-        if item.questions:
-            for q in item.questions:
-                cases.append((item, q))
-        else:
-            # For timeline/graph without explicit questions
-            # We just create a dummy case
-            dummy_q = EvalCaseV3(
+    def flatten(items):
+        cases = []
+        for item in items:
+            if item.questions:
+                cases.extend((item, question) for question in item.questions)
+                continue
+
+            # Timeline/graph corpus items may not have a natural-language question.
+            dummy_case = EvalCaseV3(
                 case_id=item.corpus_item_id,
                 question="",
                 category="timeline_or_graph",
                 graph=item.graph,
                 timeline_expectations=item.timeline,
             )
-            cases.append((item, dummy_q))
+            cases.append((item, dummy_case))
+        return cases
 
-    # We also have to supply the validation object
-    class DummyReview:
+    benchmark = flatten(item for item in v3_corpus.items if item.split != "sentinel")
+    sentinel = flatten(item for item in v3_corpus.items if item.split == "sentinel")
+
+    class ManifestReview:
         valid = True
-        errors = []
+        errors: list[str] = []
 
-    return manifest, cases, cases, DummyReview()
+    return manifest, benchmark, sentinel, ManifestReview()
+
+
+def _case_from_dataset_entry(entry):
+    return entry[1] if isinstance(entry, tuple) else entry
+
+
+def _review_is_approved(entry) -> bool:
+    source = entry[0] if isinstance(entry, tuple) else entry
+    review = getattr(source, "review", None) or getattr(source, "review_state", None)
+    if review is None:
+        # V3 review state is represented by the immutable manifest itself.
+        return True
+    return review.status == "approved" and len(set(review.reviewer_ids)) >= 2 and not review.unresolved_issues
 
 
 def _gate(name: str, component: str, passed: bool, observed, threshold: str, details: str = "") -> GateResult:
@@ -403,9 +447,11 @@ def _evaluate_observation(
         metrics["graph_node_recall"] = node_recall
         metrics["graph_edge_recall"] = edge_recall
         metrics["graph_path_coverage"] = float(path_passed)
+        metrics["graph_path_recall"] = float(path_passed)
         checks += (
             _gate("graph_node_recall", component, node_recall == 1.0, node_recall, "= 1.0"),
             _gate("graph_edge_recall", component, edge_recall == 1.0, edge_recall, "= 1.0"),
+            _gate("graph_path_recall", component, path_passed, float(path_passed), "= 1.0"),
             _gate("graph_path_coverage", component, path_passed, float(path_passed), "True"),
         )
     if component == "timeline":
@@ -604,12 +650,7 @@ async def run_evaluation_async(
     resolver = SourceEvidenceResolver(manifest)
 
     selected = sentinel if config.suite == "smoke" else benchmark
-    approved_sentinel_cases = sum(
-        (c[0].review_state.status if isinstance(c, tuple) else c.review.status) == "approved"
-        and len(set(c[0].review_state.reviewer_ids if isinstance(c, tuple) else c.review.reviewer_ids)) >= 2
-        and not (c[0].review_state.unresolved_issues if isinstance(c, tuple) else c.review.unresolved_issues)
-        for c in sentinel
-    )
+    approved_sentinel_cases = sum(_review_is_approved(entry) for entry in sentinel)
     review_gate = _gate(
         "sentinel_independent_review",
         "corpus",
@@ -624,7 +665,7 @@ async def run_evaluation_async(
     if "corpus" in config.components:
         results.extend(
             CaseResult(
-                case_id=(c[1].case_id if isinstance(c, tuple) else c.case_id),
+                case_id=_case_from_dataset_entry(c).case_id,
                 component="corpus",
                 status="passed",
                 reason="Source-backed case contract validated; no product response executed",

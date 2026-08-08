@@ -18,7 +18,7 @@ from hospital_ai.db.clinical_documents import (
     OcrLine,
     OcrSpan,
 )
-from hospital_ai.db.models import Document, DocumentProcessingEvent
+from hospital_ai.db.models import Document, DocumentPage, DocumentProcessingEvent
 from hospital_ai.services.ocr import OcrService
 
 
@@ -122,6 +122,23 @@ class _RevisionIngest:
     ) -> None:
         selected: dict[str, str] = {}
         for p in pages:
+            compatibility_page = await session.scalar(
+                select(DocumentPage).where(
+                    DocumentPage.document_id == document.id,
+                    DocumentPage.page_number == p.page_number,
+                )
+            )
+            if compatibility_page is None:
+                session.add(
+                    DocumentPage(
+                        document_id=document.id,
+                        page_number=p.page_number,
+                        ocr_text=p.raw_text,
+                        ocr_confidence=p.confidence,
+                    )
+                )
+                await session.flush()
+
             sha256_val = hashlib.sha256(p.raw_text.encode("utf-8")).hexdigest()
             rev = DocumentPageRevision(
                 document_id=document.id,

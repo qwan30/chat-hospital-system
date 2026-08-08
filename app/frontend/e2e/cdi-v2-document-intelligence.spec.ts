@@ -90,9 +90,15 @@ test("upload, correct, approve, explore graph and timeline, chat, and open exact
   // Do the actual edit again
   await page.getByRole("textbox", { name: "Corrected page text" }).fill("Corrected 500 mg dose");
   await page.getByPlaceholder("Edit reason").fill("Correct numeric dose");
+  const saveDraftResponse = page.waitForResponse(
+    (response) =>
+      response.request().method() === "PATCH" &&
+      response.url().includes("/draft/pages/") &&
+      response.status() === 201,
+  );
   await page.getByRole("button", { name: "Save draft" }).click();
+  await saveDraftResponse;
 
-  // Wait for save to complete (Save draft disabled)
   // 6. submit
   await page.getByRole("button", { name: "Submit Draft" }).click();
 

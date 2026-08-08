@@ -32,6 +32,7 @@ ROLE_CAPABILITIES: Final[dict[str, frozenset[str]]] = {
     ),
     "admin": frozenset(
         {
+            "document_revision.view_raw",
             "document_revision.reject",
             "document_revision.approve",
             "document_revision.restore",

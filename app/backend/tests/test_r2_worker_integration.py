@@ -1,10 +1,12 @@
 from __future__ import annotations
 
 import hashlib
+import uuid
 
 import fitz
 import pytest
 
+from hospital_ai.db.clinical_documents import DocumentUpload
 from hospital_ai.db.migrations import PATIENT_ALICE_ID, RECORDS_ID
 from hospital_ai.db.models import Document
 from hospital_ai.workers import jobs
@@ -64,6 +66,21 @@ async def test_worker_processes_r2_uri_and_fingerprints_source(
         status="uploaded",
     )
     session.add(document)
+    await session.flush()
+
+    upload_id = uuid.uuid4()
+    upload = DocumentUpload(
+        id=upload_id,
+        document_id=document.id,
+        state="finalized",
+        object_key=f"source/{PATIENT_ALICE_ID}/{document.id}/{upload_id}/original.pdf",
+        expected_sha256=hashlib.sha256(source).hexdigest(),
+        byte_size=len(source),
+        mime_type="application/pdf",
+        actor_user_id=RECORDS_ID,
+    )
+    session.add(upload)
+    document.finalized_upload_id = upload.id
     await session.commit()
 
     await jobs.process_document(session, document.id, settings)

@@ -61,9 +61,6 @@ def upgrade() -> None:
     with op.batch_alter_table("document_uploads", schema=None) as batch_op:
         batch_op.drop_column("quarantine_result")
 
-    with op.batch_alter_table("graph_entities", schema=None) as batch_op:
-        batch_op.create_unique_constraint("uq_graph_entity_patient_id", ["patient_id", "id"])
-
     with op.batch_alter_table("graph_mentions", schema=None) as batch_op:
         if batch_op.impl.dialect.name != "sqlite":
             batch_op.drop_constraint("graph_mentions_entity_id_fkey", type_="foreignkey")
@@ -178,9 +175,6 @@ def downgrade() -> None:
     with op.batch_alter_table("graph_mentions", schema=None) as batch_op:
         batch_op.drop_constraint("fk_graph_mention_entity_patient", type_="foreignkey")
         batch_op.create_foreign_key(None, "graph_entities", ["entity_id"], ["id"])
-
-    with op.batch_alter_table("graph_entities", schema=None) as batch_op:
-        batch_op.drop_constraint("uq_graph_entity_patient_id", type_="unique")
 
     with op.batch_alter_table("document_uploads", schema=None) as batch_op:
         batch_op.add_column(sa.Column("quarantine_result", sa.TEXT(), nullable=True))

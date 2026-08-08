@@ -732,7 +732,6 @@ async def run_evaluation_async(
         else:
             assert isolation is not None
             if component in ("graph", "timeline"):
-                expectation_attr = "graph" if component == "graph" else "timeline_expectations"
                 component_cases = [
                     c
                     for c in selected

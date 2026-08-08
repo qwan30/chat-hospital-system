@@ -3,7 +3,7 @@ from __future__ import annotations
 import uuid
 from datetime import datetime
 
-from sqlalchemy import DateTime, Float, ForeignKey, ForeignKeyConstraint, Index, String, UniqueConstraint, func
+from sqlalchemy import DateTime, ForeignKey, ForeignKeyConstraint, String, UniqueConstraint, func
 from sqlalchemy.orm import Mapped, mapped_column
 
 from hospital_ai.db.models import Base

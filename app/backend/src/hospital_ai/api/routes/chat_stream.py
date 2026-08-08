@@ -186,6 +186,270 @@ async def _best_effort_failed_completion(
         logger.exception("Failed to persist terminal stream state reason=%s", failure_reason)
 
 
+async def _safe_refusal_stream(
+    *,
+    answer: str,
+    query_id: UUID,
+    reason: str,
+    model: str,
+) -> AsyncIterator[str]:
+    """Emit a safe refusal using the validated SSE contract."""
+    events = (
+        {"type": "status", "stage": "retrieving"},
+        {
+            "type": "metadata",
+            "confidence": "low",
+            "pipeline": "simple_qa",
+            "model": model,
+            "validation_mode": "sentence_buffered",
+        },
+        {
+            "type": "token",
+            "content": answer,
+            "sequence": 1,
+            "validation_mode": "sentence_buffered",
+        },
+        {"type": "citations", "data": []},
+        {
+            "type": "done",
+            "query_id": str(query_id),
+            "validation": "failed",
+            "reason": reason,
+            "confidence": "low",
+        },
+    )
+    for event in events:
+        yield f"data: {json.dumps(event)}\n\n"
+
+
+async def _generate_validated_sse_events(
+    *,
+    settings: Settings,
+    question: str,
+    evidence: list,
+    conversation_history: list,
+    query_id: UUID,
+    on_complete: Optional[OnCompleteCallback],
+    stream_state: dict[str, Any],
+) -> AsyncIterator[str]:
+    """Stream only sentence-validated output from the provider.
+
+    The provider iterator is consumed by ``ValidatedSentenceStreamer``. Raw
+    fragments never enter the SSE serializer; a complete sentence is either
+    emitted after deterministic validation or replaced by a safe refusal.
+    """
+    completion_callback_active = False
+    refused = False
+    preamble: list[dict[str, Any]] = []
+    preamble_emitted = False
+    cited_evidence: list[Any] = []
+    citations_payload: list[dict[str, Any]] = []
+
+    stream_state.setdefault("last_emitted_sequence", 0)
+    stream_state.setdefault("validation_mode", "sentence_buffered")
+    stream_state.setdefault("answer", "")
+    stream_state.setdefault("guardrail_blocked", False)
+
+    async def complete_terminal(completion: StreamCompletion) -> None:
+        nonlocal completion_callback_active
+        completion_callback_active = True
+        await _complete_stream(on_complete, completion)
+        completion_callback_active = False
+
+    def serialize(event: dict[str, Any]) -> str:
+        return f"data: {json.dumps(event)}\n\n"
+
+    async def sentence_guardrail(sentence: str) -> Optional[str]:
+        result = await get_output_guardrail().scan(question, f"{sentence} ")
+        if result.blocked:
+            stream_state["guardrail_blocked"] = True
+            return SAFE_PHI_LEAK_BLOCKED_ANSWER
+        return None
+
+    try:
+        llm = LLMManager(settings).get()
+        prompt = build_grounded_prompt(question, evidence, conversation_history)
+        messages = [
+            LLMMessage(
+                role="system",
+                content=(
+                    "You are a hospital knowledge assistant. Answer only from the evidence. "
+                    "Cite every factual claim using evidence IDs like [E1]."
+                ),
+            ),
+            LLMMessage(role="user", content=prompt),
+        ]
+        evidence_by_id = {item.evidence_id: item.content for item in evidence}
+        provisional_confidence = confidence_from_score(evidence[0].score) if evidence else "low"
+        streamer = ValidatedSentenceStreamer()
+
+        async for event in streamer.events(
+            llm.stream(messages),
+            evidence_by_id,
+            None,
+            sentence_guardrail=sentence_guardrail,
+        ):
+            if event.type == "status":
+                preamble.append({"type": "status", "stage": event.content or "retrieving"})
+                continue
+            if event.type == "metadata":
+                preamble.append(
+                    {
+                        "type": "metadata",
+                        "confidence": provisional_confidence,
+                        "pipeline": "simple_qa",
+                        "model": llm.model_name(),
+                        "validation_mode": "sentence_buffered",
+                    }
+                )
+                continue
+            if event.type == "token":
+                validation_passed = event.validation_passed is not False
+                if not validation_passed:
+                    refused = True
+                content = event.content or ""
+                if not validation_passed:
+                    content = (
+                        SAFE_PHI_LEAK_BLOCKED_ANSWER if stream_state["guardrail_blocked"] else SAFE_NO_EVIDENCE_ANSWER
+                    )
+                stream_state["answer"] += content
+                stream_state["last_emitted_sequence"] = event.sequence or stream_state["last_emitted_sequence"]
+                stream_state["validation_mode"] = event.validation_mode or "sentence_buffered"
+                if not preamble_emitted and validation_passed:
+                    for item in preamble:
+                        yield serialize(item)
+                    preamble_emitted = True
+                yield serialize(
+                    {
+                        "type": "token",
+                        "content": content,
+                        "sequence": event.sequence,
+                        "validation_mode": event.validation_mode or "sentence_buffered",
+                    }
+                )
+                continue
+            if event.type == "citations":
+                citation_ids = extract_citation_ids(stream_state["answer"])
+                allowed_ids = set(evidence_by_id)
+                if citation_ids and citation_ids.issubset(allowed_ids) and not refused:
+                    cited_evidence = [item for item in evidence if item.evidence_id in citation_ids]
+                    citations_payload = [
+                        {
+                            "evidence_id": item.evidence_id,
+                            "document_id": str(item.document_id),
+                            "document_title": item.document_title,
+                            "page": item.page,
+                            "score": item.score,
+                            "content": item.content[:200],
+                        }
+                        for item in cited_evidence
+                    ]
+                    yield serialize({"type": "citations", "data": citations_payload})
+                else:
+                    refused = True
+                continue
+            if event.type == "graph_explanation":
+                if not refused:
+                    yield serialize({"type": "graph_explanation", "data": event.data or ""})
+                continue
+            if event.type == "done":
+                if stream_state["guardrail_blocked"]:
+                    completion = StreamCompletion(
+                        validation_status="failed",
+                        answer=SAFE_PHI_LEAK_BLOCKED_ANSWER,
+                        cited_evidence=[],
+                        citations_payload=[],
+                        confidence="low",
+                        failure_reason="output_guardrail_blocked",
+                        validation_mode=stream_state["validation_mode"],
+                        last_emitted_sequence=stream_state["last_emitted_sequence"],
+                    )
+                    validation = "failed"
+                    reason = "output_guardrail_blocked"
+                elif refused or not cited_evidence:
+                    completion = StreamCompletion(
+                        validation_status="failed",
+                        answer=SAFE_NO_EVIDENCE_ANSWER,
+                        cited_evidence=[],
+                        citations_payload=[],
+                        confidence="low",
+                        failure_reason="invalid_citation",
+                        validation_mode=stream_state["validation_mode"],
+                        last_emitted_sequence=stream_state["last_emitted_sequence"],
+                    )
+                    validation = "failed"
+                    reason = "invalid_citation"
+                else:
+                    avg_score = sum(item.score for item in cited_evidence) / len(cited_evidence)
+                    confidence = confidence_from_score(avg_score)
+                    completion = StreamCompletion(
+                        validation_status="passed",
+                        answer=stream_state["answer"],
+                        cited_evidence=cited_evidence,
+                        citations_payload=citations_payload,
+                        confidence=confidence,
+                        validation_mode=stream_state["validation_mode"],
+                        last_emitted_sequence=stream_state["last_emitted_sequence"],
+                    )
+                    validation = "passed"
+                    reason = None
+                await complete_terminal(completion)
+                done_event = {"type": "done", "query_id": str(query_id), "validation": validation}
+                if reason is not None:
+                    done_event["reason"] = reason
+                yield serialize(done_event)
+    except _StreamPersistenceError:
+        logger.exception("SSE chat completion persistence failed query_id=%s", query_id)
+        yield serialize(
+            {
+                "type": "error",
+                "code": "INTERNAL_ERROR",
+                "message": "Stream failed due to an internal error.",
+            }
+        )
+    except asyncio.CancelledError:
+        if not completion_callback_active:
+            await _best_effort_failed_completion(
+                on_complete,
+                failure_reason="cancelled",
+                answer=stream_state["answer"],
+                last_emitted_sequence=stream_state["last_emitted_sequence"],
+                validation_mode=stream_state["validation_mode"],
+            )
+        raise
+    except AppError as exc:
+        await _best_effort_failed_completion(
+            on_complete,
+            failure_reason="app_error",
+            answer=stream_state["answer"],
+            last_emitted_sequence=stream_state["last_emitted_sequence"],
+            validation_mode=stream_state["validation_mode"],
+        )
+        yield serialize(
+            {
+                "type": "error",
+                "code": exc.code,
+                "message": SAFE_EXTERNAL_SERVICE_ERROR_MESSAGE,
+            }
+        )
+    except Exception:
+        logger.exception("SSE chat stream failed unexpectedly query_id=%s", query_id)
+        await _best_effort_failed_completion(
+            on_complete,
+            failure_reason="internal_error",
+            answer=stream_state["answer"],
+            last_emitted_sequence=stream_state["last_emitted_sequence"],
+            validation_mode=stream_state["validation_mode"],
+        )
+        yield serialize(
+            {
+                "type": "error",
+                "code": "INTERNAL_ERROR",
+                "message": "Stream failed due to an internal error.",
+            }
+        )
+
+
 async def _generate_sse_events(
     *,
     settings: Settings,
@@ -774,19 +1038,15 @@ async def chat_stream(
         )
         await session.commit()
 
-        async def input_refusal_stream() -> AsyncIterator[str]:
-            token = json.dumps({"type": "token", "content": SAFE_INJECTION_DETECTED_ANSWER})
-            yield f"data: {token}\n\n"
-            done = json.dumps(
-                {
-                    "type": "done",
-                    "query_id": str(ai_query.id),
-                    "confidence": "low",
-                }
-            )
-            yield f"data: {done}\n\n"
-
-        return StreamingResponse(input_refusal_stream(), media_type="text/event-stream")
+        return StreamingResponse(
+            _safe_refusal_stream(
+                answer=SAFE_INJECTION_DETECTED_ANSWER,
+                query_id=ai_query.id,
+                reason="input_guardrail_blocked",
+                model=settings.chat_model if settings.chat_provider == "ollama" else "stub",
+            ),
+            media_type="text/event-stream",
+        )
 
     # Gather conversation history
     conversation_history: list = []
@@ -937,13 +1197,15 @@ async def chat_stream(
                 failure_reason="denied" if is_blocked else "no_evidence",
             )
 
-            async def no_evidence_stream() -> AsyncIterator[str]:
-                event = json.dumps({"type": "token", "content": answer_text})
-                yield f"data: {event}\n\n"
-                done = json.dumps({"type": "done", "query_id": str(ai_query.id), "confidence": "low"})
-                yield f"data: {done}\n\n"
-
-            return StreamingResponse(no_evidence_stream(), media_type="text/event-stream")
+            return StreamingResponse(
+                _safe_refusal_stream(
+                    answer=answer_text,
+                    query_id=ai_query.id,
+                    reason=failure_reason,
+                    model=settings.chat_model if settings.chat_provider == "ollama" else "stub",
+                ),
+                media_type="text/event-stream",
+            )
 
         selected_pipeline = _select_pipeline(payload.pipeline, payload.question)
 

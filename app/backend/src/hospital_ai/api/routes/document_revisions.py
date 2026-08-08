@@ -6,6 +6,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from hospital_ai.api.deps import get_current_user, get_session
+from hospital_ai.core.config import get_settings
 from hospital_ai.core.errors import ConflictError
 from hospital_ai.core.security import new_trace_id
 from hospital_ai.db.clinical_documents import (
@@ -247,7 +248,13 @@ async def approve_revision_set(
         json.loads(res_model.model_dump_json() if hasattr(res_model, "model_dump_json") else res_model.json()),
     )
     await session.commit()
-    revision_services.enqueue_build_generation_job(res.generation_id)
+    settings = get_settings()
+    if settings.worker_inline:
+        from hospital_ai.workers.generation_jobs import GenerationBuilder
+
+        await GenerationBuilder.from_settings(session, settings).build(res.generation_id)
+    else:
+        revision_services.enqueue_build_generation_job(res.generation_id)
     return res_model
 
 

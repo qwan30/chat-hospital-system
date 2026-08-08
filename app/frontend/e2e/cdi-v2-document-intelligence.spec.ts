@@ -114,9 +114,8 @@ test("upload, correct, approve, explore, chat, and open exact evidence", async (
   await expect(page.getByRole("button", { name: "Approve" })).toBeVisible();
   await page.getByRole("button", { name: "Approve" }).click();
 
-  // 9. wait for active generation
-  // The badge status might change to generation_active
-  await expect(page.getByText("generation_active", { exact: true })).toBeVisible({
+  // 9. wait for the newly activated generation to make the document ready
+  await expect(page.getByText("ready", { exact: true })).toBeVisible({
     timeout: 15000,
   });
 

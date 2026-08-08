@@ -600,6 +600,7 @@ jobs:
           HOSPITAL_AI_CHAT_PROVIDER: "stub"
           HOSPITAL_AI_EMBEDDING_PROVIDER: "deterministic"
           HOSPITAL_AI_ALLOW_SYNTHETIC_MALWARE_SCAN: "true"
+          HOSPITAL_AI_WORKER_INLINE: "true"
         run: docker compose up -d --build
 
       - name: Wait for backend

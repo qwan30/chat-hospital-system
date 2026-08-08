@@ -107,6 +107,7 @@ export function DocumentWorkspace({ documentId }: { documentId: string }) {
     onSuccess: () => {
       toast.success("Revision approved. Generation started.");
       queryClient.invalidateQueries({ queryKey: ["document-revision-sets", documentId] });
+      queryClient.invalidateQueries({ queryKey: ["document", documentId] });
     },
   });
 

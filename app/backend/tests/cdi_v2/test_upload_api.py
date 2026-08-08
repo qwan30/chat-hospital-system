@@ -120,6 +120,8 @@ async def test_finalize_upload_session(session_and_settings, monkeypatch: pytest
     from hospital_ai.schemas.document_uploads import UploadSessionCreate
     from hospital_ai.services.storage import StorageObjectHead
 
+    monkeypatch.setattr(upload_routes, "get_settings", lambda: settings)
+
     doctor = await session.get(User, DOCTOR_ID)
     if not doctor:
         doctor = User(

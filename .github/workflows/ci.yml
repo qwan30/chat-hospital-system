@@ -599,6 +599,7 @@ jobs:
           HOSPITAL_AI_JWT_HMAC_SECRET: "dummy-secret"
           HOSPITAL_AI_CHAT_PROVIDER: "stub"
           HOSPITAL_AI_EMBEDDING_PROVIDER: "deterministic"
+          HOSPITAL_AI_ALLOW_SYNTHETIC_MALWARE_SCAN: "true"
         run: docker compose up -d --build
 
       - name: Wait for backend

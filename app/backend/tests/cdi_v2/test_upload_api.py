@@ -54,6 +54,8 @@ async def test_create_upload_session_idempotency_replay(session_and_settings, mo
     payload = UploadSessionCreate(
         patient_id=PATIENT_ALICE_ID,
         filename="report.pdf",
+        title="Synthetic report",
+        document_type="scan",
         expected_size=1024,
         expected_sha256="b" * 64,
         claimed_mime_type="application/pdf",
@@ -77,6 +79,36 @@ async def test_create_upload_session_idempotency_replay(session_and_settings, mo
 
     assert res1.upload_id == res2.upload_id
     assert res1.object_key == res2.object_key
+    document = await session.get(Document, res1.document_id)
+    assert document is not None
+    assert document.title == "Synthetic report"
+    assert document.document_type == "scan"
+
+
+@pytest.mark.asyncio
+async def test_upload_service_scanner_requires_explicit_local_opt_in(
+    session_and_settings, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    session, settings = session_and_settings
+    from hospital_ai.core import config
+    from hospital_ai.services.upload_sessions import (
+        SyntheticCleanMalwareScanner,
+        UnavailableMalwareScanner,
+        UploadSessionService,
+    )
+
+    monkeypatch.setattr(config, "get_settings", lambda: settings)
+
+    disabled = UploadSessionService.from_request(session, _request())
+    assert isinstance(disabled.scanner, UnavailableMalwareScanner)
+
+    settings.allow_synthetic_malware_scan = True
+    enabled = UploadSessionService.from_request(session, _request())
+    assert isinstance(enabled.scanner, SyntheticCleanMalwareScanner)
+
+    settings.environment = "staging"
+    staging = UploadSessionService.from_request(session, _request())
+    assert isinstance(staging.scanner, UnavailableMalwareScanner)
 
 
 @pytest.mark.asyncio

@@ -9,6 +9,7 @@ import {
   restoreRevision,
   getRevisionPage,
   getDraftPage,
+  listRevisionSets,
   submitDraft,
 } from "@/lib/api/document-revisions";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -116,6 +117,30 @@ describe("DocumentWorkspace", () => {
         expect.objectContaining({ lockVersion: 3 }),
       );
     });
+  });
+
+  it("selects a submitted revision when reopening a document for approval", async () => {
+    vi.mocked(listRevisionSets).mockResolvedValueOnce([
+      {
+        revision_set_id: "submitted-set",
+        revision_number: 2,
+        status: "submitted",
+        created_by_user_id: "doctor-1",
+        created_at: null,
+        submitted_at: null,
+        approved_by_user_id: null,
+        approved_at: null,
+        document_id: "doc-1",
+      },
+    ]);
+
+    render(
+      <QueryClientProvider client={new QueryClient()}>
+        <DocumentWorkspace documentId="doc-1" />
+      </QueryClientProvider>,
+    );
+
+    expect(await screen.findByRole("button", { name: "Approve" })).toBeVisible();
   });
 });
 

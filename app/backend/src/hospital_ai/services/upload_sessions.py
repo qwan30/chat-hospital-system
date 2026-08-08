@@ -17,7 +17,7 @@ from hospital_ai.db.clinical_documents import DocumentUpload
 from hospital_ai.db.models import Document
 from hospital_ai.schemas.document_uploads import UploadFinalizeResult, UploadSessionRead
 from hospital_ai.services.idempotency import IdempotencyService
-from hospital_ai.services.storage import StorageObjectHead
+from hospital_ai.services.storage import LocalStorageService, StorageObjectHead
 
 
 @dataclass
@@ -325,7 +325,9 @@ class UploadSessionService:
         document = await self._lock_document(document_id)
         upload.state = "finalized"
         document.finalized_upload_id = upload.id
-        document.storage_uri = f"r2://{upload.object_key}"
+        document.storage_uri = (
+            upload.object_key if isinstance(self.storage, LocalStorageService) else f"r2://{upload.object_key}"
+        )
         document.status = "uploaded"
         await self._record_finalization(document, upload, actor)
         if commit:

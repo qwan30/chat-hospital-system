@@ -24,43 +24,17 @@ import re
 import uuid
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
-from typing import Optional, TypeAlias
+from typing import Optional
 
-from sqlalchemy import Float, ForeignKey, String, delete, func, or_, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import Mapped, mapped_column
 
-from hospital_ai.db.models import Base, TimestampMixin
+from hospital_ai.db.clinical_graph import LegacyGraphEntity as GraphEntity
+from hospital_ai.db.clinical_graph import LegacyGraphRelation as GraphRelation
 from hospital_ai.services.llm.base import LLMMessage
 from hospital_ai.services.llm.manager import get_llm_manager
 
 # ── ORM Models ──────────────────────────────────────────────────────────
-
-
-class GraphEntity(TimestampMixin, Base):
-    """A named entity extracted from document text (e.g. drug, condition, lab)."""
-
-    __tablename__ = "graph_entities"
-
-    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
-    name: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
-    entity_type: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
-    source_chunk_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("document_chunks.id"), nullable=False, index=True)
-    source_document_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("documents.id"), nullable=False, index=True)
-    confidence: Mapped[float] = mapped_column(Float, nullable=False, default=1.0)
-
-
-class GraphRelation(TimestampMixin, Base):
-    """A relationship between two entities (e.g. 'treats', 'causes', 'contraindicates')."""
-
-    __tablename__ = "graph_relations"
-
-    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
-    source_entity_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("graph_entities.id"), nullable=False, index=True)
-    target_entity_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("graph_entities.id"), nullable=False, index=True)
-    relation_type: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
-    weight: Mapped[float] = mapped_column(Float, nullable=False, default=1.0)
-    source_chunk_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("document_chunks.id"), nullable=False, index=True)
 
 
 # ── Data classes ─────────────────────────────────────────────────────────
@@ -68,17 +42,28 @@ class GraphRelation(TimestampMixin, Base):
 
 @dataclass(frozen=True)
 class ExtractedEntity:
-    name: str
+    normalized_label: str
     entity_type: str
     confidence: float = 1.0
 
 
 @dataclass(frozen=True)
 class ExtractedRelation:
-    source_name: str
-    target_name: str
+    subject_label: str
+    object_label: str
     relation_type: str
+    normalized_value: str = ""
     weight: float = 1.0
+
+    def __post_init__(self):
+        if not self.normalized_value:
+            object.__setattr__(self, "normalized_value", self.relation_type)
+
+
+@dataclass(frozen=True)
+class GraphExtraction:
+    entities: list[ExtractedEntity]
+    relations: list[ExtractedRelation]
 
 
 @dataclass(frozen=True)
@@ -91,7 +76,7 @@ class GraphContext:
     summary: str
 
 
-EntityRelationExtractor: TypeAlias = Callable[[str], Awaitable[tuple[list[ExtractedEntity], list[ExtractedRelation]]]]
+EntityRelationExtractor = Callable[[str], Awaitable[tuple[list[ExtractedEntity], list[ExtractedRelation]]]]
 
 
 # ── Entity extraction (NLP) ──────────────────────────────────────────────
@@ -152,10 +137,10 @@ def _extract_explicit_relations_fallback(content: str) -> tuple[list[ExtractedEn
     patient-scoped graph traversal as production indexing.
     """
     lab_entities, lab_relations = _extract_labeled_lab_observation(content)
-    entities: dict[str, ExtractedEntity] = {entity.name: entity for entity in lab_entities}
+    entities: dict[str, ExtractedEntity] = {entity.normalized_label: entity for entity in lab_entities}
     relations: list[ExtractedRelation] = list(lab_relations)
     seen_relations: set[tuple[str, str, str]] = {
-        (relation.source_name, relation.target_name, relation.relation_type) for relation in relations
+        (relation.subject_label, relation.object_label, relation.relation_type) for relation in relations
     }
 
     for match in _EXPLICIT_RELATION_PATTERN.finditer(content):
@@ -225,22 +210,30 @@ async def extract_entities_and_relations_nlp(content: str) -> tuple[list[Extract
         for e in data.get("entities", []):
             entities.append(
                 ExtractedEntity(
-                    name=e["name"].lower(),
+                    normalized_label=e["name"].lower(),
                     entity_type=e["entity_type"].lower(),
                     confidence=1.0,
                 )
             )
 
         relations = []
+        seen_relations = set()
         for r in data.get("relations", []):
-            relations.append(
-                ExtractedRelation(
-                    source_name=r["source_name"].lower(),
-                    target_name=r["target_name"].lower(),
-                    relation_type=r["relation_type"].lower(),
-                    weight=1.0,
+            subject_label = r.get("source_name", r.get("subject_label", "")).lower()
+            object_label = r.get("target_name", r.get("object_label", "")).lower()
+            relation_type = r.get("relation_type", "").lower()
+            if not subject_label or not object_label or not relation_type:
+                continue
+            if (subject_label, object_label, relation_type) not in seen_relations:
+                seen_relations.add((subject_label, object_label, relation_type))
+                relations.append(
+                    ExtractedRelation(
+                        subject_label=subject_label,
+                        object_label=object_label,
+                        relation_type=relation_type,
+                        weight=1.0,
+                    )
                 )
-            )
 
         return entities, relations
     except Exception as e:
@@ -257,48 +250,29 @@ async def index_chunk_entities(
     document_id: uuid.UUID,
     content: str,
     *,
-    extractor: EntityRelationExtractor | None = None,
-) -> tuple[list[GraphEntity], list[GraphRelation]]:
-    """Replace a chunk's graph projection with freshly extracted entities.
-
-    ``extractor`` defaults to production LLM-backed extraction. Offline callers
-    can explicitly provide :func:`extract_entities_and_relations_offline`.
-    """
-    await session.execute(delete(GraphRelation).where(GraphRelation.source_chunk_id == chunk_id))
-    await session.execute(delete(GraphEntity).where(GraphEntity.source_chunk_id == chunk_id))
+    extractor: Optional[EntityRelationExtractor] = None,
+) -> tuple[list, list]:
     active_extractor = extract_entities_and_relations_nlp if extractor is None else extractor
     entities, relations = await active_extractor(content)
+    print("EXTRACTION ENTITIES:", entities)
 
-    entity_rows: dict[str, GraphEntity] = {}
-    for entity in entities:
-        row = GraphEntity(
-            name=entity.name,
-            entity_type=entity.entity_type,
-            source_chunk_id=chunk_id,
-            source_document_id=document_id,
-            confidence=entity.confidence,
-        )
-        session.add(row)
-        entity_rows[entity.name] = row
+    from hospital_ai.db.models import DocumentChunk
+    from hospital_ai.services.graph_index import GraphIndexService
 
-    await session.flush()
+    chunk = await session.get(DocumentChunk, chunk_id)
+    if not chunk:
+        print("CHUNK NOT FOUND")
+        return [], []
 
-    relation_rows: list[GraphRelation] = []
-    for relation in relations:
-        source = entity_rows.get(relation.source_name)
-        target = entity_rows.get(relation.target_name)
-        if source and target:
-            row = GraphRelation(
-                source_entity_id=source.id,
-                target_entity_id=target.id,
-                relation_type=relation.relation_type,
-                weight=relation.weight,
-                source_chunk_id=chunk_id,
-            )
-            session.add(row)
-            relation_rows.append(row)
+    print("INDEXING CHUNK:", chunk.id, chunk.patient_id)
+    from hospital_ai.services.graph_rag import GraphExtraction
 
-    return list(entity_rows.values()), relation_rows
+    extraction = GraphExtraction(entities=entities, relations=relations)
+
+    await GraphIndexService(session).index_chunk(chunk.generation_id, chunk, extraction)
+    print("INDEXING COMPLETE")
+
+    return [], []
 
 
 async def find_related_entities(
@@ -308,38 +282,22 @@ async def find_related_entities(
     max_hops: int = 2,
     patient_id: Optional[uuid.UUID] = None,
 ) -> GraphContext:
-    """Find entities related to the given names via graph traversal.
-
-    F-RAG-003: when ``patient_id`` is provided every seed lookup, relation
-    traversal, and entity expansion is restricted to chunks owned by that
-    patient, so the returned ``GraphContext`` (including its summary and
-    entity list) cannot leak data sourced from another patient's records.
-
-    ``patient_id=None`` returns a cross-patient view and is intended only
-    for offline analytics. Caller paths that surface ``GraphContext``
-    fields to a user (summary, entities, relations) MUST pass a non-None
-    ``patient_id``.
-    """
     if not entity_names:
         return GraphContext(entities=[], relations=[], related_chunk_ids=set(), summary="No entities to query.")
 
-    # Normalize
     normalized = [name.lower() for name in entity_names]
 
-    # Lazy import to avoid a circular dependency between the graph_rag
-    # module (registered against `Base`) and the wider models module that
-    # imports services for relationship targets.
-    from hospital_ai.db.models import Document, DocumentChunk, DocumentPage
+    from hospital_ai.db.clinical_graph import GraphEntity, GraphRelationAssertion, GraphRelationEvidence
+    from hospital_ai.db.models import Document, DocumentChunk
 
     allowed_chunks = None
     if patient_id is not None:
+        from hospital_ai.db.models import DocumentPage
+
         allowed_chunks = (
             select(DocumentChunk.id)
             .join(Document, Document.id == DocumentChunk.document_id)
-            .join(
-                DocumentPage,
-                (DocumentPage.id == DocumentChunk.page_id) & (DocumentPage.document_id == DocumentChunk.document_id),
-            )
+            .join(DocumentPage, DocumentPage.id == DocumentChunk.page_id)
             .where(
                 DocumentChunk.patient_id == patient_id,
                 Document.patient_id == patient_id,
@@ -347,23 +305,23 @@ async def find_related_entities(
                 DocumentChunk.deleted_at.is_(None),
                 Document.deleted_at.is_(None),
                 DocumentPage.deleted_at.is_(None),
+                DocumentChunk.generation_id == Document.active_index_generation_id,
             )
             .scalar_subquery()
         )
 
     def _scope_to_patient(stmt):
-        if allowed_chunks is None:
-            return stmt
-        return stmt.where(GraphEntity.source_chunk_id.in_(allowed_chunks))
+        if patient_id is not None:
+            return stmt.where(GraphEntity.patient_id == patient_id)
+        return stmt
 
     def _scope_relations_to_patient(stmt):
-        if allowed_chunks is None:
-            return stmt
-        return stmt.where(GraphRelation.source_chunk_id.in_(allowed_chunks))
+        if patient_id is not None:
+            return stmt.where(GraphRelationAssertion.patient_id == patient_id)
+        return stmt
 
-    # Find seed entities (patient-scoped).
     result = await session.execute(
-        _scope_to_patient(select(GraphEntity).where(func.lower(GraphEntity.name).in_(normalized)))
+        _scope_to_patient(select(GraphEntity).where(func.lower(GraphEntity.normalized_label).in_(normalized)))
     )
     seed_entities = list(result.scalars().all())
 
@@ -375,11 +333,10 @@ async def find_related_entities(
             summary=f"No graph entities found for: {', '.join(entity_names)}",
         )
 
-    # BFS traversal (patient-scoped at every hop).
     visited_ids: set[uuid.UUID] = {e.id for e in seed_entities}
     visited_relation_ids: set[uuid.UUID] = set()
     all_entities = list(seed_entities)
-    all_relations: list[GraphRelation] = []
+    all_relations: list[GraphRelationAssertion] = []
     frontier_ids = visited_ids.copy()
 
     for _ in range(max_hops):
@@ -388,14 +345,12 @@ async def find_related_entities(
 
         result = await session.execute(
             _scope_relations_to_patient(
-                select(GraphRelation)
-                .where(
+                select(GraphRelationAssertion).where(
                     or_(
-                        GraphRelation.source_entity_id.in_(frontier_ids),
-                        GraphRelation.target_entity_id.in_(frontier_ids),
+                        GraphRelationAssertion.subject_entity_id.in_(frontier_ids),
+                        GraphRelationAssertion.object_entity_id.in_(frontier_ids),
                     )
                 )
-                .where(GraphRelation.relation_type != "mentioned_with")
             )
         )
         relations = list(result.scalars().all())
@@ -407,7 +362,7 @@ async def find_related_entities(
 
         next_frontier: set[uuid.UUID] = set()
         for rel in new_relations:
-            for eid in (rel.source_entity_id, rel.target_entity_id):
+            for eid in (rel.subject_entity_id, rel.object_entity_id):
                 if eid not in visited_ids:
                     next_frontier.add(eid)
                     visited_ids.add(eid)
@@ -419,50 +374,48 @@ async def find_related_entities(
             new_entities = list(result.scalars().all())
             all_entities.extend(new_entities)
 
-            # Expand next_frontier by name to enable cross-chunk traversal
-            new_entity_names = {e.name.lower() for e in new_entities}
-            if new_entity_names:
-                expanded_result = await session.execute(
-                    _scope_to_patient(select(GraphEntity.id).where(func.lower(GraphEntity.name).in_(new_entity_names)))
-                )
-                expanded_ids = set(expanded_result.scalars().all())
-                for eid in expanded_ids:
-                    if eid not in visited_ids:
-                        next_frontier.add(eid)
-                        visited_ids.add(eid)
-
         frontier_ids = next_frontier
 
-    # Collect related chunk IDs
     chunk_ids: set[uuid.UUID] = set()
-    for entity in all_entities:
-        chunk_ids.add(entity.source_chunk_id)
-    for relation in all_relations:
-        chunk_ids.add(relation.source_chunk_id)
+    if patient_id is not None and all_relations:
+        assertion_ids = [r.id for r in all_relations]
+        # Query GraphRelationEvidence to find supporting chunks
+        result = await session.execute(
+            select(GraphRelationEvidence.chunk_id)
+            .where(GraphRelationEvidence.assertion_id.in_(assertion_ids))
+            .where(GraphRelationEvidence.chunk_id.in_(allowed_chunks))
+        )
+        chunk_ids.update(result.scalars().all())
+    elif all_relations:
+        assertion_ids = [r.id for r in all_relations]
+        result = await session.execute(
+            select(GraphRelationEvidence.chunk_id).where(GraphRelationEvidence.assertion_id.in_(assertion_ids))
+        )
+        chunk_ids.update(result.scalars().all())
 
-    # Build summary
     entity_list = [
-        ExtractedEntity(name=e.name, entity_type=e.entity_type, confidence=e.confidence) for e in all_entities
+        ExtractedEntity(normalized_label=e.normalized_label, entity_type=e.entity_type, confidence=1.0)
+        for e in all_entities
     ]
     relation_list = []
-    entity_id_to_name = {e.id: e.name for e in all_entities}
+    entity_id_to_name = {e.id: e.normalized_label for e in all_entities}
     for rel in all_relations:
-        src_name = entity_id_to_name.get(rel.source_entity_id, "?")
-        tgt_name = entity_id_to_name.get(rel.target_entity_id, "?")
+        src_name = entity_id_to_name.get(rel.subject_entity_id, "?")
+        tgt_name = entity_id_to_name.get(rel.object_entity_id, "?")
         relation_list.append(
             ExtractedRelation(
-                source_name=src_name,
-                target_name=tgt_name,
+                subject_label=src_name,
+                object_label=tgt_name,
                 relation_type=rel.relation_type,
-                weight=rel.weight,
+                weight=1.0,
             )
         )
 
     summary_parts = [f"Found {len(entity_list)} entities and {len(relation_list)} relations."]
     for e in entity_list[:5]:
-        summary_parts.append(f"  - {e.name} ({e.entity_type})")
+        summary_parts.append(f"- {e.normalized_label} ({e.entity_type})")
     if len(entity_list) > 5:
-        summary_parts.append(f"  ... and {len(entity_list) - 5} more")
+        summary_parts.append("...")
 
     return GraphContext(
         entities=entity_list,

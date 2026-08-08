@@ -224,6 +224,11 @@ class UploadSessionService:
             status="uploaded",
         )
         self.session.add(doc)
+        # The upload row references the document, but the models intentionally
+        # do not expose an ORM relationship between these two records. Flush
+        # the parent explicitly so PostgreSQL cannot observe the child insert
+        # before its referenced document exists.
+        await self.session.flush()
 
         upload = DocumentUpload(
             id=upload_id,

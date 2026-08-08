@@ -1,4 +1,4 @@
-import { apiFetch, apiFetchBlob } from "../api-client";
+import { apiFetch, apiFetchBlob, getStoredApiUrl, getToken } from "../api-client";
 import { mutationHeaders } from "../idempotency";
 
 export interface DocumentRead {
@@ -274,6 +274,11 @@ export class ApiError extends Error {
   }
 }
 
+function localUploadUrl(objectKey: string): string {
+  const encodedKey = objectKey.split("/").map(encodeURIComponent).join("/");
+  return `${getStoredApiUrl()}/documents/upload-objects/${encodedKey}`;
+}
+
 export function putPresignedObject(
   upload: UploadSessionRead & { upload_url?: string }, // Handle both presigned_url and upload_url if there's inconsistency
   file: File,
@@ -281,10 +286,17 @@ export function putPresignedObject(
 ): Promise<void> {
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
-    const url = upload.presigned_url || upload.upload_url;
+    const isLocalUpload = upload.presigned_url?.startsWith("local://") === true;
+    const url = isLocalUpload
+      ? localUploadUrl(upload.object_key)
+      : upload.presigned_url || upload.upload_url;
     if (!url) return reject(new Error("No upload URL provided"));
 
     xhr.open("PUT", url, true);
+    if (isLocalUpload) {
+      const token = getToken();
+      if (token) xhr.setRequestHeader("Authorization", `Bearer ${token}`);
+    }
     for (const [name, value] of Object.entries(upload.required_headers || {})) {
       xhr.setRequestHeader(name, value);
     }

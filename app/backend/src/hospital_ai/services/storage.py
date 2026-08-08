@@ -173,6 +173,18 @@ class LocalStorageService:
             required_headers={"Content-Type": content_type, "If-None-Match": "*"},
         )
 
+    def put_object(self, *, key: str, content: bytes) -> None:
+        validated_key = _validated_local_storage_key(key)
+        root = os.path.realpath(os.fspath(self.root))
+        target = os.path.realpath(os.path.join(root, validated_key))
+        if target != root and not target.startswith(root + os.sep):
+            raise ValueError("Storage URI points outside the configured local storage root.")
+
+        target_path = Path(target)
+        target_path.parent.mkdir(parents=True, exist_ok=True)
+        with target_path.open("xb") as output:
+            output.write(content)
+
     def head_object(self, key: str) -> StorageObjectHead:
         validated_key = _validated_local_storage_key(key)
         root = os.path.realpath(os.fspath(self.root))

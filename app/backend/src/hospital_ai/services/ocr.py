@@ -174,6 +174,7 @@ class OcrService:
                     decision = router.route(preflight)
 
                     from hospital_ai.workers.ocr_models import OcrModelManager, OcrResourceError
+
                     if not self.model_manager:
                         self.model_manager = OcrModelManager()
 
@@ -184,6 +185,7 @@ class OcrService:
                                 if not hasattr(model, "engine"):
                                     try:
                                         from paddleocr import PaddleOCR
+
                                         model.engine = PaddleOCR(
                                             use_doc_orientation_classify=False,
                                             use_doc_unwarping=False,
@@ -196,6 +198,7 @@ class OcrService:
                                         ) from None
                                 import cv2
                                 import numpy as np
+
                                 np_arr = np.frombuffer(img_bytes, np.uint8)
                                 img = cv2.imdecode(np_arr, cv2.IMREAD_COLOR)
                                 result = model.engine.predict(img)
@@ -206,8 +209,8 @@ class OcrService:
                                 raise ExternalServiceError(f"Handwriting not supported yet for page {page_number}.")
                             else:
                                 raise ExternalServiceError(f"Unknown route {route} for page {page_number}.")
-                    except OcrResourceError:
-                        raise ExternalServiceError("OCR engine is unavailable")
+                    except OcrResourceError as error:
+                        raise ExternalServiceError("OCR engine is unavailable") from error
 
                 lat = max(0, int((time.monotonic() - start_t) * 1000))
                 rss = max(1, int(current_rss_mb()))

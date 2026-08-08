@@ -1,9 +1,8 @@
 import argparse
-import sys
-import os
-import json
 import hashlib
-from collections.abc import Mapping
+import json
+import os
+import sys
 
 REQUIRED_GATES = {
     "migration_chain",
@@ -19,12 +18,13 @@ REQUIRED_GATES = {
     "ocr_strata_reported",
 }
 
+
 def check_gate(gate_name: str, evidence: dict, expected_sha: str) -> str:
     if not evidence.get("passed"):
         return "failed"
     if evidence.get("producer_sha") != expected_sha:
         return "stale"
-    
+
     # Check tampered hash
     ev_copy = evidence.copy()
     ev_hash = ev_copy.pop("hash", None)
@@ -33,7 +33,7 @@ def check_gate(gate_name: str, evidence: dict, expected_sha: str) -> str:
     computed_hash = hashlib.sha256(json.dumps(ev_copy, sort_keys=True).encode()).hexdigest()
     if ev_hash != computed_hash:
         return "tampered"
-    
+
     details = evidence.get("details", {})
     if gate_name == "sentinel_two_reviewers":
         if len(details.get("reviewers", [])) < 2:
@@ -47,11 +47,12 @@ def check_gate(gate_name: str, evidence: dict, expected_sha: str) -> str:
 
     return ""
 
+
 def load_evidence(evidence_dir: str, expected_sha: str) -> dict:
     evidence_status = {}
     if not os.path.exists(evidence_dir):
         return evidence_status
-    
+
     for filename in os.listdir(evidence_dir):
         if not filename.endswith(".json"):
             continue
@@ -59,16 +60,17 @@ def load_evidence(evidence_dir: str, expected_sha: str) -> dict:
         if gate_name not in REQUIRED_GATES:
             continue
         try:
-            with open(os.path.join(evidence_dir, filename), "r") as f:
+            with open(os.path.join(evidence_dir, filename)) as f:
                 evidence = json.load(f)
         except Exception:
             evidence_status[gate_name] = "malformed"
             continue
-            
+
         reason = check_gate(gate_name, evidence, expected_sha)
         evidence_status[gate_name] = reason
-    
+
     return evidence_status
+
 
 def release_decision(evidence_status: dict, mode: str) -> str:
     if mode == "source":
@@ -86,6 +88,7 @@ def release_decision(evidence_status: dict, mode: str) -> str:
         return "NO-GO"
     return "GO"
 
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--mode", choices=["source", "artifact"], required=True)
@@ -102,6 +105,7 @@ def main():
     print(decision)
     if decision != "GO":
         sys.exit(1)
+
 
 if __name__ == "__main__":
     main()

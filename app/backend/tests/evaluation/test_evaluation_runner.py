@@ -73,6 +73,7 @@ def _approved_benchmark_dir(tmp_path: Path) -> Path:
             row = json.loads(line)
         except Exception:
             import traceback
+
             traceback.print_exc()
             raise
         row["review"] = {
@@ -82,10 +83,12 @@ def _approved_benchmark_dir(tmp_path: Path) -> Path:
         }
         reviewed.append(json.dumps(row, separators=(",", ":"), sort_keys=True))
     (output / "rag_sentinel_v2.jsonl").write_text("\n".join(reviewed) + "\n", encoding="utf-8")
-    
+
     if (BENCHMARK_DIR / "corpus-v3-smoke-manifest.json").exists():
-        (output / "corpus-v3-smoke-manifest.json").write_bytes((BENCHMARK_DIR / "corpus-v3-smoke-manifest.json").read_bytes())
-        
+        (output / "corpus-v3-smoke-manifest.json").write_bytes(
+            (BENCHMARK_DIR / "corpus-v3-smoke-manifest.json").read_bytes()
+        )
+
     return output
 
 
@@ -773,15 +776,15 @@ def test_jsonl_threshold_check(tmp_path: Path) -> None:
     output_dir = tmp_path / "artifacts"
     output_dir.mkdir()
     cases_path = output_dir / "cases.jsonl"
-    
+
     # Write a dummy cases.jsonl with poor metrics
     cases_path.write_text(json.dumps({"metrics": {"precision_at_5": 0.5, "recall_at_5": 0.5}}) + "\n", encoding="utf-8")
-    
+
     artifacts = load_measured_artifacts(cases_path)
     assert not check_measured_thresholds(artifacts)
 
     # Write a dummy cases.jsonl with good metrics
     cases_path.write_text(json.dumps({"metrics": {"precision_at_5": 0.9, "recall_at_5": 0.9}}) + "\n", encoding="utf-8")
-    
+
     artifacts = load_measured_artifacts(cases_path)
     assert check_measured_thresholds(artifacts)

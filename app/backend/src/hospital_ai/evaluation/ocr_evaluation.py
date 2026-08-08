@@ -309,6 +309,7 @@ def build_ocr_gold_pages(
                         return tuple(pages)
         else:
             import pypdf
+
             reader = pypdf.PdfReader(str(source))
             for page_index, page in enumerate(reader.pages):
                 text = page.extract_text() or ""

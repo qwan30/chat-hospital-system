@@ -79,9 +79,10 @@ class ProductStreamAdapter:
                     evidence_map[f"E{i}"] = row["content"]
 
                 from hospital_ai.services.claim_validation import _meaningful_tokens
+
                 parts = []
                 for i, row in enumerate(chunks, 1):
-                    meaningful = _meaningful_tokens(row['content'])
+                    meaningful = _meaningful_tokens(row["content"])
                     safe_word = next(iter(meaningful)) if meaningful else "clinical"
                     parts.append(f"{safe_word} [E{i}].")
                 text_to_stream = " ".join(parts) or "clinical [E1]."

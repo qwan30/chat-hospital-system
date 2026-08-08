@@ -130,8 +130,8 @@ def main(argv: list[str] | None = None) -> int:
     run = run_evaluation(config, adapters=adapters, isolation=isolation)
     write_run_artifacts(run, config.output_dir)
 
-    from hospital_ai.evaluation.artifact_generator import load_measured_artifacts, check_measured_thresholds
-    
+    from hospital_ai.evaluation.artifact_generator import check_measured_thresholds, load_measured_artifacts
+
     cases_path = config.output_dir / "cases.jsonl"
     if cases_path.exists():
         artifacts = load_measured_artifacts(cases_path)

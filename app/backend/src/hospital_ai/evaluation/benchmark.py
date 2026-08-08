@@ -251,8 +251,8 @@ def _locator_content(data_root: Path, locator: EvidenceLocator) -> str:
     if source.suffix.lower() == ".pdf":
         try:
             import fitz
-        except ImportError:
-            raise ImportError("PyMuPDF (fitz) is required to read PDF content")
+        except ImportError as error:
+            raise ImportError("PyMuPDF (fitz) is required to read PDF content") from error
         with fitz.open(source) as document:
             if locator.page_number is None:
                 return "\n".join(page.get_text() for page in document)

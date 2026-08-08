@@ -236,7 +236,15 @@ async def test_finalize_upload_session_failure_releases_idempotency_key(
             current_user=doctor,
         )
 
-    records = list((await session.execute(select(IdempotencyRecord).where(IdempotencyRecord.key_hash == hashlib.sha256(b"finalize-fail-1").hexdigest()))).scalars())
+    records = list(
+        (
+            await session.execute(
+                select(IdempotencyRecord).where(
+                    IdempotencyRecord.key_hash == hashlib.sha256(b"finalize-fail-1").hexdigest()
+                )
+            )
+        ).scalars()
+    )
     assert len(records) == 0
 
 

@@ -157,7 +157,7 @@ class StageRunner:
             chunks = list(res.scalars().all())
             if chunks:
                 embeddings = await EmbeddingService(self.settings).embed_many(c.content for c in chunks)
-                for c, emb in zip(chunks, embeddings):
+                for c, emb in zip(chunks, embeddings, strict=True):
                     c.embedding = emb
                 await self.session.flush()
             sha256 = hashlib.sha256(f"{generation.id}:embeddings:{len(chunks)}".encode()).hexdigest()
@@ -183,9 +183,10 @@ class StageRunner:
 
             graph_service = GraphIndexService(self.session)
             import time
+
             start_time = time.time()
             trace_id = uuid.uuid4().hex
-            
+
             for chunk in chunks:
                 try:
                     entities, relations = await extract_entities_and_relations_nlp(chunk.content)

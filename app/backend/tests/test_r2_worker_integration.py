@@ -55,10 +55,10 @@ async def test_worker_processes_r2_uri_and_fingerprints_source(
         "hospital_ai.workers.queue.enqueue_cdss_analysis",
         lambda *_args, **_kwargs: "queued",
     )
-    
+
     async def mock_require_finalized(*args, **kwargs):
         return await session.get(Document, document.id)
-        
+
     monkeypatch.setattr(
         "hospital_ai.workers.extraction_jobs.require_finalized_document_for_extraction",
         mock_require_finalized,
@@ -102,7 +102,7 @@ async def test_worker_processes_r2_uri_and_fingerprints_source(
     session.add(upload)
     await session.commit()
     await session.refresh(upload)
-    
+
     document.finalized_upload_id = upload.id
     session.add(document)
     await session.commit()

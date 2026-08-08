@@ -27,7 +27,7 @@ describe("ClinicalTimelinePanel", () => {
             page: 3,
             start_offset: 10,
             end_offset: 20,
-            bounding_boxes: [0,0,10,10],
+            bounding_boxes: [0, 0, 10, 10],
             alignment_status: "stale",
           },
         ]}

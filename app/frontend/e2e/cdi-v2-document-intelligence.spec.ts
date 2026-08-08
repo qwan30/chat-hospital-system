@@ -54,6 +54,7 @@ test("upload, correct, approve, explore, chat, and open exact evidence", async (
 
   // 4. finalize and wait for review-required extraction
   await expect(page.getByText("review_required", { exact: true })).toBeVisible({ timeout: 30000 });
+  const uploadedDocumentPath = new URL(page.url()).pathname;
 
   // 5. edit page with If-Match
   const editArea = page.getByRole("textbox", { name: "Corrected page text" });
@@ -81,7 +82,7 @@ test("upload, correct, approve, explore, chat, and open exact evidence", async (
   // reload would discard the in-memory token used by the E2E auth flow.
   await page.getByRole("link", { name: "Back to Documents", exact: true }).click();
   await expect(page.getByRole("heading", { name: "Documents & OCR" })).toBeVisible();
-  await page.getByRole("link", { name: "Synthetic E2E Scan", exact: true }).click();
+  await page.locator(`a[href="${uploadedDocumentPath}"]`).click();
   await expect(page.getByText("review_required", { exact: true })).toBeVisible();
 
   // Do the actual edit again
@@ -109,7 +110,7 @@ test("upload, correct, approve, explore, chat, and open exact evidence", async (
   // 8. approve
   await page.getByRole("link", { name: "Documents", exact: true }).click();
   await expect(page.getByRole("heading", { name: "Documents & OCR" })).toBeVisible();
-  await page.getByRole("link", { name: "Synthetic E2E Scan", exact: true }).click();
+  await page.locator(`a[href="${uploadedDocumentPath}"]`).click();
   await expect(page.getByRole("button", { name: "Approve" })).toBeVisible();
   await page.getByRole("button", { name: "Approve" }).click();
 

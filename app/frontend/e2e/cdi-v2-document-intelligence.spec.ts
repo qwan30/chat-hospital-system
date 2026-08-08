@@ -34,8 +34,10 @@ test("upload, correct, approve, explore, chat, and open exact evidence", async (
   await expect(page.getByText("Welcome")).toBeVisible({ timeout: 15000 });
 
   // 2. create direct upload session and PUT synthetic scan
-  await page.goto("/documents/upload");
-  await expect(page.getByText("Upload documents")).toBeVisible();
+  await page.getByRole("link", { name: "Documents", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "Documents & OCR" })).toBeVisible();
+  await page.getByRole("link", { name: "Upload documents", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "Upload documents" })).toBeVisible();
 
   await page.getByLabel("Patient ID (UUID)").fill("20000000-0000-0000-0000-000000000003");
   await page.getByLabel("Document Title").fill("Synthetic E2E Scan");
@@ -95,8 +97,6 @@ test("upload, correct, approve, explore, chat, and open exact evidence", async (
   const approveResponse = await approvePromise;
   expect(approveResponse.status()).not.toBe(200); // 400 or 403
 
-  const docUrl = page.url();
-
   // 7. log in as a distinct admin approver through the real backend auth flow
   // We can just navigate to /auth/login, it will wipe the session in memory?
   // Actually, there's no sign out button in the test right now, so let's try just going to login
@@ -104,8 +104,10 @@ test("upload, correct, approve, explore, chat, and open exact evidence", async (
   await expect(page.getByText("Welcome")).toBeVisible();
 
   // 8. approve
-  await page.goto(docUrl);
-  // Wait for the approve button
+  await page.getByRole("link", { name: "Documents", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "Documents & OCR" })).toBeVisible();
+  await page.getByRole("link", { name: "Synthetic E2E Scan", exact: true }).click();
+  await expect(page.getByRole("button", { name: "Approve" })).toBeVisible();
   await page.getByRole("button", { name: "Approve" }).click();
 
   // 9. wait for active generation

@@ -9,6 +9,7 @@ than claiming transport parity from a non-streaming invocation.
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Any
 from uuid import UUID
 
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
@@ -21,7 +22,6 @@ from hospital_ai.evaluation.adapter_foundation import (
     EvidenceResolutionError,
     RuntimeEvidenceChunk,
 )
-from hospital_ai.evaluation.benchmark import EvalCaseV2
 from hospital_ai.evaluation.citation_parser import extract_cited_chunk_ids
 from hospital_ai.evaluation.observer import EvaluationControls, InMemoryEvaluationObserver
 from hospital_ai.evaluation.product_retrieval_adapter import ProductRetrievalAdapter
@@ -42,7 +42,7 @@ class ProductChatAdapter:
         self._retrieval_adapter = ProductRetrievalAdapter(source_root)
 
     async def evaluate(self, case: Any, context: EvaluationCaseContext) -> CaseObservation:
-        patient_id = context.patient_id or getattr(case, 'patient_id', '')
+        patient_id = context.patient_id or getattr(case, "patient_id", "")
         locators = self._retrieval_adapter._unique_locators(
             case.allowed_evidence + case.forbidden_evidence + case.absence_checked_evidence
         )

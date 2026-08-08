@@ -25,14 +25,14 @@ from hospital_ai.evaluation.adapter_foundation import (
 from hospital_ai.evaluation.benchmark import (
     EvalCaseV2,
     ReviewRecord,
-    build_benchmark,
-    select_sentinel,
-    validate_benchmark,
-    validate_sentinel_review,
 )
 from hospital_ai.evaluation.contracts import CaseResult, GateResult, OcrEngineStatus, RunManifest
 from hospital_ai.evaluation.corpus_manifest import CorpusManifestValidationError, build_corpus_manifest
-from hospital_ai.evaluation.corpus_v3 import load_corpus_v3, UnifiedCorpusV3, UnifiedCorpusItemV3, EvalCaseV3, PermissionScenario
+from hospital_ai.evaluation.corpus_v3 import (
+    EvalCaseV3,
+    UnifiedCorpusItemV3,
+    load_corpus_v3,
+)
 from hospital_ai.evaluation.metrics import (
     citation_metrics,
     critical_field_accuracy,
@@ -41,8 +41,13 @@ from hospital_ai.evaluation.metrics import (
     safety_leak_counts,
 )
 from hospital_ai.evaluation.ocr_evaluation import build_ocr_gold_pages, probe_image_ocr_engine
-from hospital_ai.evaluation.unified_metrics import UnifiedMetricsSummary, evaluate_hard_gates, write_summary_json, UnifiedEvaluationRunReport
 from hospital_ai.evaluation.threshold_artifact import check_holdout_gate
+from hospital_ai.evaluation.unified_metrics import (
+    UnifiedEvaluationRunReport,
+    UnifiedMetricsSummary,
+    evaluate_hard_gates,
+    write_summary_json,
+)
 
 _ALLOWED_SUITES = {"smoke", "release"}
 _ALLOWED_LANES = {"deterministic", "live"}
@@ -152,7 +157,7 @@ def _load_and_validate_dataset(config: EvaluationConfig):
         raise EvaluationInputError(f"V3 manifest not found at {v3_manifest_path}")
 
     v3_corpus = load_corpus_v3(v3_manifest_path)
-    
+
     # We map items to flat "runtime cases" for the runner
     cases = []
     for item in v3_corpus.items:
@@ -167,7 +172,7 @@ def _load_and_validate_dataset(config: EvaluationConfig):
                 question="",
                 category="timeline_or_graph",
                 graph=item.graph,
-                timeline_expectations=item.timeline
+                timeline_expectations=item.timeline,
             )
             cases.append((item, dummy_q))
 
@@ -175,6 +180,7 @@ def _load_and_validate_dataset(config: EvaluationConfig):
     class DummyReview:
         valid = True
         errors = []
+
     return manifest, cases, cases, DummyReview()
 
 
@@ -190,9 +196,17 @@ def _gate(name: str, component: str, passed: bool, observed, threshold: str, det
     )
 
 
-def _skip_results(cases: list[tuple[UnifiedCorpusItemV3, EvalCaseV3]], component: str, reason: str) -> tuple[CaseResult, ...]:
+def _skip_results(
+    cases: list[tuple[UnifiedCorpusItemV3, EvalCaseV3]], component: str, reason: str
+) -> tuple[CaseResult, ...]:
     return tuple(
-        CaseResult(case_id=(c[1].case_id if isinstance(c, tuple) else getattr(c, "case_id", "")), component=component, status="skipped", reason=reason) for c in cases
+        CaseResult(
+            case_id=(c[1].case_id if isinstance(c, tuple) else getattr(c, "case_id", "")),
+            component=component,
+            status="skipped",
+            reason=reason,
+        )
+        for c in cases
     )
 
 
@@ -372,7 +386,10 @@ def _evaluate_observation(
         "relevance": relevance,
         "safety_leaks": leaks.total,
     }
-    if component == "graph" and (case.graph if isinstance(case, EvalCaseV3) else getattr(case, "graph", None)) is not None:
+    if (
+        component == "graph"
+        and (case.graph if isinstance(case, EvalCaseV3) else getattr(case, "graph", None)) is not None
+    ):
         graph = case.graph if isinstance(case, EvalCaseV3) else case.graph
         required_nodes = {node.casefold() for node in graph.required_nodes}
         observed_nodes = {node.casefold() for node in observation.graph_node_ids}
@@ -393,7 +410,10 @@ def _evaluate_observation(
         )
     if component == "timeline":
         from hospital_ai.evaluation.unified_metrics import evaluate_timeline_metrics
-        timeline_expectations = case.timeline_expectations if isinstance(case, EvalCaseV3) else getattr(case, "timeline_expectations", ())
+
+        timeline_expectations = (
+            case.timeline_expectations if isinstance(case, EvalCaseV3) else getattr(case, "timeline_expectations", ())
+        )
         if timeline_expectations:
             t_res = evaluate_timeline_metrics(timeline_expectations, observation.timeline_events)
             metrics["chronological_sort_correctness"] = float(t_res.chronological_sort_correctness)
@@ -431,7 +451,9 @@ async def _evaluate_adapter_case(
 ) -> CaseResult:
     resolver = resolver.for_case(case)
     import uuid
+
     from hospital_ai.evaluation.benchmark import ActorIdentity
+
     actor_id = getattr(case, "actor", None)
     if actor_id is None:
         actor_id = ActorIdentity(actor_id=uuid.uuid4(), role="doctor")
@@ -449,7 +471,9 @@ async def _evaluate_adapter_case(
         observation = await pending if inspect.isawaitable(pending) else pending
         if not isinstance(observation, CaseObservation):
             raise TypeError("adapter must return CaseObservation")
-        return _evaluate_observation(case, item.patient_surrogate_id, component, observation, resolver, llm_judge_provider=llm_judge_provider)
+        return _evaluate_observation(
+            case, item.patient_surrogate_id, component, observation, resolver, llm_judge_provider=llm_judge_provider
+        )
     except Exception as error:  # Adapter failures are evidence, never a passing fallback.
         gate = _gate(
             "evaluation_adapter_execution",
@@ -483,11 +507,13 @@ async def _evaluate_adapter_cases(
             item, case = case_tuple
         else:
             case = case_tuple
+
             class _DummyItem:
                 patient_surrogate_id = getattr(case, "patient_id", "")
                 permissions = None
+
             item = _DummyItem()
-            
+
         results.append(
             await _evaluate_adapter_case(
                 adapter, item, case, component, resolver, isolation, llm_judge_provider=llm_judge_provider
@@ -670,7 +696,11 @@ async def run_evaluation_async(
             assert isolation is not None
             component_cases = selected
             if component == "graph":
-                component_cases = [c for c in selected if (c[1].graph if isinstance(c, tuple) else getattr(c, "graph", None)) is not None]
+                component_cases = [
+                    c
+                    for c in selected
+                    if (c[1].graph if isinstance(c, tuple) else getattr(c, "graph", None)) is not None
+                ]
                 gates.append(_graph_case_coverage_gate(component_cases))
             evaluated = await _evaluate_adapter_cases(
                 adapter, component_cases, component, resolver, isolation, llm_judge_provider=config.llm_judge_provider
@@ -764,8 +794,9 @@ async def run_evaluation_async(
             hard_gates_passed=all_passed,
         )
         write_summary_json(report, config.output_dir / "unified_metrics.json")
-    except Exception as e:
+    except Exception:
         import traceback
+
         traceback.print_exc()
 
     return EvaluationRun(manifest=manifest_result, cases=tuple(results), gates=tuple(gates), exit_code=exit_code)

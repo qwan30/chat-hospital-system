@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from collections.abc import AsyncIterator
 from pathlib import Path
+from typing import Any
 
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
@@ -27,7 +28,7 @@ class ProductStreamAdapter:
         simulate_interrupt: bool = False,
         simulate_error: bool = False,
     ) -> CaseObservation:
-        patient_id = context.patient_id or getattr(case, 'patient_id', '')
+        patient_id = context.patient_id or getattr(case, "patient_id", "")
         if patient_id not in context.actor.allowed_patient_ids:
             return CaseObservation(
                 refused=True,

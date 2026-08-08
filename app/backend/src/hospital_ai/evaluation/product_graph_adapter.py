@@ -11,13 +11,13 @@ from __future__ import annotations
 
 from collections import defaultdict
 from pathlib import Path
+from typing import Any
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
 from hospital_ai.db.models import Base, DocumentChunk
 from hospital_ai.evaluation.adapter_foundation import EvaluationCaseContext, EvidenceResolutionError
-from hospital_ai.evaluation.benchmark import EvalCaseV2
 from hospital_ai.evaluation.product_retrieval_adapter import ProductRetrievalAdapter
 from hospital_ai.evaluation.runner import CaseObservation
 from hospital_ai.services.graph_rag import (
@@ -38,7 +38,7 @@ class ProductGraphAdapter:
     async def evaluate(self, case: Any, context: EvaluationCaseContext) -> CaseObservation:
         if case.graph is None:
             raise EvidenceResolutionError("graph adapter requires a graph expectation")
-        patient_id = context.patient_id or getattr(case, 'patient_id', '')
+        patient_id = context.patient_id or getattr(case, "patient_id", "")
         if patient_id not in context.actor.allowed_patient_ids:
             raise EvidenceResolutionError("evaluation actor is not authorized for the requested patient")
 

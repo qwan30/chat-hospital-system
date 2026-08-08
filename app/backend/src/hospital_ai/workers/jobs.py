@@ -5,12 +5,15 @@ import logging
 import uuid
 from typing import Literal, Optional
 
-from sqlalchemy import func, select
+from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from hospital_ai.core.config import Settings, get_settings
-from hospital_ai.db.models import Document, DocumentChunk, DocumentProcessingEvent
+from hospital_ai.db.models import Document, DocumentChunk, DocumentPage, DocumentProcessingEvent
 from hospital_ai.db.session import get_session_factory
+from hospital_ai.services.chunking import ChunkingService
+from hospital_ai.services.embeddings import EmbeddingService
+from hospital_ai.services.ocr import OcrService
 from hospital_ai.services.storage import StorageService, get_storage_service
 
 

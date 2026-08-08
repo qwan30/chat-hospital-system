@@ -50,16 +50,9 @@ def upgrade() -> None:
             existing_nullable=False,
         )
 
-    with op.batch_alter_table("ai_queries", schema=None) as batch_op:
-        batch_op.drop_column("last_emitted_sequence")
-        batch_op.drop_column("validation_mode")
-
     with op.batch_alter_table("document_chunks", schema=None) as batch_op:
         batch_op.drop_constraint(batch_op.f("uq_document_chunk_index"), type_="unique")
         batch_op.create_unique_constraint("uq_document_chunk_index", ["document_id", "generation_id", "chunk_index"])
-
-    with op.batch_alter_table("document_uploads", schema=None) as batch_op:
-        batch_op.drop_column("quarantine_result")
 
     with op.batch_alter_table("legacy_graph_entities", schema=None) as batch_op:
         batch_op.drop_index(batch_op.f("ix_graph_entities_entity_type"))
@@ -126,17 +119,8 @@ def downgrade() -> None:
         batch_op.create_index(batch_op.f("ix_graph_relations_source_entity_id"), ["source_entity_id"], unique=False)
         batch_op.create_index(batch_op.f("ix_graph_relations_target_entity_id"), ["target_entity_id"], unique=False)
 
-    with op.batch_alter_table("document_uploads", schema=None) as batch_op:
-        batch_op.add_column(sa.Column("quarantine_result", sa.TEXT(), nullable=True))
-
     with op.batch_alter_table("document_chunks", schema=None) as batch_op:
         batch_op.drop_constraint("uq_document_chunk_index", type_="unique")
         batch_op.create_unique_constraint(batch_op.f("uq_document_chunk_index"), ["document_id", "chunk_index"])
-
-    with op.batch_alter_table("ai_queries", schema=None) as batch_op:
-        batch_op.add_column(sa.Column("validation_mode", sa.VARCHAR(length=64), nullable=True))
-        batch_op.add_column(
-            sa.Column("last_emitted_sequence", sa.INTEGER(), server_default=sa.text("'0'"), nullable=True)
-        )
 
     # ### end Alembic commands ###

@@ -77,8 +77,11 @@ test("upload, correct, approve, explore, chat, and open exact evidence", async (
 
   await page.getByRole("button", { name: "Save draft" }).click();
   await expect(page.getByRole("button", { name: "Compare with latest" })).toBeVisible();
-  // Clear the conflict by refreshing
-  await page.reload();
+  // Clear the conflict through authenticated client-side navigation; a full
+  // reload would discard the in-memory token used by the E2E auth flow.
+  await page.getByRole("link", { name: "Back to Documents", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "Documents & OCR" })).toBeVisible();
+  await page.getByRole("link", { name: "Synthetic E2E Scan", exact: true }).click();
   await expect(page.getByText("review_required", { exact: true })).toBeVisible();
 
   // Do the actual edit again

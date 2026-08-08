@@ -21,6 +21,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     rm -rf /var/lib/apt/lists/* && \
     groupadd -r appuser && useradd -r -g appuser appuser
 
+RUN mkdir -p /data/storage && chown -R appuser:appuser /data
+
 COPY --from=builder /install /usr/local
 COPY src/ src/
 COPY alembic/ alembic/

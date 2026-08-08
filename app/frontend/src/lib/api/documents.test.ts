@@ -3,6 +3,8 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 vi.mock("../api-client", () => ({
   apiFetch: vi.fn(),
   apiFetchBlob: vi.fn(),
+  getStoredApiUrl: vi.fn(() => "/api"),
+  getToken: vi.fn(() => "dev-token"),
 }));
 
 import { apiFetch, apiFetchBlob } from "../api-client";
@@ -107,6 +109,42 @@ describe("putPresignedObject", () => {
       "application/pdf",
     );
     expect(MockXMLHttpRequest.latest.setRequestHeader).toHaveBeenCalledWith("If-None-Match", "*");
+  });
+
+  it("maps the local storage marker to the authenticated API upload endpoint", async () => {
+    class MockXMLHttpRequest {
+      static latest: MockXMLHttpRequest;
+      upload = {};
+      open = vi.fn();
+      setRequestHeader = vi.fn();
+      status = 204;
+      onload: (() => void) | undefined;
+      onerror: (() => void) | undefined;
+      send = vi.fn(() => this.onload?.());
+      constructor() {
+        MockXMLHttpRequest.latest = this;
+      }
+    }
+    vi.stubGlobal("XMLHttpRequest", MockXMLHttpRequest);
+
+    await putPresignedObject(
+      {
+        document_id: "doc-1",
+        upload_id: "upl-1",
+        object_key: "source/patient-1/doc-1/upl-1/original.pdf",
+        presigned_url: "local://source/patient-1/doc-1/upl-1/original.pdf",
+        required_headers: { "Content-Type": "application/pdf", "If-None-Match": "*" },
+        state: "pending_upload",
+      },
+      new File(["pdf"], "test.pdf", { type: "application/pdf" }),
+      vi.fn(),
+    );
+
+    expect(MockXMLHttpRequest.latest.open).toHaveBeenCalledWith(
+      "PUT",
+      "/api/documents/upload-objects/source/patient-1/doc-1/upl-1/original.pdf",
+      true,
+    );
   });
 
   it("rejects a presigned upload contract that does not protect the immutable key", async () => {

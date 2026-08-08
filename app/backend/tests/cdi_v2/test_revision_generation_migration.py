@@ -97,8 +97,8 @@ def test_cdi_v2_migration_retains_legacy_data(tmp_path: Path) -> None:
             (query_id, patient_id, user_id),
         )
         cur.execute(
-            "INSERT INTO graph_entities (id, name, entity_type, source_chunk_id, "
-            "source_document_id) VALUES (?, 'E1', 'type', ?, ?)",
+            "INSERT INTO graph_entities (id, name, entity_type, source_chunk_id, source_document_id) "
+            "VALUES (?, 'E1', 'type', ?, ?)",
             (graph_ent_id, chunk_id, doc_id),
         )
 

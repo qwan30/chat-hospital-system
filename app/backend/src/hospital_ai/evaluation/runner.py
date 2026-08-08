@@ -736,7 +736,12 @@ async def run_evaluation_async(
                 component_cases = [
                     c
                     for c in selected
-                    if (c[1].graph if isinstance(c, tuple) else getattr(c, expectation_attr, None)) is not None
+                    if (
+                        c[1].graph
+                        if isinstance(c, tuple)
+                        else getattr(c, "graph" if component == "graph" else "timeline_expectations", None)
+                    )
+                    is not None
                 ]
                 if component == "graph":
                     gates.append(_graph_case_coverage_gate(component_cases))

@@ -8,7 +8,7 @@ import {
   getDraftPage,
   getRevisionPage,
 } from "@/lib/api/document-revisions";
-import { useState, useRef } from "react";
+import { useEffect, useState, useRef } from "react";
 import { WorkspaceToolbar } from "./WorkspaceToolbar";
 import { RevisionSelector } from "./RevisionSelector";
 import { PageNavigator } from "./PageNavigator";
@@ -36,6 +36,16 @@ export function DocumentWorkspace({ documentId }: { documentId: string }) {
 
   const [selectedRevisionId, setSelectedRevisionId] = useState<string | null>(null);
   const [selectedPage, setSelectedPage] = useState(1);
+
+  useEffect(() => {
+    if (selectedRevisionId) return;
+    const submittedRevision = revisionsQuery.data?.find(
+      (revision) => revision.status === "submitted",
+    );
+    if (submittedRevision) {
+      setSelectedRevisionId(submittedRevision.revision_set_id);
+    }
+  }, [revisionsQuery.data, selectedRevisionId]);
 
   const pageQuery = useQuery({
     queryKey: ["document-page", documentId, selectedPage],

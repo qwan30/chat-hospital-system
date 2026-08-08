@@ -115,6 +115,7 @@ async def test_upload_service_scanner_requires_explicit_local_opt_in(
 @pytest.mark.asyncio
 async def test_finalize_upload_session(session_and_settings, monkeypatch: pytest.MonkeyPatch) -> None:
     session, settings = session_and_settings
+    settings.worker_inline = True
     from hospital_ai.api.routes import document_uploads as upload_routes
     from hospital_ai.schemas.document_uploads import UploadSessionCreate
     from hospital_ai.services.storage import StorageObjectHead

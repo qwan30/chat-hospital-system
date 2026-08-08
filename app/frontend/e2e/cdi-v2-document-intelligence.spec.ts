@@ -157,7 +157,7 @@ test("upload, correct, approve, explore graph and timeline, chat, and open exact
   await expect(page.getByRole("textbox", { name: "Message input" })).toBeVisible();
   await page
     .getByRole("textbox", { name: "Message input" })
-    .fill("What is the approved metformin dose?");
+    .fill("What is the corrected 500 mg dose?");
 
   // Negative check 4: invalid stream order shows safe error state
   await page.route(
@@ -182,12 +182,13 @@ test("upload, correct, approve, explore graph and timeline, chat, and open exact
   // Send the actual question
   await page
     .getByRole("textbox", { name: "Message input" })
-    .fill("What is the approved metformin dose?");
+    .fill("What is the corrected 500 mg dose?");
   await page.getByRole("button", { name: "Send" }).click();
 
   // 12. verify the real global-chat response completed
   const assistantMessage = page.locator('[data-msg-role="assistant"]').last();
   await expect(assistantMessage).toBeVisible({ timeout: 15000 });
+  await expect(assistantMessage).toContainText("500 mg");
 
   // 13. open the actual Evidence Rail locator and return to the document
   await expect(page.getByText("Evidence", { exact: true })).toBeVisible();

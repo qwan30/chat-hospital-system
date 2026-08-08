@@ -2,6 +2,7 @@
 import { render, screen, waitFor, cleanup } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { DocumentUploadFlow } from "./DocumentUploadFlow";
 import { createUploadSession, finalizeUpload, putPresignedObject } from "@/lib/api/documents";
 
@@ -18,6 +19,17 @@ vi.mock("@tanstack/react-router", () => ({
 
 describe("DocumentUploadFlow", () => {
   const syntheticPdf = new File(["dummy content"], "test.pdf", { type: "application/pdf" });
+
+  const renderUploadFlow = () => {
+    const queryClient = new QueryClient();
+    queryClient.setQueryData(["documents"], { items: [] });
+    render(
+      <QueryClientProvider client={queryClient}>
+        <DocumentUploadFlow patientId="patient-1" />
+      </QueryClientProvider>,
+    );
+    return queryClient;
+  };
 
   afterEach(() => {
     cleanup();
@@ -52,7 +64,7 @@ describe("DocumentUploadFlow", () => {
       state: "finalized",
     });
 
-    render(<DocumentUploadFlow patientId="patient-1" />);
+    const queryClient = renderUploadFlow();
     await user.upload(screen.getByLabelText(/Clinical document/i), syntheticPdf);
     await user.click(screen.getByRole("button", { name: /Upload document/i }));
 
@@ -72,6 +84,7 @@ describe("DocumentUploadFlow", () => {
     const putOrder = vi.mocked(putPresignedObject).mock.invocationCallOrder[0];
     const finalizeOrder = vi.mocked(finalizeUpload).mock.invocationCallOrder[0];
     expect(putOrder).toBeLessThan(finalizeOrder);
+    expect(queryClient.getQueryState(["documents"])?.isInvalidated).toBe(true);
   });
 
   it.each(["quarantined", "rejected"])("never presents %s as ready for OCR", async (state) => {
@@ -89,7 +102,7 @@ describe("DocumentUploadFlow", () => {
     vi.mocked(putPresignedObject).mockResolvedValue();
     vi.mocked(finalizeUpload).mockResolvedValue({ id: "res-1", document_id: "doc-1", state });
 
-    render(<DocumentUploadFlow patientId="patient-1" />);
+    renderUploadFlow();
     await completeUpload(user, syntheticPdf);
 
     await waitFor(() => {
@@ -118,7 +131,7 @@ describe("DocumentUploadFlow", () => {
       state: "unexpected_state",
     });
 
-    render(<DocumentUploadFlow patientId="patient-1" />);
+    renderUploadFlow();
     await completeUpload(user, syntheticPdf);
 
     await waitFor(() => {
@@ -145,7 +158,7 @@ describe("DocumentUploadFlow", () => {
       new Error("Immutable object key already exists"),
     );
 
-    render(<DocumentUploadFlow patientId="patient-1" />);
+    renderUploadFlow();
     await completeUpload(user, syntheticPdf);
 
     await waitFor(() => {

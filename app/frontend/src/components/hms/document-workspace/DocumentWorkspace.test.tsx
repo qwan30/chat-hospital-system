@@ -10,6 +10,7 @@ import {
   getRevisionPage,
   getDraftPage,
   listRevisionSets,
+  saveDraftPage,
   submitDraft,
 } from "@/lib/api/document-revisions";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -88,6 +89,53 @@ describe("DocumentWorkspace", () => {
         "rev-1",
         expect.any(Object),
         expect.any(Object),
+      );
+    });
+  });
+
+  it("submits with the lock version returned by saving the draft", async () => {
+    vi.mocked(listRevisionSets).mockResolvedValueOnce([]);
+    vi.mocked(saveDraftPage).mockResolvedValue({
+      page_revision_id: "draft-page-revision-2",
+      lock_version: 4,
+      page_number: 1,
+      text: "saved draft",
+      status: "draft",
+    });
+    vi.mocked(submitDraft).mockResolvedValue({
+      revision_set_id: "set-2",
+      document_id: "doc-1",
+      revision_number: 2,
+      status: "submitted",
+      created_by_user_id: "user-1",
+      created_at: null,
+      submitted_at: null,
+      approved_by_user_id: null,
+      approved_at: null,
+    });
+
+    render(
+      <QueryClientProvider client={new QueryClient()}>
+        <DocumentWorkspace documentId="doc-1" />
+      </QueryClientProvider>,
+    );
+
+    const editor = await screen.findByRole("textbox", { name: "Corrected page text" });
+    fireEvent.change(editor, { target: { value: "saved draft" } });
+    fireEvent.change(screen.getByPlaceholderText("Edit reason"), {
+      target: { value: "corrected text" },
+    });
+    const saveButton = screen.getByRole("button", { name: "Save draft" });
+    await waitFor(() => expect(saveButton).not.toBeDisabled());
+    fireEvent.click(saveButton);
+
+    await waitFor(() => expect(saveDraftPage).toHaveBeenCalled());
+    fireEvent.click(screen.getByRole("button", { name: "Submit Draft" }));
+
+    await waitFor(() => {
+      expect(submitDraft).toHaveBeenCalledWith(
+        "doc-1",
+        expect.objectContaining({ lockVersion: 4 }),
       );
     });
   });

@@ -92,7 +92,6 @@ def verify():
         "src/lib/api-client.ts",
         "src/lib/auth-context.tsx",
         "src/lib/stream-client.ts",
-        "e2e/fixtures/api-mocks.ts",
     ]
 
     frontend_paths = get_frontend_paths(frontend_root, scan_files)
@@ -111,7 +110,7 @@ def verify():
     # Known gaps tracked as TODOs — warn but don't block CI
     KNOWN_MISMATCHES = {
         "/auth/token",  # TODO: backend needs JWT token endpoint (currently uses static tokens)
-        "/api",          # Vite dev proxy prefix — frontend uses /api as base URL, Vite rewrites to /api/v1
+        "/api",  # Vite dev proxy prefix — frontend uses /api as base URL, Vite rewrites to /api/v1
     }
 
     errors = 0
@@ -145,7 +144,8 @@ def verify():
                 warnings += 1
             else:
                 print(
-                    f"ERR Mismatch: Frontend calls '{f_path}' (normalized: '{norm_f}') but no matching backend route exists."
+                    f"ERR Mismatch: Frontend calls '{f_path}' (normalized: '{norm_f}') "
+                    "but no matching backend route exists."
                 )
                 errors += 1
         else:

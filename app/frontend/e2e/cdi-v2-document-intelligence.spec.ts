@@ -155,7 +155,8 @@ test("upload, correct, approve, explore graph and timeline, chat, and open exact
 
   // Negative check 4: invalid stream order shows safe error state
   await page.route(
-    "**/api/v1/chat/stream",
+    // The dev server exposes /api and rewrites it to the backend's /api/v1.
+    "**/api/chat/stream",
     async (route) => {
       // Return an invalid stream order: tokens before metadata
       const invalidPayload =

@@ -135,8 +135,11 @@ test("upload, correct, approve, explore graph and timeline, chat, and open exact
   await page.getByRole("link", { name: "Patients", exact: true }).click();
   await expect(page.getByRole("heading", { name: "Patients" })).toBeVisible();
   await page.locator(`a[href="/patients/${patientSlug}"]`).first().click();
-  await expect(page.getByRole("link", { name: "Timeline", exact: true })).toBeVisible();
-  await page.getByRole("link", { name: "Timeline", exact: true }).click();
+  const patientTimelineLink = page
+    .locator("#main-content")
+    .getByRole("link", { name: "Timeline", exact: true });
+  await expect(patientTimelineLink).toBeVisible();
+  await patientTimelineLink.click();
   await expect(
     page.getByText(/Clinical Timeline & Lineage|No clinical timeline events found\./),
   ).toBeVisible({

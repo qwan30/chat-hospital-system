@@ -130,6 +130,13 @@ class UnavailableMalwareScanner:
         raise ValidationAppError("Malware scanner unavailable.")
 
 
+class SyntheticCleanMalwareScanner:
+    """Deterministic scanner for explicitly enabled local/CI synthetic data."""
+
+    async def scan(self, key: str) -> MalwareScanResult:
+        return MalwareScanResult(status="clean")
+
+
 class UploadSessionService:
     def __init__(
         self, session: AsyncSession, storage: Any, content_reader: UploadContentReader, scanner: MalwareScanner
@@ -144,8 +151,12 @@ class UploadSessionService:
         from hospital_ai.core.config import get_settings
         from hospital_ai.services.storage import get_storage_service
 
-        storage = get_storage_service(get_settings())
-        return cls(session, storage, StorageContentReader(storage), UnavailableMalwareScanner())
+        settings = get_settings()
+        storage = get_storage_service(settings)
+        scanner: MalwareScanner = UnavailableMalwareScanner()
+        if settings.environment == "local" and settings.allow_synthetic_malware_scan:
+            scanner = SyntheticCleanMalwareScanner()
+        return cls(session, storage, StorageContentReader(storage), scanner)
 
     async def create(
         self,
@@ -158,10 +169,14 @@ class UploadSessionService:
         expected_size: Optional[int] = None,
         expected_sha256: Optional[str] = None,
         claimed_mime_type: Optional[str] = None,
+        title: Optional[str] = None,
+        document_type: Optional[str] = None,
     ) -> UploadSessionRead:
         if payload is not None:
             patient_id = payload.patient_id
             filename = payload.filename
+            title = payload.title
+            document_type = payload.document_type
             expected_size = payload.expected_size
             expected_sha256 = payload.expected_sha256
             claimed_mime_type = payload.claimed_mime_type
@@ -184,6 +199,8 @@ class UploadSessionService:
             idemp_payload = {
                 "patient_id": str(patient_id),
                 "filename": filename,
+                "title": title,
+                "document_type": document_type,
                 "expected_size": expected_size,
                 "expected_sha256": expected_sha256,
                 "claimed_mime_type": claimed_mime_type,
@@ -217,8 +234,8 @@ class UploadSessionService:
             id=doc_id,
             patient_id=patient_id,
             uploaded_by=actor.id if actor and hasattr(actor, "id") else uuid.uuid4(),
-            title=filename or "upload",
-            document_type="unknown",
+            title=title or filename or "upload",
+            document_type=document_type or "unknown",
             storage_uri="pending",
             mime_type=claimed_mime_type or "application/octet-stream",
             status="uploaded",

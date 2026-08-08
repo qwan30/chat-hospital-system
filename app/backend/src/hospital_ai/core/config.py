@@ -32,6 +32,10 @@ class Settings(BaseSettings):
         default=False,
         description="Configured synthetic self-approval flag; requires demo_mode and synthetic document metadata.",
     )
+    allow_synthetic_malware_scan: bool = Field(
+        default=False,
+        description="Local/CI-only deterministic scanner; production keeps malware verification fail-closed.",
+    )
     disable_guardrails: bool = False
     cdi_v2_dual_read: bool = Field(default=False)
     cdi_v2_active_generation_reads: bool = Field(default=False)

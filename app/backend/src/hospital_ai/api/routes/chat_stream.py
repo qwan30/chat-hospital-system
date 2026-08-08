@@ -206,6 +206,42 @@ async def _best_effort_failed_completion(
         logger.exception("Failed to persist terminal stream state reason=%s", failure_reason)
 
 
+async def _safe_refusal_stream(
+    *,
+    answer: str,
+    query_id: UUID,
+    reason: str,
+    model: str,
+) -> AsyncIterator[str]:
+    """Emit a safe refusal using the validated SSE contract."""
+    events = (
+        {"type": "status", "stage": "retrieving"},
+        {
+            "type": "metadata",
+            "confidence": "low",
+            "pipeline": "simple_qa",
+            "model": model,
+            "validation_mode": "sentence_buffered",
+        },
+        {
+            "type": "token",
+            "content": answer,
+            "sequence": 1,
+            "validation_mode": "sentence_buffered",
+        },
+        {"type": "citations", "data": []},
+        {
+            "type": "done",
+            "query_id": str(query_id),
+            "validation": "failed",
+            "reason": reason,
+            "confidence": "low",
+        },
+    )
+    for event in events:
+        yield f"data: {json.dumps(event)}\n\n"
+
+
 async def _generate_validated_sse_events(
     *,
     settings: Settings,
@@ -1039,19 +1075,15 @@ async def chat_stream(
         )
         await session.commit()
 
-        async def input_refusal_stream() -> AsyncIterator[str]:
-            token = json.dumps({"type": "token", "content": SAFE_INJECTION_DETECTED_ANSWER})
-            yield f"data: {token}\n\n"
-            done = json.dumps(
-                {
-                    "type": "done",
-                    "query_id": str(ai_query.id),
-                    "confidence": "low",
-                }
-            )
-            yield f"data: {done}\n\n"
-
-        return StreamingResponse(input_refusal_stream(), media_type="text/event-stream")
+        return StreamingResponse(
+            _safe_refusal_stream(
+                answer=SAFE_INJECTION_DETECTED_ANSWER,
+                query_id=ai_query.id,
+                reason="input_guardrail_blocked",
+                model=settings.chat_model if settings.chat_provider == "ollama" else "stub",
+            ),
+            media_type="text/event-stream",
+        )
 
     # Gather conversation history
     conversation_history: list = []
@@ -1206,13 +1238,15 @@ async def chat_stream(
                 failure_reason="denied" if is_blocked else "no_evidence",
             )
 
-            async def no_evidence_stream() -> AsyncIterator[str]:
-                event = json.dumps({"type": "token", "content": answer_text})
-                yield f"data: {event}\n\n"
-                done = json.dumps({"type": "done", "query_id": str(ai_query.id), "confidence": "low"})
-                yield f"data: {done}\n\n"
-
-            return StreamingResponse(no_evidence_stream(), media_type="text/event-stream")
+            return StreamingResponse(
+                _safe_refusal_stream(
+                    answer=answer_text,
+                    query_id=ai_query.id,
+                    reason=failure_reason,
+                    model=settings.chat_model if settings.chat_provider == "ollama" else "stub",
+                ),
+                media_type="text/event-stream",
+            )
 
         selected_pipeline = _select_pipeline(payload.pipeline, payload.question)
 

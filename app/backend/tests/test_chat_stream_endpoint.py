@@ -83,8 +83,10 @@ async def test_chat_stream_input_guardrail_blocks_all_downstream_work(session_an
         body += chunk.encode("utf-8")
 
     events = _parse_sse_events(body)
-    assert [event["type"] for event in events] == ["token", "done"]
-    assert events[0]["content"] == SAFE_INJECTION_DETECTED_ANSWER
+    assert [event["type"] for event in events] == ["status", "metadata", "token", "citations", "done"]
+    assert events[2]["content"] == SAFE_INJECTION_DETECTED_ANSWER
+    assert events[2]["sequence"] == 1
+    assert events[2]["validation_mode"] == "sentence_buffered"
     embed.assert_not_awaited()
     vector_search.assert_not_awaited()
     hybrid_search.assert_not_awaited()
@@ -350,9 +352,12 @@ async def test_chat_stream_no_evidence_returns_safe_answer(session_and_settings)
 
     events = _parse_sse_events(body)
     assert len(events) >= 1
-    first = events[0]
-    assert first.get("type") == "token"
-    assert SAFE_NO_EVIDENCE_ANSWER in first.get("content", "")
+    assert [event["type"] for event in events] == ["status", "metadata", "token", "citations", "done"]
+    token = events[2]
+    assert token.get("type") == "token"
+    assert SAFE_NO_EVIDENCE_ANSWER in token.get("content", "")
+    assert token["sequence"] == 1
+    assert token["validation_mode"] == "sentence_buffered"
 
     done_events = [e for e in events if e.get("type") == "done"]
     assert len(done_events) >= 1

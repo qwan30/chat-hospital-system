@@ -121,6 +121,12 @@ test("upload, correct, approve, explore graph and timeline, chat, and open exact
     timeout: 15000,
   });
 
+  // The admin approver is intentionally not a clinical retrieval actor.  Move
+  // back to the doctor with patient read access before asserting grounded chat
+  // and evidence navigation.
+  await signInAsRealUser(page, "doctor@example.test");
+  await expect(page.getByText("Welcome")).toBeVisible();
+
   // 10. graph and timeline are separate patient-scoped surfaces in the product.
   // Use in-app navigation here because the real-login token is intentionally
   // held in memory and a full page reload would discard it.

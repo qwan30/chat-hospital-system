@@ -3,6 +3,7 @@ from __future__ import annotations
 import hashlib
 import io
 import uuid
+from unittest.mock import AsyncMock
 
 import pytest
 from fastapi import Request
@@ -177,6 +178,8 @@ async def test_finalize_upload_session(session_and_settings, monkeypatch: pytest
         return service
 
     monkeypatch.setattr(us_module.UploadSessionService, "from_request", mocked_from_request)
+    process_document = AsyncMock()
+    monkeypatch.setattr("hospital_ai.workers.jobs.process_document", process_document)
     monkeypatch.setattr("hospital_ai.workers.queue.enqueue_document_indexing", lambda *args, **kwargs: None)
 
     res = await upload_routes.finalize_upload_session(
@@ -188,6 +191,7 @@ async def test_finalize_upload_session(session_and_settings, monkeypatch: pytest
         current_user=doctor,
     )
     assert res.state == "finalized"
+    process_document.assert_awaited_once()
 
     replay = await upload_routes.finalize_upload_session(
         document_id=created.document_id,

@@ -121,15 +121,21 @@ test("upload, correct, approve, explore graph and timeline, chat, and open exact
     timeout: 15000,
   });
 
-  // 10. graph and timeline are separate patient-scoped surfaces in the product
+  // 10. graph and timeline are separate patient-scoped surfaces in the product.
+  // Use in-app navigation here because the real-login token is intentionally
+  // held in memory and a full page reload would discard it.
   const patientId = "20000000-0000-0000-0000-000000000003";
-  await page.goto(`/graph/patients/${patientId}`, { waitUntil: "networkidle" });
+  await page.getByRole("link", { name: "Graph RAG", exact: true }).click();
   await expect(page.getByRole("heading", { name: "Patient knowledge graph" })).toBeVisible({
     timeout: 30000,
   });
   await expect(page.getByText("RAG-grounded", { exact: true })).toBeVisible();
 
-  await page.goto(`/patients/${patientId}/timeline`, { waitUntil: "networkidle" });
+  await page.getByRole("link", { name: "Patients", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "Patients" })).toBeVisible();
+  await page.locator(`a[href="/patients/${patientId}"]`).first().click();
+  await expect(page.getByRole("link", { name: "Timeline", exact: true })).toBeVisible();
+  await page.getByRole("link", { name: "Timeline", exact: true }).click();
   await expect(
     page.getByText(/Clinical Timeline & Lineage|No clinical timeline events found\./),
   ).toBeVisible({
@@ -137,7 +143,7 @@ test("upload, correct, approve, explore graph and timeline, chat, and open exact
   });
 
   // 11. ask a grounded question from the real patient chat surface
-  await page.goto(`/chat?patient=${patientId}`, { waitUntil: "networkidle" });
+  await page.getByRole("link", { name: "Open chat", exact: true }).click();
   await expect(page.getByRole("textbox", { name: "Message input" })).toBeVisible();
   await page
     .getByRole("textbox", { name: "Message input" })

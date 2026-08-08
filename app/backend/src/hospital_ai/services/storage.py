@@ -154,38 +154,41 @@ class LocalStorageService:
         if os.path.isabs(storage_uri):
             candidate = os.path.realpath(storage_uri)
         else:
-            validate_storage_object_key(storage_uri, allowed_prefixes=("source/", "patients/"))
-            candidate = os.path.realpath(os.path.join(root, storage_uri))
+            validated_uri = validate_storage_object_key(storage_uri, allowed_prefixes=("source/", "patients/"))
+            candidate = os.path.realpath(os.path.join(root, validated_uri))
         if candidate != root and not candidate.startswith(root + os.sep):
             raise ValueError("Storage URI points outside the configured local storage root.")
         return Path(candidate)
 
     def create_presigned_put(self, *, key: str, content_type: str, expires_seconds: int) -> PresignedPut:
-        validate_storage_object_key(key, allowed_prefixes=("source/", "patients/"))
-        target_path = self._resolve_local_path(key)
+        validated_key = validate_storage_object_key(key, allowed_prefixes=("source/", "patients/"))
+        target_path = self._resolve_local_path(validated_key)
         target_path.parent.mkdir(parents=True, exist_ok=True)
         return PresignedPut(
-            url=f"local://{key}",
+            url=f"local://{validated_key}",
             required_headers={"Content-Type": content_type, "If-None-Match": "*"},
         )
 
     def head_object(self, key: str) -> StorageObjectHead:
-        target_path = self._resolve_local_path(key)
+        validated_key = validate_storage_object_key(key, allowed_prefixes=("source/", "patients/"))
+        target_path = self._resolve_local_path(validated_key)
         if not target_path.exists():
             raise FileNotFoundError("Storage object not found.")
         return StorageObjectHead(
-            key=key,
+            key=validated_key,
             byte_size=target_path.stat().st_size,
             etag='"local-etag"',
             content_type=None,
         )
 
     def read_stream(self, key: str) -> BinaryIO:
-        target_path = self._resolve_local_path(key)
+        validated_key = validate_storage_object_key(key, allowed_prefixes=("source/", "patients/"))
+        target_path = self._resolve_local_path(validated_key)
         return target_path.open("rb")
 
     def delete_object(self, key: str) -> None:
-        target_path = self._resolve_local_path(key)
+        validated_key = validate_storage_object_key(key, allowed_prefixes=("source/", "patients/"))
+        target_path = self._resolve_local_path(validated_key)
         target_path.unlink(missing_ok=True)
 
 

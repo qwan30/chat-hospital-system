@@ -611,6 +611,23 @@ jobs:
             sleep 2
           done
 
+      - name: Initialize synthetic E2E database
+        working-directory: ${{ github.workspace }}
+        run: |
+          docker compose exec -T backend alembic upgrade head
+          docker compose exec -T backend env PYTHONPATH=src python - <<'PY'
+          import asyncio
+
+          from hospital_ai.db.migrations import seed_synthetic_data
+          from hospital_ai.db.session import get_session_factory
+
+          async def seed() -> None:
+              async with get_session_factory()() as session:
+                  await seed_synthetic_data(session)
+
+          asyncio.run(seed())
+          PY
+
       - name: Run CDI V2 Playwright E2E journey
         env:
           E2E_BASE_URL: http://localhost:8082

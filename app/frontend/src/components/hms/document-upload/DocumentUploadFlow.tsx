@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useNavigate } from "@tanstack/react-router";
+import { useQueryClient } from "@tanstack/react-query";
 
 export function DocumentUploadFlow({
   patientId,
@@ -22,6 +23,7 @@ export function DocumentUploadFlow({
   title?: string;
 }) {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const [file, setFile] = useState<File | null>(null);
   const [state, setState] = useState<UploadUiState>({ kind: "idle" });
   const key = useRef<string>(crypto.randomUUID());
@@ -96,6 +98,7 @@ export function DocumentUploadFlow({
       const result = await finalizeUpload(session.document_id, session.upload_id, {
         idempotencyKey: key.current,
       });
+      await queryClient.invalidateQueries({ queryKey: ["documents"] });
 
       let nextState = uploadResultToUiState(result);
       if (nextState.kind === "quarantined" || nextState.kind === "rejected") {

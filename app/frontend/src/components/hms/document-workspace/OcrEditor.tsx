@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useMutation } from "@tanstack/react-query";
-import { saveDraftPage } from "@/lib/api/document-revisions";
+import { saveDraftPage, type DraftPageRead } from "@/lib/api/document-revisions";
 import { ApiError } from "@/lib/api-client";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -14,6 +14,7 @@ interface OcrEditorProps {
   parentRevisionId?: string;
   revision?: any;
   onCompare?: () => void;
+  onSaved?: (savedPage: DraftPageRead) => void;
 }
 
 export function OcrEditor({
@@ -24,6 +25,7 @@ export function OcrEditor({
   parentRevisionId,
   revision,
   onCompare,
+  onSaved,
 }: OcrEditorProps) {
   const [text, setText] = useState(initialText);
   const [reason, setReason] = useState("");
@@ -46,7 +48,7 @@ export function OcrEditor({
       return saveDraftPage(
         documentId,
         page,
-        { corrected_text: newText, parent_revision_id: parentRevisionId, edit_reason: reason },
+        { text: newText, parent_revision_id: parentRevisionId, edit_reason: reason },
         { idempotencyKey: idempotencyKeyRef.current, lockVersion: currentLockVersion },
       );
     },
@@ -54,6 +56,7 @@ export function OcrEditor({
       setCurrentLockVersion(savedPage.lock_version);
       idempotencyKeyRef.current = crypto.randomUUID();
       setReason("");
+      onSaved?.(savedPage);
     },
     onError: (error) => {
       if (error instanceof ApiError && error.status === 409) {

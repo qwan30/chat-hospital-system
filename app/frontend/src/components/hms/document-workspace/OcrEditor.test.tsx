@@ -120,7 +120,42 @@ describe("OcrEditor", () => {
     await vi.waitFor(() => expect(saveDraftPage).toHaveBeenCalledTimes(1));
 
     expect(vi.mocked(saveDraftPage).mock.calls[0][2]).toEqual(
-      expect.objectContaining({ parent_revision_id: "page-revision-1" }),
+      expect.objectContaining({
+        text: "local correction",
+        parent_revision_id: "page-revision-1",
+      }),
     );
+  });
+
+  it("notifies the workspace with the saved page and lock version", async () => {
+    const user = userEvent.setup();
+    const onSaved = vi.fn();
+    const savedPage = {
+      page_revision_id: "page-revision-2",
+      lock_version: 4,
+      page_number: 1,
+      text: "saved",
+      status: "draft",
+    };
+    vi.mocked(saveDraftPage).mockResolvedValue(savedPage);
+
+    render(
+      <QueryClientProvider client={queryClient}>
+        <OcrEditor
+          documentId="doc-1"
+          page={1}
+          initialText="local correction"
+          lockVersion={3}
+          parentRevisionId="page-revision-1"
+          revision={{ id: "revision-set-1", status: "draft" }}
+          onSaved={onSaved}
+        />
+      </QueryClientProvider>,
+    );
+
+    await user.type(screen.getByPlaceholderText("Edit reason"), "exact parent");
+    await user.click(screen.getByRole("button", { name: "Save draft" }));
+
+    await vi.waitFor(() => expect(onSaved).toHaveBeenCalledWith(savedPage));
   });
 });

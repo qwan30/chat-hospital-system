@@ -1,10 +1,10 @@
 from __future__ import annotations
-from typing import Optional
 
 import asyncio
 import importlib.util
 import json
 from pathlib import Path
+from typing import Optional
 from xml.etree import ElementTree
 
 import pytest

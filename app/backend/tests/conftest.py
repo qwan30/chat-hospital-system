@@ -1,4 +1,5 @@
 from __future__ import annotations
+
 import os
 import sys
 import uuid
@@ -6,10 +7,6 @@ from collections.abc import AsyncIterator
 from pathlib import Path
 
 import pytest
-from sqlalchemy import event
-from sqlalchemy.engine import Engine
-
-
 import pytest_asyncio
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 

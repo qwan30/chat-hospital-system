@@ -8,6 +8,7 @@ Import this limiter instance in route modules and apply via decorator:
     async def chat_ask(request: Request, ...):
         ...
 """
+
 from __future__ import annotations
 
 import os

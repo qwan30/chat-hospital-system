@@ -11,6 +11,7 @@ could lead to patient harm.
 Version: 1.0.0
 Last reviewed: 2026-06-14
 """
+
 from __future__ import annotations
 
 DRUG_ALLERGY_CHECK_PROMPT = """\

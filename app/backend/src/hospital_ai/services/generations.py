@@ -1,9 +1,9 @@
 from __future__ import annotations
-from typing import Optional
 
 import uuid
 from dataclasses import dataclass
 from datetime import UTC, datetime
+from typing import Optional
 
 from sqlalchemy.ext.asyncio import AsyncSession
 

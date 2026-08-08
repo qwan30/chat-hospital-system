@@ -1,8 +1,8 @@
 """Versioned, immutable result contracts for AI evaluation runs."""
+
 from __future__ import annotations
 
-
-from typing import Literal
+from typing import Literal, Optional
 
 from pydantic import BaseModel, ConfigDict, Field, StrictBool, StrictFloat, StrictInt
 

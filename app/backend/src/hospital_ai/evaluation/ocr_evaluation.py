@@ -1,6 +1,6 @@
 """Source-backed OCR gold pages and reproducible rendered scan variants."""
-from __future__ import annotations
 
+from __future__ import annotations
 
 import hashlib
 import importlib.util
@@ -14,7 +14,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from importlib.machinery import ModuleSpec
 from pathlib import Path
-from typing import Literal
+from typing import Literal, Optional
 
 import fitz
 import numpy as np

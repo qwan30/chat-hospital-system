@@ -1,10 +1,12 @@
-from __future__ import annotations
-from typing import Optional
 """Tests for the ValidatedSentenceStreamer service."""
 
-import pytest
+from __future__ import annotations
+
 from collections.abc import AsyncIterator
 from dataclasses import dataclass
+from typing import Optional
+
+import pytest
 
 
 @dataclass
@@ -41,7 +43,11 @@ async def test_sse_never_emits_unvalidated_provider_tokens() -> None:
     assert [event.sequence for event in tokens] == list(range(1, len(tokens) + 1))
     # Terminal event order
     assert [event.type for event in events if event.type != "token"] == [
-        "status", "metadata", "citations", "graph_explanation", "done"
+        "status",
+        "metadata",
+        "citations",
+        "graph_explanation",
+        "done",
     ]
 
 

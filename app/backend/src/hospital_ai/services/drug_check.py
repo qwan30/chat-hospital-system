@@ -4,8 +4,8 @@ Uses the graph RAG entity/relation tables to detect potential
 drug–drug, drug–condition, and drug–allergy interactions from
 indexed clinical documents.
 """
-from __future__ import annotations
 
+from __future__ import annotations
 
 import uuid
 from dataclasses import dataclass
@@ -115,7 +115,9 @@ class DrugCheckService:
 
         # Find relations involving these drugs
         result = await self.session.execute(
-            select(GraphRelationAssertion, GraphRelationEvidence.chunk_id).join(GraphRelationEvidence).where(
+            select(GraphRelationAssertion, GraphRelationEvidence.chunk_id)
+            .join(GraphRelationEvidence)
+            .where(
                 or_(
                     GraphRelationAssertion.subject_entity_id.in_(drug_entity_ids),
                     GraphRelationAssertion.object_entity_id.in_(drug_entity_ids),

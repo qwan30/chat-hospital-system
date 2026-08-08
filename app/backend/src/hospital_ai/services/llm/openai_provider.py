@@ -3,8 +3,8 @@
 Works with OpenAI API, Azure OpenAI, and any OpenAI-compatible endpoint
 (Groq, Together, Mistral, etc.)
 """
-from __future__ import annotations
 
+from __future__ import annotations
 
 from collections.abc import AsyncIterator
 from typing import Optional

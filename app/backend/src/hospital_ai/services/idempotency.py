@@ -1,10 +1,11 @@
 from __future__ import annotations
+
 import json
 import uuid
 from collections.abc import Mapping
 from dataclasses import dataclass
 from hashlib import sha256
-from typing import Any
+from typing import Any, Optional
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -20,8 +21,10 @@ class IdempotencyDecision:
     status_code: Optional[int] = None
     response_body: dict[str, Optional[Any]] = None
 
+
 def canonical_json(payload: Mapping[str, Any]) -> bytes:
     return json.dumps(payload, sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode("utf-8")
+
 
 class IdempotencyService:
     def __init__(self, session: AsyncSession, actor_user_id: uuid.UUID) -> None:
@@ -29,11 +32,15 @@ class IdempotencyService:
         self.actor_user_id = actor_user_id
 
     async def _lock(self, actor_user_id: uuid.UUID, scope: str, key_hash: str) -> Optional[IdempotencyRecord]:
-        stmt = select(IdempotencyRecord).where(
-            IdempotencyRecord.actor_user_id == actor_user_id,
-            IdempotencyRecord.scope == scope,
-            IdempotencyRecord.key_hash == key_hash,
-        ).with_for_update()
+        stmt = (
+            select(IdempotencyRecord)
+            .where(
+                IdempotencyRecord.actor_user_id == actor_user_id,
+                IdempotencyRecord.scope == scope,
+                IdempotencyRecord.key_hash == key_hash,
+            )
+            .with_for_update()
+        )
         result = await self.session.execute(stmt)
         return result.scalars().first()
 
@@ -45,7 +52,7 @@ class IdempotencyService:
             if record.payload_sha256 != payload_hash:
                 raise ConflictError("Idempotency-Key was already used with a different payload.")
             return IdempotencyDecision(record.id, True, record.status_code, record.response_body)
-        
+
         created = IdempotencyRecord(
             actor_user_id=self.actor_user_id,
             scope=scope,

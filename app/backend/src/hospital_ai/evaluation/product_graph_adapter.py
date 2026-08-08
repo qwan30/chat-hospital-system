@@ -6,9 +6,10 @@ through the production permission-aware retrieval service.  It never starts an
 LLM provider: graph extraction is explicitly limited to the deterministic
 fallback grammar.
 """
+
 from __future__ import annotations
 
-
+from collections import defaultdict
 from pathlib import Path
 
 from sqlalchemy import select

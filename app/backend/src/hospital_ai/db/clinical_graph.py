@@ -3,7 +3,7 @@ from __future__ import annotations
 import uuid
 from datetime import datetime
 
-from sqlalchemy import ForeignKey, String, UniqueConstraint, func, ForeignKeyConstraint
+from sqlalchemy import ForeignKey, ForeignKeyConstraint, String, UniqueConstraint, func
 from sqlalchemy.orm import Mapped, mapped_column
 
 from hospital_ai.db.models import Base
@@ -33,7 +33,7 @@ class GraphMention(Base):
         ForeignKeyConstraint(
             ["patient_id", "entity_id"],
             ["graph_entities.patient_id", "graph_entities.id"],
-            name="fk_graph_mention_entity_patient"
+            name="fk_graph_mention_entity_patient",
         ),
     )
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
@@ -51,19 +51,23 @@ class GraphRelationAssertion(TimestampMixin, Base):
     __tablename__ = "graph_relation_assertions"
     __table_args__ = (
         UniqueConstraint(
-            "patient_id", "subject_entity_id", "object_entity_id", "relation_type", "normalized_value",
-            name="uq_graph_relation_assertion"
+            "patient_id",
+            "subject_entity_id",
+            "object_entity_id",
+            "relation_type",
+            "normalized_value",
+            name="uq_graph_relation_assertion",
         ),
         UniqueConstraint("patient_id", "id", name="uq_graph_assertion_patient_id"),
         ForeignKeyConstraint(
             ["patient_id", "subject_entity_id"],
             ["graph_entities.patient_id", "graph_entities.id"],
-            name="fk_graph_assertion_subject_patient"
+            name="fk_graph_assertion_subject_patient",
         ),
         ForeignKeyConstraint(
             ["patient_id", "object_entity_id"],
             ["graph_entities.patient_id", "graph_entities.id"],
-            name="fk_graph_assertion_object_patient"
+            name="fk_graph_assertion_object_patient",
         ),
     )
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
@@ -81,7 +85,7 @@ class GraphRelationEvidence(Base):
         ForeignKeyConstraint(
             ["patient_id", "assertion_id"],
             ["graph_relation_assertions.patient_id", "graph_relation_assertions.id"],
-            name="fk_graph_evidence_assertion_patient"
+            name="fk_graph_evidence_assertion_patient",
         ),
     )
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
@@ -98,9 +102,22 @@ class GraphRelationEvidence(Base):
 class LegacyGraphEntity(Base):
     __tablename__ = "legacy_graph_entities"
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
-    patient_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("patients.id"), nullable=False, index=True)
-    source_document_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("documents.id"), nullable=False)
-    source_chunk_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("document_chunks.id"), nullable=False)
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     entity_type: Mapped[str] = mapped_column(String(64), nullable=False)
+    source_chunk_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("document_chunks.id"), nullable=False, index=True)
+    source_document_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("documents.id"), nullable=False, index=True)
     confidence: Mapped[float] = mapped_column(nullable=False, default=1.0)
+
+
+class LegacyGraphRelation(TimestampMixin, Base):
+    __tablename__ = "legacy_graph_relations"
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    source_entity_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("legacy_graph_entities.id"), nullable=False, index=True
+    )
+    target_entity_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("legacy_graph_entities.id"), nullable=False, index=True
+    )
+    relation_type: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
+    weight: Mapped[float] = mapped_column(nullable=False, default=1.0)
+    source_chunk_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("document_chunks.id"), nullable=False, index=True)

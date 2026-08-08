@@ -1,8 +1,8 @@
 from __future__ import annotations
-from typing import Optional
 
 import uuid
 from collections.abc import Collection
+from typing import Optional
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession

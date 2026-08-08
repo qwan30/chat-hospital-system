@@ -1,13 +1,13 @@
 """Immutable, source-backed inventory for the synthetic evaluation corpus."""
-from __future__ import annotations
 
+from __future__ import annotations
 
 import csv
 import hashlib
 import json
 import re
 from pathlib import Path
-from typing import Literal
+from typing import Literal, Optional
 from uuid import UUID
 
 from pydantic import BaseModel, root_validator, validator
@@ -194,7 +194,9 @@ def _load_ingestion_metadata(data_root: Path, known_patient_ids: set[UUID]) -> d
     return by_path
 
 
-def _patient_id_for_path(relative_path: str, metadata: dict[str, dict], known_by_mrn: dict[str, UUID]) -> Optional[UUID]:
+def _patient_id_for_path(
+    relative_path: str, metadata: dict[str, dict], known_by_mrn: dict[str, UUID]
+) -> Optional[UUID]:
     logical_path = relative_path
     nested_marker = "/app/backend/data/"
     if nested_marker in logical_path:

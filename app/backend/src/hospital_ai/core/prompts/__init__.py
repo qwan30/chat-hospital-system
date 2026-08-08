@@ -15,6 +15,7 @@ Architecture principle:
     safety rules and citation requirements. They belong in core/,
     not in environment variables or service-layer string literals.
 """
+
 from __future__ import annotations
 
 from hospital_ai.core.prompts.citation_validation_prompt import CITATION_VALIDATION_PROMPT

@@ -1,4 +1,5 @@
 from __future__ import annotations
+
 from hospital_ai.db.models import Base, Document, DocumentChunk
 
 

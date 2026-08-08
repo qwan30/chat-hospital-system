@@ -5,8 +5,8 @@ Covers:
 - F-RAG-001: SSE streaming rejects answers with hallucinated citations.
 - F-SEC-004: SSE error events do not leak raw exception strings to the client.
 """
-from __future__ import annotations
 
+from __future__ import annotations
 
 import json
 import uuid

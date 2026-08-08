@@ -1,8 +1,9 @@
 from __future__ import annotations
+
 import uuid
 from dataclasses import dataclass
 from datetime import date, datetime
-from typing import Literal
+from typing import Literal, Optional
 
 from sqlalchemy.ext.asyncio import AsyncSession
 

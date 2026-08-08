@@ -8,6 +8,7 @@ Covers:
 - MetricsSummary with feedback integration
 - Edge cases: empty metrics, zero latency
 """
+
 from __future__ import annotations
 
 import uuid

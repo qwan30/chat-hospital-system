@@ -5,7 +5,6 @@ without restarting the server.  Persists overrides to the ``system_settings``
 database table so they survive restarts.
 """
 
-
 from typing import Optional
 
 from fastapi import APIRouter, Depends, Request

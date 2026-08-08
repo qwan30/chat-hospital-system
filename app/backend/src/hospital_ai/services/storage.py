@@ -6,7 +6,7 @@ import re
 import uuid
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, BinaryIO, Protocol
+from typing import Any, BinaryIO, Optional, Protocol
 from urllib.parse import urlsplit
 
 import boto3

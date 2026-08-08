@@ -4,8 +4,8 @@ Wraps rq with retry and dead-letter support so that transient OCR/embedding
 failures are retried automatically and permanently-failed jobs are moved to
 a dead-letter queue for manual inspection.
 """
-from __future__ import annotations
 
+from __future__ import annotations
 
 import logging
 import uuid

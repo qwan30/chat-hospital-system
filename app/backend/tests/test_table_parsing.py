@@ -1,6 +1,6 @@
 """Tests for table parsing and table-aware chunking."""
-from __future__ import annotations
 
+from __future__ import annotations
 
 from hospital_ai.services.chunking import ChunkingService
 from hospital_ai.services.loaders.table_parser import (

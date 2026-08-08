@@ -24,9 +24,7 @@ from hospital_ai.db.models import Base, TimestampMixin
 DOCUMENT_UPLOAD_STATES = frozenset(
     {"pending_upload", "uploaded_unverified", "quarantined", "verified", "finalized", "rejected"}
 )
-PAGE_REVISION_STATES = frozenset(
-    {"machine_draft", "human_draft", "approved", "rejected", "superseded"}
-)
+PAGE_REVISION_STATES = frozenset({"machine_draft", "human_draft", "approved", "rejected", "superseded"})
 REVISION_SET_STATES = frozenset({"submitted", "approved", "rejected", "superseded"})
 GENERATION_STATES = frozenset({"building", "active", "failed", "superseded"})
 ALIGNMENT_STATES = frozenset({"aligned", "partially_aligned", "stale"})
@@ -70,8 +68,12 @@ class DocumentPageRevision(Base):
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
     document_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("documents.id"), nullable=False, index=True)
     page_number: Mapped[int] = mapped_column(Integer, nullable=False)
-    parent_revision_id: Mapped[Optional[uuid.UUID]] = mapped_column(ForeignKey("document_page_revisions.id"), nullable=True)
-    extraction_run_id: Mapped[Optional[uuid.UUID]] = mapped_column(ForeignKey("document_extraction_runs.id"), nullable=True)
+    parent_revision_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        ForeignKey("document_page_revisions.id"), nullable=True
+    )
+    extraction_run_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        ForeignKey("document_extraction_runs.id"), nullable=True
+    )
     revision_number: Mapped[int] = mapped_column(Integer, nullable=False)
     revision_type: Mapped[str] = mapped_column(String(32), nullable=False)
     raw_text_snapshot: Mapped[str] = mapped_column(Text, nullable=False)
@@ -119,7 +121,9 @@ class DocumentRevisionPage(Base):
     __tablename__ = "document_revision_pages"
     revision_set_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("document_revision_sets.id"), primary_key=True)
     page_number: Mapped[int] = mapped_column(Integer, primary_key=True)
-    page_revision_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("document_page_revisions.id"), nullable=False, index=True)
+    page_revision_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("document_page_revisions.id"), nullable=False, index=True
+    )
 
 
 class DocumentRevisionEvent(Base):
@@ -161,11 +165,11 @@ class DocumentIndexGeneration(Base):
 
 class GenerationStageResult(Base):
     __tablename__ = "generation_stage_results"
-    __table_args__ = (
-        UniqueConstraint("generation_id", "stage", name="uq_generation_stage_result"),
-    )
+    __table_args__ = (UniqueConstraint("generation_id", "stage", name="uq_generation_stage_result"),)
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
-    generation_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("document_index_generations.id"), nullable=False, index=True)
+    generation_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("document_index_generations.id"), nullable=False, index=True
+    )
     stage: Mapped[str] = mapped_column(String(64), nullable=False)
     status: Mapped[str] = mapped_column(String(32), nullable=False)
     started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
@@ -178,7 +182,9 @@ class GenerationStageResult(Base):
 class OcrBlock(Base):
     __tablename__ = "ocr_blocks"
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
-    page_revision_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("document_page_revisions.id"), nullable=False, index=True)
+    page_revision_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("document_page_revisions.id"), nullable=False, index=True
+    )
     text_start_offset: Mapped[int] = mapped_column(Integer, nullable=False)
     text_end_offset: Mapped[int] = mapped_column(Integer, nullable=False)
     polygon: Mapped[Optional[dict[str, Any]]] = mapped_column(JSON, nullable=True)
@@ -191,7 +197,9 @@ class OcrLine(Base):
     __tablename__ = "ocr_lines"
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
     block_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("ocr_blocks.id"), nullable=False, index=True)
-    page_revision_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("document_page_revisions.id"), nullable=False, index=True)
+    page_revision_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("document_page_revisions.id"), nullable=False, index=True
+    )
     text_start_offset: Mapped[int] = mapped_column(Integer, nullable=False)
     text_end_offset: Mapped[int] = mapped_column(Integer, nullable=False)
     polygon: Mapped[Optional[dict[str, Any]]] = mapped_column(JSON, nullable=True)
@@ -204,7 +212,9 @@ class OcrSpan(Base):
     __tablename__ = "ocr_spans"
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
     line_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("ocr_lines.id"), nullable=False, index=True)
-    page_revision_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("document_page_revisions.id"), nullable=False, index=True)
+    page_revision_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("document_page_revisions.id"), nullable=False, index=True
+    )
     text_start_offset: Mapped[int] = mapped_column(Integer, nullable=False)
     text_end_offset: Mapped[int] = mapped_column(Integer, nullable=False)
     polygon: Mapped[Optional[dict[str, Any]]] = mapped_column(JSON, nullable=True)
@@ -217,9 +227,7 @@ class OcrSpan(Base):
 
 class IdempotencyRecord(Base):
     __tablename__ = "idempotency_records"
-    __table_args__ = (
-        UniqueConstraint("actor_user_id", "scope", "key_hash", name="uq_idempotency_record"),
-    )
+    __table_args__ = (UniqueConstraint("actor_user_id", "scope", "key_hash", name="uq_idempotency_record"),)
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
     actor_user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"), nullable=False, index=True)
     scope: Mapped[str] = mapped_column(String(64), nullable=False)

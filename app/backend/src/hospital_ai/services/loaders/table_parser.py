@@ -4,8 +4,8 @@ Converts raw table data from PDF extraction into structured markdown
 format that LLMs can comprehend. Handles common medical table patterns
 like lab results, vital signs, and medication lists.
 """
-from __future__ import annotations
 
+from __future__ import annotations
 
 import re
 from typing import Optional

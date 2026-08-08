@@ -4,8 +4,8 @@ Buffers raw LLM provider tokens privately until each complete sentence
 passes claim validation.  Only validated content is yielded to the SSE
 transport, ensuring no unverified clinical claims reach the wire.
 """
-from __future__ import annotations
 
+from __future__ import annotations
 
 import logging
 import re
@@ -19,7 +19,7 @@ logger = logging.getLogger(__name__)
 
 # ── Sentence boundary utilities ──────────────────────────────────────────
 
-_SENTENCE_END_RE = re.compile(r'(?<=[.!?])\s+')
+_SENTENCE_END_RE = re.compile(r"(?<=[.!?])\s+")
 
 
 def split_complete_sentences(buffer: str) -> tuple[list[str], str]:
@@ -32,7 +32,7 @@ def split_complete_sentences(buffer: str) -> tuple[list[str], str]:
     if len(parts) <= 1:
         # Check if the buffer itself ends with sentence-ending punctuation
         stripped = buffer.rstrip()
-        if stripped and stripped[-1] in '.!?':
+        if stripped and stripped[-1] in ".!?":
             return [buffer], ""
         return [], buffer
 
@@ -40,7 +40,7 @@ def split_complete_sentences(buffer: str) -> tuple[list[str], str]:
     complete = parts[:-1]
     remainder = parts[-1]
     # If remainder ends with sentence-ending punctuation, it's also complete
-    if remainder.rstrip() and remainder.rstrip()[-1] in '.!?':
+    if remainder.rstrip() and remainder.rstrip()[-1] in ".!?":
         complete.append(remainder)
         remainder = ""
     return complete, remainder
@@ -64,9 +64,11 @@ def visual_chunks(sentence: str) -> list[str]:
 
 # ── Data types ───────────────────────────────────────────────────────────
 
+
 @dataclass
 class ValidatedChunk:
     """A single validated text fragment ready for SSE emission."""
+
     sequence: int
     content: str
     validation_mode: str
@@ -75,6 +77,7 @@ class ValidatedChunk:
 @dataclass
 class SseEvent:
     """An SSE event emitted by the ValidatedSentenceStreamer."""
+
     type: str
     content: Optional[str] = None
     sequence: Optional[int] = None

@@ -1,5 +1,3 @@
-from __future__ import annotations
-from typing import Optional
 """Isolated adapter that observes the real product retrieval service.
 
 The adapter intentionally owns a disposable SQLite schema.  It materializes
@@ -8,12 +6,14 @@ only canonical source artifacts referenced by a case, then converts the
 evaluation runner to validate.
 """
 
+from __future__ import annotations
 
 import csv
 import hashlib
 import io
 from collections.abc import Iterable
 from pathlib import Path
+from typing import Optional
 from uuid import UUID
 
 import fitz

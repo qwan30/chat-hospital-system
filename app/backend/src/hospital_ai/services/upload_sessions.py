@@ -6,7 +6,7 @@ import json
 import uuid
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from typing import Any, Optional
 
 from fastapi import Request
 from sqlalchemy import select
@@ -63,7 +63,9 @@ def hash_stream(stream: Any, default_sha256: Optional[str] = None) -> HashResult
     return HashResult(sha256=default_sha256 or ("a" * 64), prefix=b"%PDF-1.4")
 
 
-def verify_upload(upload: DocumentUpload, head: Any, actual: HashResult, mime: str, malware: str) -> VerificationDecision:
+def verify_upload(
+    upload: DocumentUpload, head: Any, actual: HashResult, mime: str, malware: str
+) -> VerificationDecision:
     head_bytes = head.get("ContentLength", 0) if isinstance(head, dict) else getattr(head, "byte_size", 0)
     if upload.byte_size is not None and head_bytes != upload.byte_size:
         return VerificationDecision(state="rejected", public_reason="File size mismatch", quarantine_result=malware)
@@ -84,6 +86,7 @@ class UploadSessionService:
     def from_request(cls, session: AsyncSession, request: Request) -> UploadSessionService:
         from hospital_ai.core.config import get_settings
         from hospital_ai.services.storage import get_storage_service
+
         storage = get_storage_service(get_settings())
         return cls(session, storage)
 
@@ -127,7 +130,7 @@ class UploadSessionService:
 
         # Duplicate check
         try:
-            res = getattr(self.storage, "head_object")(object_key)
+            res = self.storage.head_object(object_key)
             if isinstance(res, (dict, StorageObjectHead)):
                 raise ConflictError("Object key already exists in storage.")
         except FileNotFoundError:
@@ -191,7 +194,9 @@ class UploadSessionService:
 
         return res_model
 
-    async def finalize(self, document_id: uuid.UUID, upload_id: uuid.UUID, actor: Optional[Any] = None) -> UploadFinalizeResult:
+    async def finalize(
+        self, document_id: uuid.UUID, upload_id: uuid.UUID, actor: Optional[Any] = None
+    ) -> UploadFinalizeResult:
         upload = await self._lock_upload(document_id, upload_id)
         if upload.state == "finalized":
             return UploadFinalizeResult.from_row(upload)
@@ -241,10 +246,13 @@ class UploadSessionService:
             raise NotFoundError("Document not found.")
         return doc
 
-    async def _audit_and_commit(self, upload: DocumentUpload, actor: Optional[Any], decision: VerificationDecision) -> None:
+    async def _audit_and_commit(
+        self, upload: DocumentUpload, actor: Optional[Any], decision: VerificationDecision
+    ) -> None:
         self.session.add(upload)
         if actor and hasattr(actor, "id"):
             from hospital_ai.services.audit import AuditService
+
             await AuditService(self.session).record(
                 actor_user_id=actor.id,
                 action="document_upload.finalize",
@@ -261,6 +269,7 @@ class UploadSessionService:
         self.session.add(document)
         if actor and hasattr(actor, "id"):
             from hospital_ai.services.audit import AuditService
+
             await AuditService(self.session).record(
                 actor_user_id=actor.id,
                 action="document_upload.finalize",

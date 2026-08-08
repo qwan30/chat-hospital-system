@@ -1,6 +1,6 @@
 """Synthetic release-gate contracts for Graph RAG and chat transports."""
-from __future__ import annotations
 
+from __future__ import annotations
 
 import json
 import uuid
@@ -122,11 +122,14 @@ async def test_graph_reindex_replaces_prior_rows_for_the_chunk(session_and_setti
     await index_chunk_entities(session, chunk.id, doc.id, chunk.content)
     await session.commit()
     from hospital_ai.db.clinical_graph import GraphEntity, GraphRelationAssertion
+
     entities = await session.scalar(
         select(func.count()).select_from(GraphEntity).where(GraphEntity.patient_id == doc.patient_id)
     )
     relations = await session.scalar(
-        select(func.count()).select_from(GraphRelationAssertion).where(GraphRelationAssertion.patient_id == doc.patient_id)
+        select(func.count())
+        .select_from(GraphRelationAssertion)
+        .where(GraphRelationAssertion.patient_id == doc.patient_id)
     )
     assert entities == 2
     assert relations == 1

@@ -2,6 +2,7 @@
 
 Provider-agnostic interface for text embedding with swappable backends.
 """
+
 from __future__ import annotations
 
 from hospital_ai.services.embedding.base import BaseEmbedding

@@ -1,8 +1,8 @@
 from __future__ import annotations
-from typing import Optional
 
 import argparse
 from collections.abc import Sequence
+from typing import Optional
 
 from redis import Redis
 from rq import Queue, Worker

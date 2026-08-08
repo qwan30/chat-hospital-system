@@ -5,24 +5,24 @@ import hashlib
 import logging
 import uuid
 from dataclasses import dataclass
-from datetime import datetime, UTC
+from datetime import UTC, datetime
 from typing import Any, Optional
 
-from sqlalchemy import select, func
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from hospital_ai.core.config import Settings
-from hospital_ai.db.models import Document, DocumentPage, DocumentChunk
 from hospital_ai.db.clinical_documents import (
     DocumentIndexGeneration,
-    DocumentRevisionSet,
-    DocumentRevisionPage,
     DocumentPageRevision,
+    DocumentRevisionPage,
+    DocumentRevisionSet,
     GenerationStageResult,
 )
-from hospital_ai.services.generations import GenerationService, ActivationResult, GENERATION_STAGES
+from hospital_ai.db.models import Document, DocumentChunk, DocumentPage
 from hospital_ai.services.chunking import ChunkingService
 from hospital_ai.services.embeddings import EmbeddingService
+from hospital_ai.services.generations import GENERATION_STAGES, ActivationResult, GenerationService
 from hospital_ai.services.ocr import OcrPage
 
 logger = logging.getLogger(__name__)
@@ -68,7 +68,7 @@ class StageRunner:
             return StageOutput(sha256=sha256, row_count=len(rows))
 
         elif stage == "facts":
-            sha256 = hashlib.sha256(f"{generation.id}:facts".encode("utf-8")).hexdigest()
+            sha256 = hashlib.sha256(f"{generation.id}:facts".encode()).hexdigest()
             return StageOutput(sha256=sha256, row_count=0)
 
         elif stage == "chunks":
@@ -87,7 +87,11 @@ class StageRunner:
             page_map: dict[int, tuple[DocumentPage, DocumentPageRevision]] = {}
             for rev_p, page_rev in rev_pages:
                 pages_for_chunking.append(
-                    OcrPage(page_number=rev_p.page_number, text=page_rev.corrected_text, confidence=float(page_rev.confidence or 1.0))
+                    OcrPage(
+                        page_number=rev_p.page_number,
+                        text=page_rev.corrected_text,
+                        confidence=float(page_rev.confidence or 1.0),
+                    )
                 )
                 res = await self.session.execute(
                     select(DocumentPage).where(
@@ -136,7 +140,7 @@ class StageRunner:
                 )
                 self.session.add(db_chunk)
             await self.session.flush()
-            sha256 = hashlib.sha256(f"{generation.id}:chunks:{len(chunks)}".encode("utf-8")).hexdigest()
+            sha256 = hashlib.sha256(f"{generation.id}:chunks:{len(chunks)}".encode()).hexdigest()
             return StageOutput(sha256=sha256, row_count=len(chunks))
 
         elif stage == "embeddings":
@@ -148,21 +152,22 @@ class StageRunner:
             chunks = list(res.scalars().all())
             if chunks:
                 embeddings = await EmbeddingService(self.settings).embed_many(c.content for c in chunks)
-                for c, emb in zip(chunks, embeddings):
+                for c, emb in zip(chunks, embeddings, strict=True):
                     c.embedding = emb
                 await self.session.flush()
-            sha256 = hashlib.sha256(f"{generation.id}:embeddings:{len(chunks)}".encode("utf-8")).hexdigest()
+            sha256 = hashlib.sha256(f"{generation.id}:embeddings:{len(chunks)}".encode()).hexdigest()
             return StageOutput(sha256=sha256, row_count=len(chunks))
 
         elif stage == "lexical_index":
             from hospital_ai.workers.jobs import _populate_tsvectors
+
             await _populate_tsvectors(self.session, doc.id)
-            sha256 = hashlib.sha256(f"{generation.id}:lexical".encode("utf-8")).hexdigest()
+            sha256 = hashlib.sha256(f"{generation.id}:lexical".encode()).hexdigest()
             return StageOutput(sha256=sha256, row_count=1)
 
         elif stage == "graph":
-            from hospital_ai.services.graph_rag import extract_entities_and_relations_nlp, GraphExtraction
             from hospital_ai.services.graph_index import GraphIndexService
+            from hospital_ai.services.graph_rag import GraphExtraction, extract_entities_and_relations_nlp
 
             res = await self.session.execute(
                 select(DocumentChunk)
@@ -180,11 +185,11 @@ class StageRunner:
                 except Exception as e:
                     logger.debug("Graph extraction failed for chunk %s: %s", chunk.id, e)
 
-            sha256 = hashlib.sha256(f"{generation.id}:graph".encode("utf-8")).hexdigest()
+            sha256 = hashlib.sha256(f"{generation.id}:graph".encode()).hexdigest()
             return StageOutput(sha256=sha256, row_count=len(chunks))
 
         elif stage == "timeline":
-            sha256 = hashlib.sha256(f"{generation.id}:timeline".encode("utf-8")).hexdigest()
+            sha256 = hashlib.sha256(f"{generation.id}:timeline".encode()).hexdigest()
             return StageOutput(sha256=sha256, row_count=1)
 
         else:
@@ -215,9 +220,15 @@ class GenerationBuilder:
             .order_by(GenerationStageResult.stage)
         )
         hashes = [h or "" for h in res.scalars().all()]
-        return hashlib.sha256(val.encode("utf-8") for val in hashes if val).hexdigest() if any(hashes) else hashlib.sha256(str(generation_id).encode("utf-8")).hexdigest()
+        return (
+            hashlib.sha256(val.encode("utf-8") for val in hashes if val).hexdigest()
+            if any(hashes)
+            else hashlib.sha256(str(generation_id).encode("utf-8")).hexdigest()
+        )
 
-    async def _record_stage(self, generation_id: uuid.UUID, stage: str, output_sha256: str, row_count: int, status: str) -> None:
+    async def _record_stage(
+        self, generation_id: uuid.UUID, stage: str, output_sha256: str, row_count: int, status: str
+    ) -> None:
         row = GenerationStageResult(
             id=uuid.uuid4(),
             generation_id=generation_id,
@@ -229,7 +240,9 @@ class GenerationBuilder:
         self.session.add(row)
         await self.session.flush()
 
-    async def build(self, generation_id: uuid.UUID, custom_metadata: Optional[dict[str, Any]] = None) -> ActivationResult:
+    async def build(
+        self, generation_id: uuid.UUID, custom_metadata: Optional[dict[str, Any]] = None
+    ) -> ActivationResult:
         try:
             generation = await self._lock_building_generation(generation_id)
             revision_set = await self.session.get(DocumentRevisionSet, generation.revision_set_id)
@@ -338,8 +351,8 @@ async def import_synthetic_generation(
 
 def build_generation_job(generation_id: str) -> None:
     async def run() -> None:
-        from hospital_ai.db.session import get_session_factory
         from hospital_ai.core.config import get_settings
+        from hospital_ai.db.session import get_session_factory
 
         async with get_session_factory()() as session:
             await GenerationBuilder.from_settings(session, get_settings()).build(uuid.UUID(generation_id))

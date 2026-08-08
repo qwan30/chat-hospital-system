@@ -3,6 +3,7 @@
 Orchestrates fetching data from the HMS REST API and importing it as
 searchable evidence into the chatbot's PostgreSQL/pgvector store.
 """
+
 from __future__ import annotations
 
 import hashlib

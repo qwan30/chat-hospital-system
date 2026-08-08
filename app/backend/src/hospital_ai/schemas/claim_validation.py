@@ -1,10 +1,13 @@
 from typing import Any, Optional
+
 from pydantic import BaseModel
+
 
 class SentenceValidation(BaseModel):
     sentence: str
     claims: list[Any]
     passed: bool
+
 
 class ClaimResult(BaseModel):
     claim: Any

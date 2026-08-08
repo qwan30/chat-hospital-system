@@ -1,4 +1,5 @@
 from __future__ import annotations
+
 import re
 
 # Comprehensive list of patterns for detecting prompt injection attempts

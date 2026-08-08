@@ -1,4 +1,5 @@
 from __future__ import annotations
+
 import json
 import logging
 import uuid
@@ -7,8 +8,8 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from hospital_ai.core.config import get_settings
-from hospital_ai.db.models import ClinicalAlert, Document, DocumentChunk
 from hospital_ai.db.clinical_graph import GraphEntity, GraphRelationAssertion
+from hospital_ai.db.models import ClinicalAlert, Document, DocumentChunk
 from hospital_ai.services.llm.base import LLMMessage
 from hospital_ai.services.llm.manager import get_llm_manager
 
@@ -29,9 +30,7 @@ async def run_cdss_analysis(session: AsyncSession, document_id: uuid.UUID) -> No
     text_content = "\n".join(chunk.content for chunk in chunks)
 
     # 3. Fetch patient's existing GraphContext summary
-    entity_result = await session.execute(
-        select(GraphEntity).where(GraphEntity.patient_id == document.patient_id)
-    )
+    entity_result = await session.execute(select(GraphEntity).where(GraphEntity.patient_id == document.patient_id))
     all_entities = entity_result.scalars().all()
     all_entities_map = {e.id: e.normalized_label for e in all_entities}
     entity_ids = list(all_entities_map.keys())

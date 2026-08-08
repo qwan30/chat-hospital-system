@@ -3,6 +3,7 @@
 Inspired by kotaemon's llms/ architecture — provider-agnostic interface
 for chat completion with swappable backends.
 """
+
 from __future__ import annotations
 
 from hospital_ai.services.llm.base import BaseLLM, LLMResponse

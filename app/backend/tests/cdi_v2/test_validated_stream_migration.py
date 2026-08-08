@@ -1,4 +1,5 @@
 """Migration tests for cdi_v2_0003_add_validated_stream_state."""
+
 from __future__ import annotations
 
 import importlib.util

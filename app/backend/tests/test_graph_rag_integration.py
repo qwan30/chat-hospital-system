@@ -7,6 +7,7 @@ Covers:
 - find_related_entities() BFS traversal
 - Integration with retrieval pipeline via RetrievalService.get_chunks_by_ids()
 """
+
 from __future__ import annotations
 
 import pytest
@@ -169,10 +170,19 @@ async def test_index_chunk_entities_with_offline_extractor_never_gets_llm_manage
         chunk.content,
         extractor=extract_entities_and_relations_offline,
     )
-    
+
     from hospital_ai.db.clinical_graph import GraphEntity, GraphRelationAssertion
-    entities = list((await session.execute(select(GraphEntity).where(GraphEntity.patient_id == PATIENT_ALICE_ID))).scalars())
-    relations = list((await session.execute(select(GraphRelationAssertion).where(GraphRelationAssertion.patient_id == PATIENT_ALICE_ID))).scalars())
+
+    entities = list(
+        (await session.execute(select(GraphEntity).where(GraphEntity.patient_id == PATIENT_ALICE_ID))).scalars()
+    )
+    relations = list(
+        (
+            await session.execute(
+                select(GraphRelationAssertion).where(GraphRelationAssertion.patient_id == PATIENT_ALICE_ID)
+            )
+        ).scalars()
+    )
 
     assert sorted([entity.normalized_label for entity in entities]) == ["diabetes", "metformin"]
     assert [(relation.relation_type) for relation in relations] == ["treats"]
@@ -205,6 +215,7 @@ async def test_index_chunk_entities_persists(session_and_settings):
     await session.commit()
 
     from hospital_ai.db.clinical_graph import GraphEntity
+
     result = await session.execute(select(GraphEntity).where(GraphEntity.patient_id == doc.patient_id))
     db_entities = result.scalars().all()
     assert len(db_entities) == 4
@@ -238,7 +249,10 @@ async def test_index_chunk_entities_creates_relations(session_and_settings):
     await session.commit()
 
     from hospital_ai.db.clinical_graph import GraphRelationAssertion
-    result = await session.execute(select(GraphRelationAssertion).where(GraphRelationAssertion.patient_id == doc.patient_id))
+
+    result = await session.execute(
+        select(GraphRelationAssertion).where(GraphRelationAssertion.patient_id == doc.patient_id)
+    )
     db_relations = result.scalars().all()
     assert len(db_relations) == 2
     types = {r.relation_type for r in db_relations}

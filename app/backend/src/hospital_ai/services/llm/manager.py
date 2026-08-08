@@ -2,8 +2,8 @@
 
 Inspired by kotaemon's ktem.llms.manager pattern.
 """
-from __future__ import annotations
 
+from __future__ import annotations
 
 import logging
 from functools import lru_cache

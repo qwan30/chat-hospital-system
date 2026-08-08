@@ -1,4 +1,5 @@
 from __future__ import annotations
+
 import math
 import time
 import uuid
@@ -14,14 +15,13 @@ from hospital_ai.core.security import PATIENT_READ_SCOPES, ROLE_PERMISSIONS
 from hospital_ai.core.telemetry import RAG_EVIDENCE_COUNT, RAG_RETRIEVAL_DURATION
 from hospital_ai.db.models import Document, DocumentChunk, DocumentPage, User
 from hospital_ai.evaluation.observer import EvaluationObserver
-from hospital_ai.services.permissions import (
-    ACTIVE_PATIENT_PERMISSION_SQL,
-    active_patient_permission_exists,
-)
 from hospital_ai.services.evidence_scope import (
-    ActiveEvidenceScope,
     ACTIVE_GENERATION_JOINS_SQL,
     ACTIVE_GENERATION_WHERE_SQL,
+    ActiveEvidenceScope,
+)
+from hospital_ai.services.permissions import (
+    ACTIVE_PATIENT_PERMISSION_SQL,
 )
 
 PERMISSION_FILTERED_RETRIEVAL_SQL = f"""
@@ -112,6 +112,7 @@ class RetrievedChunk:
             end_offset=self.end_offset,
             bounding_boxes=self.bounding_boxes,
         )
+
 
 def aligned_boxes_only(boxes: Any) -> Any:
     if isinstance(boxes, dict) and "aligned" in boxes:
@@ -428,9 +429,9 @@ class RetrievalService:
         if patient_id is None:
             return []
 
-        sql = text(f"""
+        sql = text("""
             with allowed as (
-            {{ACTIVE_PATIENT_PERMISSION_SQL}}
+            {ACTIVE_PATIENT_PERMISSION_SQL}
             )
             select
                 c.id as chunk_id,
@@ -453,11 +454,11 @@ class RetrievalService:
             from document_chunks c
             join documents d on d.id = c.document_id
             join document_pages p on p.id = c.page_id and p.document_id = c.document_id
-            {{ACTIVE_GENERATION_JOINS_SQL}}
+            {ACTIVE_GENERATION_JOINS_SQL}
             where exists (select 1 from allowed)
               and c.patient_id = :patient_id
               and d.patient_id = :patient_id
-              {{ACTIVE_GENERATION_WHERE_SQL}}
+              {ACTIVE_GENERATION_WHERE_SQL}
               and d.status in ('ready', 'ready_with_warnings')
               and c.deleted_at is null
               and d.deleted_at is null

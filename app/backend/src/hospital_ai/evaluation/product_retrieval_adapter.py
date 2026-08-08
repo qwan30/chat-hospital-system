@@ -231,13 +231,14 @@ class ProductRetrievalAdapter:
             session.add(page)
             await session.flush()
 
-            from hospital_ai.db.clinical_documents import (
-                DocumentRevisionSet,
-                DocumentPageRevision,
-                DocumentIndexGeneration,
-            )
             import datetime
             import uuid
+
+            from hospital_ai.db.clinical_documents import (
+                DocumentIndexGeneration,
+                DocumentPageRevision,
+                DocumentRevisionSet,
+            )
 
             rev_set = DocumentRevisionSet(
                 id=uuid.uuid4(),
@@ -250,7 +251,7 @@ class ProductRetrievalAdapter:
                 approved_at=datetime.datetime.now(datetime.UTC),
             )
             session.add(rev_set)
-            
+
             page_rev = DocumentPageRevision(
                 id=uuid.uuid4(),
                 document_id=document.id,

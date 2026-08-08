@@ -1,12 +1,11 @@
-import pytest
 import uuid
-import json
-from pathlib import Path
+
+import pytest
 
 from hospital_ai.core.config import get_settings
-from hospital_ai.db.models import Document, DocumentPage, DocumentChunk, User
-from hospital_ai.db.migrations import PATIENT_ALICE_ID, PATIENT_BOB_ID, DOCTOR_ID
-from hospital_ai.migrations.cdi_v2_backfill import CdiV2Backfill, BackfillPolicy
+from hospital_ai.db.migrations import DOCTOR_ID, PATIENT_ALICE_ID, PATIENT_BOB_ID
+from hospital_ai.db.models import Document, DocumentChunk, DocumentPage, User
+from hospital_ai.migrations.cdi_v2_backfill import BackfillPolicy, CdiV2Backfill
 
 
 @pytest.fixture

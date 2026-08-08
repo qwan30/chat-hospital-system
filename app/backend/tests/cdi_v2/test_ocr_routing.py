@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-from hospital_ai.services.ocr_routing import OcrRouter, PagePreflight, OcrSpanResult, OcrPageResult
+from hospital_ai.services.ocr_routing import OcrPageResult, OcrRouter, OcrSpanResult, PagePreflight
 
 
 def test_router_selects_handwriting_only_above_qualified_threshold() -> None:
@@ -51,6 +51,6 @@ def test_ocr_result_types_geometry_and_immutability() -> None:
     )
     assert page.page_number == 1
     assert page.spans[0].text == "Sample text"
-    
+
     with pytest.raises(AttributeError):
-        page.raw_text = "Mutated text" # type: ignore[misc]
+        page.raw_text = "Mutated text"  # type: ignore[misc]

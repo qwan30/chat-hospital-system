@@ -94,12 +94,13 @@ async def create_indexed_document(
     title: str,
     content: str,
 ) -> Document:
-    from hospital_ai.db.clinical_documents import (
-        DocumentRevisionSet,
-        DocumentPageRevision,
-        DocumentIndexGeneration,
-    )
     import hashlib
+
+    from hospital_ai.db.clinical_documents import (
+        DocumentIndexGeneration,
+        DocumentPageRevision,
+        DocumentRevisionSet,
+    )
 
     document = Document(
         patient_id=patient_id,

@@ -1,12 +1,18 @@
 from __future__ import annotations
 
 import uuid
-import pytest
-from datetime import datetime, UTC
+from datetime import UTC, datetime
 
-from hospital_ai.db.models import Document, User, DocumentChunk
-from hospital_ai.db.clinical_documents import DocumentIndexGeneration, DocumentRevisionSet, DocumentPageRevision, DocumentRevisionPage
+import pytest
+
+from hospital_ai.db.clinical_documents import (
+    DocumentIndexGeneration,
+    DocumentPageRevision,
+    DocumentRevisionPage,
+    DocumentRevisionSet,
+)
 from hospital_ai.db.migrations import DOCTOR_ID, PATIENT_ALICE_ID
+from hospital_ai.db.models import Document, User
 
 
 @pytest.fixture
@@ -17,7 +23,7 @@ async def worker_fixture(session_and_settings):
         doctor = User(id=uuid.uuid4(), email="doc@test.com", full_name="Doc", role="doctor", is_active=True)
         session.add(doctor)
         await session.commit()
-        
+
     doc = Document(
         id=uuid.uuid4(),
         patient_id=PATIENT_ALICE_ID,
@@ -30,7 +36,7 @@ async def worker_fixture(session_and_settings):
     )
     session.add(doc)
     await session.flush()
-    
+
     rev = DocumentPageRevision(
         document_id=doc.id,
         page_number=1,
@@ -46,7 +52,7 @@ async def worker_fixture(session_and_settings):
     )
     session.add(rev)
     await session.flush()
-    
+
     rev_set = DocumentRevisionSet(
         document_id=doc.id,
         revision_number=1,
@@ -58,14 +64,14 @@ async def worker_fixture(session_and_settings):
     )
     session.add(rev_set)
     await session.flush()
-    
+
     rev_page = DocumentRevisionPage(
         revision_set_id=rev_set.id,
         page_number=1,
         page_revision_id=rev.id,
     )
     session.add(rev_page)
-    
+
     gen = DocumentIndexGeneration(
         id=uuid.uuid4(),
         document_id=doc.id,
@@ -86,7 +92,7 @@ async def test_generation_builder_build_and_activate(worker_fixture) -> None:
 
     builder = GenerationBuilder.from_settings(session, settings)
     result = await builder.build(gen.id)
-    
+
     await session.refresh(doc)
     await session.refresh(gen)
     assert gen.state == "active"

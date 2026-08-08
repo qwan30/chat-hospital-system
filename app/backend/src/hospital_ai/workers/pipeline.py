@@ -3,7 +3,6 @@ import uuid
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from hospital_ai.core.config import Settings
-from hospital_ai.db.models import Document, DocumentProcessingEvent
 
 
 class PipelineStage:

@@ -1,4 +1,3 @@
-
 import pytest
 
 from hospital_ai.services.capabilities import role_has_capability

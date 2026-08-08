@@ -1,26 +1,33 @@
-from typing import Mapping, Any
-from hospital_ai.schemas.claim_validation import SentenceValidation, ClaimResult
+from collections.abc import Mapping
 from dataclasses import dataclass
+
+from hospital_ai.schemas.claim_validation import ClaimResult, SentenceValidation
+
 
 @dataclass
 class Claim:
     text: str
     evidence_ids: list[str]
 
+
 class ValidationContext:
     pass
+
 
 class ClaimParser:
     def parse(self, sentence: str) -> list[Claim]:
         # dummy implementation to extract [E1] format
         import re
+
         claims = []
-        matches = re.findall(r'\[([^\]]+)\]', sentence)
+        matches = re.findall(r"\[([^\]]+)\]", sentence)
         claims.append(Claim(text=sentence, evidence_ids=matches))
         return claims
 
+
 def combine(evidence_texts):
     return " ".join(evidence_texts)
+
 
 def deterministic_entailment(claim, evidence, strict_fields):
     # Dummy implementation for tests to pass/fail
@@ -31,6 +38,7 @@ def deterministic_entailment(claim, evidence, strict_fields):
     if "no allergy" in claim_text and "allergy" in evidence:
         return ClaimResult(claim=claim, passed=False)
     return ClaimResult(claim=claim, passed=True)
+
 
 class ClaimValidator:
     def __init__(self):

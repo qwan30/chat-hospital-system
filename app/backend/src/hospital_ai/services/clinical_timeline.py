@@ -1,8 +1,12 @@
 import uuid
+from dataclasses import dataclass
 from datetime import date, datetime
 from typing import Literal
-from pydantic import BaseModel
-from dataclasses import dataclass
+
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from hospital_ai.db.models import Document, User
+
 
 @dataclass(frozen=True)
 class TimelineEventProjection:
@@ -15,11 +19,6 @@ class TimelineEventProjection:
     conflict_state: Literal["none", "date_conflict", "value_conflict"]
     supersession_lineage: tuple[uuid.UUID, ...]
 
-from hospital_ai.db.models import Document, User
-from hospital_ai.db.clinical_graph import GraphEntity, GraphMention, GraphRelationAssertion, GraphRelationEvidence
-from hospital_ai.db.clinical_documents import DocumentIndexGeneration, DocumentRevisionSet
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, and_
 
 class ClinicalTimelineService:
     def __init__(self, session: AsyncSession):

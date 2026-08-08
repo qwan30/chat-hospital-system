@@ -27,6 +27,7 @@ def test_v2_lineage_tables_and_document_pointers_are_registered() -> None:
 
 def test_v2_status_checks_are_exact() -> None:
     from hospital_ai.db.clinical_documents import ALIGNMENT_STATES, DOCUMENT_UPLOAD_STATES, GENERATION_STATES
+
     assert DOCUMENT_UPLOAD_STATES == frozenset(
         {"pending_upload", "uploaded_unverified", "quarantined", "verified", "finalized", "rejected"}
     )

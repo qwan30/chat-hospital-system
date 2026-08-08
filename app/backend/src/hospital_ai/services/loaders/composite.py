@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
-from typing import Optional
+from typing import Any, Optional
 
 from hospital_ai.core.errors import ExternalServiceError
 from hospital_ai.services.loaders.base import BaseDocumentLoader, LoadedPage

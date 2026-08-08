@@ -2,37 +2,40 @@ from __future__ import annotations
 
 import hashlib
 import uuid
-from datetime import datetime, UTC
+from datetime import UTC, datetime
 from typing import Any, Optional
 
-from sqlalchemy import select, func
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from hospital_ai.core.config import Settings
-from hospital_ai.db.models import Document, DocumentProcessingEvent
 from hospital_ai.db.clinical_documents import (
+    DocumentDraftHead,
     DocumentExtractionRun,
     DocumentPageRevision,
-    DocumentDraftHead,
     OcrBlock,
     OcrLine,
     OcrSpan,
 )
+from hospital_ai.db.models import Document, DocumentProcessingEvent
 from hospital_ai.services.ocr import OcrService
-from hospital_ai.services.storage import get_storage_service
 
 
 class PageExtractionError(Exception):
     """Raised when page OCR extraction fails."""
 
 
-async def require_finalized_document_for_extraction(session: AsyncSession, document_id: uuid.UUID) -> Optional[Document]:
+async def require_finalized_document_for_extraction(
+    session: AsyncSession, document_id: uuid.UUID
+) -> Optional[Document]:
     return await session.get(Document, document_id)
 
 
 class _ExtractionRuns:
     async def start(self, session: AsyncSession, document: Document, settings: Settings) -> DocumentExtractionRun:
-        source_hash = getattr(document, "content_sha256", None) or getattr(document, "indexed_source_sha256", None) or "none"
+        source_hash = (
+            getattr(document, "content_sha256", None) or getattr(document, "indexed_source_sha256", None) or "none"
+        )
         run = DocumentExtractionRun(
             document_id=document.id,
             source_sha256=source_hash,
@@ -167,7 +170,7 @@ class _ProcessingEvents:
         self, session: AsyncSession, document_id: uuid.UUID, run_id: uuid.UUID, count: int
     ) -> None:
         stages = ["preflight_document", "classify_document", "ocr"]
-        for i, stage in enumerate(stages, start=1):
+        for _i, stage in enumerate(stages, start=1):
             max_seq = await session.scalar(
                 select(func.max(DocumentProcessingEvent.sequence)).where(
                     DocumentProcessingEvent.document_id == document_id,

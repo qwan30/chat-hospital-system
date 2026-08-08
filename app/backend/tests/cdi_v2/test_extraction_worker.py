@@ -461,9 +461,7 @@ async def test_deterministic_fallback_policy_and_telemetry(tmp_path: Path) -> No
         sha256=hashlib.sha256(b"native content").hexdigest(),
         revision="native-r1",
     )
-    manager = OcrModelManager(
-        registry=ModelRegistry({"force_oom": artifact_oom, "native": artifact_native})
-    )
+    manager = OcrModelManager(registry=ModelRegistry({"force_oom": artifact_oom, "native": artifact_native}))
 
     async with manager.acquire_model_with_fallback("force_oom") as recognizer:
         assert recognizer.route == "native"

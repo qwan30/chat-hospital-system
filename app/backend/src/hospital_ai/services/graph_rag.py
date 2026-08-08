@@ -237,10 +237,7 @@ async def extract_entities_and_relations_nlp(content: str) -> tuple[list[Extract
 
         return entities, relations
     except Exception as e:
-        logger.warning(
-            "NLP extraction failed",
-            extra={"error_code": "NLP_EXTRACTION_FAILED"}
-        )
+        logger.warning("NLP extraction failed", extra={"error_code": "NLP_EXTRACTION_FAILED"})
         return _extract_explicit_relations_fallback(content)
 
 
@@ -256,6 +253,7 @@ async def index_chunk_entities(
     extractor: Optional[EntityRelationExtractor] = None,
 ) -> tuple[list, list]:
     import time
+
     start_time = time.time()
     trace_id = uuid.uuid4().hex
 
@@ -281,9 +279,9 @@ async def index_chunk_entities(
             "graph.chunk.not_found",
             extra={
                 "trace_id": trace_id,
-                "document_id": str(document_id), 
+                "document_id": str(document_id),
                 "chunk_id": str(chunk_id),
-                "error_code": "CHUNK_NOT_FOUND"
+                "error_code": "CHUNK_NOT_FOUND",
             },
         )
         return [], []

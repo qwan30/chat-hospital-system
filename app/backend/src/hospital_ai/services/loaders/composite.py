@@ -104,7 +104,7 @@ class CompositeLoader:
         from hospital_ai.services.ocr import OcrService
 
         ocr = OcrService()
-        
+
         async def _do_extract():
             return await ocr.extract_page_results(storage_uri=str(file_path), mime_type=mime_type)
 

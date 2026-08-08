@@ -153,10 +153,18 @@ def _load_and_validate_dataset(config: EvaluationConfig):
     manifest = build_corpus_manifest(config.data_root)
 
     try:
-        benchmark = list(_read_cases(config.benchmark_dir / "rag_benchmark_v2.jsonl")) if (config.benchmark_dir / "rag_benchmark_v2.jsonl").exists() else []
-        sentinel = list(_read_cases(config.benchmark_dir / "rag_sentinel_v2.jsonl")) if (config.benchmark_dir / "rag_sentinel_v2.jsonl").exists() else []
+        benchmark = (
+            list(_read_cases(config.benchmark_dir / "rag_benchmark_v2.jsonl"))
+            if (config.benchmark_dir / "rag_benchmark_v2.jsonl").exists()
+            else []
+        )
+        sentinel = (
+            list(_read_cases(config.benchmark_dir / "rag_sentinel_v2.jsonl"))
+            if (config.benchmark_dir / "rag_sentinel_v2.jsonl").exists()
+            else []
+        )
     except (OSError, ValidationError) as error:
-        raise EvaluationInputError(f"dataset load failed: {error}")
+        raise EvaluationInputError(f"dataset load failed: {error}") from error
 
     v3_manifest_path = config.benchmark_dir / "corpus-v3-smoke-manifest.json"
     if v3_manifest_path.exists():
@@ -180,23 +188,26 @@ def _load_and_validate_dataset(config: EvaluationConfig):
 
     benchmark = tuple(benchmark)
     sentinel = tuple(sentinel)
-    
+
     # We should still be able to validate holdout gate using V2 reviews
     # But check_holdout_gate expects V2 EvalCases. Let's filter out V3 tuples for review check.
     v2_benchmark = tuple(c for c in benchmark if not isinstance(c, tuple))
     v2_sentinel = tuple(c for c in sentinel if not isinstance(c, tuple))
-    
+
     try:
         from hospital_ai.evaluation.benchmark import validate_sentinel_review
+
         if v2_benchmark and v2_sentinel:
             review = validate_sentinel_review(v2_sentinel)
         else:
+
             class DummyReview:
                 valid = True
                 errors = []
+
             review = DummyReview()
     except Exception as error:
-        raise EvaluationInputError(f"dataset load failed: {error}")
+        raise EvaluationInputError(f"dataset load failed: {error}") from error
 
     return manifest, benchmark, sentinel, review
 
@@ -498,6 +509,7 @@ async def _evaluate_adapter_case(
         )
     except Exception as error:  # Adapter failures are evidence, never a passing fallback.
         import traceback
+
         traceback.print_exc()
         gate = _gate(
             "evaluation_adapter_execution",
@@ -629,11 +641,9 @@ async def run_evaluation_async(
 
     selected = sentinel if config.suite == "smoke" else benchmark
     approved_sentinel_cases = sum(
-        True if isinstance(c, tuple) else (
-            c.review.status == "approved"
-            and len(set(c.review.reviewer_ids)) >= 2
-            and not c.review.unresolved_issues
-        )
+        True
+        if isinstance(c, tuple)
+        else (c.review.status == "approved" and len(set(c.review.reviewer_ids)) >= 2 and not c.review.unresolved_issues)
         for c in sentinel
     )
     review_gate = _gate(
@@ -724,7 +734,12 @@ async def run_evaluation_async(
                 component_cases = [
                     c
                     for c in selected
-                    if (c[1].graph if isinstance(c, tuple) else getattr(c, "graph" if component == "graph" else "timeline_expectations", None)) is not None
+                    if (
+                        c[1].graph
+                        if isinstance(c, tuple)
+                        else getattr(c, "graph" if component == "graph" else "timeline_expectations", None)
+                    )
+                    is not None
                 ]
                 if component == "graph":
                     gates.append(_graph_case_coverage_gate(component_cases))

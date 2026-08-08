@@ -4,7 +4,7 @@ import hashlib
 import uuid
 from datetime import datetime
 
-from sqlalchemy import Float, ForeignKey, ForeignKeyConstraint, Index, String, UniqueConstraint, func
+from sqlalchemy import DateTime, Float, ForeignKey, ForeignKeyConstraint, Index, String, UniqueConstraint, func
 from sqlalchemy.orm import Mapped, mapped_column
 
 from hospital_ai.db.models import Base
@@ -44,6 +44,15 @@ def deterministic_provenance_id(*, kind: str, owner_id: uuid.UUID, source_identi
 class TimestampMixin:
     created_at: Mapped[datetime] = mapped_column(default=func.now(), nullable=False)
     updated_at: Mapped[datetime] = mapped_column(default=func.now(), onupdate=func.now(), nullable=False)
+
+
+class LegacyTimestampMixin:
+    """Preserve the timezone-aware timestamps of the pre-CDI graph tables."""
+
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=func.now(), nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=func.now(), onupdate=func.now(), nullable=False
+    )
 
 
 class GraphEntity(TimestampMixin, Base):
@@ -131,7 +140,7 @@ class GraphRelationEvidence(Base):
     independent_source_identity: Mapped[str] = mapped_column(String(128), nullable=False)
 
 
-class LegacyGraphEntity(TimestampMixin, Base):
+class LegacyGraphEntity(LegacyTimestampMixin, Base):
     __tablename__ = "legacy_graph_entities"
     __table_args__ = (
         Index("ix_graph_entities_name", "name"),
@@ -147,7 +156,7 @@ class LegacyGraphEntity(TimestampMixin, Base):
     confidence: Mapped[float] = mapped_column(nullable=False, default=1.0)
 
 
-class LegacyGraphRelation(TimestampMixin, Base):
+class LegacyGraphRelation(LegacyTimestampMixin, Base):
     __tablename__ = "legacy_graph_relations"
     __table_args__ = (
         Index("ix_graph_relations_source_entity_id", "source_entity_id"),

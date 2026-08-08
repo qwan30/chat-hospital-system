@@ -32,7 +32,9 @@ async def test_unverified_upload_cannot_be_finalized_or_queued(session_and_setti
     actor.role = "doctor"
     patient_id = uuid.uuid4()
 
-    service = UploadSessionService(session, r2_client, content_reader=StorageContentReader(r2_client), scanner=_CleanScanner())
+    service = UploadSessionService(
+        session, r2_client, content_reader=StorageContentReader(r2_client), scanner=_CleanScanner()
+    )
     created = await service.create(
         actor=actor,
         patient_id=patient_id,
@@ -67,7 +69,9 @@ async def test_duplicate_immutable_key_is_a_conflict(session_and_settings) -> No
     actor.role = "doctor"
 
     with pytest.raises(ConflictError):
-        await UploadSessionService(session, r2_client, content_reader=StorageContentReader(r2_client), scanner=_CleanScanner()).create(
+        await UploadSessionService(
+            session, r2_client, content_reader=StorageContentReader(r2_client), scanner=_CleanScanner()
+        ).create(
             actor=actor,
             patient_id=uuid.uuid4(),
             filename="scan.pdf",
@@ -90,7 +94,9 @@ async def test_malware_scanner_unavailable_rejects_without_finalizing(session_an
     storage.create_presigned_put.return_value = PresignedPut("https://presigned", {})
     storage.read_stream.return_value = io.BytesIO(content)
     actor = Mock(id=uuid.uuid4())
-    service = UploadSessionService(session, storage, content_reader=StorageContentReader(storage), scanner=UnavailableMalwareScanner())
+    service = UploadSessionService(
+        session, storage, content_reader=StorageContentReader(storage), scanner=UnavailableMalwareScanner()
+    )
     created = await service.create(
         actor=actor,
         patient_id=uuid.uuid4(),
@@ -119,7 +125,9 @@ async def test_storage_head_error_rejects_upload_session_creation(session_and_se
     storage.head_object.side_effect = OSError("head failed")
 
     with pytest.raises(ValidationAppError, match="storage object availability"):
-        await UploadSessionService(session, storage, content_reader=StorageContentReader(storage), scanner=_CleanScanner()).create(
+        await UploadSessionService(
+            session, storage, content_reader=StorageContentReader(storage), scanner=_CleanScanner()
+        ).create(
             patient_id=uuid.uuid4(),
             filename="scan.pdf",
             expected_size=10,
@@ -140,7 +148,9 @@ async def test_claimed_mime_mismatch_rejects_without_finalizing(session_and_sett
     storage.create_presigned_put.return_value = PresignedPut("https://presigned", {})
     storage.read_stream.return_value = io.BytesIO(content)
     actor = Mock(id=uuid.uuid4())
-    service = UploadSessionService(session, storage, content_reader=StorageContentReader(storage), scanner=_CleanScanner())
+    service = UploadSessionService(
+        session, storage, content_reader=StorageContentReader(storage), scanner=_CleanScanner()
+    )
     created = await service.create(
         actor=actor,
         patient_id=uuid.uuid4(),
@@ -172,7 +182,9 @@ async def test_presign_error_does_not_leave_upload_rows(session_and_settings) ->
     storage.create_presigned_put.side_effect = OSError("presign failed")
 
     with pytest.raises(ValidationAppError, match="upload session"):
-        await UploadSessionService(session, storage, content_reader=StorageContentReader(storage), scanner=_CleanScanner()).create(
+        await UploadSessionService(
+            session, storage, content_reader=StorageContentReader(storage), scanner=_CleanScanner()
+        ).create(
             patient_id=uuid.uuid4(),
             filename="scan.pdf",
             expected_size=10,
@@ -216,7 +228,9 @@ class _CleanScanner:
 class _CleanScanner:
     async def scan(self, key: str):
         from hospital_ai.services.upload_sessions import MalwareScanResult
+
         return MalwareScanResult(status="clean")
+
 
 @pytest.mark.asyncio
 async def test_short_stream_rejects_without_finalizing(session_and_settings) -> None:
@@ -231,7 +245,9 @@ async def test_short_stream_rejects_without_finalizing(session_and_settings) -> 
     storage.read_stream.return_value = io.BytesIO(content)
     storage.create_presigned_put.return_value = PresignedPut("https://presigned", {})
     actor = Mock(id=uuid.uuid4())
-    service = UploadSessionService(session, storage, content_reader=StorageContentReader(storage), scanner=_CleanScanner())
+    service = UploadSessionService(
+        session, storage, content_reader=StorageContentReader(storage), scanner=_CleanScanner()
+    )
     created = await service.create(
         actor=actor,
         patient_id=uuid.uuid4(),
@@ -249,6 +265,7 @@ async def test_short_stream_rejects_without_finalizing(session_and_settings) -> 
     document = await session.get(Document, created.document_id)
     assert document.finalized_upload_id is None
 
+
 @pytest.mark.asyncio
 async def test_sha_mismatch_rejects_without_finalizing(session_and_settings) -> None:
     session, _ = session_and_settings
@@ -262,7 +279,9 @@ async def test_sha_mismatch_rejects_without_finalizing(session_and_settings) -> 
     storage.read_stream.return_value = io.BytesIO(content)
     storage.create_presigned_put.return_value = PresignedPut("https://presigned", {})
     actor = Mock(id=uuid.uuid4())
-    service = UploadSessionService(session, storage, content_reader=StorageContentReader(storage), scanner=_CleanScanner())
+    service = UploadSessionService(
+        session, storage, content_reader=StorageContentReader(storage), scanner=_CleanScanner()
+    )
     created = await service.create(
         actor=actor,
         patient_id=uuid.uuid4(),
@@ -279,6 +298,7 @@ async def test_sha_mismatch_rejects_without_finalizing(session_and_settings) -> 
 
     document = await session.get(Document, created.document_id)
     assert document.finalized_upload_id is None
+
 
 @pytest.mark.asyncio
 async def test_malware_positive_rejects_without_finalizing(session_and_settings) -> None:
@@ -297,7 +317,9 @@ async def test_malware_positive_rejects_without_finalizing(session_and_settings)
     storage.read_stream.return_value = io.BytesIO(content)
     storage.create_presigned_put.return_value = PresignedPut("https://presigned", {})
     actor = Mock(id=uuid.uuid4())
-    service = UploadSessionService(session, storage, content_reader=StorageContentReader(storage), scanner=MalwareScannerPositive())
+    service = UploadSessionService(
+        session, storage, content_reader=StorageContentReader(storage), scanner=MalwareScannerPositive()
+    )
     created = await service.create(
         actor=actor,
         patient_id=uuid.uuid4(),
@@ -315,6 +337,7 @@ async def test_malware_positive_rejects_without_finalizing(session_and_settings)
     document = await session.get(Document, created.document_id)
     assert document.finalized_upload_id is None
 
+
 @pytest.mark.asyncio
 async def test_retry_of_finalized_upload(session_and_settings) -> None:
     session, _ = session_and_settings
@@ -327,7 +350,9 @@ async def test_retry_of_finalized_upload(session_and_settings) -> None:
     storage.read_stream.return_value = io.BytesIO(content)
     storage.create_presigned_put.return_value = PresignedPut("https://presigned", {})
     actor = Mock(id=uuid.uuid4())
-    service = UploadSessionService(session, storage, content_reader=StorageContentReader(storage), scanner=_CleanScanner())
+    service = UploadSessionService(
+        session, storage, content_reader=StorageContentReader(storage), scanner=_CleanScanner()
+    )
     created = await service.create(
         actor=actor,
         patient_id=uuid.uuid4(),
@@ -340,10 +365,12 @@ async def test_retry_of_finalized_upload(session_and_settings) -> None:
     storage.head_object.return_value = StorageObjectHead(created.object_key, len(content), '"etag"', "application/pdf")
 
     await service.finalize(created.document_id, created.upload_id, actor=actor)
-    
+
     # Retry
     res = await service.finalize(created.document_id, created.upload_id, actor=actor)
     assert res.state == "finalized"
+
+
 @pytest.mark.asyncio
 async def test_concurrent_finalize_handles_safely(session_and_settings) -> None:
     session, _ = session_and_settings
@@ -359,8 +386,10 @@ async def test_concurrent_finalize_handles_safely(session_and_settings) -> None:
     storage.read_stream.return_value = io.BytesIO(content)
     storage.create_presigned_put.return_value = PresignedPut("https://presigned", {})
     actor = Mock(id=uuid.uuid4())
-    service = UploadSessionService(session, storage, content_reader=StorageContentReader(storage), scanner=_CleanScanner())
-    
+    service = UploadSessionService(
+        session, storage, content_reader=StorageContentReader(storage), scanner=_CleanScanner()
+    )
+
     created = await service.create(
         actor=actor,
         patient_id=uuid.uuid4(),
@@ -370,29 +399,29 @@ async def test_concurrent_finalize_handles_safely(session_and_settings) -> None:
         claimed_mime_type="application/pdf",
     )
     storage.head_object.side_effect = None
-    
+
     original_hash_and_sniff = service.content_reader.hash_and_sniff
+
     async def delayed_hash_and_sniff(key):
         await asyncio.sleep(0.01)
         storage.read_stream.return_value = io.BytesIO(content)
         return await original_hash_and_sniff(key)
-    
+
     service.content_reader.hash_and_sniff = delayed_hash_and_sniff
     storage.head_object.return_value = StorageObjectHead(created.object_key, len(content), '"etag"', "application/pdf")
 
     results = await asyncio.gather(
         service.finalize(created.document_id, created.upload_id, actor=actor),
         service.finalize(created.document_id, created.upload_id, actor=actor),
-        return_exceptions=True
+        return_exceptions=True,
     )
-    
+
     successes = 0
     for r in results:
         if not isinstance(r, Exception) and getattr(r, "state", None) == "finalized":
             successes += 1
-            
+
     assert successes >= 1, "At least one finalize should succeed"
-    
+
     doc = await session.get(Document, created.document_id)
     assert doc.finalized_upload_id == created.upload_id
-

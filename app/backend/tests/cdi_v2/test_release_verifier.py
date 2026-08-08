@@ -20,15 +20,21 @@ REQUIRED_GATES = [
     "ocr_strata_reported",
 ]
 
+
 def run_verifier(evidence_dir, expected_sha="abcdef1234567890", mode="artifact"):
     cmd = [
-        "python", VERIFIER_SCRIPT,
-        "--mode", mode,
-        "--evidence-dir", evidence_dir,
-        "--expected-git-sha", expected_sha
+        "python",
+        VERIFIER_SCRIPT,
+        "--mode",
+        mode,
+        "--evidence-dir",
+        evidence_dir,
+        "--expected-git-sha",
+        expected_sha,
     ]
     result = subprocess.run(cmd, capture_output=True, text=True)
     return result
+
 
 def create_valid_evidence(gate_name, sha="abcdef1234567890", details=None):
     if details is None:
@@ -39,7 +45,7 @@ def create_valid_evidence(gate_name, sha="abcdef1234567890", details=None):
             details = {"status": "frozen", "signature": "valid"}
         elif gate_name == "ocr_strata_reported":
             details = {"ocr_engine": "paddle_v2"}
-    
+
     return {
         "gate_name": gate_name,
         "passed": True,
@@ -47,8 +53,9 @@ def create_valid_evidence(gate_name, sha="abcdef1234567890", details=None):
         "producer_sha": sha,
         "schema_version": "1.0.0",
         "hash": "dummyhash",
-        "details": details
+        "details": details,
     }
+
 
 @pytest.fixture
 def evidence_dir(tmp_path):
@@ -56,10 +63,12 @@ def evidence_dir(tmp_path):
     d.mkdir()
     return str(d)
 
+
 def test_empty_directory(evidence_dir):
     res = run_verifier(evidence_dir)
     assert res.returncode != 0
     assert "NO-GO" in res.stdout
+
 
 def test_one_missing_gate(evidence_dir):
     for gate in REQUIRED_GATES[:-1]:
@@ -69,6 +78,7 @@ def test_one_missing_gate(evidence_dir):
     assert res.returncode != 0
     assert "NO-GO" in res.stdout
     assert REQUIRED_GATES[-1] in res.stdout
+
 
 def test_failed_gate(evidence_dir):
     for gate in REQUIRED_GATES:
@@ -81,6 +91,7 @@ def test_failed_gate(evidence_dir):
     assert res.returncode != 0
     assert "NO-GO" in res.stdout
 
+
 def test_stale_head_sha(evidence_dir):
     for gate in REQUIRED_GATES:
         ev = create_valid_evidence(gate, sha="stalesha000")
@@ -90,8 +101,10 @@ def test_stale_head_sha(evidence_dir):
     assert res.returncode != 0
     assert "NO-GO" in res.stdout
 
+
 def test_hash_mismatch(evidence_dir):
     import hashlib
+
     for gate in REQUIRED_GATES:
         ev = create_valid_evidence(gate)
         ev_copy = ev.copy()
@@ -105,6 +118,7 @@ def test_hash_mismatch(evidence_dir):
     assert res.returncode != 0
     assert "NO-GO" in res.stdout
 
+
 def test_unsigned_unfrozen_threshold(evidence_dir):
     for gate in REQUIRED_GATES:
         ev = create_valid_evidence(gate)
@@ -115,6 +129,7 @@ def test_unsigned_unfrozen_threshold(evidence_dir):
     res = run_verifier(evidence_dir)
     assert res.returncode != 0
     assert "NO-GO" in res.stdout
+
 
 def test_one_reviewer(evidence_dir):
     for gate in REQUIRED_GATES:
@@ -127,6 +142,7 @@ def test_one_reviewer(evidence_dir):
     assert res.returncode != 0
     assert "NO-GO" in res.stdout
 
+
 def test_fake_ocr_output(evidence_dir):
     for gate in REQUIRED_GATES:
         ev = create_valid_evidence(gate)
@@ -138,24 +154,28 @@ def test_fake_ocr_output(evidence_dir):
     assert res.returncode != 0
     assert "NO-GO" in res.stdout
 
+
 def test_complete_valid_synthetic_fixture(evidence_dir):
     # We must compute proper hash for tampered check!
     import hashlib
+
     for gate in REQUIRED_GATES:
         ev = create_valid_evidence(gate)
         # Compute hash
         ev_copy = ev.copy()
         ev_copy.pop("hash", None)
         ev["hash"] = hashlib.sha256(json.dumps(ev_copy, sort_keys=True).encode()).hexdigest()
-        
+
         with open(os.path.join(evidence_dir, f"{gate}.json"), "w") as f:
             json.dump(ev, f)
     res = run_verifier(evidence_dir)
     assert res.returncode == 0
     assert res.stdout.strip() == "GO"
 
+
 def test_mode_source_cannot_return_go(evidence_dir):
     import hashlib
+
     for gate in REQUIRED_GATES:
         ev = create_valid_evidence(gate)
         ev_copy = ev.copy()

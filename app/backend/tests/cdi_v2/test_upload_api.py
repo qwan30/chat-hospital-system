@@ -121,6 +121,7 @@ async def test_finalize_upload_session(session_and_settings, monkeypatch: pytest
             },
         )()
         from hospital_ai.services.upload_sessions import StorageContentReader
+
         service.content_reader = StorageContentReader(service.storage)
         service.scanner = _CleanScanner()
         return service
@@ -152,6 +153,7 @@ async def test_finalize_upload_session(session_and_settings, monkeypatch: pytest
     assert record.state == "completed"
 
     from hospital_ai.core.errors import ConflictError
+
     with pytest.raises(ConflictError):
         await upload_routes.finalize_upload_session(
             document_id=created2.document_id,
@@ -164,7 +166,9 @@ async def test_finalize_upload_session(session_and_settings, monkeypatch: pytest
 
 
 @pytest.mark.asyncio
-async def test_finalize_upload_session_failure_releases_idempotency_key(session_and_settings, monkeypatch: pytest.MonkeyPatch) -> None:
+async def test_finalize_upload_session_failure_releases_idempotency_key(
+    session_and_settings, monkeypatch: pytest.MonkeyPatch
+) -> None:
     session, _ = session_and_settings
     import hashlib
     import io
@@ -176,7 +180,14 @@ async def test_finalize_upload_session_failure_releases_idempotency_key(session_
 
     doctor = await session.get(User, DOCTOR_ID)
     if not doctor:
-        doctor = User(id=uuid.uuid4(), email="doc3@test.com", password_hash="hash", full_name="Doc3", role="doctor", is_active=True)
+        doctor = User(
+            id=uuid.uuid4(),
+            email="doc3@test.com",
+            password_hash="hash",
+            full_name="Doc3",
+            role="doctor",
+            is_active=True,
+        )
         session.add(doctor)
         await session.commit()
 
@@ -193,6 +204,7 @@ async def test_finalize_upload_session_failure_releases_idempotency_key(session_
     )
 
     from hospital_ai.services import upload_sessions as us_module
+
     original_from_request = us_module.UploadSessionService.from_request
 
     def mocked_from_request(sess, req):
@@ -206,6 +218,7 @@ async def test_finalize_upload_session_failure_releases_idempotency_key(session_
             },
         )()
         from hospital_ai.services.upload_sessions import StorageContentReader
+
         service.content_reader = StorageContentReader(service.storage)
         service.scanner = _CleanScanner()
         return service
@@ -223,7 +236,15 @@ async def test_finalize_upload_session_failure_releases_idempotency_key(session_
             current_user=doctor,
         )
 
-    records = list((await session.execute(select(IdempotencyRecord).where(IdempotencyRecord.key_hash == hashlib.sha256(b"finalize-fail-1").hexdigest()))).scalars())
+    records = list(
+        (
+            await session.execute(
+                select(IdempotencyRecord).where(
+                    IdempotencyRecord.key_hash == hashlib.sha256(b"finalize-fail-1").hexdigest()
+                )
+            )
+        ).scalars()
+    )
     assert len(records) == 0
 
 
@@ -238,4 +259,5 @@ def test_routes_registered_in_router() -> None:
 class _CleanScanner:
     async def scan(self, key: str):
         from hospital_ai.services.upload_sessions import MalwareScanResult
+
         return MalwareScanResult(status="clean")

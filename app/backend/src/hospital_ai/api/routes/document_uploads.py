@@ -93,6 +93,7 @@ async def finalize_upload_session(
         if result.state == "finalized":
             from hospital_ai.core.config import get_settings
             from hospital_ai.workers.queue import enqueue_document_indexing
+
             enqueue_document_indexing(document.id, get_settings())
     except Exception:
         await idemp.abort(decision.record_id)

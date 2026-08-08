@@ -75,7 +75,7 @@ class GraphIndexService:
             except NoResultFound:
                 if attempt == 2:
                     raise
-                await asyncio.sleep(0.05 * (2 ** attempt))
+                await asyncio.sleep(0.05 * (2**attempt))
 
     async def _upsert_assertion(
         self, patient_id: uuid.UUID, subject_id: uuid.UUID, object_id: uuid.UUID, item: ExtractedRelation
@@ -110,7 +110,7 @@ class GraphIndexService:
             except NoResultFound:
                 if attempt == 2:
                     raise
-                await asyncio.sleep(0.05 * (2 ** attempt))
+                await asyncio.sleep(0.05 * (2**attempt))
 
     async def index_chunk(
         self,

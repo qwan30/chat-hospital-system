@@ -1,11 +1,13 @@
 from __future__ import annotations
 
 import io
+from unittest.mock import Mock
 
 import pytest
 
 from hospital_ai.core.errors import ValidationAppError
 from hospital_ai.services.storage import validate_storage_object_key
+from hospital_ai.services.upload_sessions import StorageContentReader
 
 
 @pytest.mark.parametrize(
@@ -33,11 +35,6 @@ def test_storage_object_key_accepts_generated_source_key() -> None:
     key = "source/patient/document/upload/original.pdf"
 
     assert validate_storage_object_key(key, allowed_prefixes=("source/", "patients/")) == key
-
-
-from unittest.mock import Mock
-
-from hospital_ai.services.upload_sessions import StorageContentReader
 
 
 @pytest.mark.asyncio

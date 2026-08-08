@@ -347,6 +347,7 @@ class ProductRetrievalAdapter:
                         document.close()
                 else:
                     import pypdf
+
                     reader = pypdf.PdfReader(io.BytesIO(payload))
                     if locator.page_number is None:
                         return "\n".join(page.extract_text().strip() for page in reader.pages).strip()

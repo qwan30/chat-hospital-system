@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+from urllib.parse import urlsplit
 
 import pytest
 
@@ -19,7 +20,9 @@ def test_settings_load_r2_environment_names(monkeypatch: pytest.MonkeyPatch) -> 
     settings = Settings()
 
     assert settings.storage_backend == "r2"
-    assert settings.r2_endpoint.endswith("cloudflarestorage.com")
+    endpoint = urlsplit(settings.r2_endpoint)
+    assert endpoint.scheme == "https"
+    assert endpoint.hostname == "account.r2.cloudflarestorage.com"
     assert settings.r2_bucket == "hospital-documents"
     assert settings.r2_region == "auto"
     assert settings.r2_access_key_id == "test-access"

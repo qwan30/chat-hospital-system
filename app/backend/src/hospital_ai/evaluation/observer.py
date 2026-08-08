@@ -85,7 +85,7 @@ def bind_indexed_evidence(evidence_ids: Sequence[UUID], chunk_ids: Sequence[UUID
     if len(evidence_ids) != len(chunk_ids):
         raise EvidenceBindingError("Logical evidence remains unresolved in the indexed corpus")
     result: dict[UUID, UUID] = {}
-    for evidence_id, chunk_id in zip(evidence_ids, chunk_ids):
+    for evidence_id, chunk_id in zip(evidence_ids, chunk_ids, strict=True):
         existing = result.get(chunk_id)
         if existing is not None and existing != evidence_id:
             raise EvidenceBindingError("Indexed chunk maps to multiple logical evidence IDs")

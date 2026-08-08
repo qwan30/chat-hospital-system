@@ -59,15 +59,23 @@ def verify_upload(
         )
     head_bytes = head.get("ContentLength") if isinstance(head, dict) else head.byte_size
     if not isinstance(head_bytes, int) or head_bytes != actual.byte_size:
-        return VerificationDecision(state="rejected", public_reason="File size mismatch", quarantine_result=malware.status)
+        return VerificationDecision(
+            state="rejected", public_reason="File size mismatch", quarantine_result=malware.status
+        )
     if not upload.byte_size or actual.byte_size != upload.byte_size:
-        return VerificationDecision(state="rejected", public_reason="File size mismatch", quarantine_result=malware.status)
+        return VerificationDecision(
+            state="rejected", public_reason="File size mismatch", quarantine_result=malware.status
+        )
     if not upload.expected_sha256 or actual.sha256 != upload.expected_sha256:
         return VerificationDecision(state="rejected", public_reason="SHA256 mismatch", quarantine_result=malware.status)
     if not upload.mime_type or upload.mime_type not in ALLOWED_MIME_TYPES or upload.mime_type != actual.mime_type:
-        return VerificationDecision(state="rejected", public_reason="MIME type mismatch", quarantine_result=malware.status)
+        return VerificationDecision(
+            state="rejected", public_reason="MIME type mismatch", quarantine_result=malware.status
+        )
     if malware.status != "clean":
-        return VerificationDecision(state="rejected", public_reason="Malware detected", quarantine_result=malware.status)
+        return VerificationDecision(
+            state="rejected", public_reason="Malware detected", quarantine_result=malware.status
+        )
     return VerificationDecision(state="verified", public_reason="Verified", quarantine_result=malware.status)
 
 
@@ -79,11 +87,11 @@ class StorageContentReader:
         stream = await asyncio.to_thread(self.storage.read_stream, key)
         if stream is None or not hasattr(stream, "read"):
             raise ValidationAppError("Unable to read uploaded object.")
-            
+
         hasher = hashlib.sha256()
         byte_size = 0
         prefix = b""
-        
+
         try:
             while True:
                 chunk = stream.read(64 * 1024)
@@ -97,10 +105,10 @@ class StorageContentReader:
                     prefix += chunk[: 1024 - len(prefix)]
         except Exception as exc:
             raise ValidationAppError("Unable to read uploaded object.") from exc
-            
+
         if byte_size == 0:
             raise ValidationAppError("Uploaded object is empty or unreadable.")
-            
+
         if prefix.startswith(b"%PDF"):
             mime = "application/pdf"
         elif prefix.startswith(b"\x89PNG"):
@@ -109,7 +117,7 @@ class StorageContentReader:
             mime = "image/jpeg"
         else:
             raise ValidationAppError("Unable to detect a supported MIME type from the uploaded object.")
-            
+
         return VerifiedObjectDigest(
             sha256=hasher.hexdigest(),
             byte_size=byte_size,
@@ -123,7 +131,9 @@ class UnavailableMalwareScanner:
 
 
 class UploadSessionService:
-    def __init__(self, session: AsyncSession, storage: Any, content_reader: UploadContentReader, scanner: MalwareScanner) -> None:
+    def __init__(
+        self, session: AsyncSession, storage: Any, content_reader: UploadContentReader, scanner: MalwareScanner
+    ) -> None:
         self.session = session
         self.storage = storage
         self.content_reader = content_reader

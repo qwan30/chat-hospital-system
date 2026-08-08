@@ -57,6 +57,7 @@ def test_cdi_v2_migration_retains_legacy_data(tmp_path: Path) -> None:
     os.environ["HOSPITAL_AI_DATABASE_URL"] = db_url
 
     from hospital_ai.core.config import get_settings
+
     get_settings.cache_clear()
 
     try:
@@ -78,17 +79,29 @@ def test_cdi_v2_migration_retains_legacy_data(tmp_path: Path) -> None:
         cur.execute("INSERT INTO users (id, email, full_name, role) VALUES (?, 'a@b.c', 'A B', 'admin')", (user_id,))
         cur.execute("INSERT INTO patients (id, full_name, mrn) VALUES (?, 'A B', 'MRN1')", (patient_id,))
         cur.execute(
-            "INSERT INTO documents (id, patient_id, title, status, uploaded_by, document_type, storage_uri, mime_type) VALUES (?, ?, 'Doc 1', 'uploaded', ?, 'note', 'local://a', 'text/plain')",
-            (doc_id, patient_id, user_id)
+            "INSERT INTO documents (id, patient_id, title, status, uploaded_by, document_type, "
+            "storage_uri, mime_type) VALUES (?, ?, 'Doc 1', 'uploaded', ?, 'note', 'local://a', 'text/plain')",
+            (doc_id, patient_id, user_id),
         )
-        cur.execute("INSERT INTO document_pages (id, document_id, page_number, ocr_text) VALUES (?, ?, 1, 'text')", (page_id, doc_id))
         cur.execute(
-            "INSERT INTO document_chunks (id, document_id, page_id, patient_id, chunk_index, content) VALUES (?, ?, ?, ?, 0, 'some text')",
-            (chunk_id, doc_id, page_id, patient_id)
+            "INSERT INTO document_pages (id, document_id, page_number, ocr_text) VALUES (?, ?, 1, 'text')",
+            (page_id, doc_id),
         )
-        cur.execute("INSERT INTO ai_queries (id, patient_id, user_id, question, status) VALUES (?, ?, ?, 'q', 'completed')", (query_id, patient_id, user_id))
-        cur.execute("INSERT INTO graph_entities (id, name, entity_type, source_chunk_id, source_document_id) VALUES (?, 'E1', 'type', ?, ?)", (graph_ent_id, chunk_id, doc_id))
-        
+        cur.execute(
+            "INSERT INTO document_chunks (id, document_id, page_id, patient_id, chunk_index, "
+            "content) VALUES (?, ?, ?, ?, 0, 'some text')",
+            (chunk_id, doc_id, page_id, patient_id),
+        )
+        cur.execute(
+            "INSERT INTO ai_queries (id, patient_id, user_id, question, status) VALUES (?, ?, ?, 'q', 'completed')",
+            (query_id, patient_id, user_id),
+        )
+        cur.execute(
+            "INSERT INTO graph_entities (id, name, entity_type, source_chunk_id, source_document_id) "
+            "VALUES (?, 'E1', 'type', ?, ?)",
+            (graph_ent_id, chunk_id, doc_id),
+        )
+
         conn.commit()
         conn.close()
 
@@ -116,5 +129,3 @@ def test_cdi_v2_migration_retains_legacy_data(tmp_path: Path) -> None:
     finally:
         os.environ.pop("HOSPITAL_AI_DATABASE_URL", None)
         get_settings.cache_clear()
-
-

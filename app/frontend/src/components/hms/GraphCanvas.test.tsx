@@ -23,7 +23,7 @@ describe("GraphCanvas", () => {
               source_chunk_id: "chunk-1",
               source_start_offset: 10,
               source_end_offset: 20,
-              source_bounding_boxes: [0,0,10,10],
+              source_bounding_boxes: [0, 0, 10, 10],
               x: 0,
               y: 0,
             },

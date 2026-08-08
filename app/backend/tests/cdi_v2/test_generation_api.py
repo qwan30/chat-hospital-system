@@ -149,6 +149,7 @@ async def test_rollback_api_replays_completed_idempotent_request(api_fixture, mo
     assert replay.active_index_generation_id == first.active_index_generation_id == gen_a.id
 
     from hospital_ai.core.errors import ConflictError
+
     with pytest.raises(ConflictError):
         await gen_routes.rollback_generation(
             document_id=doc.id,

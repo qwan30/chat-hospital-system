@@ -52,22 +52,37 @@ async def test_image_only_pdf_without_ocr_engine_fails_explicitly(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     class EmptyMockPage:
-        def get_text(self): return ""
+        def get_text(self):
+            return ""
+
         def get_pixmap(self, dpi):
             class Pix:
-                def tobytes(self, fmt): return b"pngdata"
+                def tobytes(self, fmt):
+                    return b"pngdata"
+
             return Pix()
-    
+
     class EmptyMockDoc:
-        def __init__(self): self.pages = [EmptyMockPage()]
-        def __len__(self): return 1
-        def __getitem__(self, i): return self.pages[i]
-        def close(self): pass
-        def save(self, p): Path(p).write_bytes(b"dummy")
-        def new_page(self): return self.pages[0]
-    
+        def __init__(self):
+            self.pages = [EmptyMockPage()]
+
+        def __len__(self):
+            return 1
+
+        def __getitem__(self, i):
+            return self.pages[i]
+
+        def close(self):
+            pass
+
+        def save(self, p):
+            Path(p).write_bytes(b"dummy")
+
+        def new_page(self):
+            return self.pages[0]
+
     monkeypatch.setattr(fitz, "open", lambda *args, **kwargs: EmptyMockDoc())
-    
+
     pdf_path = tmp_path / "image-only.pdf"
     pdf_path.write_bytes(b"dummy")
 

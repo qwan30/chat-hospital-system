@@ -17,7 +17,4 @@ import pytest
 )
 async def test_normative_acceptance_scenario(scenario, cdi_v2_harness) -> None:
     result = await cdi_v2_harness.run(scenario)
-    assert result.passed, (
-        f"Invariant Violated: {result.violated_invariant}\n"
-        f"Evidence: {result.evidence}"
-    )
+    assert result.passed, f"Invariant Violated: {result.violated_invariant}\nEvidence: {result.evidence}"

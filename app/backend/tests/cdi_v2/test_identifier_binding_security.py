@@ -368,6 +368,7 @@ async def test_upload_finalize_binding_rejects_cross_document_upload(session_and
     admin = await session.get(User, ADMIN_ID)
 
     from hospital_ai.db.clinical_documents import DocumentUpload
+
     upload_b = DocumentUpload(
         id=uuid.uuid4(),
         document_id=document_b.id,
@@ -414,6 +415,7 @@ async def test_review_item_binding_rejects_cross_document_item(session_and_setti
     admin = await session.get(User, ADMIN_ID)
 
     from hospital_ai.db.models import DocumentProcessingRun, DocumentReviewItem
+
     run_id = uuid.uuid4()
     run = DocumentProcessingRun(id=run_id, document_id=document_b.id, configuration_version="1.0", status="completed")
     session.add(run)
@@ -453,6 +455,3 @@ async def test_review_item_binding_rejects_cross_document_item(session_and_setti
         .order_by(AuditLog.created_at.desc())
     )
     assert denial is not None
-
-
-

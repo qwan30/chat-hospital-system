@@ -254,24 +254,21 @@ async def test_cross_path_matrix_shared_scope(session, matrix_data, session_and_
     # 5. Chat
     from hospital_ai.services.chat import ChatService
     from hospital_ai.services.reasoning import ReasoningResult
-    
+
     settings = session_and_settings[1]
     chat_svc = ChatService(session, settings)
-    
+
     evidence_passed = []
+
     async def mock_run_pipeline(pipeline_name, question, evidence, conversation_history, evaluation_observer=None):
         evidence_passed.extend(evidence)
         cite = evidence[0].evidence_id if evidence else "N/A"
         return ReasoningResult(
-            answer=f"Fake answer [{cite}]",
-            citations=[],
-            confidence="high",
-            disclaimer="",
-            pipeline="mock"
+            answer=f"Fake answer [{cite}]", citations=[], confidence="high", disclaimer="", pipeline="mock"
         )
-    
+
     chat_svc._run_pipeline = mock_run_pipeline
-    
+
     await chat_svc.answer(
         user=doctor,
         patient_id=PATIENT_ALICE_ID,
@@ -280,5 +277,5 @@ async def test_cross_path_matrix_shared_scope(session, matrix_data, session_and_
         trace_id="test",
         ip_address="127.0.0.1",
     )
-    
+
     assert [c.chunk_id for c in evidence_passed] == [c_active.id]

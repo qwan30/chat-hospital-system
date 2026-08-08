@@ -8,13 +8,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from hospital_ai.api.deps import get_current_user, get_session
 from hospital_ai.core.errors import NotFoundError
 from hospital_ai.core.security import new_trace_id
-from hospital_ai.db.models import Document, User
 from hospital_ai.db.clinical_documents import (
     DocumentDraftHead,
     DocumentPageRevision,
     DocumentRevisionPage,
     DocumentRevisionSet,
 )
+from hospital_ai.db.models import Document, User
 from hospital_ai.schemas.document_revisions import (
     ApproveRevisionRequest,
     DraftPageRead,
@@ -313,20 +313,23 @@ async def get_draft_page(
     page_rev_id_str = head.selected_pages.get(str(page_number))
     if not page_rev_id_str:
         raise NotFoundError("Draft page not found")
-    
+
     page_rev = await session.get(DocumentPageRevision, uuid.UUID(page_rev_id_str))
     if not page_rev:
         raise NotFoundError("Revision not found")
-        
+
     return DraftPageRead(
         page_revision_id=page_rev.id,
         lock_version=head.lock_version,
         page_number=page_number,
         text=page_rev.corrected_text,
-        status="draft"
+        status="draft",
     )
 
-@router.get("/{document_id}/revision-sets/{revision_set_id}/pages/{page_number}", response_model=DraftPageRead, status_code=200)
+
+@router.get(
+    "/{document_id}/revision-sets/{revision_set_id}/pages/{page_number}", response_model=DraftPageRead, status_code=200
+)
 async def get_revision_page(
     document_id: uuid.UUID,
     revision_set_id: uuid.UUID,
@@ -338,7 +341,7 @@ async def get_revision_page(
     rev_set = await session.get(DocumentRevisionSet, revision_set_id)
     if not rev_set or rev_set.document_id != document_id:
         raise NotFoundError("Revision set not found")
-        
+
     rev_page = await session.scalar(
         select(DocumentRevisionPage)
         .where(DocumentRevisionPage.revision_set_id == revision_set_id)
@@ -346,16 +349,15 @@ async def get_revision_page(
     )
     if not rev_page:
         raise NotFoundError("Revision page not found")
-        
+
     page_rev = await session.get(DocumentPageRevision, rev_page.page_revision_id)
     if not page_rev:
         raise NotFoundError("Revision content not found")
-        
+
     return DraftPageRead(
         page_revision_id=page_rev.id,
         lock_version=1,
         page_number=page_number,
         text=page_rev.corrected_text,
-        status=rev_set.status
+        status=rev_set.status,
     )
-

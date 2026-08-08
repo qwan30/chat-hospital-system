@@ -74,6 +74,7 @@ async def test_postgres_vector_query_embedding_uses_string_bind_outside_pgvector
     compiled = session.statement.compile(dialect=postgresql_dialect())
     assert isinstance(compiled.binds["query_embedding"].type, String)
     assert "CAST" in str(compiled).upper()
+    assert "(document_chunks.embedding <=>" in str(compiled)
     assert session.params["query_embedding"] == "[0.10000000,0.20000000]"
 
 

@@ -556,7 +556,7 @@ class RetrievalService:
 
         query_embedding_param = bindparam("query_embedding", type_=String())
         distance_expr = type_coerce(
-            text("document_chunks.embedding <=> CAST(:query_embedding AS vector)").bindparams(query_embedding_param),
+            text("(document_chunks.embedding <=> CAST(:query_embedding AS vector))").bindparams(query_embedding_param),
             Float,
         )
         score_expr = (1 - distance_expr).label("score")

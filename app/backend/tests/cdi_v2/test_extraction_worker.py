@@ -1,15 +1,16 @@
 from __future__ import annotations
 
 import uuid
-from datetime import datetime, UTC
+
 import pytest
 from sqlalchemy import select
 
-from hospital_ai.db.models import Document, DocumentChunk, User
-from hospital_ai.db.clinical_documents import DocumentPageRevision, DocumentDraftHead, DocumentExtractionRun
+from hospital_ai.db.clinical_documents import DocumentPageRevision
 from hospital_ai.db.migrations import DOCTOR_ID, PATIENT_ALICE_ID
+from hospital_ai.db.models import Document, DocumentChunk, User
 from hospital_ai.workers.extraction_jobs import extract_document
 from hospital_ai.workers.ocr_models import OcrModelManager, OcrResourceError
+
 
 @pytest.fixture
 async def finalized_document(session_and_settings):
@@ -35,12 +36,16 @@ async def finalized_document(session_and_settings):
     await session.commit()
     return doc
 
+
 @pytest.mark.asyncio
-async def test_extraction_creates_machine_revisions_but_no_chunks(session_and_settings, finalized_document, monkeypatch: pytest.MonkeyPatch) -> None:
+async def test_extraction_creates_machine_revisions_but_no_chunks(
+    session_and_settings, finalized_document, monkeypatch: pytest.MonkeyPatch
+) -> None:
     session, settings = session_and_settings
 
     # Mock file retrieval and OCR pipeline so unit test runs quickly without R2/actual models
     from hospital_ai.services.ocr_routing import OcrPageResult, OcrSpanResult
+
     async def mock_extract(*args, **kwargs):
         span = OcrSpanResult(
             text="Extracted text",
@@ -64,15 +69,22 @@ async def test_extraction_creates_machine_revisions_but_no_chunks(session_and_se
                 peak_rss_mb=200,
             )
         ]
-    
+
     monkeypatch.setattr("hospital_ai.workers.extraction_jobs.ocr_pipeline_extract", mock_extract, raising=False)
-    
+
     await extract_document(session, finalized_document.id, settings)
-    revisions = list(await session.scalars(select(DocumentPageRevision).where(DocumentPageRevision.document_id == finalized_document.id)))
-    chunks = list(await session.scalars(select(DocumentChunk).where(DocumentChunk.document_id == finalized_document.id)))
+    revisions = list(
+        await session.scalars(
+            select(DocumentPageRevision).where(DocumentPageRevision.document_id == finalized_document.id)
+        )
+    )
+    chunks = list(
+        await session.scalars(select(DocumentChunk).where(DocumentChunk.document_id == finalized_document.id))
+    )
     assert revisions and all(row.revision_type == "machine_ocr" for row in revisions)
     assert chunks == []
     assert (await session.get(Document, finalized_document.id)).status == "review_required"
+
 
 @pytest.mark.asyncio
 async def test_acquire_model_and_resource_limits() -> None:

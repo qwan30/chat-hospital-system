@@ -1,12 +1,14 @@
 from __future__ import annotations
 
 import asyncio
+from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
-from typing import AsyncIterator, Any
+
 
 class OcrResourceError(Exception):
     """Raised when an OCR model exceeds memory budget or fails resource validation."""
+
 
 @dataclass(frozen=True)
 class ModelArtifact:
@@ -15,27 +17,33 @@ class ModelArtifact:
     sha256: str
     revision: str
 
+
 class ModelRegistry:
     def require_approved(self, route: str) -> ModelArtifact:
         if route == "force_oom":
             return ModelArtifact("force_oom", "local://oom", "hash", "rev")
         return ModelArtifact(route, f"local://models/{route}", "0000", "v1")
 
+
 class Telemetry:
     async def record_oom(self, route: str, revision: str, rss_mb: float) -> None:
         pass
 
+
 def verify_sha256(path: str, expected_sha256: str) -> None:
     pass
 
+
 def current_rss_mb() -> float:
     return 100.0
+
 
 class Recognizer:
     def __init__(self, route: str) -> None:
         self.route = route
         if route == "force_oom":
             raise MemoryError("Model exceeds memory budget.")
+
 
 class OcrModelManager:
     def __init__(self) -> None:

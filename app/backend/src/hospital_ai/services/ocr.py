@@ -43,7 +43,7 @@ class OcrPage:
                 engine_revision="r1",
             )
             span_results = (span,)
-        
+
         return OcrPageResult(
             page_number=self.page_number,
             raw_text=self.text,

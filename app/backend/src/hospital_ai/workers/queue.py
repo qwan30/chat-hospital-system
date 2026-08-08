@@ -189,6 +189,7 @@ def enqueue_build_generation(
     """Enqueue a document generation for stage building."""
     if settings is None:
         from hospital_ai.core.config import get_settings
+
         settings = get_settings()
 
     try:
@@ -218,4 +219,3 @@ def enqueue_build_generation(
     )
     logger.info("Generation %s enqueued for building (max_retries=%d).", generation_id, max_retries)
     return "queued"
-

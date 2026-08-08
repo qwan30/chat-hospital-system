@@ -125,6 +125,7 @@ test("upload, correct, approve, explore graph and timeline, chat, and open exact
   // Use in-app navigation here because the real-login token is intentionally
   // held in memory and a full page reload would discard it.
   const patientId = "20000000-0000-0000-0000-000000000003";
+  const patientSlug = "p-003";
   await page.getByRole("link", { name: "Graph RAG", exact: true }).click();
   await expect(page.getByRole("heading", { name: "Patient knowledge graph" })).toBeVisible({
     timeout: 30000,
@@ -133,7 +134,7 @@ test("upload, correct, approve, explore graph and timeline, chat, and open exact
 
   await page.getByRole("link", { name: "Patients", exact: true }).click();
   await expect(page.getByRole("heading", { name: "Patients" })).toBeVisible();
-  await page.locator(`a[href="/patients/${patientId}"]`).first().click();
+  await page.locator(`a[href="/patients/${patientSlug}"]`).first().click();
   await expect(page.getByRole("link", { name: "Timeline", exact: true })).toBeVisible();
   await page.getByRole("link", { name: "Timeline", exact: true }).click();
   await expect(

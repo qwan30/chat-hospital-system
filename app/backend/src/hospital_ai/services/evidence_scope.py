@@ -39,6 +39,7 @@ class ActiveEvidenceScope:
         user_id: uuid.UUID,
         patient_id: uuid.UUID,
         document_ids: Optional[Collection[uuid.UUID]] = None,
+        include_superseded: bool = False,
     ):
         stmt = (
             select(DocumentChunk.id)
@@ -49,8 +50,7 @@ class ActiveEvidenceScope:
             .where(
                 Document.patient_id == patient_id,
                 DocumentChunk.patient_id == patient_id,
-                Document.active_index_generation_id == DocumentChunk.generation_id,
-                DocumentIndexGeneration.state == "active",
+                DocumentIndexGeneration.state.in_(("active", "superseded") if include_superseded else ("active",)),
                 DocumentIndexGeneration.revision_set_id == DocumentChunk.revision_set_id,
                 DocumentRevisionSet.status == "approved",
                 Document.deleted_at.is_(None),
@@ -62,6 +62,33 @@ class ActiveEvidenceScope:
                 ),
             )
         )
+        if not include_superseded:
+            stmt = stmt.where(
+                Document.active_index_generation_id == DocumentChunk.generation_id,
+                Document.approved_revision_set_id == DocumentChunk.revision_set_id,
+            )
         if document_ids is not None:
             stmt = stmt.where(Document.id.in_(tuple(document_ids)))
         return stmt.scalar_subquery()
+
+    async def authorized_chunk_id_set(
+        self,
+        *,
+        user_id: uuid.UUID,
+        patient_id: uuid.UUID,
+        document_ids: Optional[Collection[uuid.UUID]] = None,
+        include_superseded: bool = False,
+    ) -> set[uuid.UUID]:
+        result = await self.session.execute(
+            select(DocumentChunk.id).where(
+                DocumentChunk.id.in_(
+                    self.authorized_chunk_ids(
+                        user_id=user_id,
+                        patient_id=patient_id,
+                        document_ids=document_ids,
+                        include_superseded=include_superseded,
+                    )
+                )
+            )
+        )
+        return set(result.scalars().all())

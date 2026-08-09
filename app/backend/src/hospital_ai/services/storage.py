@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import hashlib
+import os
 import re
 import uuid
 from dataclasses import dataclass
@@ -12,6 +13,7 @@ from urllib.parse import urlsplit
 import boto3
 from botocore.exceptions import ClientError
 from fastapi import UploadFile
+from werkzeug.utils import secure_filename
 
 from hospital_ai.core.config import Settings
 from hospital_ai.core.errors import ValidationAppError
@@ -152,39 +154,62 @@ class LocalStorageService:
         root = self.root.resolve()
         candidate = Path(storage_uri)
         if not candidate.is_absolute():
-            validate_storage_object_key(storage_uri, allowed_prefixes=("source/", "patients/"))
-            candidate = root / candidate
+            validated_uri = validate_storage_object_key(storage_uri, allowed_prefixes=("source/", "patients/"))
+            candidate = root / validated_uri
         resolved = candidate.resolve()
         if not resolved.is_relative_to(root):
             raise ValueError("Storage URI points outside the configured local storage root.")
         return resolved
 
     def create_presigned_put(self, *, key: str, content_type: str, expires_seconds: int) -> PresignedPut:
-        validate_storage_object_key(key, allowed_prefixes=("source/", "patients/"))
-        target_path = self._resolve_local_path(key)
+        validated_key = _validated_local_storage_key(key)
+        root = os.path.realpath(os.fspath(self.root))
+        target = os.path.realpath(os.path.join(root, validated_key))
+        if target != root and not target.startswith(root + os.sep):
+            raise ValueError("Storage URI points outside the configured local storage root.")
+        target_path = Path(target)
         target_path.parent.mkdir(parents=True, exist_ok=True)
         return PresignedPut(
-            url=f"local://{key}",
+            url=f"local://{validated_key}",
             required_headers={"Content-Type": content_type, "If-None-Match": "*"},
         )
 
+    def put_object(self, *, key: str, content: bytes) -> None:
+        validated_key = _validated_local_storage_key(key)
+        root = os.path.realpath(os.fspath(self.root))
+        target = os.path.realpath(os.path.join(root, validated_key))
+        if target != root and not target.startswith(root + os.sep):
+            raise ValueError("Storage URI points outside the configured local storage root.")
+
+        target_path = Path(target)
+        target_path.parent.mkdir(parents=True, exist_ok=True)
+        with target_path.open("xb") as output:
+            output.write(content)
+
     def head_object(self, key: str) -> StorageObjectHead:
-        target_path = self._resolve_local_path(key)
+        validated_key = _validated_local_storage_key(key)
+        root = os.path.realpath(os.fspath(self.root))
+        target = os.path.realpath(os.path.join(root, validated_key))
+        if target != root and not target.startswith(root + os.sep):
+            raise ValueError("Storage URI points outside the configured local storage root.")
+        target_path = Path(target)
         if not target_path.exists():
             raise FileNotFoundError("Storage object not found.")
         return StorageObjectHead(
-            key=key,
+            key=validated_key,
             byte_size=target_path.stat().st_size,
             etag='"local-etag"',
             content_type=None,
         )
 
     def read_stream(self, key: str) -> BinaryIO:
-        target_path = self._resolve_local_path(key)
+        validated_key = validate_storage_object_key(key, allowed_prefixes=("source/", "patients/"))
+        target_path = self._resolve_local_path(validated_key)
         return target_path.open("rb")
 
     def delete_object(self, key: str) -> None:
-        target_path = self._resolve_local_path(key)
+        validated_key = validate_storage_object_key(key, allowed_prefixes=("source/", "patients/"))
+        target_path = self._resolve_local_path(validated_key)
         target_path.unlink(missing_ok=True)
 
 
@@ -351,6 +376,15 @@ def validate_storage_object_key(key: str, *, allowed_prefixes: tuple[str, ...] =
     if allowed_prefixes and not any(key.startswith(prefix) for prefix in allowed_prefixes):
         raise ValueError("Storage object key uses an unexpected prefix.")
     return key
+
+
+def _validated_local_storage_key(key: str) -> str:
+    validated_key = validate_storage_object_key(key, allowed_prefixes=("source/", "patients/"))
+    segments = validated_key.split("/")
+    safe_segments = [secure_filename(segment) for segment in segments]
+    if safe_segments != segments or any(not segment for segment in safe_segments):
+        raise ValueError("Storage object key contains an unsafe filename segment.")
+    return "/".join(safe_segments)
 
 
 def get_storage_service(settings: Settings) -> StorageService:

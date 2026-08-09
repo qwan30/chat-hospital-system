@@ -118,6 +118,37 @@ async def test_malware_scanner_unavailable_rejects_without_finalizing(session_an
 
 
 @pytest.mark.asyncio
+async def test_local_finalize_uses_relative_storage_uri(session_and_settings) -> None:
+    session, settings = session_and_settings
+    from hospital_ai.db.models import Document
+    from hospital_ai.services.storage import LocalStorageService
+
+    content = b"%PDF-1.4\nlocal"
+    storage = LocalStorageService(settings)
+    actor = Mock(id=uuid.uuid4())
+    service = UploadSessionService(
+        session, storage, content_reader=StorageContentReader(storage), scanner=_CleanScanner()
+    )
+    created = await service.create(
+        actor=actor,
+        patient_id=uuid.uuid4(),
+        filename="scan.pdf",
+        expected_size=len(content),
+        expected_sha256=hashlib.sha256(content).hexdigest(),
+        claimed_mime_type="application/pdf",
+    )
+    object_path = settings.storage_root / created.object_key
+    object_path.write_bytes(content)
+
+    result = await service.finalize(created.document_id, created.upload_id, actor=actor)
+
+    document = await session.get(Document, created.document_id)
+    assert result.state == "finalized"
+    assert document is not None
+    assert document.storage_uri == created.object_key
+
+
+@pytest.mark.asyncio
 async def test_storage_head_error_rejects_upload_session_creation(session_and_settings) -> None:
     session, _ = session_and_settings
 

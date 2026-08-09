@@ -1,0 +1,36 @@
+{
+  "components": [
+    "corpus",
+    "ocr",
+    "retrieval",
+    "graph",
+    "chat",
+    "timeline",
+    "stream"
+  ],
+  "configuration": {
+    "benchmark_dir": "D:\\projects\\chatbot-hospital-system\\app\\backend\\data\\evaluation",
+    "data_root": "D:\\projects\\chatbot-hospital-system\\app\\backend\\data",
+    "live_credentials_present": false,
+    "retrieval_mode": "vector"
+  },
+  "dataset_version": "synthetic-100-v2",
+  "failed_cases": 7,
+  "failure_reason": "sentinel_independent_review; image_ocr_executed; zero_unauthorized_evidence; zero_unauthorized_evidence; zero_unauthorized_evidence; zero_unauthorized_evidence; zero_unauthorized_evidence; safe_refusal_behavior; zero_unauthorized_evidence; safe_refusal_behavior",
+  "finished_at": "2026-08-07T18:00:27Z",
+  "git_sha": "733954135a3da076ed4906b5d0d9eb1b9d86aa8c",
+  "lane": "deterministic",
+  "latency_ms": 44365.553,
+  "model": "not-configured",
+  "passed_cases": 209,
+  "prompt_version": "not-applicable-deterministic",
+  "provider": "not-configured",
+  "run_id": "ai-eval-a48f86b8ece8a26d",
+  "schema_version": "1.0",
+  "selected_case_count": 55,
+  "skipped_cases": 0,
+  "started_at": "2026-08-07T17:59:42Z",
+  "status": "failed",
+  "suite": "smoke",
+  "token_usage": 0
+}

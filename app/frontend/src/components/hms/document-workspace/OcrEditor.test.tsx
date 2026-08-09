@@ -2,7 +2,7 @@
  * @vitest-environment jsdom
  */
 import { describe, it, expect, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { OcrEditor } from "./OcrEditor";
 import { saveDraftPage } from "@/lib/api/document-revisions";
@@ -35,7 +35,49 @@ describe("OcrEditor", () => {
 
     await user.type(screen.getByPlaceholderText("Edit reason"), "fixed a typo");
     await user.click(screen.getByRole("button", { name: "Save draft" }));
+    expect(saveDraftPage).toHaveBeenCalledWith(
+      "doc-1",
+      1,
+      { text: "local correction", parent_revision_id: "rev-1", edit_reason: "fixed a typo" },
+      { idempotencyKey: expect.any(String), lockVersion: 3 },
+    );
     expect(screen.getByDisplayValue("local correction")).toBeVisible();
     expect(screen.getByRole("button", { name: "Compare with latest" })).toBeVisible();
+  });
+
+  it("updates the lock version after a successful draft save", async () => {
+    const user = userEvent.setup();
+    const onLockVersionChange = vi.fn();
+    vi.mocked(saveDraftPage).mockResolvedValue({
+      page_revision_id: "rev-2",
+      lock_version: 4,
+      page_number: 1,
+      text: "updated text",
+      status: "human_draft",
+    });
+
+    render(
+      <QueryClientProvider client={new QueryClient()}>
+        <OcrEditor
+          documentId="doc-1"
+          page={1}
+          initialText="updated text"
+          lockVersion={3}
+          revision={{ id: "rev-1", status: "draft" }}
+          onLockVersionChange={onLockVersionChange}
+        />
+      </QueryClientProvider>,
+    );
+
+    await user.type(screen.getByPlaceholderText("Edit reason"), "fixed a typo");
+    await user.click(screen.getByRole("button", { name: "Save draft" }));
+
+    await waitFor(() => expect(onLockVersionChange).toHaveBeenCalledWith(4));
+    expect(saveDraftPage).toHaveBeenLastCalledWith(
+      "doc-1",
+      1,
+      { text: "updated text", parent_revision_id: "rev-1", edit_reason: "fixed a typo" },
+      { idempotencyKey: expect.any(String), lockVersion: 3 },
+    );
   });
 });

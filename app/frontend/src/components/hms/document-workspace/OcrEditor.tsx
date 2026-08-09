@@ -13,6 +13,8 @@ interface OcrEditorProps {
   lockVersion?: number;
   revision?: any;
   onCompare?: () => void;
+  onLockVersionChange?: (lockVersion: number) => void;
+  onSavingChange?: (isSaving: boolean) => void;
 }
 
 export function OcrEditor({
@@ -22,10 +24,13 @@ export function OcrEditor({
   lockVersion: initialLockVersion,
   revision,
   onCompare,
+  onLockVersionChange,
+  onSavingChange,
 }: OcrEditorProps) {
   const [text, setText] = useState(initialText);
   const [reason, setReason] = useState("");
   const [conflict, setConflict] = useState(false);
+  const [currentLockVersion, setCurrentLockVersion] = useState(initialLockVersion);
   const isHistorical = revision && revision.status !== "draft";
   const idempotencyKeyRef = useRef(crypto.randomUUID());
 
@@ -34,16 +39,22 @@ export function OcrEditor({
     setConflict(false);
   }, [initialText]);
 
+  useEffect(() => {
+    setCurrentLockVersion(initialLockVersion);
+  }, [initialLockVersion]);
+
   const saveMutation = useMutation({
     mutationFn: (newText: string) => {
       return saveDraftPage(
         documentId,
         page,
-        { corrected_text: newText, parent_revision_id: revision?.id || "", edit_reason: reason },
-        { idempotencyKey: idempotencyKeyRef.current, lockVersion: initialLockVersion },
+        { text: newText, parent_revision_id: revision?.id || "", edit_reason: reason },
+        { idempotencyKey: idempotencyKeyRef.current, lockVersion: currentLockVersion },
       );
     },
-    onSuccess: () => {
+    onSuccess: (result) => {
+      setCurrentLockVersion(result.lock_version);
+      onLockVersionChange?.(result.lock_version);
       idempotencyKeyRef.current = crypto.randomUUID();
       setReason("");
     },
@@ -54,11 +65,19 @@ export function OcrEditor({
     },
   });
 
+  useEffect(() => {
+    onSavingChange?.(saveMutation.isPending);
+  }, [onSavingChange, saveMutation.isPending]);
+
   const handleSave = () => {
     saveMutation.mutate(text);
   };
 
-  const isSaveDisabled = isHistorical || saveMutation.isPending || reason.trim().length === 0;
+  const isSaveDisabled =
+    isHistorical ||
+    saveMutation.isPending ||
+    reason.trim().length === 0 ||
+    currentLockVersion === undefined;
 
   return (
     <div className="flex flex-col gap-4">

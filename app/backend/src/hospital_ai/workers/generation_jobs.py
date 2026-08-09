@@ -157,8 +157,6 @@ class StageRunner:
             chunks = list(res.scalars().all())
             if chunks:
                 embeddings = await EmbeddingService(self.settings).embed_many(c.content for c in chunks)
-                if len(chunks) != len(embeddings):
-                    raise ValueError("Embedding provider returned an unexpected number of vectors.")
                 for c, emb in zip(chunks, embeddings, strict=True):
                     c.embedding = emb
                 await self.session.flush()
@@ -184,15 +182,39 @@ class StageRunner:
             chunks = list(res.scalars().all())
 
             graph_service = GraphIndexService(self.session)
+            import time
+
+            start_time = time.time()
+            trace_id = uuid.uuid4().hex
+
             for chunk in chunks:
                 try:
                     entities, relations = await extract_entities_and_relations_nlp(chunk.content)
                     extraction = GraphExtraction(entities=entities, relations=relations)
                     await graph_service.index_chunk(generation.id, chunk, extraction)
-                except Exception as e:
-                    logger.debug("Graph extraction failed for chunk %s: %s", chunk.id, e)
+                except Exception:
+                    logger.error(
+                        "generation.graph.failed",
+                        extra={
+                            "trace_id": trace_id,
+                            "generation_id": str(generation.id),
+                            "chunk_id": str(chunk.id),
+                            "error_code": "GRAPH_EXTRACTION_FAILED",
+                        },
+                    )
+                    raise
 
             sha256 = hashlib.sha256(f"{generation.id}:graph".encode()).hexdigest()
+            logger.info(
+                "generation.graph.completed",
+                extra={
+                    "trace_id": trace_id,
+                    "generation_id": str(generation.id),
+                    "chunk_count": len(chunks),
+                    "output_sha256": sha256,
+                    "latency": time.time() - start_time,
+                },
+            )
             return StageOutput(sha256=sha256, row_count=len(chunks))
 
         elif stage == "timeline":
@@ -314,6 +336,22 @@ async def import_synthetic_generation(
         content_sha256=content_hash,
     )
     session.add(page_rev)
+
+    # Ensure compatibility DocumentPage exists
+    db_page = (
+        await session.execute(
+            select(DocumentPage).where(DocumentPage.document_id == document.id, DocumentPage.page_number == 1)
+        )
+    ).scalar_one_or_none()
+    if not db_page:
+        db_page = DocumentPage(
+            id=uuid.uuid4(),
+            document_id=document.id,
+            page_number=1,
+            ocr_text="synthetic",
+            ocr_confidence=1.0,
+        )
+        session.add(db_page)
     await session.flush()
 
     result_num = await session.execute(

@@ -34,6 +34,8 @@ from hospital_ai.db.clinical_graph import LegacyGraphRelation as GraphRelation
 from hospital_ai.services.llm.base import LLMMessage
 from hospital_ai.services.llm.manager import get_llm_manager
 
+logger = logging.getLogger(__name__)
+
 # ── ORM Models ──────────────────────────────────────────────────────────
 
 
@@ -252,7 +254,7 @@ async def extract_entities_and_relations_nlp(content: str) -> tuple[list[Extract
 
         return entities, relations
     except Exception as e:
-        logging.getLogger(__name__).warning("NLP extraction failed: %s", e)
+        logger.warning("NLP extraction failed", extra={"error_code": "NLP_EXTRACTION_FAILED"})
         return _extract_explicit_relations_fallback(content)
 
 
@@ -267,8 +269,23 @@ async def index_chunk_entities(
     *,
     extractor: Optional[EntityRelationExtractor] = None,
 ) -> tuple[list, list]:
+    import time
+
+    start_time = time.time()
+    trace_id = uuid.uuid4().hex
+
     active_extractor = extract_entities_and_relations_nlp if extractor is None else extractor
     entities, relations = await active_extractor(content)
+    logger.info(
+        "graph.extraction.completed",
+        extra={
+            "trace_id": trace_id,
+            "document_id": str(document_id),
+            "entity_count": len(entities),
+            "relation_count": len(relations),
+            "latency": time.time() - start_time,
+        },
+    )
 
     from hospital_ai.db.clinical_graph import LegacyGraphEntity, LegacyGraphRelation
     from hospital_ai.db.models import DocumentChunk
@@ -276,14 +293,35 @@ async def index_chunk_entities(
 
     chunk = await session.get(DocumentChunk, chunk_id)
     if not chunk:
+        logger.warning(
+            "graph.chunk.not_found",
+            extra={
+                "trace_id": trace_id,
+                "document_id": str(document_id),
+                "chunk_id": str(chunk_id),
+                "error_code": "CHUNK_NOT_FOUND",
+            },
+        )
         return [], []
 
-    # Keep the patient-scoped provenance graph authoritative while the renamed
-    # legacy tables remain available to old routes, workers, and fixtures.
-    await GraphIndexService(session).index_chunk(
-        chunk.generation_id,
-        chunk,
-        GraphExtraction(entities=entities, relations=relations),
+    from hospital_ai.services.graph_rag import GraphExtraction
+
+    extraction = GraphExtraction(entities=entities, relations=relations)
+
+    result = await GraphIndexService(session).index_chunk(chunk.generation_id, chunk, extraction)
+    logger.info(
+        "graph.index.completed",
+        extra={
+            "trace_id": trace_id,
+            "document_id": str(document_id),
+            "chunk_id": str(chunk.id),
+            "generation_id": str(chunk.generation_id),
+            "entities_inserted": result.entities_inserted,
+            "mentions_inserted": result.mentions_inserted,
+            "assertions_inserted": result.assertions_inserted,
+            "evidence_inserted": result.evidence_inserted,
+            "latency": time.time() - start_time,
+        },
     )
     await session.execute(delete(LegacyGraphRelation).where(LegacyGraphRelation.source_chunk_id == chunk.id))
     await session.execute(delete(LegacyGraphEntity).where(LegacyGraphEntity.source_chunk_id == chunk.id))

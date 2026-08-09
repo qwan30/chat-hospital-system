@@ -12,6 +12,7 @@ from hospital_ai.services.capabilities import role_has_capability
         ("doctor", "document_revision.approve", False),
         ("records_staff", "document_revision.restore", True),
         ("admin", "document_revision.edit", False),
+        ("admin", "document_revision.view_raw", True),
         ("admin", "document_revision.approve", True),
         ("security", "document_revision.view_raw", False),
     ],

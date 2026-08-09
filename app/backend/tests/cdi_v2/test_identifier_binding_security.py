@@ -304,17 +304,17 @@ async def test_graph_and_timeline_require_patient_permission(session_and_setting
 async def test_raw_revision_read_requires_view_raw_capability(session_and_settings) -> None:
     session, _ = session_and_settings
     document, _, _, _ = await _make_document(session, patient_id=PATIENT_ALICE_ID, actor_id=DOCTOR_ID)
-    admin = await session.get(User, ADMIN_ID)
+    security = await session.get(User, SECURITY_ID)
 
     from hospital_ai.api.routes.document_revisions import get_draft_page
 
     with pytest.raises(PermissionDeniedError):
-        await get_draft_page(document.id, 1, admin, session)
+        await get_draft_page(document.id, 1, security, session)
 
     denial = await session.scalar(
         select(AuditLog)
         .where(
-            AuditLog.actor_user_id == ADMIN_ID,
+            AuditLog.actor_user_id == SECURITY_ID,
             AuditLog.patient_id == PATIENT_ALICE_ID,
             AuditLog.action == "document_revision.draft.read",
             AuditLog.outcome == "denied",

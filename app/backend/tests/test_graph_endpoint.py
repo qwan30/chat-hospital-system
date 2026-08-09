@@ -8,9 +8,10 @@ from sqlalchemy import select
 from starlette.requests import Request
 
 from hospital_ai.api.routes.graph import _canonical_entity_info, get_patient_graph
+from hospital_ai.db.clinical_graph import LegacyGraphEntity as GraphEntity
+from hospital_ai.db.clinical_graph import LegacyGraphRelation as GraphRelation
 from hospital_ai.db.migrations import DOCTOR_ID, PATIENT_ALICE_ID, PATIENT_BOB_ID, PATIENT_ELEANOR_ID
 from hospital_ai.db.models import DocumentChunk, DocumentPage, PatientPermission, User
-from hospital_ai.services.graph_rag import GraphEntity, GraphRelation
 from tests.conftest import create_indexed_document
 
 

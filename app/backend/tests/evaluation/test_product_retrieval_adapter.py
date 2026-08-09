@@ -4,7 +4,10 @@ import hashlib
 import uuid
 from pathlib import Path
 
-import fitz
+try:
+    import fitz
+except ImportError:
+    fitz = None
 import pytest
 
 from hospital_ai.evaluation.adapter_foundation import (

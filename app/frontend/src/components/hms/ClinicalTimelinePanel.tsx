@@ -69,6 +69,11 @@ export function ClinicalTimelinePanel({ events, onSelectEvidence }: ClinicalTime
               data-provenance-page-revision-id={ev.page_revision_id ?? undefined}
               data-provenance-page={ev.page ?? undefined}
               data-provenance-chunk-id={ev.chunk_id ?? undefined}
+              data-provenance-start-offset={ev.start_offset ?? undefined}
+              data-provenance-end-offset={ev.end_offset ?? undefined}
+              data-provenance-bounding-boxes={
+                ev.bounding_boxes ? JSON.stringify(ev.bounding_boxes) : undefined
+              }
               data-provenance-alignment-status={ev.alignment_status ?? undefined}
               className="relative"
             >
@@ -158,6 +163,7 @@ export function ClinicalTimelinePanel({ events, onSelectEvidence }: ClinicalTime
                         Offsets: {ev.start_offset}-{ev.end_offset}
                       </span>
                     )}
+                    {Boolean(ev.bounding_boxes) && <span>Region: true</span>}
                     {ev.alignment_status === "aligned" &&
                     ev.page_revision_id &&
                     ev.page !== undefined &&

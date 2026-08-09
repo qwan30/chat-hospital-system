@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import uuid
+from unittest.mock import AsyncMock
 
 import pytest
 from fastapi import Request
@@ -92,7 +93,7 @@ async def test_save_draft_page_endpoint(session_and_settings, setup_data) -> Non
 
 @pytest.mark.asyncio
 async def test_submit_and_approve_endpoints(session_and_settings, setup_data, monkeypatch: pytest.MonkeyPatch) -> None:
-    session, _ = session_and_settings
+    session, settings = session_and_settings
     doc, doctor, admin, _ = setup_data
     from hospital_ai.api.routes import document_revisions as rev_routes
     from hospital_ai.schemas.document_revisions import ApproveRevisionRequest
@@ -111,6 +112,8 @@ async def test_submit_and_approve_endpoints(session_and_settings, setup_data, mo
     monkeypatch.setattr(
         "hospital_ai.services.revisions.enqueue_build_generation_job", lambda *args, **kwargs: None, raising=False
     )
+    settings.worker_inline = False
+    monkeypatch.setattr(rev_routes, "get_settings", lambda: settings)
 
     approved = await rev_routes.approve_revision_set(
         document_id=doc.id,
@@ -122,6 +125,45 @@ async def test_submit_and_approve_endpoints(session_and_settings, setup_data, mo
         session=session,
     )
     assert approved.state == "building"
+
+
+@pytest.mark.asyncio
+async def test_approve_builds_generation_inline_when_configured(
+    session_and_settings, setup_data, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    session, settings = session_and_settings
+    doc, doctor, admin, _ = setup_data
+    from hospital_ai.api.routes import document_revisions as rev_routes
+    from hospital_ai.schemas.document_revisions import ApproveRevisionRequest
+
+    sub = await rev_routes.submit_draft(
+        document_id=doc.id,
+        request=_request(method="POST", path=f"/api/v1/documents/{doc.id}/draft/submit"),
+        if_match=1,
+        idempotency_key="rev-inline-sub-1",
+        current_user=doctor,
+        session=session,
+    )
+
+    builder = type("BuilderStub", (), {"build": AsyncMock()})()
+    monkeypatch.setattr(rev_routes, "get_settings", lambda: settings)
+    monkeypatch.setattr(
+        "hospital_ai.workers.generation_jobs.GenerationBuilder.from_settings",
+        lambda session, settings: builder,
+    )
+
+    approved = await rev_routes.approve_revision_set(
+        document_id=doc.id,
+        revision_set_id=sub.revision_set_id,
+        payload=ApproveRevisionRequest(demo_mode=False),
+        request=_request(method="POST", path=f"/api/v1/documents/{doc.id}/revision-sets/{sub.revision_set_id}/approve"),
+        idempotency_key="rev-inline-app-1",
+        current_user=admin,
+        session=session,
+    )
+
+    assert approved.state == "building"
+    builder.build.assert_awaited_once_with(approved.generation_id)
 
 
 @pytest.mark.asyncio

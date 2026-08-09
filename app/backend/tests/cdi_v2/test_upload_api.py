@@ -3,14 +3,15 @@ from __future__ import annotations
 import hashlib
 import io
 import uuid
+from unittest.mock import AsyncMock
 
 import pytest
 from fastapi import Request
-from sqlalchemy import select
+from sqlalchemy import select, text
 
-from hospital_ai.db.clinical_documents import IdempotencyRecord
+from hospital_ai.db.clinical_documents import DocumentUpload, IdempotencyRecord
 from hospital_ai.db.migrations import DOCTOR_ID, PATIENT_ALICE_ID
-from hospital_ai.db.models import User
+from hospital_ai.db.models import Document, User
 
 
 def _request() -> Request:
@@ -19,11 +20,29 @@ def _request() -> Request:
     )
 
 
+def _upload_request(body: bytes) -> Request:
+    async def receive() -> dict:
+        return {"type": "http.request", "body": body, "more_body": False}
+
+    return Request(
+        {
+            "type": "http",
+            "client": ("127.0.0.1", 8000),
+            "method": "PUT",
+            "path": "/api/v1/documents/upload-objects",
+            "headers": [(b"if-none-match", b"*"), (b"content-type", b"application/pdf")],
+        },
+        receive,
+    )
+
+
 @pytest.mark.asyncio
 async def test_create_upload_session_idempotency_replay(session_and_settings, monkeypatch: pytest.MonkeyPatch) -> None:
     session, settings = session_and_settings
     from hospital_ai.api.routes import document_uploads as upload_routes
     from hospital_ai.schemas.document_uploads import UploadSessionCreate
+
+    await session.execute(text("PRAGMA foreign_keys = ON"))
 
     doctor = await session.get(User, DOCTOR_ID)
     if not doctor:
@@ -36,6 +55,8 @@ async def test_create_upload_session_idempotency_replay(session_and_settings, mo
     payload = UploadSessionCreate(
         patient_id=PATIENT_ALICE_ID,
         filename="report.pdf",
+        title="Synthetic report",
+        document_type="scan",
         expected_size=1024,
         expected_sha256="b" * 64,
         claimed_mime_type="application/pdf",
@@ -59,14 +80,47 @@ async def test_create_upload_session_idempotency_replay(session_and_settings, mo
 
     assert res1.upload_id == res2.upload_id
     assert res1.object_key == res2.object_key
+    document = await session.get(Document, res1.document_id)
+    assert document is not None
+    assert document.title == "Synthetic report"
+    assert document.document_type == "scan"
+
+
+@pytest.mark.asyncio
+async def test_upload_service_scanner_requires_explicit_local_opt_in(
+    session_and_settings, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    session, settings = session_and_settings
+    from hospital_ai.core import config
+    from hospital_ai.services.upload_sessions import (
+        SyntheticCleanMalwareScanner,
+        UnavailableMalwareScanner,
+        UploadSessionService,
+    )
+
+    monkeypatch.setattr(config, "get_settings", lambda: settings)
+
+    disabled = UploadSessionService.from_request(session, _request())
+    assert isinstance(disabled.scanner, UnavailableMalwareScanner)
+
+    settings.allow_synthetic_malware_scan = True
+    enabled = UploadSessionService.from_request(session, _request())
+    assert isinstance(enabled.scanner, SyntheticCleanMalwareScanner)
+
+    settings.environment = "staging"
+    staging = UploadSessionService.from_request(session, _request())
+    assert isinstance(staging.scanner, UnavailableMalwareScanner)
 
 
 @pytest.mark.asyncio
 async def test_finalize_upload_session(session_and_settings, monkeypatch: pytest.MonkeyPatch) -> None:
     session, settings = session_and_settings
+    settings.worker_inline = True
     from hospital_ai.api.routes import document_uploads as upload_routes
     from hospital_ai.schemas.document_uploads import UploadSessionCreate
     from hospital_ai.services.storage import StorageObjectHead
+
+    monkeypatch.setattr(upload_routes, "get_settings", lambda: settings)
 
     doctor = await session.get(User, DOCTOR_ID)
     if not doctor:
@@ -127,6 +181,8 @@ async def test_finalize_upload_session(session_and_settings, monkeypatch: pytest
         return service
 
     monkeypatch.setattr(us_module.UploadSessionService, "from_request", mocked_from_request)
+    process_document = AsyncMock()
+    monkeypatch.setattr("hospital_ai.workers.jobs.process_document", process_document)
     monkeypatch.setattr("hospital_ai.workers.queue.enqueue_document_indexing", lambda *args, **kwargs: None)
 
     res = await upload_routes.finalize_upload_session(
@@ -138,6 +194,7 @@ async def test_finalize_upload_session(session_and_settings, monkeypatch: pytest
         current_user=doctor,
     )
     assert res.state == "finalized"
+    process_document.assert_awaited_once()
 
     replay = await upload_routes.finalize_upload_session(
         document_id=created.document_id,
@@ -162,6 +219,65 @@ async def test_finalize_upload_session(session_and_settings, monkeypatch: pytest
             idempotency_key="finalize-1",
             session=session,
             current_user=doctor,
+        )
+
+
+@pytest.mark.asyncio
+async def test_local_upload_object_is_bound_and_immutable(session_and_settings) -> None:
+    session, settings = session_and_settings
+    from hospital_ai.api.routes import document_uploads as upload_routes
+
+    doctor = await session.get(User, DOCTOR_ID)
+    content = b"%PDF-1.7\nsynthetic"
+    document_id = uuid.uuid4()
+    upload_id = uuid.uuid4()
+    object_key = f"source/{PATIENT_ALICE_ID}/{document_id}/{upload_id}/original.pdf"
+    session.add(
+        Document(
+            id=document_id,
+            patient_id=PATIENT_ALICE_ID,
+            uploaded_by=DOCTOR_ID,
+            title="Local upload",
+            document_type="clinical_note",
+            storage_uri="pending",
+            mime_type="application/pdf",
+            status="uploaded",
+        )
+    )
+    session.add(
+        DocumentUpload(
+            id=upload_id,
+            document_id=document_id,
+            state="pending_upload",
+            object_key=object_key,
+            expected_sha256="a" * 64,
+            byte_size=len(content),
+            mime_type="application/pdf",
+            actor_user_id=DOCTOR_ID,
+        )
+    )
+    await session.commit()
+
+    response = await upload_routes.put_local_upload_object(
+        object_key=object_key,
+        request=_upload_request(content),
+        session=session,
+        current_user=doctor,
+        settings=settings,
+    )
+
+    assert response.status_code == 204
+    assert (settings.storage_root / object_key).read_bytes() == content
+
+    from hospital_ai.core.errors import ConflictError
+
+    with pytest.raises(ConflictError, match="already exists"):
+        await upload_routes.put_local_upload_object(
+            object_key=object_key,
+            request=_upload_request(content),
+            session=session,
+            current_user=doctor,
+            settings=settings,
         )
 
 

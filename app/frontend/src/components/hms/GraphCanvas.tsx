@@ -60,6 +60,11 @@ function provenanceTitle(provenance: GraphProvenance): string {
     provenance.page_revision_id && `page-revision:${provenance.page_revision_id}`,
     provenance.page !== undefined && provenance.page !== null && `page:${provenance.page}`,
     provenance.chunk_id && `chunk:${provenance.chunk_id}`,
+    provenance.start_offset !== undefined &&
+      provenance.start_offset !== null &&
+      `offset:${provenance.start_offset}-${provenance.end_offset}`,
+    provenance.bounding_boxes && `region:true`,
+    provenance.alignment_status && `alignment:${provenance.alignment_status}`,
   ].filter(Boolean);
   return values.length > 0 ? `Provenance — ${values.join("; ")}` : "Provenance unavailable";
 }
@@ -778,6 +783,11 @@ export function GraphCanvas({
                 data-provenance-page-revision-id={provenance.page_revision_id ?? undefined}
                 data-provenance-page={provenance.page ?? undefined}
                 data-provenance-chunk-id={provenance.chunk_id ?? undefined}
+                data-provenance-start-offset={provenance.start_offset ?? undefined}
+                data-provenance-end-offset={provenance.end_offset ?? undefined}
+                data-provenance-bounding-boxes={
+                  provenance.bounding_boxes ? JSON.stringify(provenance.bounding_boxes) : undefined
+                }
                 data-provenance-alignment-status={provenance.alignment_status ?? undefined}
                 className={cn("transition-opacity", dimmed && "opacity-15")}
               >
@@ -837,6 +847,11 @@ export function GraphCanvas({
                 data-provenance-page-revision-id={provenance.page_revision_id ?? undefined}
                 data-provenance-page={provenance.page ?? undefined}
                 data-provenance-chunk-id={provenance.chunk_id ?? undefined}
+                data-provenance-start-offset={provenance.start_offset ?? undefined}
+                data-provenance-end-offset={provenance.end_offset ?? undefined}
+                data-provenance-bounding-boxes={
+                  provenance.bounding_boxes ? JSON.stringify(provenance.bounding_boxes) : undefined
+                }
                 data-provenance-alignment-status={provenance.alignment_status ?? undefined}
                 transform={`translate(${pos.x}, ${pos.y})`}
                 className={cn(

@@ -17,7 +17,7 @@ from hospital_ai.db.clinical_documents import (
     OcrSpan,
 )
 from hospital_ai.db.migrations import DOCTOR_ID, PATIENT_ALICE_ID
-from hospital_ai.db.models import Document, DocumentChunk, User
+from hospital_ai.db.models import Document, DocumentChunk, DocumentPage, User
 from hospital_ai.workers.extraction_jobs import extract_document
 from hospital_ai.workers.ocr_models import ModelArtifact, ModelRegistry, OcrModelManager, OcrResourceError
 
@@ -69,6 +69,27 @@ async def finalized_document(session_and_settings):
 
 
 @pytest.mark.asyncio
+async def test_process_document_routes_finalized_upload_to_cdi_extraction(
+    session_and_settings, finalized_document, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from unittest.mock import Mock
+
+    session, settings = session_and_settings
+    extract = Mock()
+
+    async def capture(*args, **kwargs):
+        extract(*args, **kwargs)
+
+    monkeypatch.setattr("hospital_ai.workers.extraction_jobs.extract_document", capture)
+
+    from hospital_ai.workers.jobs import process_document
+
+    await process_document(session, finalized_document.id, settings)
+
+    extract.assert_called_once_with(session, finalized_document.id, settings)
+
+
+@pytest.mark.asyncio
 async def test_extraction_creates_machine_revisions_but_no_chunks(
     session_and_settings, finalized_document, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -112,8 +133,15 @@ async def test_extraction_creates_machine_revisions_but_no_chunks(
     chunks = list(
         await session.scalars(select(DocumentChunk).where(DocumentChunk.document_id == finalized_document.id))
     )
+    compatibility_pages = list(
+        await session.scalars(select(DocumentPage).where(DocumentPage.document_id == finalized_document.id))
+    )
     assert revisions and all(row.revision_type == "machine_ocr" for row in revisions)
     assert chunks == []
+    assert len(compatibility_pages) == 1
+    assert compatibility_pages[0].page_number == 1
+    assert compatibility_pages[0].ocr_text == "Extracted text"
+    assert float(compatibility_pages[0].ocr_confidence) == 0.95
     assert (await session.get(Document, finalized_document.id)).status == "review_required"
 
     run = await session.scalar(

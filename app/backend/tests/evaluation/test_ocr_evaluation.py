@@ -7,7 +7,10 @@ import subprocess
 import sys
 from pathlib import Path
 
-import fitz
+try:
+    import fitz
+except ImportError:
+    fitz = None
 
 from hospital_ai.evaluation.corpus_manifest import build_corpus_manifest
 from hospital_ai.evaluation.ocr_evaluation import (
@@ -324,7 +327,10 @@ def test_match_clinical_fields_dosage_and_decimal_misread() -> None:
 def test_evaluate_ocr_corpus_mock_run(tmp_path: Path) -> None:
     import uuid
 
-    import fitz
+    try:
+        import fitz
+    except ImportError:
+        fitz = None
 
     from hospital_ai.evaluation.corpus_manifest import CorpusManifestV2, EvidenceLocator, SourceArtifact
     from hospital_ai.evaluation.ocr_evaluation import evaluate_ocr_corpus, export_ocr_evaluation_markdown

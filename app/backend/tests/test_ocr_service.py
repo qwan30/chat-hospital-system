@@ -6,6 +6,7 @@ try:
     import tomllib
 except ImportError:
     import tomli as tomllib
+import math
 from pathlib import Path
 from typing import Any
 
@@ -50,11 +51,40 @@ class _PaddleV3Result:
 async def test_image_only_pdf_without_ocr_engine_fails_explicitly(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
+    class EmptyMockPage:
+        def get_text(self):
+            return ""
+
+        def get_pixmap(self, dpi):
+            class Pix:
+                def tobytes(self, fmt):
+                    return b"pngdata"
+
+            return Pix()
+
+    class EmptyMockDoc:
+        def __init__(self):
+            self.pages = [EmptyMockPage()]
+
+        def __len__(self):
+            return 1
+
+        def __getitem__(self, i):
+            return self.pages[i]
+
+        def close(self):
+            pass
+
+        def save(self, p):
+            Path(p).write_bytes(b"dummy")
+
+        def new_page(self):
+            return self.pages[0]
+
+    monkeypatch.setattr(fitz, "open", lambda *args, **kwargs: EmptyMockDoc())
+
     pdf_path = tmp_path / "image-only.pdf"
-    document = fitz.open()
-    document.new_page()
-    document.save(pdf_path)
-    document.close()
+    pdf_path.write_bytes(b"dummy")
 
     real_import = builtins.__import__
 
@@ -100,7 +130,7 @@ def test_paddle_v3_result_contract_extracts_text_and_scores() -> None:
     text, confidence = _parse_paddle_v3_results([_PaddleV3Result()])
 
     assert text == "Aspirin 81 mg\ndaily"
-    assert confidence == pytest.approx(0.96)
+    assert math.isclose(confidence, 0.96, rel_tol=1e-5)
 
 
 def test_ocr_extra_pins_supported_paddle_3_cpu_contract() -> None:

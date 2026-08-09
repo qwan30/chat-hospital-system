@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useNavigate } from "@tanstack/react-router";
+import { useQueryClient } from "@tanstack/react-query";
 
 export function DocumentUploadFlow({
   patientId,
@@ -22,6 +23,7 @@ export function DocumentUploadFlow({
   title?: string;
 }) {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const [file, setFile] = useState<File | null>(null);
   const [state, setState] = useState<UploadUiState>({ kind: "idle" });
   const key = useRef<string>(crypto.randomUUID());
@@ -42,6 +44,8 @@ export function DocumentUploadFlow({
 
   const uploadResultToUiState = (result: UploadFinalizeResult): UploadUiState => {
     switch (result.state) {
+      case "pending":
+        return { kind: "pending", reason: result.reason };
       case "finalized":
         return { kind: "finalized", reason: result.reason };
       case "quarantined":
@@ -51,7 +55,10 @@ export function DocumentUploadFlow({
       case "verified":
         return { kind: "verified", reason: result.reason };
       default:
-        return { kind: "uploaded_unverified", reason: result.reason };
+        return {
+          kind: "rejected",
+          reason: result.reason ?? "Unsupported upload lifecycle state",
+        };
     }
   };
 
@@ -91,6 +98,7 @@ export function DocumentUploadFlow({
       const result = await finalizeUpload(session.document_id, session.upload_id, {
         idempotencyKey: key.current,
       });
+      await queryClient.invalidateQueries({ queryKey: ["documents"] });
 
       let nextState = uploadResultToUiState(result);
       if (nextState.kind === "quarantined" || nextState.kind === "rejected") {
@@ -108,7 +116,7 @@ export function DocumentUploadFlow({
         setFile(null);
         if (fileInputRef.current) fileInputRef.current.value = "";
         navigate({ to: "/documents/$documentId", params: { documentId: result.document_id } });
-      } else if (nextState.kind === "verified") {
+      } else if (nextState.kind === "verified" || nextState.kind === "pending") {
         let isFinal = false;
         while (!isFinal) {
           await new Promise((resolve) => setTimeout(resolve, 2000));

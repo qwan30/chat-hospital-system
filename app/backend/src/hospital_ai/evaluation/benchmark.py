@@ -9,7 +9,10 @@ from pathlib import Path
 from typing import Literal, Optional
 from uuid import UUID, uuid5
 
-import fitz
+try:
+    import fitz
+except ImportError:
+    fitz = None
 from pydantic import BaseModel, root_validator, validator
 
 from hospital_ai.evaluation.corpus_manifest import CorpusManifestV2, EvidenceLocator, SourceArtifact
@@ -246,6 +249,10 @@ def _locator_content(data_root: Path, locator: EvidenceLocator) -> str:
         row = _csv_row_at_locator(data_root, locator)
         return "\n".join(f"{key}: {value}" for key, value in row.items())
     if source.suffix.lower() == ".pdf":
+        try:
+            import fitz
+        except ImportError as error:
+            raise ImportError("PyMuPDF (fitz) is required to read PDF content") from error
         with fitz.open(source) as document:
             if locator.page_number is None:
                 return "\n".join(page.get_text() for page in document)

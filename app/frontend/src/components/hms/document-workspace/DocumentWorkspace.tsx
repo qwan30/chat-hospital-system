@@ -8,7 +8,7 @@ import {
   getDraftPage,
   getRevisionPage,
 } from "@/lib/api/document-revisions";
-import { useState, useRef } from "react";
+import { useEffect, useState, useRef } from "react";
 import { WorkspaceToolbar } from "./WorkspaceToolbar";
 import { RevisionSelector } from "./RevisionSelector";
 import { PageNavigator } from "./PageNavigator";
@@ -36,6 +36,18 @@ export function DocumentWorkspace({ documentId }: { documentId: string }) {
 
   const [selectedRevisionId, setSelectedRevisionId] = useState<string | null>(null);
   const [selectedPage, setSelectedPage] = useState(1);
+  const [currentLockVersion, setCurrentLockVersion] = useState<number | undefined>();
+  const [isDraftSaving, setIsDraftSaving] = useState(false);
+
+  useEffect(() => {
+    if (selectedRevisionId) return;
+    const submittedRevision = revisionsQuery.data?.find(
+      (revision) => revision.status === "submitted",
+    );
+    if (submittedRevision) {
+      setSelectedRevisionId(submittedRevision.revision_set_id);
+    }
+  }, [revisionsQuery.data, selectedRevisionId]);
 
   const pageQuery = useQuery({
     queryKey: ["document-page", documentId, selectedPage],
@@ -58,6 +70,17 @@ export function DocumentWorkspace({ documentId }: { documentId: string }) {
     retry: false,
   });
 
+  useEffect(() => {
+    setCurrentLockVersion(undefined);
+    setIsDraftSaving(false);
+  }, [selectedPage, selectedRevisionId]);
+
+  useEffect(() => {
+    if (revisionPageQuery.data?.lock_version !== undefined) {
+      setCurrentLockVersion(revisionPageQuery.data.lock_version);
+    }
+  }, [revisionPageQuery.data?.lock_version, revisionPageQuery.data?.page_revision_id]);
+
   const restoreMutation = useMutation({
     mutationFn: () => {
       if (!selectedRevisionId) return Promise.reject(new Error("No revision"));
@@ -76,7 +99,15 @@ export function DocumentWorkspace({ documentId }: { documentId: string }) {
   });
 
   const submitMutation = useMutation({
-    mutationFn: () => submitDraft(documentId, { idempotencyKey: crypto.randomUUID() }),
+    mutationFn: () => {
+      if (currentLockVersion === undefined) {
+        return Promise.reject(new Error("Draft lock version is not loaded"));
+      }
+      return submitDraft(documentId, {
+        idempotencyKey: crypto.randomUUID(),
+        lockVersion: currentLockVersion,
+      });
+    },
     onSuccess: (res) => {
       toast.success("Draft submitted successfully");
       queryClient.invalidateQueries({ queryKey: ["document-revision-sets", documentId] });
@@ -97,6 +128,7 @@ export function DocumentWorkspace({ documentId }: { documentId: string }) {
     onSuccess: () => {
       toast.success("Revision approved. Generation started.");
       queryClient.invalidateQueries({ queryKey: ["document-revision-sets", documentId] });
+      queryClient.invalidateQueries({ queryKey: ["document", documentId] });
     },
   });
 
@@ -157,7 +189,9 @@ export function DocumentWorkspace({ documentId }: { documentId: string }) {
             <Button
               size="sm"
               onClick={() => submitMutation.mutate()}
-              disabled={submitMutation.isPending}
+              disabled={
+                submitMutation.isPending || isDraftSaving || currentLockVersion === undefined
+              }
             >
               Submit Draft
             </Button>
@@ -205,7 +239,10 @@ export function DocumentWorkspace({ documentId }: { documentId: string }) {
                   page={selectedPage}
                   revision={revision}
                   initialText={originalText}
+                  lockVersion={currentLockVersion}
                   onCompare={handleCompare}
+                  onLockVersionChange={setCurrentLockVersion}
+                  onSavingChange={setIsDraftSaving}
                 />
               )}
             </TabsContent>

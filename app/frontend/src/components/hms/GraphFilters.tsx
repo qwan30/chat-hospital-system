@@ -18,13 +18,7 @@ export const DEFAULT_GRAPH_FILTERS: DocumentGraphFilters = {
   include_superseded: false,
 };
 
-export type GraphFilterKey =
-  | "node_limit"
-  | "edge_limit"
-  | "hop_depth"
-  | "min_confidence"
-  | "layout"
-  | "include_superseded";
+export type GraphFilterKey = keyof DocumentGraphFilters;
 
 export function serializeGraphFilters(filters: DocumentGraphFilters): URLSearchParams {
   const params = new URLSearchParams();

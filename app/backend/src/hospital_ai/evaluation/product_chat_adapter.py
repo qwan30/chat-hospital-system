@@ -86,7 +86,7 @@ class ProductChatAdapter:
                         answer_text=PERMISSION_DENIED_CHAT_ANSWER,
                     )
                 snapshot = observer.snapshot()
-                retrieved = await self._runtime_evidence(session, snapshot.authorized_chunk_ids)
+                retrieved = await self._runtime_evidence(session, snapshot.selected_chunk_ids)
 
                 available_chunks: dict[str, UUID] = {str(row["id"]): row["id"] for row in chunks}
                 for row in chunks:
@@ -129,7 +129,7 @@ class ProductChatAdapter:
             embedding_provider="deterministic",
             retrieval_mode="hybrid",
             retrieval_top_k=top_k,
-            evidence_threshold=0.0,
+            evidence_threshold=0.001,
             enable_hyde=False,
             disable_guardrails=True,
         )

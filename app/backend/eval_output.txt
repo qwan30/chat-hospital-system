@@ -1,0 +1,452 @@
+incorrect startxref pointer(1)
+parsing for Object Streams
+incorrect startxref pointer(1)
+parsing for Object Streams
+incorrect startxref pointer(1)
+parsing for Object Streams
+incorrect startxref pointer(1)
+parsing for Object Streams
+incorrect startxref pointer(1)
+parsing for Object Streams
+incorrect startxref pointer(1)
+parsing for Object Streams
+incorrect startxref pointer(1)
+parsing for Object Streams
+incorrect startxref pointer(1)
+parsing for Object Streams
+incorrect startxref pointer(1)
+parsing for Object Streams
+incorrect startxref pointer(1)
+parsing for Object Streams
+incorrect startxref pointer(1)
+parsing for Object Streams
+incorrect startxref pointer(1)
+parsing for Object Streams
+incorrect startxref pointer(1)
+parsing for Object Streams
+
+!!! retrieved={'sha256=b27bbd71776b202210b048bfd28c5797ee85e4e0a9ad95706a948e5210ad3eae|path=patients_labs/patient_MRN0022_labs.csv|page=|row=2|record=MRN-0022:2025-12-03:Creatinine'} permitted={'sha256=b27bbd71776b202210b048bfd28c5797ee85e4e0a9ad95706a948e5210ad3eae|path=patients_labs/patient_MRN0022_labs.csv|page=|row=2|record=MRN-0022:2025-12-03:Creatinine'}
+
+!!! retrieved={'sha256=0aca82a9c39558dc06482aa1e5967a2a7d9b50277c917e961b29f26f0f4b1f82|path=patients_labs/patient_MRN0015_labs.csv|page=|row=3|record=MRN-0015:2025-12-06:eGFR'} permitted={'sha256=0aca82a9c39558dc06482aa1e5967a2a7d9b50277c917e961b29f26f0f4b1f82|path=patients_labs/patient_MRN0015_labs.csv|page=|row=3|record=MRN-0015:2025-12-06:eGFR'}
+
+!!! retrieved={'sha256=00d2c555a525168f333b5a588fd49d98f7f0d4862c1b2db3b3b3e4e0d453141d|path=patients_labs/patient_MRN0063_labs.csv|page=|row=4|record=MRN-0063:2025-12-04:Glucose'} permitted={'sha256=00d2c555a525168f333b5a588fd49d98f7f0d4862c1b2db3b3b3e4e0d453141d|path=patients_labs/patient_MRN0063_labs.csv|page=|row=4|record=MRN-0063:2025-12-04:Glucose'}
+
+!!! retrieved={'sha256=74ecf9c3d795522636f783851324564f317ed941e19ef2b4386725f91b24b89d|path=patients_labs/patient_MRN0019_labs.csv|page=|row=5|record=MRN-0019:2025-12-10:HbA1c'} permitted={'sha256=74ecf9c3d795522636f783851324564f317ed941e19ef2b4386725f91b24b89d|path=patients_labs/patient_MRN0019_labs.csv|page=|row=5|record=MRN-0019:2025-12-10:HbA1c'}
+
+!!! retrieved={'sha256=f8def42de6455b90f2f8f3b666bb09ac0c9c707620a76b93d8e009d0e664ad81|path=patients_labs/patient_MRN0031_labs.csv|page=|row=6|record=MRN-0031:2025-12-02:BNP'} permitted={'sha256=f8def42de6455b90f2f8f3b666bb09ac0c9c707620a76b93d8e009d0e664ad81|path=patients_labs/patient_MRN0031_labs.csv|page=|row=6|record=MRN-0031:2025-12-02:BNP'}
+
+!!! retrieved={'sha256=7a6013dbf8c516cf55f60614f0af2f918308df69dbfa5b74ef1987a49a530b51|path=patients_labs/patient_MRN0096_labs.csv|page=|row=7|record=MRN-0096:2025-12-07:AST'} permitted={'sha256=7a6013dbf8c516cf55f60614f0af2f918308df69dbfa5b74ef1987a49a530b51|path=patients_labs/patient_MRN0096_labs.csv|page=|row=7|record=MRN-0096:2025-12-07:AST'}
+
+!!! retrieved={'sha256=0ae983f9d30655a623df670505a8b2ff340a3ace6ab61cbcc8fb7ec46e7b8bdd|path=patients_labs/patient_MRN0034_labs.csv|page=|row=8|record=MRN-0034:2025-12-05:ALT'} permitted={'sha256=0ae983f9d30655a623df670505a8b2ff340a3ace6ab61cbcc8fb7ec46e7b8bdd|path=patients_labs/patient_MRN0034_labs.csv|page=|row=8|record=MRN-0034:2025-12-05:ALT'}
+
+!!! retrieved={'sha256=aeb263c8cc65f75811a200fe94efc5b284250feedd42c5f046cbacdf28aa67d0|path=patients_labs/patient_MRN0047_labs.csv|page=|row=9|record=MRN-0047:2025-12-08:Potassium'} permitted={'sha256=aeb263c8cc65f75811a200fe94efc5b284250feedd42c5f046cbacdf28aa67d0|path=patients_labs/patient_MRN0047_labs.csv|page=|row=9|record=MRN-0047:2025-12-08:Potassium'}
+
+!!! retrieved={'sha256=8283fe0f3ffb4ebc08c7fe03da2180e878f5df63366bd8fc1ff22e0cc3a42dad|path=patients_labs/patient_MRN0039_labs.csv|page=|row=10|record=MRN-0039:2025-12-10:Hemoglobin'} permitted={'sha256=8283fe0f3ffb4ebc08c7fe03da2180e878f5df63366bd8fc1ff22e0cc3a42dad|path=patients_labs/patient_MRN0039_labs.csv|page=|row=10|record=MRN-0039:2025-12-10:Hemoglobin'}
+
+!!! retrieved={'sha256=6769ad017c4f089a2a2853b6eb29cc0279c75c168198c6b284ad2a0fbca2887c|path=patients_labs/patient_MRN0044_labs.csv|page=|row=11|record=MRN-0044:2026-01-04:Creatinine'} permitted={'sha256=6769ad017c4f089a2a2853b6eb29cc0279c75c168198c6b284ad2a0fbca2887c|path=patients_labs/patient_MRN0044_labs.csv|page=|row=11|record=MRN-0044:2026-01-04:Creatinine'}
+
+!!! retrieved={'sha256=25677aeff3e087edb0b81a5dad6b7b25258ad131af7a1b852c725d2c53d2353f|path=patients_labs/patient_MRN0077_labs.csv|page=|row=12|record=MRN-0077:2026-01-07:eGFR'} permitted={'sha256=25677aeff3e087edb0b81a5dad6b7b25258ad131af7a1b852c725d2c53d2353f|path=patients_labs/patient_MRN0077_labs.csv|page=|row=12|record=MRN-0077:2026-01-07:eGFR'}
+
+!!! retrieved={'sha256=eae6d6b0c349341aa72c76fce2640692bcb863270041fc3fef376cabf82d264e|path=patients_labs/patient_MRN0040_labs.csv|page=|row=13|record=MRN-0040:2025-12-31:Glucose'} permitted={'sha256=eae6d6b0c349341aa72c76fce2640692bcb863270041fc3fef376cabf82d264e|path=patients_labs/patient_MRN0040_labs.csv|page=|row=13|record=MRN-0040:2025-12-31:Glucose'}
+
+!!! retrieved={'sha256=e4a26799616a485feff942aba77cc4f054fd82fb35017896b3c70aab2e37ea7b|path=patients_documents/patient_MRN0022_lab_result.pdf|page=1|row=|record=document-type', 'sha256=b27bbd71776b202210b048bfd28c5797ee85e4e0a9ad95706a948e5210ad3eae|path=patients_labs/patient_MRN0022_labs.csv|page=|row=2|record=MRN-0022:2025-12-03:Creatinine'} permitted={'sha256=e4a26799616a485feff942aba77cc4f054fd82fb35017896b3c70aab2e37ea7b|path=patients_documents/patient_MRN0022_lab_result.pdf|page=1|row=|record=document-type', 'sha256=b27bbd71776b202210b048bfd28c5797ee85e4e0a9ad95706a948e5210ad3eae|path=patients_labs/patient_MRN0022_labs.csv|page=|row=2|record=MRN-0022:2025-12-03:Creatinine'}
+
+!!! retrieved={'sha256=0aca82a9c39558dc06482aa1e5967a2a7d9b50277c917e961b29f26f0f4b1f82|path=patients_labs/patient_MRN0015_labs.csv|page=|row=3|record=MRN-0015:2025-12-06:eGFR', 'sha256=3eef56bfd5c6c772a57666d9a35e890a41010860e828bc8e384d98c8b7f8124a|path=patients_documents/patient_MRN0015_lab_result.pdf|page=1|row=|record=document-type'} permitted={'sha256=0aca82a9c39558dc06482aa1e5967a2a7d9b50277c917e961b29f26f0f4b1f82|path=patients_labs/patient_MRN0015_labs.csv|page=|row=3|record=MRN-0015:2025-12-06:eGFR', 'sha256=3eef56bfd5c6c772a57666d9a35e890a41010860e828bc8e384d98c8b7f8124a|path=patients_documents/patient_MRN0015_lab_result.pdf|page=1|row=|record=document-type'}
+
+!!! retrieved={'sha256=cda55a78ae6f243056e785c49d33d2518cbd61ff74d18cef0e5a4e1806abd0f1|path=patients_documents/patient_MRN0063_imaging_report.pdf|page=1|row=|record=document-type', 'sha256=00d2c555a525168f333b5a588fd49d98f7f0d4862c1b2db3b3b3e4e0d453141d|path=patients_labs/patient_MRN0063_labs.csv|page=|row=4|record=MRN-0063:2025-12-04:Glucose'} permitted={'sha256=cda55a78ae6f243056e785c49d33d2518cbd61ff74d18cef0e5a4e1806abd0f1|path=patients_documents/patient_MRN0063_imaging_report.pdf|page=1|row=|record=document-type', 'sha256=00d2c555a525168f333b5a588fd49d98f7f0d4862c1b2db3b3b3e4e0d453141d|path=patients_labs/patient_MRN0063_labs.csv|page=|row=4|record=MRN-0063:2025-12-04:Glucose'}
+
+!!! retrieved={'sha256=74ecf9c3d795522636f783851324564f317ed941e19ef2b4386725f91b24b89d|path=patients_labs/patient_MRN0019_labs.csv|page=|row=5|record=MRN-0019:2025-12-10:HbA1c', 'sha256=66fc349b27becb18b6b20d809dc851fc53fbd034504c60abf8ac88792aa4bb54|path=patients_documents/patient_MRN0019_lab_result.pdf|page=1|row=|record=document-type'} permitted={'sha256=74ecf9c3d795522636f783851324564f317ed941e19ef2b4386725f91b24b89d|path=patients_labs/patient_MRN0019_labs.csv|page=|row=5|record=MRN-0019:2025-12-10:HbA1c', 'sha256=66fc349b27becb18b6b20d809dc851fc53fbd034504c60abf8ac88792aa4bb54|path=patients_documents/patient_MRN0019_lab_result.pdf|page=1|row=|record=document-type'}
+
+!!! retrieved={'sha256=f8def42de6455b90f2f8f3b666bb09ac0c9c707620a76b93d8e009d0e664ad81|path=patients_labs/patient_MRN0031_labs.csv|page=|row=6|record=MRN-0031:2025-12-02:BNP', 'sha256=d138138d76fa80c6d85654c53e56b6fc14343f182ed2a02d8d63578fdea8b152|path=patients_documents/patient_MRN0031_clinical_note.pdf|page=1|row=|record=document-type'} permitted={'sha256=f8def42de6455b90f2f8f3b666bb09ac0c9c707620a76b93d8e009d0e664ad81|path=patients_labs/patient_MRN0031_labs.csv|page=|row=6|record=MRN-0031:2025-12-02:BNP', 'sha256=d138138d76fa80c6d85654c53e56b6fc14343f182ed2a02d8d63578fdea8b152|path=patients_documents/patient_MRN0031_clinical_note.pdf|page=1|row=|record=document-type'}
+incorrect startxref pointer(1)
+parsing for Object Streams
+incorrect startxref pointer(1)
+parsing for Object Streams
+incorrect startxref pointer(1)
+parsing for Object Streams
+incorrect startxref pointer(1)
+parsing for Object Streams
+
+!!! retrieved={'sha256=7a6013dbf8c516cf55f60614f0af2f918308df69dbfa5b74ef1987a49a530b51|path=patients_labs/patient_MRN0096_labs.csv|page=|row=7|record=MRN-0096:2025-12-07:AST', 'sha256=025c40f03b2927f6eb8ab9a9cf0119e4019a0e8942579c8e46391c323f480b60|path=patients_documents/patient_MRN0096_encounter_note.pdf|page=1|row=|record=document-type'} permitted={'sha256=7a6013dbf8c516cf55f60614f0af2f918308df69dbfa5b74ef1987a49a530b51|path=patients_labs/patient_MRN0096_labs.csv|page=|row=7|record=MRN-0096:2025-12-07:AST', 'sha256=025c40f03b2927f6eb8ab9a9cf0119e4019a0e8942579c8e46391c323f480b60|path=patients_documents/patient_MRN0096_encounter_note.pdf|page=1|row=|record=document-type'}
+
+!!! retrieved={'sha256=2ba7bed03d4f0e478422dc656e78c9ce726a66ec29e2591726021fa14e4f2325|path=patients_documents/patient_MRN0034_clinical_note.pdf|page=1|row=|record=document-type', 'sha256=0ae983f9d30655a623df670505a8b2ff340a3ace6ab61cbcc8fb7ec46e7b8bdd|path=patients_labs/patient_MRN0034_labs.csv|page=|row=8|record=MRN-0034:2025-12-05:ALT'} permitted={'sha256=2ba7bed03d4f0e478422dc656e78c9ce726a66ec29e2591726021fa14e4f2325|path=patients_documents/patient_MRN0034_clinical_note.pdf|page=1|row=|record=document-type', 'sha256=0ae983f9d30655a623df670505a8b2ff340a3ace6ab61cbcc8fb7ec46e7b8bdd|path=patients_labs/patient_MRN0034_labs.csv|page=|row=8|record=MRN-0034:2025-12-05:ALT'}
+
+!!! retrieved={'sha256=aeb263c8cc65f75811a200fe94efc5b284250feedd42c5f046cbacdf28aa67d0|path=patients_labs/patient_MRN0047_labs.csv|page=|row=9|record=MRN-0047:2025-12-08:Potassium', 'sha256=f9839faae0e3101e805a473d2745d61e834019124c18cbde76548c0e35c12b7e|path=patients_documents/patient_MRN0047_discharge_summary.pdf|page=1|row=|record=document-type'} permitted={'sha256=aeb263c8cc65f75811a200fe94efc5b284250feedd42c5f046cbacdf28aa67d0|path=patients_labs/patient_MRN0047_labs.csv|page=|row=9|record=MRN-0047:2025-12-08:Potassium', 'sha256=f9839faae0e3101e805a473d2745d61e834019124c18cbde76548c0e35c12b7e|path=patients_documents/patient_MRN0047_discharge_summary.pdf|page=1|row=|record=document-type'}
+
+!!! retrieved={'sha256=b27bbd71776b202210b048bfd28c5797ee85e4e0a9ad95706a948e5210ad3eae|path=patients_labs/patient_MRN0022_labs.csv|page=|row=53|record=MRN-0022:2026-05-02:ALT', 'sha256=b27bbd71776b202210b048bfd28c5797ee85e4e0a9ad95706a948e5210ad3eae|path=patients_labs/patient_MRN0022_labs.csv|page=|row=8|record=MRN-0022:2025-12-03:ALT'} permitted={'sha256=b27bbd71776b202210b048bfd28c5797ee85e4e0a9ad95706a948e5210ad3eae|path=patients_labs/patient_MRN0022_labs.csv|page=|row=53|record=MRN-0022:2026-05-02:ALT', 'sha256=b27bbd71776b202210b048bfd28c5797ee85e4e0a9ad95706a948e5210ad3eae|path=patients_labs/patient_MRN0022_labs.csv|page=|row=8|record=MRN-0022:2025-12-03:ALT'}
+
+!!! retrieved={'sha256=0aca82a9c39558dc06482aa1e5967a2a7d9b50277c917e961b29f26f0f4b1f82|path=patients_labs/patient_MRN0015_labs.csv|page=|row=7|record=MRN-0015:2025-12-06:AST', 'sha256=0aca82a9c39558dc06482aa1e5967a2a7d9b50277c917e961b29f26f0f4b1f82|path=patients_labs/patient_MRN0015_labs.csv|page=|row=52|record=MRN-0015:2026-05-05:AST'} permitted={'sha256=0aca82a9c39558dc06482aa1e5967a2a7d9b50277c917e961b29f26f0f4b1f82|path=patients_labs/patient_MRN0015_labs.csv|page=|row=52|record=MRN-0015:2026-05-05:AST', 'sha256=0aca82a9c39558dc06482aa1e5967a2a7d9b50277c917e961b29f26f0f4b1f82|path=patients_labs/patient_MRN0015_labs.csv|page=|row=7|record=MRN-0015:2025-12-06:AST'}
+
+!!! retrieved={'sha256=00d2c555a525168f333b5a588fd49d98f7f0d4862c1b2db3b3b3e4e0d453141d|path=patients_labs/patient_MRN0063_labs.csv|page=|row=6|record=MRN-0063:2025-12-04:BNP', 'sha256=00d2c555a525168f333b5a588fd49d98f7f0d4862c1b2db3b3b3e4e0d453141d|path=patients_labs/patient_MRN0063_labs.csv|page=|row=51|record=MRN-0063:2026-05-03:BNP'} permitted={'sha256=00d2c555a525168f333b5a588fd49d98f7f0d4862c1b2db3b3b3e4e0d453141d|path=patients_labs/patient_MRN0063_labs.csv|page=|row=6|record=MRN-0063:2025-12-04:BNP', 'sha256=00d2c555a525168f333b5a588fd49d98f7f0d4862c1b2db3b3b3e4e0d453141d|path=patients_labs/patient_MRN0063_labs.csv|page=|row=51|record=MRN-0063:2026-05-03:BNP'}
+
+!!! retrieved={'sha256=74ecf9c3d795522636f783851324564f317ed941e19ef2b4386725f91b24b89d|path=patients_labs/patient_MRN0019_labs.csv|page=|row=47|record=MRN-0019:2026-05-09:Creatinine', 'sha256=74ecf9c3d795522636f783851324564f317ed941e19ef2b4386725f91b24b89d|path=patients_labs/patient_MRN0019_labs.csv|page=|row=2|record=MRN-0019:2025-12-10:Creatinine'} permitted={'sha256=74ecf9c3d795522636f783851324564f317ed941e19ef2b4386725f91b24b89d|path=patients_labs/patient_MRN0019_labs.csv|page=|row=47|record=MRN-0019:2026-05-09:Creatinine', 'sha256=74ecf9c3d795522636f783851324564f317ed941e19ef2b4386725f91b24b89d|path=patients_labs/patient_MRN0019_labs.csv|page=|row=2|record=MRN-0019:2025-12-10:Creatinine'}
+
+!!! retrieved={'sha256=f8def42de6455b90f2f8f3b666bb09ac0c9c707620a76b93d8e009d0e664ad81|path=patients_labs/patient_MRN0031_labs.csv|page=|row=49|record=MRN-0031:2026-05-01:Glucose', 'sha256=f8def42de6455b90f2f8f3b666bb09ac0c9c707620a76b93d8e009d0e664ad81|path=patients_labs/patient_MRN0031_labs.csv|page=|row=4|record=MRN-0031:2025-12-02:Glucose'} permitted={'sha256=f8def42de6455b90f2f8f3b666bb09ac0c9c707620a76b93d8e009d0e664ad81|path=patients_labs/patient_MRN0031_labs.csv|page=|row=49|record=MRN-0031:2026-05-01:Glucose', 'sha256=f8def42de6455b90f2f8f3b666bb09ac0c9c707620a76b93d8e009d0e664ad81|path=patients_labs/patient_MRN0031_labs.csv|page=|row=4|record=MRN-0031:2025-12-02:Glucose'}
+
+!!! retrieved={'sha256=7a6013dbf8c516cf55f60614f0af2f918308df69dbfa5b74ef1987a49a530b51|path=patients_labs/patient_MRN0096_labs.csv|page=|row=5|record=MRN-0096:2025-12-07:HbA1c', 'sha256=7a6013dbf8c516cf55f60614f0af2f918308df69dbfa5b74ef1987a49a530b51|path=patients_labs/patient_MRN0096_labs.csv|page=|row=50|record=MRN-0096:2026-05-06:HbA1c'} permitted={'sha256=7a6013dbf8c516cf55f60614f0af2f918308df69dbfa5b74ef1987a49a530b51|path=patients_labs/patient_MRN0096_labs.csv|page=|row=5|record=MRN-0096:2025-12-07:HbA1c', 'sha256=7a6013dbf8c516cf55f60614f0af2f918308df69dbfa5b74ef1987a49a530b51|path=patients_labs/patient_MRN0096_labs.csv|page=|row=50|record=MRN-0096:2026-05-06:HbA1c'}
+
+!!! retrieved={'sha256=b27bbd71776b202210b048bfd28c5797ee85e4e0a9ad95706a948e5210ad3eae|path=patients_labs/patient_MRN0022_labs.csv|page=|row=2|record=MRN-0022:2025-12-03:Creatinine'} permitted={'sha256=b27bbd71776b202210b048bfd28c5797ee85e4e0a9ad95706a948e5210ad3eae|path=patients_labs/patient_MRN0022_labs.csv|page=|row=2|record=MRN-0022:2025-12-03:Creatinine'}
+
+!!! retrieved={'sha256=0aca82a9c39558dc06482aa1e5967a2a7d9b50277c917e961b29f26f0f4b1f82|path=patients_labs/patient_MRN0015_labs.csv|page=|row=3|record=MRN-0015:2025-12-06:eGFR'} permitted={'sha256=0aca82a9c39558dc06482aa1e5967a2a7d9b50277c917e961b29f26f0f4b1f82|path=patients_labs/patient_MRN0015_labs.csv|page=|row=3|record=MRN-0015:2025-12-06:eGFR'}
+
+!!! retrieved={'sha256=00d2c555a525168f333b5a588fd49d98f7f0d4862c1b2db3b3b3e4e0d453141d|path=patients_labs/patient_MRN0063_labs.csv|page=|row=4|record=MRN-0063:2025-12-04:Glucose'} permitted={'sha256=00d2c555a525168f333b5a588fd49d98f7f0d4862c1b2db3b3b3e4e0d453141d|path=patients_labs/patient_MRN0063_labs.csv|page=|row=4|record=MRN-0063:2025-12-04:Glucose'}
+
+!!! retrieved={'sha256=74ecf9c3d795522636f783851324564f317ed941e19ef2b4386725f91b24b89d|path=patients_labs/patient_MRN0019_labs.csv|page=|row=5|record=MRN-0019:2025-12-10:HbA1c'} permitted={'sha256=74ecf9c3d795522636f783851324564f317ed941e19ef2b4386725f91b24b89d|path=patients_labs/patient_MRN0019_labs.csv|page=|row=5|record=MRN-0019:2025-12-10:HbA1c'}
+
+!!! retrieved={'sha256=f8def42de6455b90f2f8f3b666bb09ac0c9c707620a76b93d8e009d0e664ad81|path=patients_labs/patient_MRN0031_labs.csv|page=|row=6|record=MRN-0031:2025-12-02:BNP'} permitted={'sha256=f8def42de6455b90f2f8f3b666bb09ac0c9c707620a76b93d8e009d0e664ad81|path=patients_labs/patient_MRN0031_labs.csv|page=|row=6|record=MRN-0031:2025-12-02:BNP'}
+NLP extraction failed
+NLP extraction failed
+NLP extraction failed
+NLP extraction failed
+NLP extraction failed
+NLP extraction failed
+NLP extraction failed
+NLP extraction failed
+NLP extraction failed
+NLP extraction failed
+NLP extraction failed
+NLP extraction failed
+incorrect startxref pointer(1)
+parsing for Object Streams
+NLP extraction failed
+incorrect startxref pointer(1)
+parsing for Object Streams
+NLP extraction failed
+incorrect startxref pointer(1)
+parsing for Object Streams
+NLP extraction failed
+incorrect startxref pointer(1)
+parsing for Object Streams
+NLP extraction failed
+incorrect startxref pointer(1)
+parsing for Object Streams
+NLP extraction failed
+
+!!! retrieved={'sha256=7a6013dbf8c516cf55f60614f0af2f918308df69dbfa5b74ef1987a49a530b51|path=patients_labs/patient_MRN0096_labs.csv|page=|row=7|record=MRN-0096:2025-12-07:AST'} permitted={'sha256=7a6013dbf8c516cf55f60614f0af2f918308df69dbfa5b74ef1987a49a530b51|path=patients_labs/patient_MRN0096_labs.csv|page=|row=7|record=MRN-0096:2025-12-07:AST'}
+
+!!! retrieved={'sha256=0ae983f9d30655a623df670505a8b2ff340a3ace6ab61cbcc8fb7ec46e7b8bdd|path=patients_labs/patient_MRN0034_labs.csv|page=|row=8|record=MRN-0034:2025-12-05:ALT'} permitted={'sha256=0ae983f9d30655a623df670505a8b2ff340a3ace6ab61cbcc8fb7ec46e7b8bdd|path=patients_labs/patient_MRN0034_labs.csv|page=|row=8|record=MRN-0034:2025-12-05:ALT'}
+
+!!! retrieved={'sha256=aeb263c8cc65f75811a200fe94efc5b284250feedd42c5f046cbacdf28aa67d0|path=patients_labs/patient_MRN0047_labs.csv|page=|row=9|record=MRN-0047:2025-12-08:Potassium'} permitted={'sha256=aeb263c8cc65f75811a200fe94efc5b284250feedd42c5f046cbacdf28aa67d0|path=patients_labs/patient_MRN0047_labs.csv|page=|row=9|record=MRN-0047:2025-12-08:Potassium'}
+
+!!! retrieved={'sha256=b27bbd71776b202210b048bfd28c5797ee85e4e0a9ad95706a948e5210ad3eae|path=patients_labs/patient_MRN0022_labs.csv|page=|row=2|record=MRN-0022:2025-12-03:Creatinine'} permitted={'sha256=b27bbd71776b202210b048bfd28c5797ee85e4e0a9ad95706a948e5210ad3eae|path=patients_labs/patient_MRN0022_labs.csv|page=|row=2|record=MRN-0022:2025-12-03:Creatinine'}
+
+!!! retrieved={'sha256=0aca82a9c39558dc06482aa1e5967a2a7d9b50277c917e961b29f26f0f4b1f82|path=patients_labs/patient_MRN0015_labs.csv|page=|row=3|record=MRN-0015:2025-12-06:eGFR'} permitted={'sha256=0aca82a9c39558dc06482aa1e5967a2a7d9b50277c917e961b29f26f0f4b1f82|path=patients_labs/patient_MRN0015_labs.csv|page=|row=3|record=MRN-0015:2025-12-06:eGFR'}
+
+!!! retrieved={'sha256=00d2c555a525168f333b5a588fd49d98f7f0d4862c1b2db3b3b3e4e0d453141d|path=patients_labs/patient_MRN0063_labs.csv|page=|row=4|record=MRN-0063:2025-12-04:Glucose'} permitted={'sha256=00d2c555a525168f333b5a588fd49d98f7f0d4862c1b2db3b3b3e4e0d453141d|path=patients_labs/patient_MRN0063_labs.csv|page=|row=4|record=MRN-0063:2025-12-04:Glucose'}
+
+!!! retrieved={'sha256=74ecf9c3d795522636f783851324564f317ed941e19ef2b4386725f91b24b89d|path=patients_labs/patient_MRN0019_labs.csv|page=|row=5|record=MRN-0019:2025-12-10:HbA1c'} permitted={'sha256=74ecf9c3d795522636f783851324564f317ed941e19ef2b4386725f91b24b89d|path=patients_labs/patient_MRN0019_labs.csv|page=|row=5|record=MRN-0019:2025-12-10:HbA1c'}
+
+!!! retrieved={'sha256=f8def42de6455b90f2f8f3b666bb09ac0c9c707620a76b93d8e009d0e664ad81|path=patients_labs/patient_MRN0031_labs.csv|page=|row=6|record=MRN-0031:2025-12-02:BNP'} permitted={'sha256=f8def42de6455b90f2f8f3b666bb09ac0c9c707620a76b93d8e009d0e664ad81|path=patients_labs/patient_MRN0031_labs.csv|page=|row=6|record=MRN-0031:2025-12-02:BNP'}
+
+!!! retrieved=set() permitted=set()
+
+!!! retrieved=set() permitted=set()
+
+!!! retrieved=set() permitted=set()
+
+!!! retrieved=set() permitted=set()
+
+!!! retrieved=set() permitted=set()
+
+!!! retrieved=set() permitted=set()
+
+!!! retrieved=set() permitted=set()
+
+!!! retrieved={'sha256=b27bbd71776b202210b048bfd28c5797ee85e4e0a9ad95706a948e5210ad3eae|path=patients_labs/patient_MRN0022_labs.csv|page=|row=|record=', 'sha256=e4a26799616a485feff942aba77cc4f054fd82fb35017896b3c70aab2e37ea7b|path=patients_documents/patient_MRN0022_lab_result.pdf|page=|row=|record=', 'sha256=b27bbd71776b202210b048bfd28c5797ee85e4e0a9ad95706a948e5210ad3eae|path=patients_labs/patient_MRN0022_labs.csv|page=|row=2|record=MRN-0022:2025-12-03:Creatinine'} permitted={'sha256=b27bbd71776b202210b048bfd28c5797ee85e4e0a9ad95706a948e5210ad3eae|path=patients_labs/patient_MRN0022_labs.csv|page=|row=|record=', 'sha256=e4a26799616a485feff942aba77cc4f054fd82fb35017896b3c70aab2e37ea7b|path=patients_documents/patient_MRN0022_lab_result.pdf|page=|row=|record='}
+
+!!! retrieved={'sha256=3eef56bfd5c6c772a57666d9a35e890a41010860e828bc8e384d98c8b7f8124a|path=patients_documents/patient_MRN0015_lab_result.pdf|page=|row=|record=', 'sha256=0aca82a9c39558dc06482aa1e5967a2a7d9b50277c917e961b29f26f0f4b1f82|path=patients_labs/patient_MRN0015_labs.csv|page=|row=3|record=MRN-0015:2025-12-06:eGFR', 'sha256=0aca82a9c39558dc06482aa1e5967a2a7d9b50277c917e961b29f26f0f4b1f82|path=patients_labs/patient_MRN0015_labs.csv|page=|row=|record='} permitted={'sha256=3eef56bfd5c6c772a57666d9a35e890a41010860e828bc8e384d98c8b7f8124a|path=patients_documents/patient_MRN0015_lab_result.pdf|page=|row=|record=', 'sha256=0aca82a9c39558dc06482aa1e5967a2a7d9b50277c917e961b29f26f0f4b1f82|path=patients_labs/patient_MRN0015_labs.csv|page=|row=|record='}
+
+!!! retrieved={'sha256=cda55a78ae6f243056e785c49d33d2518cbd61ff74d18cef0e5a4e1806abd0f1|path=patients_documents/patient_MRN0063_imaging_report.pdf|page=|row=|record=', 'sha256=00d2c555a525168f333b5a588fd49d98f7f0d4862c1b2db3b3b3e4e0d453141d|path=patients_labs/patient_MRN0063_labs.csv|page=|row=|record=', 'sha256=00d2c555a525168f333b5a588fd49d98f7f0d4862c1b2db3b3b3e4e0d453141d|path=patients_labs/patient_MRN0063_labs.csv|page=|row=4|record=MRN-0063:2025-12-04:Glucose'} permitted={'sha256=00d2c555a525168f333b5a588fd49d98f7f0d4862c1b2db3b3b3e4e0d453141d|path=patients_labs/patient_MRN0063_labs.csv|page=|row=|record=', 'sha256=cda55a78ae6f243056e785c49d33d2518cbd61ff74d18cef0e5a4e1806abd0f1|path=patients_documents/patient_MRN0063_imaging_report.pdf|page=|row=|record='}
+
+!!! retrieved={'sha256=74ecf9c3d795522636f783851324564f317ed941e19ef2b4386725f91b24b89d|path=patients_labs/patient_MRN0019_labs.csv|page=|row=|record=', 'sha256=66fc349b27becb18b6b20d809dc851fc53fbd034504c60abf8ac88792aa4bb54|path=patients_documents/patient_MRN0019_lab_result.pdf|page=|row=|record=', 'sha256=74ecf9c3d795522636f783851324564f317ed941e19ef2b4386725f91b24b89d|path=patients_labs/patient_MRN0019_labs.csv|page=|row=5|record=MRN-0019:2025-12-10:HbA1c'} permitted={'sha256=74ecf9c3d795522636f783851324564f317ed941e19ef2b4386725f91b24b89d|path=patients_labs/patient_MRN0019_labs.csv|page=|row=|record=', 'sha256=66fc349b27becb18b6b20d809dc851fc53fbd034504c60abf8ac88792aa4bb54|path=patients_documents/patient_MRN0019_lab_result.pdf|page=|row=|record='}
+
+!!! retrieved={'sha256=b27bbd71776b202210b048bfd28c5797ee85e4e0a9ad95706a948e5210ad3eae|path=patients_labs/patient_MRN0022_labs.csv|page=|row=2|record=MRN-0022:2025-12-03:Creatinine'} permitted={'sha256=b27bbd71776b202210b048bfd28c5797ee85e4e0a9ad95706a948e5210ad3eae|path=patients_labs/patient_MRN0022_labs.csv|page=|row=2|record=MRN-0022:2025-12-03:Creatinine'}
+
+!!! retrieved={'sha256=0aca82a9c39558dc06482aa1e5967a2a7d9b50277c917e961b29f26f0f4b1f82|path=patients_labs/patient_MRN0015_labs.csv|page=|row=3|record=MRN-0015:2025-12-06:eGFR'} permitted={'sha256=0aca82a9c39558dc06482aa1e5967a2a7d9b50277c917e961b29f26f0f4b1f82|path=patients_labs/patient_MRN0015_labs.csv|page=|row=3|record=MRN-0015:2025-12-06:eGFR'}
+
+!!! retrieved={'sha256=00d2c555a525168f333b5a588fd49d98f7f0d4862c1b2db3b3b3e4e0d453141d|path=patients_labs/patient_MRN0063_labs.csv|page=|row=4|record=MRN-0063:2025-12-04:Glucose'} permitted={'sha256=00d2c555a525168f333b5a588fd49d98f7f0d4862c1b2db3b3b3e4e0d453141d|path=patients_labs/patient_MRN0063_labs.csv|page=|row=4|record=MRN-0063:2025-12-04:Glucose'}
+
+!!! retrieved={'sha256=74ecf9c3d795522636f783851324564f317ed941e19ef2b4386725f91b24b89d|path=patients_labs/patient_MRN0019_labs.csv|page=|row=5|record=MRN-0019:2025-12-10:HbA1c'} permitted={'sha256=74ecf9c3d795522636f783851324564f317ed941e19ef2b4386725f91b24b89d|path=patients_labs/patient_MRN0019_labs.csv|page=|row=5|record=MRN-0019:2025-12-10:HbA1c'}
+
+!!! retrieved={'sha256=f8def42de6455b90f2f8f3b666bb09ac0c9c707620a76b93d8e009d0e664ad81|path=patients_labs/patient_MRN0031_labs.csv|page=|row=6|record=MRN-0031:2025-12-02:BNP'} permitted={'sha256=f8def42de6455b90f2f8f3b666bb09ac0c9c707620a76b93d8e009d0e664ad81|path=patients_labs/patient_MRN0031_labs.csv|page=|row=6|record=MRN-0031:2025-12-02:BNP'}
+incorrect startxref pointer(1)
+parsing for Object Streams
+NLP extraction failed
+incorrect startxref pointer(1)
+parsing for Object Streams
+NLP extraction failed
+incorrect startxref pointer(1)
+parsing for Object Streams
+NLP extraction failed
+NLP extraction failed
+NLP extraction failed
+NLP extraction failed
+NLP extraction failed
+NLP extraction failed
+NLP extraction failed
+NLP extraction failed
+NLP extraction failed
+NLP extraction failed
+NLP extraction failed
+
+!!! retrieved={'sha256=7a6013dbf8c516cf55f60614f0af2f918308df69dbfa5b74ef1987a49a530b51|path=patients_labs/patient_MRN0096_labs.csv|page=|row=7|record=MRN-0096:2025-12-07:AST'} permitted={'sha256=7a6013dbf8c516cf55f60614f0af2f918308df69dbfa5b74ef1987a49a530b51|path=patients_labs/patient_MRN0096_labs.csv|page=|row=7|record=MRN-0096:2025-12-07:AST'}
+
+!!! retrieved={'sha256=0ae983f9d30655a623df670505a8b2ff340a3ace6ab61cbcc8fb7ec46e7b8bdd|path=patients_labs/patient_MRN0034_labs.csv|page=|row=8|record=MRN-0034:2025-12-05:ALT'} permitted={'sha256=0ae983f9d30655a623df670505a8b2ff340a3ace6ab61cbcc8fb7ec46e7b8bdd|path=patients_labs/patient_MRN0034_labs.csv|page=|row=8|record=MRN-0034:2025-12-05:ALT'}
+
+!!! retrieved={'sha256=aeb263c8cc65f75811a200fe94efc5b284250feedd42c5f046cbacdf28aa67d0|path=patients_labs/patient_MRN0047_labs.csv|page=|row=9|record=MRN-0047:2025-12-08:Potassium'} permitted={'sha256=aeb263c8cc65f75811a200fe94efc5b284250feedd42c5f046cbacdf28aa67d0|path=patients_labs/patient_MRN0047_labs.csv|page=|row=9|record=MRN-0047:2025-12-08:Potassium'}
+
+!!! retrieved={'sha256=b27bbd71776b202210b048bfd28c5797ee85e4e0a9ad95706a948e5210ad3eae|path=patients_labs/patient_MRN0022_labs.csv|page=|row=2|record=MRN-0022:2025-12-03:Creatinine'} permitted={'sha256=b27bbd71776b202210b048bfd28c5797ee85e4e0a9ad95706a948e5210ad3eae|path=patients_labs/patient_MRN0022_labs.csv|page=|row=2|record=MRN-0022:2025-12-03:Creatinine'}
+
+!!! retrieved={'sha256=0aca82a9c39558dc06482aa1e5967a2a7d9b50277c917e961b29f26f0f4b1f82|path=patients_labs/patient_MRN0015_labs.csv|page=|row=3|record=MRN-0015:2025-12-06:eGFR'} permitted={'sha256=0aca82a9c39558dc06482aa1e5967a2a7d9b50277c917e961b29f26f0f4b1f82|path=patients_labs/patient_MRN0015_labs.csv|page=|row=3|record=MRN-0015:2025-12-06:eGFR'}
+
+!!! retrieved={'sha256=00d2c555a525168f333b5a588fd49d98f7f0d4862c1b2db3b3b3e4e0d453141d|path=patients_labs/patient_MRN0063_labs.csv|page=|row=4|record=MRN-0063:2025-12-04:Glucose'} permitted={'sha256=00d2c555a525168f333b5a588fd49d98f7f0d4862c1b2db3b3b3e4e0d453141d|path=patients_labs/patient_MRN0063_labs.csv|page=|row=4|record=MRN-0063:2025-12-04:Glucose'}
+
+!!! retrieved={'sha256=74ecf9c3d795522636f783851324564f317ed941e19ef2b4386725f91b24b89d|path=patients_labs/patient_MRN0019_labs.csv|page=|row=5|record=MRN-0019:2025-12-10:HbA1c'} permitted={'sha256=74ecf9c3d795522636f783851324564f317ed941e19ef2b4386725f91b24b89d|path=patients_labs/patient_MRN0019_labs.csv|page=|row=5|record=MRN-0019:2025-12-10:HbA1c'}
+
+!!! retrieved={'sha256=f8def42de6455b90f2f8f3b666bb09ac0c9c707620a76b93d8e009d0e664ad81|path=patients_labs/patient_MRN0031_labs.csv|page=|row=6|record=MRN-0031:2025-12-02:BNP'} permitted={'sha256=f8def42de6455b90f2f8f3b666bb09ac0c9c707620a76b93d8e009d0e664ad81|path=patients_labs/patient_MRN0031_labs.csv|page=|row=6|record=MRN-0031:2025-12-02:BNP'}
+
+!!! retrieved={'sha256=7a6013dbf8c516cf55f60614f0af2f918308df69dbfa5b74ef1987a49a530b51|path=patients_labs/patient_MRN0096_labs.csv|page=|row=7|record=MRN-0096:2025-12-07:AST'} permitted={'sha256=7a6013dbf8c516cf55f60614f0af2f918308df69dbfa5b74ef1987a49a530b51|path=patients_labs/patient_MRN0096_labs.csv|page=|row=7|record=MRN-0096:2025-12-07:AST'}
+
+!!! retrieved={'sha256=0ae983f9d30655a623df670505a8b2ff340a3ace6ab61cbcc8fb7ec46e7b8bdd|path=patients_labs/patient_MRN0034_labs.csv|page=|row=8|record=MRN-0034:2025-12-05:ALT'} permitted={'sha256=0ae983f9d30655a623df670505a8b2ff340a3ace6ab61cbcc8fb7ec46e7b8bdd|path=patients_labs/patient_MRN0034_labs.csv|page=|row=8|record=MRN-0034:2025-12-05:ALT'}
+
+!!! retrieved={'sha256=aeb263c8cc65f75811a200fe94efc5b284250feedd42c5f046cbacdf28aa67d0|path=patients_labs/patient_MRN0047_labs.csv|page=|row=9|record=MRN-0047:2025-12-08:Potassium'} permitted={'sha256=aeb263c8cc65f75811a200fe94efc5b284250feedd42c5f046cbacdf28aa67d0|path=patients_labs/patient_MRN0047_labs.csv|page=|row=9|record=MRN-0047:2025-12-08:Potassium'}
+
+!!! retrieved={'sha256=8283fe0f3ffb4ebc08c7fe03da2180e878f5df63366bd8fc1ff22e0cc3a42dad|path=patients_labs/patient_MRN0039_labs.csv|page=|row=10|record=MRN-0039:2025-12-10:Hemoglobin'} permitted={'sha256=8283fe0f3ffb4ebc08c7fe03da2180e878f5df63366bd8fc1ff22e0cc3a42dad|path=patients_labs/patient_MRN0039_labs.csv|page=|row=10|record=MRN-0039:2025-12-10:Hemoglobin'}
+
+!!! retrieved={'sha256=6769ad017c4f089a2a2853b6eb29cc0279c75c168198c6b284ad2a0fbca2887c|path=patients_labs/patient_MRN0044_labs.csv|page=|row=11|record=MRN-0044:2026-01-04:Creatinine'} permitted={'sha256=6769ad017c4f089a2a2853b6eb29cc0279c75c168198c6b284ad2a0fbca2887c|path=patients_labs/patient_MRN0044_labs.csv|page=|row=11|record=MRN-0044:2026-01-04:Creatinine'}
+
+!!! retrieved={'sha256=25677aeff3e087edb0b81a5dad6b7b25258ad131af7a1b852c725d2c53d2353f|path=patients_labs/patient_MRN0077_labs.csv|page=|row=12|record=MRN-0077:2026-01-07:eGFR'} permitted={'sha256=25677aeff3e087edb0b81a5dad6b7b25258ad131af7a1b852c725d2c53d2353f|path=patients_labs/patient_MRN0077_labs.csv|page=|row=12|record=MRN-0077:2026-01-07:eGFR'}
+
+!!! retrieved={'sha256=eae6d6b0c349341aa72c76fce2640692bcb863270041fc3fef376cabf82d264e|path=patients_labs/patient_MRN0040_labs.csv|page=|row=13|record=MRN-0040:2025-12-31:Glucose'} permitted={'sha256=eae6d6b0c349341aa72c76fce2640692bcb863270041fc3fef376cabf82d264e|path=patients_labs/patient_MRN0040_labs.csv|page=|row=13|record=MRN-0040:2025-12-31:Glucose'}
+
+!!! retrieved={'sha256=e4a26799616a485feff942aba77cc4f054fd82fb35017896b3c70aab2e37ea7b|path=patients_documents/patient_MRN0022_lab_result.pdf|page=1|row=|record=document-type', 'sha256=b27bbd71776b202210b048bfd28c5797ee85e4e0a9ad95706a948e5210ad3eae|path=patients_labs/patient_MRN0022_labs.csv|page=|row=2|record=MRN-0022:2025-12-03:Creatinine'} permitted={'sha256=e4a26799616a485feff942aba77cc4f054fd82fb35017896b3c70aab2e37ea7b|path=patients_documents/patient_MRN0022_lab_result.pdf|page=1|row=|record=document-type', 'sha256=b27bbd71776b202210b048bfd28c5797ee85e4e0a9ad95706a948e5210ad3eae|path=patients_labs/patient_MRN0022_labs.csv|page=|row=2|record=MRN-0022:2025-12-03:Creatinine'}
+
+!!! retrieved={'sha256=0aca82a9c39558dc06482aa1e5967a2a7d9b50277c917e961b29f26f0f4b1f82|path=patients_labs/patient_MRN0015_labs.csv|page=|row=3|record=MRN-0015:2025-12-06:eGFR', 'sha256=3eef56bfd5c6c772a57666d9a35e890a41010860e828bc8e384d98c8b7f8124a|path=patients_documents/patient_MRN0015_lab_result.pdf|page=1|row=|record=document-type'} permitted={'sha256=0aca82a9c39558dc06482aa1e5967a2a7d9b50277c917e961b29f26f0f4b1f82|path=patients_labs/patient_MRN0015_labs.csv|page=|row=3|record=MRN-0015:2025-12-06:eGFR', 'sha256=3eef56bfd5c6c772a57666d9a35e890a41010860e828bc8e384d98c8b7f8124a|path=patients_documents/patient_MRN0015_lab_result.pdf|page=1|row=|record=document-type'}
+
+!!! retrieved={'sha256=cda55a78ae6f243056e785c49d33d2518cbd61ff74d18cef0e5a4e1806abd0f1|path=patients_documents/patient_MRN0063_imaging_report.pdf|page=1|row=|record=document-type', 'sha256=00d2c555a525168f333b5a588fd49d98f7f0d4862c1b2db3b3b3e4e0d453141d|path=patients_labs/patient_MRN0063_labs.csv|page=|row=4|record=MRN-0063:2025-12-04:Glucose'} permitted={'sha256=cda55a78ae6f243056e785c49d33d2518cbd61ff74d18cef0e5a4e1806abd0f1|path=patients_documents/patient_MRN0063_imaging_report.pdf|page=1|row=|record=document-type', 'sha256=00d2c555a525168f333b5a588fd49d98f7f0d4862c1b2db3b3b3e4e0d453141d|path=patients_labs/patient_MRN0063_labs.csv|page=|row=4|record=MRN-0063:2025-12-04:Glucose'}
+
+!!! retrieved={'sha256=74ecf9c3d795522636f783851324564f317ed941e19ef2b4386725f91b24b89d|path=patients_labs/patient_MRN0019_labs.csv|page=|row=5|record=MRN-0019:2025-12-10:HbA1c', 'sha256=66fc349b27becb18b6b20d809dc851fc53fbd034504c60abf8ac88792aa4bb54|path=patients_documents/patient_MRN0019_lab_result.pdf|page=1|row=|record=document-type'} permitted={'sha256=74ecf9c3d795522636f783851324564f317ed941e19ef2b4386725f91b24b89d|path=patients_labs/patient_MRN0019_labs.csv|page=|row=5|record=MRN-0019:2025-12-10:HbA1c', 'sha256=66fc349b27becb18b6b20d809dc851fc53fbd034504c60abf8ac88792aa4bb54|path=patients_documents/patient_MRN0019_lab_result.pdf|page=1|row=|record=document-type'}
+NLP extraction failed
+NLP extraction failed
+NLP extraction failed
+NLP extraction failed
+NLP extraction failed
+NLP extraction failed
+NLP extraction failed
+NLP extraction failed
+NLP extraction failed
+incorrect startxref pointer(1)
+parsing for Object Streams
+NLP extraction failed
+incorrect startxref pointer(1)
+parsing for Object Streams
+NLP extraction failed
+incorrect startxref pointer(1)
+parsing for Object Streams
+incorrect startxref pointer(1)
+parsing for Object Streams
+
+!!! retrieved={'sha256=f8def42de6455b90f2f8f3b666bb09ac0c9c707620a76b93d8e009d0e664ad81|path=patients_labs/patient_MRN0031_labs.csv|page=|row=6|record=MRN-0031:2025-12-02:BNP', 'sha256=d138138d76fa80c6d85654c53e56b6fc14343f182ed2a02d8d63578fdea8b152|path=patients_documents/patient_MRN0031_clinical_note.pdf|page=1|row=|record=document-type'} permitted={'sha256=f8def42de6455b90f2f8f3b666bb09ac0c9c707620a76b93d8e009d0e664ad81|path=patients_labs/patient_MRN0031_labs.csv|page=|row=6|record=MRN-0031:2025-12-02:BNP', 'sha256=d138138d76fa80c6d85654c53e56b6fc14343f182ed2a02d8d63578fdea8b152|path=patients_documents/patient_MRN0031_clinical_note.pdf|page=1|row=|record=document-type'}
+
+!!! retrieved={'sha256=7a6013dbf8c516cf55f60614f0af2f918308df69dbfa5b74ef1987a49a530b51|path=patients_labs/patient_MRN0096_labs.csv|page=|row=7|record=MRN-0096:2025-12-07:AST', 'sha256=025c40f03b2927f6eb8ab9a9cf0119e4019a0e8942579c8e46391c323f480b60|path=patients_documents/patient_MRN0096_encounter_note.pdf|page=1|row=|record=document-type'} permitted={'sha256=7a6013dbf8c516cf55f60614f0af2f918308df69dbfa5b74ef1987a49a530b51|path=patients_labs/patient_MRN0096_labs.csv|page=|row=7|record=MRN-0096:2025-12-07:AST', 'sha256=025c40f03b2927f6eb8ab9a9cf0119e4019a0e8942579c8e46391c323f480b60|path=patients_documents/patient_MRN0096_encounter_note.pdf|page=1|row=|record=document-type'}
+
+!!! retrieved={'sha256=2ba7bed03d4f0e478422dc656e78c9ce726a66ec29e2591726021fa14e4f2325|path=patients_documents/patient_MRN0034_clinical_note.pdf|page=1|row=|record=document-type', 'sha256=0ae983f9d30655a623df670505a8b2ff340a3ace6ab61cbcc8fb7ec46e7b8bdd|path=patients_labs/patient_MRN0034_labs.csv|page=|row=8|record=MRN-0034:2025-12-05:ALT'} permitted={'sha256=2ba7bed03d4f0e478422dc656e78c9ce726a66ec29e2591726021fa14e4f2325|path=patients_documents/patient_MRN0034_clinical_note.pdf|page=1|row=|record=document-type', 'sha256=0ae983f9d30655a623df670505a8b2ff340a3ace6ab61cbcc8fb7ec46e7b8bdd|path=patients_labs/patient_MRN0034_labs.csv|page=|row=8|record=MRN-0034:2025-12-05:ALT'}
+
+!!! retrieved={'sha256=aeb263c8cc65f75811a200fe94efc5b284250feedd42c5f046cbacdf28aa67d0|path=patients_labs/patient_MRN0047_labs.csv|page=|row=9|record=MRN-0047:2025-12-08:Potassium', 'sha256=f9839faae0e3101e805a473d2745d61e834019124c18cbde76548c0e35c12b7e|path=patients_documents/patient_MRN0047_discharge_summary.pdf|page=1|row=|record=document-type'} permitted={'sha256=aeb263c8cc65f75811a200fe94efc5b284250feedd42c5f046cbacdf28aa67d0|path=patients_labs/patient_MRN0047_labs.csv|page=|row=9|record=MRN-0047:2025-12-08:Potassium', 'sha256=f9839faae0e3101e805a473d2745d61e834019124c18cbde76548c0e35c12b7e|path=patients_documents/patient_MRN0047_discharge_summary.pdf|page=1|row=|record=document-type'}
+
+!!! retrieved={'sha256=b27bbd71776b202210b048bfd28c5797ee85e4e0a9ad95706a948e5210ad3eae|path=patients_labs/patient_MRN0022_labs.csv|page=|row=53|record=MRN-0022:2026-05-02:ALT', 'sha256=b27bbd71776b202210b048bfd28c5797ee85e4e0a9ad95706a948e5210ad3eae|path=patients_labs/patient_MRN0022_labs.csv|page=|row=8|record=MRN-0022:2025-12-03:ALT'} permitted={'sha256=b27bbd71776b202210b048bfd28c5797ee85e4e0a9ad95706a948e5210ad3eae|path=patients_labs/patient_MRN0022_labs.csv|page=|row=53|record=MRN-0022:2026-05-02:ALT', 'sha256=b27bbd71776b202210b048bfd28c5797ee85e4e0a9ad95706a948e5210ad3eae|path=patients_labs/patient_MRN0022_labs.csv|page=|row=8|record=MRN-0022:2025-12-03:ALT'}
+
+!!! retrieved={'sha256=0aca82a9c39558dc06482aa1e5967a2a7d9b50277c917e961b29f26f0f4b1f82|path=patients_labs/patient_MRN0015_labs.csv|page=|row=7|record=MRN-0015:2025-12-06:AST', 'sha256=0aca82a9c39558dc06482aa1e5967a2a7d9b50277c917e961b29f26f0f4b1f82|path=patients_labs/patient_MRN0015_labs.csv|page=|row=52|record=MRN-0015:2026-05-05:AST'} permitted={'sha256=0aca82a9c39558dc06482aa1e5967a2a7d9b50277c917e961b29f26f0f4b1f82|path=patients_labs/patient_MRN0015_labs.csv|page=|row=52|record=MRN-0015:2026-05-05:AST', 'sha256=0aca82a9c39558dc06482aa1e5967a2a7d9b50277c917e961b29f26f0f4b1f82|path=patients_labs/patient_MRN0015_labs.csv|page=|row=7|record=MRN-0015:2025-12-06:AST'}
+
+!!! retrieved={'sha256=00d2c555a525168f333b5a588fd49d98f7f0d4862c1b2db3b3b3e4e0d453141d|path=patients_labs/patient_MRN0063_labs.csv|page=|row=6|record=MRN-0063:2025-12-04:BNP', 'sha256=00d2c555a525168f333b5a588fd49d98f7f0d4862c1b2db3b3b3e4e0d453141d|path=patients_labs/patient_MRN0063_labs.csv|page=|row=51|record=MRN-0063:2026-05-03:BNP'} permitted={'sha256=00d2c555a525168f333b5a588fd49d98f7f0d4862c1b2db3b3b3e4e0d453141d|path=patients_labs/patient_MRN0063_labs.csv|page=|row=6|record=MRN-0063:2025-12-04:BNP', 'sha256=00d2c555a525168f333b5a588fd49d98f7f0d4862c1b2db3b3b3e4e0d453141d|path=patients_labs/patient_MRN0063_labs.csv|page=|row=51|record=MRN-0063:2026-05-03:BNP'}
+
+!!! retrieved={'sha256=74ecf9c3d795522636f783851324564f317ed941e19ef2b4386725f91b24b89d|path=patients_labs/patient_MRN0019_labs.csv|page=|row=47|record=MRN-0019:2026-05-09:Creatinine', 'sha256=74ecf9c3d795522636f783851324564f317ed941e19ef2b4386725f91b24b89d|path=patients_labs/patient_MRN0019_labs.csv|page=|row=2|record=MRN-0019:2025-12-10:Creatinine'} permitted={'sha256=74ecf9c3d795522636f783851324564f317ed941e19ef2b4386725f91b24b89d|path=patients_labs/patient_MRN0019_labs.csv|page=|row=47|record=MRN-0019:2026-05-09:Creatinine', 'sha256=74ecf9c3d795522636f783851324564f317ed941e19ef2b4386725f91b24b89d|path=patients_labs/patient_MRN0019_labs.csv|page=|row=2|record=MRN-0019:2025-12-10:Creatinine'}
+
+!!! retrieved={'sha256=f8def42de6455b90f2f8f3b666bb09ac0c9c707620a76b93d8e009d0e664ad81|path=patients_labs/patient_MRN0031_labs.csv|page=|row=49|record=MRN-0031:2026-05-01:Glucose', 'sha256=f8def42de6455b90f2f8f3b666bb09ac0c9c707620a76b93d8e009d0e664ad81|path=patients_labs/patient_MRN0031_labs.csv|page=|row=4|record=MRN-0031:2025-12-02:Glucose'} permitted={'sha256=f8def42de6455b90f2f8f3b666bb09ac0c9c707620a76b93d8e009d0e664ad81|path=patients_labs/patient_MRN0031_labs.csv|page=|row=49|record=MRN-0031:2026-05-01:Glucose', 'sha256=f8def42de6455b90f2f8f3b666bb09ac0c9c707620a76b93d8e009d0e664ad81|path=patients_labs/patient_MRN0031_labs.csv|page=|row=4|record=MRN-0031:2025-12-02:Glucose'}
+
+!!! retrieved={'sha256=7a6013dbf8c516cf55f60614f0af2f918308df69dbfa5b74ef1987a49a530b51|path=patients_labs/patient_MRN0096_labs.csv|page=|row=5|record=MRN-0096:2025-12-07:HbA1c', 'sha256=7a6013dbf8c516cf55f60614f0af2f918308df69dbfa5b74ef1987a49a530b51|path=patients_labs/patient_MRN0096_labs.csv|page=|row=50|record=MRN-0096:2026-05-06:HbA1c'} permitted={'sha256=7a6013dbf8c516cf55f60614f0af2f918308df69dbfa5b74ef1987a49a530b51|path=patients_labs/patient_MRN0096_labs.csv|page=|row=5|record=MRN-0096:2025-12-07:HbA1c', 'sha256=7a6013dbf8c516cf55f60614f0af2f918308df69dbfa5b74ef1987a49a530b51|path=patients_labs/patient_MRN0096_labs.csv|page=|row=50|record=MRN-0096:2026-05-06:HbA1c'}
+
+!!! retrieved={'sha256=b27bbd71776b202210b048bfd28c5797ee85e4e0a9ad95706a948e5210ad3eae|path=patients_labs/patient_MRN0022_labs.csv|page=|row=2|record=MRN-0022:2025-12-03:Creatinine'} permitted={'sha256=b27bbd71776b202210b048bfd28c5797ee85e4e0a9ad95706a948e5210ad3eae|path=patients_labs/patient_MRN0022_labs.csv|page=|row=2|record=MRN-0022:2025-12-03:Creatinine'}
+
+!!! retrieved={'sha256=0aca82a9c39558dc06482aa1e5967a2a7d9b50277c917e961b29f26f0f4b1f82|path=patients_labs/patient_MRN0015_labs.csv|page=|row=3|record=MRN-0015:2025-12-06:eGFR'} permitted={'sha256=0aca82a9c39558dc06482aa1e5967a2a7d9b50277c917e961b29f26f0f4b1f82|path=patients_labs/patient_MRN0015_labs.csv|page=|row=3|record=MRN-0015:2025-12-06:eGFR'}
+
+!!! retrieved={'sha256=00d2c555a525168f333b5a588fd49d98f7f0d4862c1b2db3b3b3e4e0d453141d|path=patients_labs/patient_MRN0063_labs.csv|page=|row=4|record=MRN-0063:2025-12-04:Glucose'} permitted={'sha256=00d2c555a525168f333b5a588fd49d98f7f0d4862c1b2db3b3b3e4e0d453141d|path=patients_labs/patient_MRN0063_labs.csv|page=|row=4|record=MRN-0063:2025-12-04:Glucose'}
+incorrect startxref pointer(1)
+parsing for Object Streams
+Validated stream sentence refused reason_codes=('NEGATION_CONFLICT',)
+incorrect startxref pointer(1)
+parsing for Object Streams
+Validated stream sentence refused reason_codes=('NEGATION_CONFLICT',)
+incorrect startxref pointer(1)
+parsing for Object Streams
+Validated stream sentence refused reason_codes=('NEGATION_CONFLICT',)
+incorrect startxref pointer(1)
+parsing for Object Streams
+Validated stream sentence refused reason_codes=('NEGATION_CONFLICT',)
+incorrect startxref pointer(1)
+parsing for Object Streams
+Validated stream sentence refused reason_codes=('NEGATION_CONFLICT',)
+incorrect startxref pointer(1)
+parsing for Object Streams
+Validated stream sentence refused reason_codes=('NEGATION_CONFLICT',)
+incorrect startxref pointer(1)
+parsing for Object Streams
+Validated stream sentence refused reason_codes=('NEGATION_CONFLICT',)
+incorrect startxref pointer(1)
+parsing for Object Streams
+Validated stream sentence refused reason_codes=('NEGATION_CONFLICT',)
+
+!!! retrieved={'sha256=74ecf9c3d795522636f783851324564f317ed941e19ef2b4386725f91b24b89d|path=patients_labs/patient_MRN0019_labs.csv|page=|row=5|record=MRN-0019:2025-12-10:HbA1c'} permitted={'sha256=74ecf9c3d795522636f783851324564f317ed941e19ef2b4386725f91b24b89d|path=patients_labs/patient_MRN0019_labs.csv|page=|row=5|record=MRN-0019:2025-12-10:HbA1c'}
+
+!!! retrieved={'sha256=f8def42de6455b90f2f8f3b666bb09ac0c9c707620a76b93d8e009d0e664ad81|path=patients_labs/patient_MRN0031_labs.csv|page=|row=6|record=MRN-0031:2025-12-02:BNP'} permitted={'sha256=f8def42de6455b90f2f8f3b666bb09ac0c9c707620a76b93d8e009d0e664ad81|path=patients_labs/patient_MRN0031_labs.csv|page=|row=6|record=MRN-0031:2025-12-02:BNP'}
+
+!!! retrieved={'sha256=7a6013dbf8c516cf55f60614f0af2f918308df69dbfa5b74ef1987a49a530b51|path=patients_labs/patient_MRN0096_labs.csv|page=|row=7|record=MRN-0096:2025-12-07:AST'} permitted={'sha256=7a6013dbf8c516cf55f60614f0af2f918308df69dbfa5b74ef1987a49a530b51|path=patients_labs/patient_MRN0096_labs.csv|page=|row=7|record=MRN-0096:2025-12-07:AST'}
+
+!!! retrieved={'sha256=0ae983f9d30655a623df670505a8b2ff340a3ace6ab61cbcc8fb7ec46e7b8bdd|path=patients_labs/patient_MRN0034_labs.csv|page=|row=8|record=MRN-0034:2025-12-05:ALT'} permitted={'sha256=0ae983f9d30655a623df670505a8b2ff340a3ace6ab61cbcc8fb7ec46e7b8bdd|path=patients_labs/patient_MRN0034_labs.csv|page=|row=8|record=MRN-0034:2025-12-05:ALT'}
+
+!!! retrieved={'sha256=aeb263c8cc65f75811a200fe94efc5b284250feedd42c5f046cbacdf28aa67d0|path=patients_labs/patient_MRN0047_labs.csv|page=|row=9|record=MRN-0047:2025-12-08:Potassium'} permitted={'sha256=aeb263c8cc65f75811a200fe94efc5b284250feedd42c5f046cbacdf28aa67d0|path=patients_labs/patient_MRN0047_labs.csv|page=|row=9|record=MRN-0047:2025-12-08:Potassium'}
+
+!!! retrieved={'sha256=b27bbd71776b202210b048bfd28c5797ee85e4e0a9ad95706a948e5210ad3eae|path=patients_labs/patient_MRN0022_labs.csv|page=|row=2|record=MRN-0022:2025-12-03:Creatinine'} permitted={'sha256=b27bbd71776b202210b048bfd28c5797ee85e4e0a9ad95706a948e5210ad3eae|path=patients_labs/patient_MRN0022_labs.csv|page=|row=2|record=MRN-0022:2025-12-03:Creatinine'}
+
+!!! retrieved={'sha256=0aca82a9c39558dc06482aa1e5967a2a7d9b50277c917e961b29f26f0f4b1f82|path=patients_labs/patient_MRN0015_labs.csv|page=|row=3|record=MRN-0015:2025-12-06:eGFR'} permitted={'sha256=0aca82a9c39558dc06482aa1e5967a2a7d9b50277c917e961b29f26f0f4b1f82|path=patients_labs/patient_MRN0015_labs.csv|page=|row=3|record=MRN-0015:2025-12-06:eGFR'}
+
+!!! retrieved={'sha256=00d2c555a525168f333b5a588fd49d98f7f0d4862c1b2db3b3b3e4e0d453141d|path=patients_labs/patient_MRN0063_labs.csv|page=|row=4|record=MRN-0063:2025-12-04:Glucose'} permitted={'sha256=00d2c555a525168f333b5a588fd49d98f7f0d4862c1b2db3b3b3e4e0d453141d|path=patients_labs/patient_MRN0063_labs.csv|page=|row=4|record=MRN-0063:2025-12-04:Glucose'}
+
+!!! retrieved={'sha256=74ecf9c3d795522636f783851324564f317ed941e19ef2b4386725f91b24b89d|path=patients_labs/patient_MRN0019_labs.csv|page=|row=5|record=MRN-0019:2025-12-10:HbA1c'} permitted={'sha256=74ecf9c3d795522636f783851324564f317ed941e19ef2b4386725f91b24b89d|path=patients_labs/patient_MRN0019_labs.csv|page=|row=5|record=MRN-0019:2025-12-10:HbA1c'}
+
+!!! retrieved={'sha256=f8def42de6455b90f2f8f3b666bb09ac0c9c707620a76b93d8e009d0e664ad81|path=patients_labs/patient_MRN0031_labs.csv|page=|row=6|record=MRN-0031:2025-12-02:BNP'} permitted={'sha256=f8def42de6455b90f2f8f3b666bb09ac0c9c707620a76b93d8e009d0e664ad81|path=patients_labs/patient_MRN0031_labs.csv|page=|row=6|record=MRN-0031:2025-12-02:BNP'}
+
+!!! retrieved=set() permitted=set()
+
+!!! retrieved=set() permitted=set()
+
+!!! retrieved=set() permitted=set()
+
+!!! retrieved=set() permitted=set()
+
+!!! retrieved=set() permitted=set()
+
+!!! retrieved=set() permitted=set()
+
+!!! retrieved=set() permitted=set()
+
+!!! retrieved={'sha256=b27bbd71776b202210b048bfd28c5797ee85e4e0a9ad95706a948e5210ad3eae|path=patients_labs/patient_MRN0022_labs.csv|page=|row=|record=', 'sha256=e4a26799616a485feff942aba77cc4f054fd82fb35017896b3c70aab2e37ea7b|path=patients_documents/patient_MRN0022_lab_result.pdf|page=|row=|record=', 'sha256=b27bbd71776b202210b048bfd28c5797ee85e4e0a9ad95706a948e5210ad3eae|path=patients_labs/patient_MRN0022_labs.csv|page=|row=2|record=MRN-0022:2025-12-03:Creatinine'} permitted={'sha256=b27bbd71776b202210b048bfd28c5797ee85e4e0a9ad95706a948e5210ad3eae|path=patients_labs/patient_MRN0022_labs.csv|page=|row=|record=', 'sha256=e4a26799616a485feff942aba77cc4f054fd82fb35017896b3c70aab2e37ea7b|path=patients_documents/patient_MRN0022_lab_result.pdf|page=|row=|record='}
+
+!!! retrieved={'sha256=3eef56bfd5c6c772a57666d9a35e890a41010860e828bc8e384d98c8b7f8124a|path=patients_documents/patient_MRN0015_lab_result.pdf|page=|row=|record=', 'sha256=0aca82a9c39558dc06482aa1e5967a2a7d9b50277c917e961b29f26f0f4b1f82|path=patients_labs/patient_MRN0015_labs.csv|page=|row=3|record=MRN-0015:2025-12-06:eGFR', 'sha256=0aca82a9c39558dc06482aa1e5967a2a7d9b50277c917e961b29f26f0f4b1f82|path=patients_labs/patient_MRN0015_labs.csv|page=|row=|record='} permitted={'sha256=3eef56bfd5c6c772a57666d9a35e890a41010860e828bc8e384d98c8b7f8124a|path=patients_documents/patient_MRN0015_lab_result.pdf|page=|row=|record=', 'sha256=0aca82a9c39558dc06482aa1e5967a2a7d9b50277c917e961b29f26f0f4b1f82|path=patients_labs/patient_MRN0015_labs.csv|page=|row=|record='}
+
+!!! retrieved=set() permitted={'sha256=00d2c555a525168f333b5a588fd49d98f7f0d4862c1b2db3b3b3e4e0d453141d|path=patients_labs/patient_MRN0063_labs.csv|page=|row=|record=', 'sha256=cda55a78ae6f243056e785c49d33d2518cbd61ff74d18cef0e5a4e1806abd0f1|path=patients_documents/patient_MRN0063_imaging_report.pdf|page=|row=|record='}
+
+!!! retrieved=set() permitted={'sha256=74ecf9c3d795522636f783851324564f317ed941e19ef2b4386725f91b24b89d|path=patients_labs/patient_MRN0019_labs.csv|page=|row=|record=', 'sha256=66fc349b27becb18b6b20d809dc851fc53fbd034504c60abf8ac88792aa4bb54|path=patients_documents/patient_MRN0019_lab_result.pdf|page=|row=|record='}
+
+!!! retrieved=set() permitted={'sha256=b27bbd71776b202210b048bfd28c5797ee85e4e0a9ad95706a948e5210ad3eae|path=patients_labs/patient_MRN0022_labs.csv|page=|row=2|record=MRN-0022:2025-12-03:Creatinine'}
+
+!!! retrieved=set() permitted={'sha256=0aca82a9c39558dc06482aa1e5967a2a7d9b50277c917e961b29f26f0f4b1f82|path=patients_labs/patient_MRN0015_labs.csv|page=|row=3|record=MRN-0015:2025-12-06:eGFR'}
+
+!!! retrieved=set() permitted={'sha256=00d2c555a525168f333b5a588fd49d98f7f0d4862c1b2db3b3b3e4e0d453141d|path=patients_labs/patient_MRN0063_labs.csv|page=|row=4|record=MRN-0063:2025-12-04:Glucose'}
+
+!!! retrieved=set() permitted={'sha256=74ecf9c3d795522636f783851324564f317ed941e19ef2b4386725f91b24b89d|path=patients_labs/patient_MRN0019_labs.csv|page=|row=5|record=MRN-0019:2025-12-10:HbA1c'}
+
+!!! retrieved=set() permitted={'sha256=f8def42de6455b90f2f8f3b666bb09ac0c9c707620a76b93d8e009d0e664ad81|path=patients_labs/patient_MRN0031_labs.csv|page=|row=6|record=MRN-0031:2025-12-02:BNP'}
+
+!!! retrieved=set() permitted={'sha256=7a6013dbf8c516cf55f60614f0af2f918308df69dbfa5b74ef1987a49a530b51|path=patients_labs/patient_MRN0096_labs.csv|page=|row=7|record=MRN-0096:2025-12-07:AST'}
+
+!!! retrieved=set() permitted={'sha256=0ae983f9d30655a623df670505a8b2ff340a3ace6ab61cbcc8fb7ec46e7b8bdd|path=patients_labs/patient_MRN0034_labs.csv|page=|row=8|record=MRN-0034:2025-12-05:ALT'}
+
+!!! retrieved=set() permitted={'sha256=aeb263c8cc65f75811a200fe94efc5b284250feedd42c5f046cbacdf28aa67d0|path=patients_labs/patient_MRN0047_labs.csv|page=|row=9|record=MRN-0047:2025-12-08:Potassium'}
+
+!!! retrieved=set() permitted={'sha256=8283fe0f3ffb4ebc08c7fe03da2180e878f5df63366bd8fc1ff22e0cc3a42dad|path=patients_labs/patient_MRN0039_labs.csv|page=|row=10|record=MRN-0039:2025-12-10:Hemoglobin'}
+
+!!! retrieved=set() permitted={'sha256=6769ad017c4f089a2a2853b6eb29cc0279c75c168198c6b284ad2a0fbca2887c|path=patients_labs/patient_MRN0044_labs.csv|page=|row=11|record=MRN-0044:2026-01-04:Creatinine'}
+incorrect startxref pointer(1)
+parsing for Object Streams
+Validated stream sentence refused reason_codes=('NEGATION_CONFLICT',)
+incorrect startxref pointer(1)
+parsing for Object Streams
+Validated stream sentence refused reason_codes=('NEGATION_CONFLICT',)
+incorrect startxref pointer(1)
+parsing for Object Streams
+Validated stream sentence refused reason_codes=('NEGATION_CONFLICT',)
+incorrect startxref pointer(1)
+parsing for Object Streams
+Validated stream sentence refused reason_codes=('NEGATION_CONFLICT',)
+AI evaluation failed: measured metrics below thresholds
+
+!!! retrieved=set() permitted={'sha256=25677aeff3e087edb0b81a5dad6b7b25258ad131af7a1b852c725d2c53d2353f|path=patients_labs/patient_MRN0077_labs.csv|page=|row=12|record=MRN-0077:2026-01-07:eGFR'}
+
+!!! retrieved=set() permitted={'sha256=eae6d6b0c349341aa72c76fce2640692bcb863270041fc3fef376cabf82d264e|path=patients_labs/patient_MRN0040_labs.csv|page=|row=13|record=MRN-0040:2025-12-31:Glucose'}
+
+!!! retrieved=set() permitted={'sha256=e4a26799616a485feff942aba77cc4f054fd82fb35017896b3c70aab2e37ea7b|path=patients_documents/patient_MRN0022_lab_result.pdf|page=1|row=|record=document-type', 'sha256=b27bbd71776b202210b048bfd28c5797ee85e4e0a9ad95706a948e5210ad3eae|path=patients_labs/patient_MRN0022_labs.csv|page=|row=2|record=MRN-0022:2025-12-03:Creatinine'}
+
+!!! retrieved=set() permitted={'sha256=0aca82a9c39558dc06482aa1e5967a2a7d9b50277c917e961b29f26f0f4b1f82|path=patients_labs/patient_MRN0015_labs.csv|page=|row=3|record=MRN-0015:2025-12-06:eGFR', 'sha256=3eef56bfd5c6c772a57666d9a35e890a41010860e828bc8e384d98c8b7f8124a|path=patients_documents/patient_MRN0015_lab_result.pdf|page=1|row=|record=document-type'}
+
+!!! retrieved=set() permitted={'sha256=cda55a78ae6f243056e785c49d33d2518cbd61ff74d18cef0e5a4e1806abd0f1|path=patients_documents/patient_MRN0063_imaging_report.pdf|page=1|row=|record=document-type', 'sha256=00d2c555a525168f333b5a588fd49d98f7f0d4862c1b2db3b3b3e4e0d453141d|path=patients_labs/patient_MRN0063_labs.csv|page=|row=4|record=MRN-0063:2025-12-04:Glucose'}
+
+!!! retrieved=set() permitted={'sha256=74ecf9c3d795522636f783851324564f317ed941e19ef2b4386725f91b24b89d|path=patients_labs/patient_MRN0019_labs.csv|page=|row=5|record=MRN-0019:2025-12-10:HbA1c', 'sha256=66fc349b27becb18b6b20d809dc851fc53fbd034504c60abf8ac88792aa4bb54|path=patients_documents/patient_MRN0019_lab_result.pdf|page=1|row=|record=document-type'}
+
+!!! retrieved=set() permitted={'sha256=f8def42de6455b90f2f8f3b666bb09ac0c9c707620a76b93d8e009d0e664ad81|path=patients_labs/patient_MRN0031_labs.csv|page=|row=6|record=MRN-0031:2025-12-02:BNP', 'sha256=d138138d76fa80c6d85654c53e56b6fc14343f182ed2a02d8d63578fdea8b152|path=patients_documents/patient_MRN0031_clinical_note.pdf|page=1|row=|record=document-type'}
+
+!!! retrieved=set() permitted={'sha256=7a6013dbf8c516cf55f60614f0af2f918308df69dbfa5b74ef1987a49a530b51|path=patients_labs/patient_MRN0096_labs.csv|page=|row=7|record=MRN-0096:2025-12-07:AST', 'sha256=025c40f03b2927f6eb8ab9a9cf0119e4019a0e8942579c8e46391c323f480b60|path=patients_documents/patient_MRN0096_encounter_note.pdf|page=1|row=|record=document-type'}
+
+!!! retrieved=set() permitted={'sha256=2ba7bed03d4f0e478422dc656e78c9ce726a66ec29e2591726021fa14e4f2325|path=patients_documents/patient_MRN0034_clinical_note.pdf|page=1|row=|record=document-type', 'sha256=0ae983f9d30655a623df670505a8b2ff340a3ace6ab61cbcc8fb7ec46e7b8bdd|path=patients_labs/patient_MRN0034_labs.csv|page=|row=8|record=MRN-0034:2025-12-05:ALT'}
+
+!!! retrieved=set() permitted={'sha256=aeb263c8cc65f75811a200fe94efc5b284250feedd42c5f046cbacdf28aa67d0|path=patients_labs/patient_MRN0047_labs.csv|page=|row=9|record=MRN-0047:2025-12-08:Potassium', 'sha256=f9839faae0e3101e805a473d2745d61e834019124c18cbde76548c0e35c12b7e|path=patients_documents/patient_MRN0047_discharge_summary.pdf|page=1|row=|record=document-type'}
+
+!!! retrieved=set() permitted={'sha256=b27bbd71776b202210b048bfd28c5797ee85e4e0a9ad95706a948e5210ad3eae|path=patients_labs/patient_MRN0022_labs.csv|page=|row=53|record=MRN-0022:2026-05-02:ALT', 'sha256=b27bbd71776b202210b048bfd28c5797ee85e4e0a9ad95706a948e5210ad3eae|path=patients_labs/patient_MRN0022_labs.csv|page=|row=8|record=MRN-0022:2025-12-03:ALT'}
+
+!!! retrieved=set() permitted={'sha256=0aca82a9c39558dc06482aa1e5967a2a7d9b50277c917e961b29f26f0f4b1f82|path=patients_labs/patient_MRN0015_labs.csv|page=|row=52|record=MRN-0015:2026-05-05:AST', 'sha256=0aca82a9c39558dc06482aa1e5967a2a7d9b50277c917e961b29f26f0f4b1f82|path=patients_labs/patient_MRN0015_labs.csv|page=|row=7|record=MRN-0015:2025-12-06:AST'}
+
+!!! retrieved=set() permitted={'sha256=00d2c555a525168f333b5a588fd49d98f7f0d4862c1b2db3b3b3e4e0d453141d|path=patients_labs/patient_MRN0063_labs.csv|page=|row=6|record=MRN-0063:2025-12-04:BNP', 'sha256=00d2c555a525168f333b5a588fd49d98f7f0d4862c1b2db3b3b3e4e0d453141d|path=patients_labs/patient_MRN0063_labs.csv|page=|row=51|record=MRN-0063:2026-05-03:BNP'}
+
+!!! retrieved=set() permitted={'sha256=74ecf9c3d795522636f783851324564f317ed941e19ef2b4386725f91b24b89d|path=patients_labs/patient_MRN0019_labs.csv|page=|row=47|record=MRN-0019:2026-05-09:Creatinine', 'sha256=74ecf9c3d795522636f783851324564f317ed941e19ef2b4386725f91b24b89d|path=patients_labs/patient_MRN0019_labs.csv|page=|row=2|record=MRN-0019:2025-12-10:Creatinine'}
+
+!!! retrieved=set() permitted={'sha256=f8def42de6455b90f2f8f3b666bb09ac0c9c707620a76b93d8e009d0e664ad81|path=patients_labs/patient_MRN0031_labs.csv|page=|row=49|record=MRN-0031:2026-05-01:Glucose', 'sha256=f8def42de6455b90f2f8f3b666bb09ac0c9c707620a76b93d8e009d0e664ad81|path=patients_labs/patient_MRN0031_labs.csv|page=|row=4|record=MRN-0031:2025-12-02:Glucose'}
+
+!!! retrieved=set() permitted={'sha256=7a6013dbf8c516cf55f60614f0af2f918308df69dbfa5b74ef1987a49a530b51|path=patients_labs/patient_MRN0096_labs.csv|page=|row=5|record=MRN-0096:2025-12-07:HbA1c', 'sha256=7a6013dbf8c516cf55f60614f0af2f918308df69dbfa5b74ef1987a49a530b51|path=patients_labs/patient_MRN0096_labs.csv|page=|row=50|record=MRN-0096:2026-05-06:HbA1c'}
+
+!!! retrieved=set() permitted={'sha256=b27bbd71776b202210b048bfd28c5797ee85e4e0a9ad95706a948e5210ad3eae|path=patients_labs/patient_MRN0022_labs.csv|page=|row=2|record=MRN-0022:2025-12-03:Creatinine'}
+
+!!! retrieved=set() permitted={'sha256=0aca82a9c39558dc06482aa1e5967a2a7d9b50277c917e961b29f26f0f4b1f82|path=patients_labs/patient_MRN0015_labs.csv|page=|row=3|record=MRN-0015:2025-12-06:eGFR'}
+
+!!! retrieved=set() permitted={'sha256=00d2c555a525168f333b5a588fd49d98f7f0d4862c1b2db3b3b3e4e0d453141d|path=patients_labs/patient_MRN0063_labs.csv|page=|row=4|record=MRN-0063:2025-12-04:Glucose'}
+
+!!! retrieved=set() permitted={'sha256=74ecf9c3d795522636f783851324564f317ed941e19ef2b4386725f91b24b89d|path=patients_labs/patient_MRN0019_labs.csv|page=|row=5|record=MRN-0019:2025-12-10:HbA1c'}
+
+!!! retrieved=set() permitted={'sha256=f8def42de6455b90f2f8f3b666bb09ac0c9c707620a76b93d8e009d0e664ad81|path=patients_labs/patient_MRN0031_labs.csv|page=|row=6|record=MRN-0031:2025-12-02:BNP'}
+
+!!! retrieved=set() permitted={'sha256=7a6013dbf8c516cf55f60614f0af2f918308df69dbfa5b74ef1987a49a530b51|path=patients_labs/patient_MRN0096_labs.csv|page=|row=7|record=MRN-0096:2025-12-07:AST'}
+
+!!! retrieved=set() permitted={'sha256=0ae983f9d30655a623df670505a8b2ff340a3ace6ab61cbcc8fb7ec46e7b8bdd|path=patients_labs/patient_MRN0034_labs.csv|page=|row=8|record=MRN-0034:2025-12-05:ALT'}
+
+!!! retrieved=set() permitted={'sha256=aeb263c8cc65f75811a200fe94efc5b284250feedd42c5f046cbacdf28aa67d0|path=patients_labs/patient_MRN0047_labs.csv|page=|row=9|record=MRN-0047:2025-12-08:Potassium'}
+
+!!! retrieved=set() permitted={'sha256=b27bbd71776b202210b048bfd28c5797ee85e4e0a9ad95706a948e5210ad3eae|path=patients_labs/patient_MRN0022_labs.csv|page=|row=2|record=MRN-0022:2025-12-03:Creatinine'}
+
+!!! retrieved=set() permitted={'sha256=0aca82a9c39558dc06482aa1e5967a2a7d9b50277c917e961b29f26f0f4b1f82|path=patients_labs/patient_MRN0015_labs.csv|page=|row=3|record=MRN-0015:2025-12-06:eGFR'}
+
+!!! retrieved=set() permitted={'sha256=00d2c555a525168f333b5a588fd49d98f7f0d4862c1b2db3b3b3e4e0d453141d|path=patients_labs/patient_MRN0063_labs.csv|page=|row=4|record=MRN-0063:2025-12-04:Glucose'}
+
+!!! retrieved=set() permitted={'sha256=74ecf9c3d795522636f783851324564f317ed941e19ef2b4386725f91b24b89d|path=patients_labs/patient_MRN0019_labs.csv|page=|row=5|record=MRN-0019:2025-12-10:HbA1c'}
+
+!!! retrieved=set() permitted={'sha256=f8def42de6455b90f2f8f3b666bb09ac0c9c707620a76b93d8e009d0e664ad81|path=patients_labs/patient_MRN0031_labs.csv|page=|row=6|record=MRN-0031:2025-12-02:BNP'}
+
+!!! retrieved=set() permitted=set()
+
+!!! retrieved=set() permitted=set()
+
+!!! retrieved=set() permitted=set()
+
+!!! retrieved=set() permitted=set()
+
+!!! retrieved=set() permitted=set()
+
+!!! retrieved=set() permitted=set()
+
+!!! retrieved=set() permitted=set()
+
+!!! retrieved=set() permitted={'sha256=b27bbd71776b202210b048bfd28c5797ee85e4e0a9ad95706a948e5210ad3eae|path=patients_labs/patient_MRN0022_labs.csv|page=|row=|record=', 'sha256=e4a26799616a485feff942aba77cc4f054fd82fb35017896b3c70aab2e37ea7b|path=patients_documents/patient_MRN0022_lab_result.pdf|page=|row=|record='}
+
+!!! retrieved=set() permitted={'sha256=3eef56bfd5c6c772a57666d9a35e890a41010860e828bc8e384d98c8b7f8124a|path=patients_documents/patient_MRN0015_lab_result.pdf|page=|row=|record=', 'sha256=0aca82a9c39558dc06482aa1e5967a2a7d9b50277c917e961b29f26f0f4b1f82|path=patients_labs/patient_MRN0015_labs.csv|page=|row=|record='}
+
+!!! retrieved=set() permitted={'sha256=00d2c555a525168f333b5a588fd49d98f7f0d4862c1b2db3b3b3e4e0d453141d|path=patients_labs/patient_MRN0063_labs.csv|page=|row=|record=', 'sha256=cda55a78ae6f243056e785c49d33d2518cbd61ff74d18cef0e5a4e1806abd0f1|path=patients_documents/patient_MRN0063_imaging_report.pdf|page=|row=|record='}
+
+!!! retrieved=set() permitted={'sha256=74ecf9c3d795522636f783851324564f317ed941e19ef2b4386725f91b24b89d|path=patients_labs/patient_MRN0019_labs.csv|page=|row=|record=', 'sha256=66fc349b27becb18b6b20d809dc851fc53fbd034504c60abf8ac88792aa4bb54|path=patients_documents/patient_MRN0019_lab_result.pdf|page=|row=|record='}

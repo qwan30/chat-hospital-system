@@ -4,6 +4,8 @@ import uuid
 from dataclasses import dataclass
 
 from sqlalchemy import select
+from sqlalchemy.dialects.postgresql import insert as postgres_insert
+from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from hospital_ai.db.clinical_graph import (
@@ -28,51 +30,85 @@ class GraphIndexService:
     def __init__(self, session: AsyncSession) -> None:
         self.session = session
 
-    async def _upsert_entity(self, patient_id: uuid.UUID, entity_type: str, normalized_label: str) -> GraphEntity:
-        # We need a cross-dialect UPSERT or we just query and then insert.
-        # Given it's async, we can do a standard select + insert if not found,
-        # but to be robust against concurrency, an upsert is better.
-        # Since we use SQLite in tests and Postgres in prod, we'll try a basic approach:
+    async def _insert_ignore(
+        self,
+        model: type,
+        values: dict,
+        conflict_columns: tuple[str, ...],
+    ) -> bool:
+        dialect = self.session.get_bind().dialect.name
+        if dialect == "postgresql":
+            statement = postgres_insert(model).values(**values)
+        elif dialect == "sqlite":
+            statement = sqlite_insert(model).values(**values)
+        else:
+            raise RuntimeError(f"Unsupported graph index dialect: {dialect}")
+        result = await self.session.execute(statement.on_conflict_do_nothing(index_elements=list(conflict_columns)))
+        return bool(result.rowcount)
 
-        # SQLite doesn't cleanly support ON CONFLICT DO NOTHING with returning full ORM object
-        # identically to Postgres in older SQLAlchemy versions, but SQLAlchemy v2 handles it.
-        # Let's do a simple select, and if none, insert.
-        stmt = select(GraphEntity).where(
-            GraphEntity.patient_id == patient_id,
-            GraphEntity.entity_type == entity_type,
-            GraphEntity.normalized_label == normalized_label,
-        )
-        result = await self.session.execute(stmt)
-        entity = result.scalar_one_or_none()
-        if not entity:
-            entity = GraphEntity(patient_id=patient_id, entity_type=entity_type, normalized_label=normalized_label)
-            self.session.add(entity)
-            await self.session.flush()
-        return entity
+    async def _upsert_entity(self, patient_id: uuid.UUID, entity_type: str, normalized_label: str) -> GraphEntity:
+        import asyncio
+
+        from sqlalchemy.exc import NoResultFound
+
+        for attempt in range(3):
+            await self._insert_ignore(
+                GraphEntity,
+                {
+                    "patient_id": patient_id,
+                    "entity_type": entity_type,
+                    "normalized_label": normalized_label,
+                },
+                ("patient_id", "entity_type", "normalized_label"),
+            )
+            try:
+                result = await self.session.execute(
+                    select(GraphEntity).where(
+                        GraphEntity.patient_id == patient_id,
+                        GraphEntity.entity_type == entity_type,
+                        GraphEntity.normalized_label == normalized_label,
+                    )
+                )
+                return result.scalar_one()
+            except NoResultFound:
+                if attempt == 2:
+                    raise
+                await asyncio.sleep(0.05 * (2**attempt))
 
     async def _upsert_assertion(
         self, patient_id: uuid.UUID, subject_id: uuid.UUID, object_id: uuid.UUID, item: ExtractedRelation
     ) -> GraphRelationAssertion:
-        stmt = select(GraphRelationAssertion).where(
-            GraphRelationAssertion.patient_id == patient_id,
-            GraphRelationAssertion.subject_entity_id == subject_id,
-            GraphRelationAssertion.object_entity_id == object_id,
-            GraphRelationAssertion.relation_type == item.relation_type,
-            GraphRelationAssertion.normalized_value == item.normalized_value,
-        )
-        result = await self.session.execute(stmt)
-        assertion = result.scalar_one_or_none()
-        if not assertion:
-            assertion = GraphRelationAssertion(
-                patient_id=patient_id,
-                subject_entity_id=subject_id,
-                object_entity_id=object_id,
-                relation_type=item.relation_type,
-                normalized_value=item.normalized_value,
+        import asyncio
+
+        from sqlalchemy.exc import NoResultFound
+
+        for attempt in range(3):
+            await self._insert_ignore(
+                GraphRelationAssertion,
+                {
+                    "patient_id": patient_id,
+                    "subject_entity_id": subject_id,
+                    "object_entity_id": object_id,
+                    "relation_type": item.relation_type,
+                    "normalized_value": item.normalized_value,
+                },
+                ("patient_id", "subject_entity_id", "object_entity_id", "relation_type", "normalized_value"),
             )
-            self.session.add(assertion)
-            await self.session.flush()
-        return assertion
+            try:
+                result = await self.session.execute(
+                    select(GraphRelationAssertion).where(
+                        GraphRelationAssertion.patient_id == patient_id,
+                        GraphRelationAssertion.subject_entity_id == subject_id,
+                        GraphRelationAssertion.object_entity_id == object_id,
+                        GraphRelationAssertion.relation_type == item.relation_type,
+                        GraphRelationAssertion.normalized_value == item.normalized_value,
+                    )
+                )
+                return result.scalar_one()
+            except NoResultFound:
+                if attempt == 2:
+                    raise
+                await asyncio.sleep(0.05 * (2**attempt))
 
     async def index_chunk(
         self,

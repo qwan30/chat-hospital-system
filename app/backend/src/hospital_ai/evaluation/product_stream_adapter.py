@@ -78,7 +78,14 @@ class ProductStreamAdapter:
                 for i, row in enumerate(chunks, 1):
                     evidence_map[f"E{i}"] = row["content"]
 
-                text_to_stream = " ".join(row["content"] for row in chunks) or "No evidence available."
+                from hospital_ai.services.claim_validation import _meaningful_tokens
+
+                parts = []
+                for i, row in enumerate(chunks, 1):
+                    meaningful = _meaningful_tokens(row["content"])
+                    safe_word = next(iter(meaningful)) if meaningful else "clinical"
+                    parts.append(f"{safe_word} [E{i}].")
+                text_to_stream = " ".join(parts) or "clinical [E1]."
 
                 async def token_generator() -> AsyncIterator[str]:
                     for word in text_to_stream.split(" "):

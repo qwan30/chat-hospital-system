@@ -13,6 +13,7 @@ import {
 import { Loader2, Check, X, Edit2 } from "lucide-react";
 import { DocumentPreview } from "@/components/hms/DocumentPreview";
 import { GeometryOverlay } from "@/components/hms/document-workspace/GeometryOverlay";
+import { newIdempotencyKey } from "@/lib/idempotency";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
@@ -59,12 +60,17 @@ function Page() {
       reason: string;
       page_revision_id: string;
     }) =>
-      patchReviewItem(documentId, reviewItemId, {
-        action,
-        value,
-        reason,
-        page_revision_id,
-      }),
+      patchReviewItem(
+        documentId,
+        reviewItemId,
+        {
+          action,
+          value,
+          reason,
+          page_revision_id,
+        },
+        { idempotencyKey: newIdempotencyKey("patch-review-item") },
+      ),
     onSuccess: () => {
       toast.success("Review item updated");
       queryClient.invalidateQueries({ queryKey: ["document-reviews", documentId] });

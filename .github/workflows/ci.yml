@@ -592,6 +592,13 @@ jobs:
           VITE_API_URL: http://localhost:8000/api/v1
         run: bun run build
 
+      - name: Prepare Compose environment
+        working-directory: ${{ github.workspace }}
+        run: |
+          cp app/backend/.env.example app/backend/.env
+          sed -i 's/^HOSPITAL_AI_GEMINI_API_KEY=.*/HOSPITAL_AI_GEMINI_API_KEY=dummy-key/' app/backend/.env
+          sed -i 's/^HOSPITAL_AI_JWT_HMAC_SECRET=.*/HOSPITAL_AI_JWT_HMAC_SECRET=dummy-secret/' app/backend/.env
+
       - name: Start backend services
         working-directory: ${{ github.workspace }}
         env:

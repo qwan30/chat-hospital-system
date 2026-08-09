@@ -63,7 +63,7 @@ async def process_document(session: AsyncSession, document_id: uuid.UUID, settin
 
             pages = [OcrPage(page_number=p.page_number, text=p.ocr_text, confidence=p.ocr_confidence) for p in db_pages]
         else:
-            pages = OcrService().extract_pages(
+            pages = await OcrService().extract_pages(
                 storage_uri=document.storage_uri,
                 mime_type=document.mime_type,
                 patient_id=str(document.patient_id),

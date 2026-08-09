@@ -4,6 +4,8 @@ import uuid
 from dataclasses import dataclass
 
 from sqlalchemy import select
+from sqlalchemy.dialects.postgresql import insert as postgres_insert
+from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from hospital_ai.db.clinical_graph import (
@@ -27,6 +29,22 @@ class GraphIndexResult:
 class GraphIndexService:
     def __init__(self, session: AsyncSession) -> None:
         self.session = session
+
+    async def _insert_ignore(
+        self,
+        model: type,
+        values: dict,
+        conflict_columns: tuple[str, ...],
+    ) -> bool:
+        dialect = self.session.get_bind().dialect.name
+        if dialect == "postgresql":
+            statement = postgres_insert(model).values(**values)
+        elif dialect == "sqlite":
+            statement = sqlite_insert(model).values(**values)
+        else:
+            raise RuntimeError(f"Unsupported graph index dialect: {dialect}")
+        result = await self.session.execute(statement.on_conflict_do_nothing(index_elements=list(conflict_columns)))
+        return bool(result.rowcount)
 
     async def _upsert_entity(self, patient_id: uuid.UUID, entity_type: str, normalized_label: str) -> GraphEntity:
         import asyncio

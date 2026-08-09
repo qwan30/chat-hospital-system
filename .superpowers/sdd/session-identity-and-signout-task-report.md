@@ -151,6 +151,15 @@ Green:
   - `cd app/frontend && bun run typecheck` — passed
   - `cd app/frontend && bun run lint` — passed
 
+### Final AuthProvider integration follow-up
+
+- changed identity uppercasing to `toUpperCase()` so initials are locale-independent; added a locale-sensitive fixture.
+- added an integration test that dynamically loads the real `AuthProvider` and API client, performs a mocked real login, calls `useSession().signOut()`, then observes `authUser` and token are null, `getToken()` is null, and neither `hms.session` nor a demo bearer is restored.
+- controller validation after this follow-up:
+  - `cd app/frontend && bun run test -- src/lib/session.test.tsx` — 15 test files passed, 114 tests passed
+  - `cd app/frontend && bun run typecheck` — passed
+  - `cd app/frontend && bun run lint` — passed
+
 ## Reviewer-required completion evidence (2026-08-09)
 
 ### Final TDD cycle

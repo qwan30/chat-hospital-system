@@ -82,7 +82,7 @@ function resolveRealAuthIdentity(authUser: AuthUser): {
   return {
     name: normalizedName,
     email: authUser.email,
-    initials: initials.toLocaleUpperCase() || REAL_AUTH_FALLBACK_INITIALS,
+    initials: initials.toUpperCase() || REAL_AUTH_FALLBACK_INITIALS,
   };
 }
 

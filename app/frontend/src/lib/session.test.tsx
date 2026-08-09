@@ -230,6 +230,36 @@ describe("SessionProvider / useSession", () => {
     });
   });
 
+  it("keeps lowercase i initials locale-independent for real identities", async () => {
+    mockLocalStorage();
+    const localeUppercase = vi
+      .spyOn(String.prototype, "toLocaleUpperCase")
+      .mockImplementation(function (this: string) {
+        return this === "il" ? "İL" : this.toUpperCase();
+      });
+    authStateRef.current = {
+      authUser: {
+        id: "doctor-2b",
+        email: "ilker@example.test",
+        full_name: "ilker",
+        role: "doctor",
+        is_active: true,
+      },
+      token: "ilker-jwt",
+      hydrated: true,
+      logout,
+    };
+
+    renderCapture();
+
+    await waitFor(() => {
+      expect(captured?.session).not.toBeNull();
+    });
+
+    expect(captured!.session?.user.initials).toBe("IL");
+    localeUppercase.mockRestore();
+  });
+
   it("derives deterministic initials for non-ASCII real identity names", async () => {
     mockLocalStorage();
     authStateRef.current = {
@@ -409,6 +439,96 @@ describe("SessionProvider / useSession", () => {
     expect(getMockStore()).not.toHaveProperty("hms.session");
     expect(Object.values(getMockStore())).not.toContain("real-jwt");
     expect(persistToken).not.toHaveBeenCalled();
+  });
+
+  it("signs out through the real AuthProvider without restoring the mock session or demo bearer", async () => {
+    vi.doUnmock("@/lib/auth-context");
+    vi.doUnmock("@/lib/api-client");
+    vi.resetModules();
+    mockLocalStorage({
+      "hms.session": JSON.stringify({ role: "admin" }),
+    });
+
+    const fetchMock = vi.fn((input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.endsWith("/auth/token")) {
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({ access_token: "integration-jwt" }),
+        } as Response);
+      }
+      if (url.endsWith("/auth/me")) {
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({
+            id: "integration-user",
+            email: "integration@example.test",
+            full_name: "Integration User",
+            role: "doctor",
+            is_active: true,
+          }),
+        } as Response);
+      }
+      throw new Error(`Unexpected fetch: ${url}`);
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const [
+      { AuthProvider, useAuth: useRealAuth },
+      { SessionProvider: RealSessionProvider, useSession: useRealSession },
+      { getToken },
+    ] = await Promise.all([import("./auth-context"), import("./session"), import("./api-client")]);
+
+    let realAuth: ReturnType<typeof useRealAuth> | null = null;
+    let realSession: ReturnType<typeof useRealSession> | null = null;
+
+    function RealProviderCapture() {
+      realAuth = useRealAuth();
+      realSession = useRealSession();
+      return (
+        <output data-testid="real-auth-state">
+          {realAuth.authUser ? "authenticated" : "anonymous"}
+        </output>
+      );
+    }
+
+    render(
+      <AuthProvider>
+        <RealSessionProvider>
+          <RealProviderCapture />
+        </RealSessionProvider>
+      </AuthProvider>,
+    );
+
+    await waitFor(() => {
+      expect(realAuth?.hydrated).toBe(true);
+    });
+
+    await act(async () => {
+      expect(await realAuth!.login("integration-user", "test-password")).toBe(true);
+    });
+
+    await waitFor(() => {
+      expect(realSession?.session?.isRealAuth).toBe(true);
+      expect(getToken()).toBe("integration-jwt");
+    });
+
+    act(() => {
+      realSession!.signOut();
+    });
+
+    await waitFor(() => {
+      expect(screen.getByTestId("real-auth-state").textContent).toBe("anonymous");
+      expect(realAuth?.authUser).toBeNull();
+      expect(realAuth?.token).toBeNull();
+      expect(realSession?.session).toBeNull();
+      expect(getToken()).toBeNull();
+    });
+
+    expect(getMockStore()).not.toHaveProperty("hms.session");
+    expect(Object.values(getMockStore())).not.toContain("integration-jwt");
+    expect(Object.values(getMockStore()).some((value) => value.startsWith("dev-"))).toBe(false);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 });
 

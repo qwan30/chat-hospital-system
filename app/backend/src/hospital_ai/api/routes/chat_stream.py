@@ -50,6 +50,7 @@ from hospital_ai.services.llm.base import LLMMessage
 from hospital_ai.services.memory import MemoryService
 from hospital_ai.services.permissions import PermissionService
 from hospital_ai.services.retrieval import RetrievalService
+from hospital_ai.services.validated_stream import ValidatedSentenceStreamer
 
 logger = logging.getLogger(__name__)
 

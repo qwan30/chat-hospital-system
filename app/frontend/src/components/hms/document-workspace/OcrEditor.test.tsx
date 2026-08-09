@@ -1,8 +1,8 @@
 /**
  * @vitest-environment jsdom
  */
-import { describe, it, expect, vi } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
+import { describe, it, expect, vi, afterEach } from "vitest";
+import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { OcrEditor } from "./OcrEditor";
 import { saveDraftPage } from "@/lib/api/document-revisions";
@@ -15,6 +15,12 @@ vi.mock("@/lib/api/document-revisions", () => ({
 }));
 
 const queryClient = new QueryClient();
+
+afterEach(() => {
+  cleanup();
+  queryClient.clear();
+  vi.clearAllMocks();
+});
 
 describe("OcrEditor", () => {
   it("shows a compare action on stale If-Match without losing local text", async () => {

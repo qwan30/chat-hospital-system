@@ -25,6 +25,10 @@ from hospital_ai.services.ocr import OcrService
 class PageExtractionError(Exception):
     """Raised when page OCR extraction fails."""
 
+    def __init__(self, message: str, error_code: str = "OCR_FAILED") -> None:
+        super().__init__(message)
+        self.error_code = error_code
+
 
 async def require_finalized_document_for_extraction(
     session: AsyncSession, document_id: uuid.UUID
@@ -60,7 +64,7 @@ class _ExtractionRuns:
         self, session: AsyncSession, document: Document, run: DocumentExtractionRun, exc: Exception
     ) -> None:
         run.status = "failed"
-        run.error_code = str(exc)
+        run.error_code = getattr(exc, "error_code", "OCR_FAILED")
         run.completed_at = datetime.now(UTC)
         document.status = "failed"
 
@@ -76,16 +80,20 @@ async def ocr_pipeline_extract(
     storage = jobs.get_storage_service(settings)
     try:
         source_sha256 = storage.source_sha256(document.storage_uri)
-    except Exception as exc:
-        raise PageExtractionError("Unable to verify the finalized source object.") from exc
+    except (FileNotFoundError, OSError, ValueError, Exception) as exc:
+        raise PageExtractionError(
+            "Unable to verify the finalized source object.", error_code="MISSING_SOURCE_OBJECT"
+        ) from exc
     if expected_source_sha256 and source_sha256 != expected_source_sha256:
-        raise PageExtractionError("Finalized source hash does not match upload evidence.")
+        raise PageExtractionError(
+            "Finalized source hash does not match upload evidence.", error_code="SOURCE_HASH_DRIFT"
+        )
     document.indexed_source_sha256 = source_sha256
     run.source_sha256 = source_sha256
 
     try:
         ocr = OcrService()
-        pages = ocr.extract_page_results(
+        pages = await ocr.extract_page_results(
             storage_uri=document.storage_uri,
             mime_type=document.mime_type,
             patient_id=str(document.patient_id),
@@ -167,7 +175,11 @@ class _RevisionIngest:
                         reading_order=getattr(span, "reading_order", 1),
                         alignment_status="aligned",
                         normalized_text=getattr(span, "text", ""),
-                        source_engine_metadata={"family": getattr(span, "engine_family", "native")},
+                        source_engine_metadata={
+                            "family": getattr(span, "engine_family", "native"),
+                            "model": getattr(span, "engine_model", "v4"),
+                            "revision": getattr(span, "engine_revision", "r1"),
+                        },
                     )
                     session.add(span_row)
 
@@ -233,6 +245,21 @@ async def extract_document(session: AsyncSession, document_id: uuid.UUID, settin
             expected_source_sha256=upload.expected_sha256,
         )
         await revision_ingest.persist_machine_drafts(session, document, run, pages)
+        if pages:
+            run.peak_rss_mb = max((int(getattr(p, "peak_rss_mb", 0)) for p in pages), default=0)
+            run.latency_ms = sum(int(getattr(p, "latency_ms", 0)) for p in pages)
+            for p in pages:
+                spans = getattr(p, "spans", ())
+                if spans:
+                    first_span = spans[0]
+                    if hasattr(first_span, "engine_family"):
+                        run.engine_family = first_span.engine_family
+                    if hasattr(first_span, "engine_model"):
+                        run.engine_model = first_span.engine_model
+                    if hasattr(first_span, "engine_revision"):
+                        run.engine_revision = first_span.engine_revision
+                    break
+
         document.status = "review_required"
         run.status = "completed"
         run.completed_at = datetime.now(UTC)

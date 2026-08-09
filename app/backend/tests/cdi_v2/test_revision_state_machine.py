@@ -166,3 +166,70 @@ async def test_approval_authorizes_build_without_publishing_document_pointer(rev
     assert accepted.state == "building"
     assert persisted.status == "build_authorized"
     assert document.approved_revision_set_id is None
+
+
+@pytest.mark.asyncio
+async def test_activation_transitions_build_authorized_to_approved_and_supersedes_previous(revision_fixture) -> None:
+    session, document, doctor, _ = revision_fixture
+    from hospital_ai.db.clinical_documents import DocumentIndexGeneration, GenerationStageResult
+    from hospital_ai.services.generations import GENERATION_STAGES, GenerationService, calculate_generation_hash
+    from hospital_ai.services.revisions import ApproveRevisionCommand, RevisionService, SubmitCommand
+
+    rev_service = RevisionService(session)
+    submitted1 = await rev_service.submit(document.id, SubmitCommand(actor_id=doctor.id))
+    accepted1 = await rev_service.approve(
+        submitted1.revision_set_id,
+        ApproveRevisionCommand(actor_id=RECORDS_ID),
+        enqueue=False,
+    )
+    gen1 = await session.get(DocumentIndexGeneration, accepted1.generation_id)
+    assert gen1 is not None
+    gen1.generation_sha256 = calculate_generation_hash(["0" * 64] * len(GENERATION_STAGES))
+    for stg in GENERATION_STAGES:
+        session.add(GenerationStageResult(generation_id=gen1.id, stage=stg, status="completed", output_sha256="0" * 64))
+    await session.commit()
+
+    gen_service = GenerationService(session)
+    await gen_service.activate(gen1.id)
+
+    persisted1 = await session.get(DocumentRevisionSet, submitted1.revision_set_id)
+    assert persisted1 is not None
+    assert persisted1.status == "approved"
+
+    submitted2 = await rev_service.submit(document.id, SubmitCommand(actor_id=doctor.id))
+    accepted2 = await rev_service.approve(
+        submitted2.revision_set_id,
+        ApproveRevisionCommand(actor_id=RECORDS_ID),
+        enqueue=False,
+    )
+    gen2 = await session.get(DocumentIndexGeneration, accepted2.generation_id)
+    assert gen2 is not None
+    gen2.generation_sha256 = calculate_generation_hash(["1" * 64] * len(GENERATION_STAGES))
+    for stg in GENERATION_STAGES:
+        session.add(GenerationStageResult(generation_id=gen2.id, stage=stg, status="completed", output_sha256="1" * 64))
+    await session.commit()
+
+    await gen_service.activate(gen2.id, expected_active_generation_id=gen1.id)
+    await session.refresh(persisted1)
+    persisted2 = await session.get(DocumentRevisionSet, submitted2.revision_set_id)
+    assert persisted2 is not None
+    assert persisted1.status == "superseded"
+    assert persisted2.status == "approved"
+
+
+@pytest.mark.asyncio
+async def test_machine_draft_to_human_draft_transition(revision_fixture) -> None:
+    session, document, doctor, page_revision = revision_fixture
+    from hospital_ai.services.revisions import RevisionService, SavePageCommand
+
+    result = await RevisionService(session).save_page(
+        document.id,
+        1,
+        SavePageCommand(
+            text="human edited text",
+            parent_revision_id=page_revision.id,
+            lock_version=1,
+            actor_id=doctor.id,
+        ),
+    )
+    assert result.status == "human_draft"

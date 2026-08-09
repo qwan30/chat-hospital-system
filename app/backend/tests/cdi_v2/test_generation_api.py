@@ -148,6 +148,19 @@ async def test_rollback_api_replays_completed_idempotent_request(api_fixture, mo
     )
     assert replay.active_index_generation_id == first.active_index_generation_id == gen_a.id
 
+    from hospital_ai.core.errors import ConflictError
+
+    with pytest.raises(ConflictError):
+        await gen_routes.rollback_generation(
+            document_id=doc.id,
+            generation_id=gen_b.id,
+            payload=GenerationRollbackRequest(expected_active_generation_id=gen_a.id, reason="Operational rollback"),
+            request=_request(method="POST", path=f"/api/v1/documents/{doc.id}/index-generations/{gen_b.id}/rollback"),
+            idempotency_key="rollback-replay-1",
+            current_user=admin,
+            session=session,
+        )
+
 
 @pytest.mark.asyncio
 async def test_retry_api_creates_building_row(api_fixture, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -181,3 +194,15 @@ async def test_retry_api_creates_building_row(api_fixture, monkeypatch: pytest.M
         session=session,
     )
     assert replay.id == res.id
+
+    from hospital_ai.core.errors import ConflictError
+
+    with pytest.raises(ConflictError):
+        await gen_routes.retry_generation(
+            document_id=doc.id,
+            generation_id=gen_a.id,
+            request=_request(method="POST", path=f"/api/v1/documents/{doc.id}/index-generations/{gen_a.id}/retry"),
+            idempotency_key="retry-1",
+            current_user=admin,
+            session=session,
+        )

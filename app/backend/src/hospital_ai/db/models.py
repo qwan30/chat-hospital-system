@@ -577,7 +577,7 @@ class DocumentProcessingRun(TimestampMixin, Base):
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
     document_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("documents.id"), nullable=False, index=True)
     configuration_version: Mapped[str] = mapped_column(String(64), nullable=False)
-    status: Mapped[str] = mapped_column(String(32), nullable=False, default="pending")
+    status: Mapped[str] = mapped_column(String(32), nullable=False, default="pending", server_default="pending")
     started_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
     completed_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
     error_message: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
@@ -609,7 +609,7 @@ class ClinicalFact(TimestampMixin, Base):
     confidence: Mapped[Optional[float]] = mapped_column(Numeric, nullable=True)
     source_page: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     bounding_box: Mapped[Optional[dict[str, Any]]] = mapped_column(JSON, nullable=True)
-    status: Mapped[str] = mapped_column(String(32), nullable=False, default="unverified")
+    status: Mapped[str] = mapped_column(String(32), nullable=False, default="unverified", server_default="unverified")
 
     generation_id: Mapped[Optional[uuid.UUID]] = mapped_column(
         ForeignKey("document_index_generations.id", use_alter=True), nullable=True, index=True
@@ -641,7 +641,7 @@ class DocumentReviewItem(TimestampMixin, Base):
     original_value: Mapped[Optional[str]] = mapped_column(EncryptedText(), nullable=True)
     suggested_value: Mapped[Optional[str]] = mapped_column(EncryptedText(), nullable=True)
 
-    review_status: Mapped[str] = mapped_column(String(32), nullable=False, default="pending")
+    review_status: Mapped[str] = mapped_column(String(32), nullable=False, default="pending", server_default="pending")
     reviewed_by_user_id: Mapped[Optional[uuid.UUID]] = mapped_column(ForeignKey("users.id"), nullable=True)
     reviewed_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
 

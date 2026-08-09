@@ -160,3 +160,30 @@ async def test_revision_set_hash_is_content_and_geometry_bound(revision_fixture)
     await session.commit()
     second_hash = await service._revision_set_hash(submitted.revision_set_id)
     assert second_hash != first_hash
+
+
+@pytest.mark.asyncio
+async def test_serialize_exact_evidence_rejects_stale_geometry(revision_fixture) -> None:
+    session, document, doctor, page_revision = revision_fixture
+    await _add_geometry(session, page_revision.id, page_revision.corrected_text)
+
+    from hospital_ai.core.errors import ConflictError
+    from hospital_ai.services.revisions import RevisionService, SavePageCommand
+
+    service = RevisionService(session)
+    evidence = await service.serialize_exact_evidence(document.id, page_revision.id)
+    assert evidence["alignment_state"] == "aligned"
+    assert len(evidence["spans"]) == 1
+
+    result = await service.save_page(
+        document.id,
+        1,
+        SavePageCommand(
+            text="changed clinical text",
+            parent_revision_id=page_revision.id,
+            lock_version=1,
+            actor_id=doctor.id,
+        ),
+    )
+    with pytest.raises(ConflictError, match="[Ss]tale geometry|[Ss]tale"):
+        await service.serialize_exact_evidence(document.id, result.page_revision_id)

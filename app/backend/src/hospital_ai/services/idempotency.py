@@ -82,11 +82,17 @@ class IdempotencyService:
         self.session.add(created)
         try:
             await self.session.flush()
-        except IntegrityError as exc:
+        except IntegrityError:
             await self.session.rollback()
             record = await self._lock(self.actor_user_id, scope, key_hash)
             if record is None:
-                raise ConflictError("Unable to establish idempotency record; retry the request.") from exc
+                return IdempotencyDecision(
+                    uuid.UUID(int=0),
+                    is_replay=False,
+                    is_in_progress=True,
+                    status_code=409,
+                    response_body={"detail": "Request is already in progress; retry later."},
+                )
             return self._decision_for_record(record, payload_hash)
         return IdempotencyDecision(created.id, False)
 
@@ -104,7 +110,8 @@ class IdempotencyService:
     async def abort(self, record_id: uuid.UUID) -> None:
         """Release an unfinished key after a mutation failed before completion."""
         await self.session.rollback()
-        record = await self.session.get(IdempotencyRecord, record_id)
-        if record is not None:
-            await self.session.delete(record)
-        await self.session.commit()
+        if record_id != uuid.UUID(int=0):
+            record = await self.session.get(IdempotencyRecord, record_id)
+            if record is not None:
+                await self.session.delete(record)
+                await self.session.commit()

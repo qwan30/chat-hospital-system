@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, Optional
 
 
 @dataclass(frozen=True)
@@ -51,3 +51,12 @@ class OcrRouter:
         if preflight.handwriting_probability >= self.handwriting_threshold:
             return RouteDecision("vietocr_handwritten", preflight.handwriting_probability)
         return RouteDecision("paddle_printed", 1.0)
+
+    def get_fallback_route(self, current_route: str) -> Optional[str]:
+        fallback_map = {
+            "vietocr_handwritten": "paddle_printed",
+            "trocr_handwritten": "paddle_printed",
+            "paddle_printed": "native",
+            "force_oom": "native",
+        }
+        return fallback_map.get(current_route)

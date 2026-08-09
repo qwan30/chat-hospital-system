@@ -157,3 +157,42 @@ async def test_submit_reject_and_restore(session_and_settings, seeded_document) 
     )
     assert restored.lock_version == 2
     assert restored.status == "human_draft"
+
+
+@pytest.mark.asyncio
+async def test_restore_parent_revision_equals_current_draft_head(session_and_settings, seeded_document) -> None:
+    session, _ = session_and_settings
+    from hospital_ai.services.revisions import RestoreCommand, RevisionService, SavePageCommand
+
+    service = RevisionService(session)
+    rev2 = await service.save_page(
+        seeded_document.id,
+        1,
+        SavePageCommand(
+            text="human edit",
+            parent_revision_id=seeded_document.machine_id,
+            lock_version=1,
+            actor_id=seeded_document.doctor_id,
+            edit_reason="first update",
+        ),
+    )
+    assert rev2.lock_version == 2
+
+    restored = await service.restore(
+        seeded_document.id,
+        1,
+        RestoreCommand(
+            revision_id=seeded_document.machine_id,
+            actor_id=seeded_document.doctor_id,
+            lock_version=2,
+            reason="revert to machine text",
+        ),
+    )
+    assert restored.lock_version == 3
+    assert restored.text == "initial text"
+
+    from hospital_ai.db.clinical_documents import DocumentPageRevision
+
+    restored_obj = await session.get(DocumentPageRevision, restored.page_revision_id)
+    assert restored_obj is not None
+    assert restored_obj.parent_revision_id == rev2.page_revision_id

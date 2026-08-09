@@ -6,18 +6,18 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from hospital_ai.api.deps import get_current_user, get_session
-from hospital_ai.core.errors import ConflictError, NotFoundError
+from hospital_ai.core.errors import ConflictError
 from hospital_ai.core.security import new_trace_id
 from hospital_ai.db.clinical_documents import (
     DocumentDraftHead,
-    DocumentPageRevision,
     DocumentRevisionSet,
 )
-from hospital_ai.db.models import Document, User
+from hospital_ai.db.models import User
 from hospital_ai.schemas.document_revisions import (
     ApproveRevisionRequest,
     DraftPageRead,
     DraftPageWrite,
+    ExactEvidenceRead,
     GenerationAcceptedRead,
     RejectRevisionRequest,
     RestoreRevisionRequest,
@@ -38,13 +38,6 @@ from hospital_ai.services.revisions import (
 router = APIRouter()
 
 
-async def _get_document_or_404(session: AsyncSession, document_id: uuid.UUID) -> Document:
-    doc = await session.get(Document, document_id)
-    if not doc:
-        raise NotFoundError(f"Document not found: {document_id}")
-    return doc
-
-
 @router.patch("/{document_id}/draft/pages/{page_number}", response_model=DraftPageRead, status_code=201)
 async def save_draft_page(
     document_id: uuid.UUID,
@@ -56,7 +49,15 @@ async def save_draft_page(
     current_user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
 ) -> DraftPageRead:
-    document = await _get_document_or_404(session, document_id)
+    aggregate = await load_document_revision_aggregate(
+        session,
+        document_id=document_id,
+        page_revision_id=payload.parent_revision_id,
+        actor=current_user,
+        action="document_revision.page.save",
+        trace_id=new_trace_id(),
+    )
+    document = aggregate.document
     await CapabilityService(session).require(
         user=current_user,
         patient_id=document.patient_id,
@@ -66,10 +67,13 @@ async def save_draft_page(
         object_id=document_id,
     )
     idemp_service = IdempotencyService(session, current_user.id)
+    req_payload = json.loads(payload.model_dump_json() if hasattr(payload, "model_dump_json") else payload.json())
+    req_payload["document_id"] = str(document_id)
+    req_payload["page_number"] = page_number
     decision = await idemp_service.begin(
-        scope=f"save_draft_page:{document_id}:{page_number}",
+        scope="document.revision.page.save",
         key=idempotency_key,
-        payload=json.loads(payload.model_dump_json() if hasattr(payload, "model_dump_json") else payload.json()),
+        payload=req_payload,
     )
     if decision.is_in_progress:
         raise ConflictError("Request is already in progress; retry later.")
@@ -121,7 +125,14 @@ async def submit_draft(
     current_user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
 ) -> RevisionSetRead:
-    document = await _get_document_or_404(session, document_id)
+    aggregate = await load_document_revision_aggregate(
+        session,
+        document_id=document_id,
+        actor=current_user,
+        action="document_revision.submit",
+        trace_id=new_trace_id(),
+    )
+    document = aggregate.document
     await CapabilityService(session).require(
         user=current_user,
         patient_id=document.patient_id,
@@ -132,9 +143,9 @@ async def submit_draft(
     )
     idemp_service = IdempotencyService(session, current_user.id)
     decision = await idemp_service.begin(
-        scope=f"submit_draft:{document_id}",
+        scope="document.revision.submit",
         key=idempotency_key,
-        payload={"if_match": if_match},
+        payload={"document_id": str(document_id), "if_match": if_match},
     )
     if decision.is_in_progress:
         raise ConflictError("Request is already in progress; retry later.")
@@ -202,10 +213,13 @@ async def approve_revision_set(
         object_id=document_id,
     )
     idemp_service = IdempotencyService(session, current_user.id)
+    req_payload = json.loads(payload.model_dump_json() if hasattr(payload, "model_dump_json") else payload.json())
+    req_payload["document_id"] = str(document_id)
+    req_payload["revision_set_id"] = str(revision_set_id)
     decision = await idemp_service.begin(
-        scope=f"approve_revision_set:{document_id}:{revision_set_id}",
+        scope="document.revision.approve",
         key=idempotency_key,
-        payload=json.loads(payload.model_dump_json() if hasattr(payload, "model_dump_json") else payload.json()),
+        payload=req_payload,
     )
     if decision.is_in_progress:
         raise ConflictError("Request is already in progress; retry later.")
@@ -265,10 +279,13 @@ async def reject_revision_set(
         object_id=document_id,
     )
     idemp_service = IdempotencyService(session, current_user.id)
+    req_payload = json.loads(payload.model_dump_json() if hasattr(payload, "model_dump_json") else payload.json())
+    req_payload["document_id"] = str(document_id)
+    req_payload["revision_set_id"] = str(revision_set_id)
     decision = await idemp_service.begin(
-        scope=f"reject_revision_set:{document_id}:{revision_set_id}",
+        scope="document.revision.reject",
         key=idempotency_key,
-        payload=json.loads(payload.model_dump_json() if hasattr(payload, "model_dump_json") else payload.json()),
+        payload=req_payload,
     )
     if decision.is_in_progress:
         raise ConflictError("Request is already in progress; retry later.")
@@ -336,10 +353,13 @@ async def restore_revision(
         object_id=document_id,
     )
     idemp_service = IdempotencyService(session, current_user.id)
+    req_payload = json.loads(payload.model_dump_json() if hasattr(payload, "model_dump_json") else payload.json())
+    req_payload["document_id"] = str(document_id)
+    req_payload["revision_set_id"] = str(revision_set_id)
     decision = await idemp_service.begin(
-        scope=f"restore_revision:{document_id}:{revision_set_id}",
+        scope="document.revision.restore",
         key=idempotency_key,
-        payload=json.loads(payload.model_dump_json() if hasattr(payload, "model_dump_json") else payload.json()),
+        payload=req_payload,
     )
     if decision.is_in_progress:
         raise ConflictError("Request is already in progress; retry later.")
@@ -425,6 +445,7 @@ async def get_draft_page(
     aggregate = await load_document_revision_aggregate(
         session,
         document_id=document_id,
+        page_number=page_number,
         actor=current_user,
         action="document_revision.draft.read",
         trace_id=new_trace_id(),
@@ -438,19 +459,10 @@ async def get_draft_page(
         object_id=document_id,
     )
     head = await session.get(DocumentDraftHead, document_id)
-    if not head:
-        raise NotFoundError("Draft head not found")
-    page_rev_id_str = head.selected_pages.get(str(page_number))
-    if not page_rev_id_str:
-        raise NotFoundError("Draft page not found")
-
-    page_rev = await session.get(DocumentPageRevision, uuid.UUID(page_rev_id_str))
-    if not page_rev:
-        raise NotFoundError("Revision not found")
-
+    page_rev = aggregate.page_revision
     return DraftPageRead(
         page_revision_id=page_rev.id,
-        lock_version=head.lock_version,
+        lock_version=head.lock_version if head else 1,
         page_number=page_number,
         text=page_rev.corrected_text,
         status="draft",
@@ -494,3 +506,28 @@ async def get_revision_page(
         text=page_rev.corrected_text,
         status=rev_set.status,
     )
+
+
+@router.get("/{document_id}/revisions/{revision_id}/exact-evidence", response_model=ExactEvidenceRead, status_code=200)
+async def get_exact_evidence(
+    document_id: uuid.UUID,
+    revision_id: uuid.UUID,
+    current_user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+) -> ExactEvidenceRead:
+    from hospital_ai.core.errors import NotFoundError
+    from hospital_ai.db.models import Document
+
+    document = await session.get(Document, document_id)
+    if not document:
+        raise NotFoundError("Document not found.")
+    await CapabilityService(session).require(
+        user=current_user,
+        patient_id=document.patient_id,
+        capability="document_revision.view_raw",
+        action="document_revision.exact_evidence.read",
+        trace_id=new_trace_id(),
+        object_id=document_id,
+    )
+    evidence = await RevisionService(session).serialize_exact_evidence(document_id, revision_id)
+    return ExactEvidenceRead(**evidence)

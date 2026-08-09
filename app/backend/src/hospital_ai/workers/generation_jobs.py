@@ -22,7 +22,12 @@ from hospital_ai.db.clinical_documents import (
 from hospital_ai.db.models import Document, DocumentChunk, DocumentPage
 from hospital_ai.services.chunking import ChunkingService
 from hospital_ai.services.embeddings import EmbeddingService
-from hospital_ai.services.generations import GENERATION_STAGES, ActivationResult, GenerationService
+from hospital_ai.services.generations import (
+    GENERATION_STAGES,
+    ActivationResult,
+    GenerationService,
+    calculate_generation_hash,
+)
 from hospital_ai.services.ocr import OcrPage
 
 logger = logging.getLogger(__name__)
@@ -152,6 +157,8 @@ class StageRunner:
             chunks = list(res.scalars().all())
             if chunks:
                 embeddings = await EmbeddingService(self.settings).embed_many(c.content for c in chunks)
+                if len(chunks) != len(embeddings):
+                    raise ValueError("Embedding provider returned an unexpected number of vectors.")
                 for c, emb in zip(chunks, embeddings, strict=True):
                     c.embedding = emb
                 await self.session.flush()
@@ -265,8 +272,7 @@ class GenerationBuilder:
                 .where(GenerationStageResult.generation_id == generation.id)
                 .order_by(GenerationStageResult.stage)
             )
-            combined_hash_input = "".join(str(h) for h in res.scalars().all())
-            generation.generation_sha256 = hashlib.sha256(combined_hash_input.encode("utf-8")).hexdigest()
+            generation.generation_sha256 = calculate_generation_hash([str(h) for h in res.scalars().all()])
             await self.session.commit()
 
             doc = await self.session.get(Document, generation.document_id)

@@ -97,6 +97,13 @@ async def test_finalize_upload_session(session_and_settings, monkeypatch: pytest
         session=session,
         current_user=doctor,
     )
+    created2 = await upload_routes.create_upload_session(
+        payload=payload,
+        request=_request(),
+        idempotency_key="idemp-test-3",
+        session=session,
+        current_user=doctor,
+    )
 
     # Mock storage methods on whatever service is resolved so finalize passes validation
     from hospital_ai.services import upload_sessions as us_module
@@ -113,10 +120,14 @@ async def test_finalize_upload_session(session_and_settings, monkeypatch: pytest
                 "read_stream": lambda *args: io.BytesIO(content),
             },
         )()
+        from hospital_ai.services.upload_sessions import StorageContentReader
+
+        service.content_reader = StorageContentReader(service.storage)
         service.scanner = _CleanScanner()
         return service
 
     monkeypatch.setattr(us_module.UploadSessionService, "from_request", mocked_from_request)
+    monkeypatch.setattr("hospital_ai.workers.queue.enqueue_document_indexing", lambda *args, **kwargs: None)
 
     res = await upload_routes.finalize_upload_session(
         document_id=created.document_id,
@@ -137,9 +148,104 @@ async def test_finalize_upload_session(session_and_settings, monkeypatch: pytest
         current_user=doctor,
     )
     assert replay.id == res.id
-    record = await session.scalar(select(IdempotencyRecord).where(IdempotencyRecord.scope.like("upload.finalize.%")))
+    record = await session.scalar(select(IdempotencyRecord).where(IdempotencyRecord.scope.like("%finalize%")))
     assert record is not None
     assert record.state == "completed"
+
+    from hospital_ai.core.errors import ConflictError
+
+    with pytest.raises(ConflictError):
+        await upload_routes.finalize_upload_session(
+            document_id=created2.document_id,
+            upload_id=created2.upload_id,
+            request=_request(),
+            idempotency_key="finalize-1",
+            session=session,
+            current_user=doctor,
+        )
+
+
+@pytest.mark.asyncio
+async def test_finalize_upload_session_failure_releases_idempotency_key(
+    session_and_settings, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    session, _ = session_and_settings
+    import hashlib
+    import io
+
+    from hospital_ai.api.routes import document_uploads as upload_routes
+    from hospital_ai.core.errors import ValidationAppError
+    from hospital_ai.schemas.document_uploads import UploadSessionCreate
+    from hospital_ai.services.storage import StorageObjectHead
+
+    doctor = await session.get(User, DOCTOR_ID)
+    if not doctor:
+        doctor = User(
+            id=uuid.uuid4(),
+            email="doc3@test.com",
+            password_hash="hash",
+            full_name="Doc3",
+            role="doctor",
+            is_active=True,
+        )
+        session.add(doctor)
+        await session.commit()
+
+    content = b"%PDF-1.4\n"
+    payload = UploadSessionCreate(
+        patient_id=PATIENT_ALICE_ID,
+        filename="bad.pdf",
+        expected_size=len(content),
+        expected_sha256="a" * 64,
+        claimed_mime_type="application/pdf",
+    )
+    created = await upload_routes.create_upload_session(
+        payload=payload, request=_request(), idempotency_key="idemp-create-fail", session=session, current_user=doctor
+    )
+
+    from hospital_ai.services import upload_sessions as us_module
+
+    original_from_request = us_module.UploadSessionService.from_request
+
+    def mocked_from_request(sess, req):
+        service = original_from_request(sess, req)
+        service.storage = type(
+            "MockStorage",
+            (),
+            {
+                "head_object": lambda *args: StorageObjectHead(args[-1], len(content), '"etag"', "application/pdf"),
+                "read_stream": lambda *args: io.BytesIO(content),
+            },
+        )()
+        from hospital_ai.services.upload_sessions import StorageContentReader
+
+        service.content_reader = StorageContentReader(service.storage)
+        service.scanner = _CleanScanner()
+        return service
+
+    monkeypatch.setattr(us_module.UploadSessionService, "from_request", mocked_from_request)
+    monkeypatch.setattr("hospital_ai.workers.queue.enqueue_document_indexing", lambda *args, **kwargs: None)
+
+    with pytest.raises(ValidationAppError):
+        await upload_routes.finalize_upload_session(
+            document_id=created.document_id,
+            upload_id=created.upload_id,
+            request=_request(),
+            idempotency_key="finalize-fail-1",
+            session=session,
+            current_user=doctor,
+        )
+
+    records = list(
+        (
+            await session.execute(
+                select(IdempotencyRecord).where(
+                    IdempotencyRecord.key_hash == hashlib.sha256(b"finalize-fail-1").hexdigest()
+                )
+            )
+        ).scalars()
+    )
+    assert len(records) == 0
 
 
 def test_routes_registered_in_router() -> None:
@@ -151,5 +257,7 @@ def test_routes_registered_in_router() -> None:
 
 
 class _CleanScanner:
-    async def scan(self, key: str) -> str:
-        return "clean"
+    async def scan(self, key: str):
+        from hospital_ai.services.upload_sessions import MalwareScanResult
+
+        return MalwareScanResult(status="clean")

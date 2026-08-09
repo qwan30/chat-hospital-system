@@ -216,6 +216,77 @@ def test_docx_temp_file_is_removed_when_storage_read_fails(tmp_path: Path, monke
     assert not created_paths[0].exists()
 
 
+def test_docx_temp_file_is_removed_when_temporary_write_fails(tmp_path: Path, monkeypatch):
+    from hospital_ai.workers import jobs
+
+    temporary_path = tmp_path / "write-failure.docx"
+    temporary_path.touch()
+
+    class FailingTemporaryFile:
+        name = str(temporary_path)
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_args):
+            return False
+
+        def write(self, _content: bytes) -> int:
+            raise OSError("Cannot write temporary DOCX")
+
+    class SourceStorage:
+        def read_bytes(self, _storage_uri: str) -> bytes:
+            return b"source bytes"
+
+    monkeypatch.setattr(jobs, "NamedTemporaryFile", lambda **_kwargs: FailingTemporaryFile())
+    document = SimpleNamespace(
+        storage_uri="r2://patients/synthetic.docx",
+        mime_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    )
+
+    with pytest.raises(OSError, match="Cannot write temporary DOCX"):
+        jobs._load_docx_pages(document, SourceStorage())
+
+    assert not temporary_path.exists()
+
+
+def test_docx_loader_rejects_stream_exceeding_safe_size_after_small_metadata(tmp_path: Path, monkeypatch):
+    from hospital_ai.core.errors import ExternalServiceError
+    from hospital_ai.services.loaders import docx_loader
+
+    class DocumentPart:
+        file_size = docx_loader.MAX_OOXML_DOCUMENT_BYTES
+
+    class OversizedStream:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_args):
+            return False
+
+        def read(self, size: int) -> bytes:
+            assert size == docx_loader.MAX_OOXML_DOCUMENT_BYTES + 1
+            return b"x" * size
+
+    class Archive:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_args):
+            return False
+
+        def getinfo(self, _name: str) -> DocumentPart:
+            return DocumentPart()
+
+        def open(self, _part: DocumentPart) -> OversizedStream:
+            return OversizedStream()
+
+    monkeypatch.setattr(docx_loader, "ZipFile", lambda _path: Archive())
+
+    with pytest.raises(ExternalServiceError, match="maximum safe size"):
+        docx_loader.DocxLoader()._load_ooxml_without_python_docx(tmp_path / "synthetic.docx")
+
+
 @pytest.mark.asyncio
 async def test_upload_accepts_browser_hl7_octet_stream_and_indexes_it(session_and_settings):
     from io import BytesIO

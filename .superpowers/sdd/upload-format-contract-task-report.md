@@ -65,3 +65,11 @@
   failure and for an oversized compressed OOXML document part.
 - Final focused validation: 29 document/API/worker tests passed; Ruff check
   and format check passed.
+
+## Coverage follow-up
+
+- Added direct tests for a temporary-file write failure (in addition to a
+  storage-read failure) and for the bounded stream-read guard when ZIP metadata
+  is within the size cap but the decompressed stream exceeds it.
+- The four DOCX safety regressions pass independently before the final full
+  document/API/worker validation.

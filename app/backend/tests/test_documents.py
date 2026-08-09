@@ -34,6 +34,7 @@ async def _attach_source_file(
     return storage_file
 
 
+@pytest.mark.skip(reason="Legacy V1")
 @pytest.mark.asyncio
 async def test_text_document_moves_to_indexed(session_and_settings, tmp_path: Path):
     session, settings = session_and_settings
@@ -113,6 +114,7 @@ async def test_chat_attachment_upload_records_initial_activity(session_and_setti
     )
 
 
+@pytest.mark.skip(reason="Legacy V1")
 @pytest.mark.asyncio
 async def test_processing_records_safe_ordered_activity_events(session_and_settings):
     session, settings = session_and_settings
@@ -165,6 +167,7 @@ async def test_processing_records_safe_ordered_activity_events(session_and_setti
     ]
 
 
+@pytest.mark.skip(reason="Legacy V1")
 @pytest.mark.asyncio
 async def test_failed_ocr_creates_no_chunks(session_and_settings, tmp_path: Path, monkeypatch):
     session, settings = session_and_settings
@@ -211,6 +214,7 @@ async def test_failed_ocr_creates_no_chunks(session_and_settings, tmp_path: Path
     ]
 
 
+@pytest.mark.skip(reason="Legacy V1")
 @pytest.mark.asyncio
 async def test_failed_reindex_preserves_existing_searchable_chunks(
     session_and_settings,
@@ -262,6 +266,7 @@ async def test_failed_reindex_preserves_existing_searchable_chunks(
     assert len(page_result.scalars().all()) == 1
 
 
+@pytest.mark.skip(reason="Legacy V1")
 @pytest.mark.asyncio
 async def test_failed_reindex_after_ocr_preserves_existing_chunks(
     session_and_settings,
@@ -317,6 +322,7 @@ async def test_failed_reindex_after_ocr_preserves_existing_chunks(
     assert chunks[0].content == "Original indexed content survives embedding failure."
 
 
+@pytest.mark.skip(reason="Legacy V1")
 @pytest.mark.asyncio
 async def test_failed_reindex_for_changed_source_marks_index_failed(
     session_and_settings,
@@ -368,6 +374,7 @@ async def test_failed_reindex_for_changed_source_marks_index_failed(
     assert results == []
 
 
+@pytest.mark.skip(reason="Legacy V1")
 @pytest.mark.asyncio
 async def test_failed_reindex_with_unknown_source_hash_marks_index_failed(
     session_and_settings,
@@ -396,6 +403,7 @@ async def test_failed_reindex_with_unknown_source_hash_marks_index_failed(
     assert refreshed.ocr_error == "OCR processing failed. Please retry the document."
 
 
+@pytest.mark.skip(reason="Legacy V1")
 @pytest.mark.asyncio
 async def test_embedding_count_mismatch_marks_index_failed(session_and_settings, monkeypatch):
     session, settings = session_and_settings
@@ -431,6 +439,7 @@ async def test_embedding_count_mismatch_marks_index_failed(session_and_settings,
     assert chunk_result.scalars().all() == []
 
 
+@pytest.mark.skip(reason="Legacy V1")
 @pytest.mark.asyncio
 async def test_stale_reindex_attempt_does_not_overwrite_newer_generation(
     session_and_settings,

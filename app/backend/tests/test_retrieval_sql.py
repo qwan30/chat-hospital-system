@@ -21,6 +21,12 @@ def test_retrieval_sql_does_not_repeat_patient_permission_filter():
     assert "c.patient_id = :patient_id" in sql
     assert "d.patient_id = :patient_id" in sql
     assert "p.id = c.page_id and p.document_id = c.document_id" in sql
+    assert "join document_index_generations g on g.id = c.generation_id" in sql
+    assert "join document_revision_sets rs on rs.id = c.revision_set_id" in sql
+    assert "d.active_index_generation_id = c.generation_id" in sql
+    assert "g.state = 'active'" in sql
+    assert "g.revision_set_id = c.revision_set_id" in sql
+    assert "rs.status = 'approved'" in sql
     assert "or c.patient_id is null" not in sql
     assert "or d.patient_id is null" not in sql
     assert "c.embedding is not null" in sql

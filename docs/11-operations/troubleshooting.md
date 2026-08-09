@@ -47,15 +47,15 @@ When authentication fails, check HMS IdP status, DNS, TLS, issuer, audience, alg
 
 ## 6. RQ Worker
 
-The worker consumes `document-indexing` and `cdss-analysis`.
+The worker consumes `document-indexing`, `cdss-analysis`, and `document-generation-build`.
 
 ```bash
-for queue in document-indexing cdss-analysis; do
+for queue in document-indexing cdss-analysis document-generation-build; do
   docker compose -f infra/docker-compose.yml exec -T redis \
     redis-cli LLEN "rq:queue:${queue}"
 done
 
-for queue in document-indexing cdss-analysis; do
+for queue in document-indexing cdss-analysis document-generation-build; do
   docker compose -f infra/docker-compose.yml exec -T worker \
     python -c "from redis import Redis; from rq.registry import FailedJobRegistry; r=Redis.from_url('redis://redis:6379/0'); print('${queue}', FailedJobRegistry('${queue}', connection=r).count)"
 done

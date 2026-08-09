@@ -114,8 +114,9 @@ def test_worker_entrypoint_builds_all_supported_queues(monkeypatch):
     assert created_queues == [
         "document-indexing",
         "cdss-analysis",
+        "document-generation-build",
     ]
-    assert len(worker.queues) == 2
+    assert len(worker.queues) == 3
     assert worker.connection is connection
 
 

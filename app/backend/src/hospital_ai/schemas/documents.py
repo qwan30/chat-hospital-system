@@ -60,6 +60,13 @@ class EvidenceRead(BaseModel):
     score: float
     content: Optional[str] = None
     metadata: dict[str, Any] = Field(default_factory=dict)
+    generation_id: Optional[UUID] = None
+    revision_set_id: Optional[UUID] = None
+    page_revision_id: Optional[UUID] = None
+    approval_state: Optional[str] = None
+    start_offset: Optional[int] = None
+    end_offset: Optional[int] = None
+    bounding_boxes: Optional[list[Any]] = None
 
 
 class DocumentSearchResponse(BaseModel):

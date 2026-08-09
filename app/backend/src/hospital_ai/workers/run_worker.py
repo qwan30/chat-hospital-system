@@ -8,7 +8,7 @@ from rq import Queue, Worker
 
 from hospital_ai.core.config import Settings, get_settings
 
-WORKER_QUEUE_NAMES = ("document-indexing", "cdss-analysis")
+WORKER_QUEUE_NAMES = ("document-indexing", "cdss-analysis", "document-generation-build")
 
 
 def build_worker(settings: Settings) -> Worker:

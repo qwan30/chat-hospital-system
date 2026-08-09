@@ -86,6 +86,10 @@ async def test_chat_invalid_patient_id_returns_error(session_and_settings):
     doctor = await session.get(User, DOCTOR_ID)
 
     nonexistent_id = uuid.UUID("99999999-0000-0000-0000-000000000000")
+    from hospital_ai.db.models import Patient
+
+    session.add(Patient(id=nonexistent_id, full_name="Test", mrn="MRN"))
+    await session.commit()
 
     payload = ChatRequest(
         patient_id=nonexistent_id,

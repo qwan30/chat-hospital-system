@@ -230,6 +230,61 @@ class ProductRetrievalAdapter:
             )
             session.add(page)
             await session.flush()
+
+            import datetime
+            import uuid
+
+            from hospital_ai.db.clinical_documents import (
+                DocumentIndexGeneration,
+                DocumentPageRevision,
+                DocumentRevisionSet,
+            )
+
+            rev_set = DocumentRevisionSet(
+                id=uuid.uuid4(),
+                document_id=document.id,
+                revision_number=1,
+                status="approved",
+                created_by_user_id=actor_id,
+                submitted_at=datetime.datetime.now(datetime.UTC),
+                approved_by_user_id=actor_id,
+                approved_at=datetime.datetime.now(datetime.UTC),
+            )
+            session.add(rev_set)
+
+            page_rev = DocumentPageRevision(
+                id=uuid.uuid4(),
+                document_id=document.id,
+                page_number=locator.page_number or 1,
+                revision_number=1,
+                revision_type="machine_ocr",
+                raw_text_snapshot=content,
+                corrected_text=content,
+                confidence=1.0,
+                status="approved",
+                created_by_user_id=actor_id,
+                content_sha256=artifact.source_sha256,
+                version=1,
+            )
+            session.add(page_rev)
+
+            gen = DocumentIndexGeneration(
+                id=uuid.uuid4(),
+                document_id=document.id,
+                revision_set_id=rev_set.id,
+                state="active",
+                revision_set_sha256=artifact.source_sha256,
+                generation_sha256=artifact.source_sha256,
+                created_at=datetime.datetime.now(datetime.UTC),
+                started_at=datetime.datetime.now(datetime.UTC),
+                activated_at=datetime.datetime.now(datetime.UTC),
+            )
+            session.add(gen)
+            await session.flush()
+
+            document.approved_revision_set_id = rev_set.id
+            document.active_index_generation_id = gen.id
+
             session.add(
                 DocumentChunk(
                     document_id=document.id,
@@ -248,6 +303,13 @@ class ProductRetrievalAdapter:
                         "record_id": locator.record_id,
                         "access_tags": list(artifact.access_tags),
                     },
+                    generation_id=gen.id,
+                    revision_set_id=rev_set.id,
+                    page_revision_id=page_rev.id,
+                    approval_state="approved",
+                    source_text_sha256=artifact.source_sha256,
+                    text_start_offset=0,
+                    text_end_offset=len(content),
                 )
             )
         await session.commit()

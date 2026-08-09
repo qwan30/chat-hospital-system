@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import math
 import time
 import uuid
@@ -13,9 +15,13 @@ from hospital_ai.core.security import PATIENT_READ_SCOPES, ROLE_PERMISSIONS
 from hospital_ai.core.telemetry import RAG_EVIDENCE_COUNT, RAG_RETRIEVAL_DURATION
 from hospital_ai.db.models import Document, DocumentChunk, DocumentPage, User
 from hospital_ai.evaluation.observer import EvaluationObserver
+from hospital_ai.services.evidence_scope import (
+    ACTIVE_GENERATION_JOINS_SQL,
+    ACTIVE_GENERATION_WHERE_SQL,
+    ActiveEvidenceScope,
+)
 from hospital_ai.services.permissions import (
     ACTIVE_PATIENT_PERMISSION_SQL,
-    active_patient_permission_exists,
 )
 
 PERMISSION_FILTERED_RETRIEVAL_SQL = f"""
@@ -30,14 +36,26 @@ ranked_chunks as (
     p.page_number,
     d.title,
     c.content,
-    c.metadata,
+    c.metadata as meta_data,
+    c.patient_id,
+    c.generation_id,
+    c.revision_set_id,
+    c.page_revision_id,
+    d.active_index_generation_id,
+    c.approval_state,
+    c.source_text_sha256,
+    c.text_start_offset,
+    c.text_end_offset,
+    c.bounding_boxes,
     1 - (c.embedding <=> CAST(:query_embedding AS vector)) as score
   from document_chunks c
   join documents d on d.id = c.document_id
   join document_pages p on p.id = c.page_id and p.document_id = c.document_id
+{ACTIVE_GENERATION_JOINS_SQL}
   where exists (select 1 from allowed)
     and c.patient_id = :patient_id
     and d.patient_id = :patient_id
+{ACTIVE_GENERATION_WHERE_SQL}
     and d.status in ('ready', 'ready_with_warnings')
     and c.deleted_at is null
     and d.deleted_at is null
@@ -60,6 +78,46 @@ class RetrievedChunk:
     score: float
     content: str
     metadata: dict[str, Any]
+    patient_id: Optional[uuid.UUID] = None
+    generation_id: Optional[uuid.UUID] = None
+    revision_set_id: Optional[uuid.UUID] = None
+    page_revision_id: Optional[uuid.UUID] = None
+    active_index_generation_id: Optional[uuid.UUID] = None
+    approval_state: Optional[str] = None
+    retrieval_method: Optional[str] = None
+    source_hash: Optional[str] = None
+    start_offset: Optional[int] = None
+    end_offset: Optional[int] = None
+    bounding_boxes: Optional[list[Any]] = None
+
+    def with_score_and_metadata(self, score: float, metadata: dict[str, Any]) -> RetrievedChunk:
+        return RetrievedChunk(
+            evidence_id=self.evidence_id,
+            document_id=self.document_id,
+            document_title=self.document_title,
+            page=self.page,
+            chunk_id=self.chunk_id,
+            score=score,
+            content=self.content,
+            metadata=metadata,
+            patient_id=self.patient_id,
+            generation_id=self.generation_id,
+            revision_set_id=self.revision_set_id,
+            page_revision_id=self.page_revision_id,
+            active_index_generation_id=self.active_index_generation_id,
+            approval_state=self.approval_state,
+            retrieval_method=metadata.get("retrieval_method", self.retrieval_method),
+            source_hash=self.source_hash,
+            start_offset=self.start_offset,
+            end_offset=self.end_offset,
+            bounding_boxes=self.bounding_boxes,
+        )
+
+
+def aligned_boxes_only(boxes: Any) -> Any:
+    if isinstance(boxes, dict) and "aligned" in boxes:
+        return boxes["aligned"]
+    return boxes
 
 
 def _scope_matches(scope: str, value: str) -> bool:
@@ -156,9 +214,11 @@ class RetrievalService:
         user_id: uuid.UUID,
         patient_id: Optional[uuid.UUID],
         query_embedding: Sequence[float],
-        query_text: str,
+        query_text: str = "",
+        query: str = "",
         top_k: int,
         retrieval_mode: str = "hybrid",
+        mode: str = "",
     ) -> list[RetrievedChunk]:
         """Execute hybrid search combining vector and BM25 retrieval.
 
@@ -167,18 +227,22 @@ class RetrievalService:
             patient_id: Patient scope filter.
             query_embedding: Vector embedding of the query.
             query_text: Raw query text for BM25 matching.
+            query: Alias for query_text.
             top_k: Maximum results to return.
             retrieval_mode: "vector", "bm25", or "hybrid".
+            mode: Alias for retrieval_mode.
 
         Returns:
             Merged and de-duplicated chunks sorted by relevance.
         """
+        actual_query = query_text or query
+        actual_mode = mode or retrieval_mode
         if patient_id is None:
             return []
 
         start_time = time.perf_counter()
 
-        if retrieval_mode == "vector":
+        if actual_mode == "vector":
             results = await self.search(
                 user_id=user_id,
                 patient_id=patient_id,
@@ -188,11 +252,11 @@ class RetrievalService:
             # metrics already recorded in search()
             return results
 
-        if retrieval_mode == "bm25":
+        if actual_mode == "bm25":
             results = await self._bm25_search(
                 user_id=user_id,
                 patient_id=patient_id,
-                query_text=query_text,
+                query_text=actual_query,
                 top_k=top_k,
             )
             if self.evaluation_observer is not None:
@@ -223,7 +287,7 @@ class RetrievalService:
         bm25_results = await self._bm25_search(
             user_id=user_id,
             patient_id=patient_id,
-            query_text=query_text,
+            query_text=actual_query,
             top_k=fetch_k,
         )
         if self.evaluation_observer is not None:
@@ -259,21 +323,13 @@ class RetrievalService:
         if not chunk_ids or patient_id is None:
             return []
 
-        permission_exists = active_patient_permission_exists(
+        allowed = ActiveEvidenceScope(self.session).authorized_chunk_ids(
             user_id=user_id,
             patient_id=patient_id,
-            accepted_scopes=PATIENT_READ_SCOPES,
         )
 
         result = await self.session.execute(
-            select(
-                DocumentChunk.id,
-                DocumentChunk.document_id,
-                DocumentChunk.content,
-                DocumentChunk.meta,
-                DocumentPage.page_number,
-                Document.title,
-            )
+            select(DocumentChunk, Document, DocumentPage)
             .join(Document, Document.id == DocumentChunk.document_id)
             .join(
                 DocumentPage,
@@ -283,10 +339,8 @@ class RetrievalService:
                 ),
             )
             .where(
-                permission_exists,
                 DocumentChunk.id.in_(chunk_ids),
-                DocumentChunk.patient_id == patient_id,
-                Document.patient_id == patient_id,
+                DocumentChunk.id.in_(allowed),
                 Document.status.in_(("ready", "ready_with_warnings")),
                 DocumentChunk.deleted_at.is_(None),
                 Document.deleted_at.is_(None),
@@ -295,17 +349,39 @@ class RetrievalService:
         )
 
         chunks = []
-        for idx, row in enumerate(result.all(), start=1):
+        for idx, (chunk, document, page) in enumerate(result.all(), start=1):
             chunks.append(
                 RetrievedChunk(
                     evidence_id=f"G{idx}",
-                    document_id=row.document_id,
-                    document_title=row.title,
-                    page=row.page_number,
-                    chunk_id=row.id,
+                    document_id=document.id,
+                    document_title=document.title,
+                    page=page.page_number,
+                    chunk_id=chunk.id,
                     score=0.3,  # lower score for graph-discovered evidence
-                    content=row.content,
-                    metadata=row[3] if row[3] else {},
+                    content=chunk.content,
+                    metadata={
+                        **(dict(chunk.meta or {})),
+                        "retrieval_method": "graph_traversal",
+                        "generation_id": str(chunk.generation_id) if chunk.generation_id else None,
+                        "revision_set_id": str(chunk.revision_set_id) if chunk.revision_set_id else None,
+                        "page_revision_id": str(chunk.page_revision_id) if chunk.page_revision_id else None,
+                        "start_offset": chunk.text_start_offset,
+                        "end_offset": chunk.text_end_offset,
+                        "bounding_boxes": aligned_boxes_only(chunk.bounding_boxes),
+                        "source_text_sha256": chunk.source_text_sha256,
+                        "approval_state": chunk.approval_state,
+                    },
+                    patient_id=chunk.patient_id,
+                    generation_id=chunk.generation_id,
+                    revision_set_id=chunk.revision_set_id,
+                    page_revision_id=chunk.page_revision_id,
+                    active_index_generation_id=document.active_index_generation_id,
+                    approval_state=chunk.approval_state,
+                    retrieval_method="graph_traversal",
+                    source_hash=chunk.source_text_sha256,
+                    start_offset=chunk.text_start_offset,
+                    end_offset=chunk.text_end_offset,
+                    bounding_boxes=aligned_boxes_only(chunk.bounding_boxes),
                 )
             )
         return await self._apply_role_filters(chunks, user_id)
@@ -353,7 +429,7 @@ class RetrievalService:
         if patient_id is None:
             return []
 
-        sql = text(f"""
+        sql = text("""
             with allowed as (
             {ACTIVE_PATIENT_PERMISSION_SQL}
             )
@@ -363,14 +439,26 @@ class RetrievalService:
                 p.page_number,
                 d.title,
                 c.content,
-                c.metadata,
+                c.metadata as meta_data,
+                c.patient_id,
+                c.generation_id,
+                c.revision_set_id,
+                c.page_revision_id,
+                d.active_index_generation_id,
+                c.approval_state,
+                c.source_text_sha256,
+                c.text_start_offset,
+                c.text_end_offset,
+                c.bounding_boxes,
                 ts_rank_cd(c.search_vector, plainto_tsquery('english', :query_text)) as rank
             from document_chunks c
             join documents d on d.id = c.document_id
             join document_pages p on p.id = c.page_id and p.document_id = c.document_id
+            {ACTIVE_GENERATION_JOINS_SQL}
             where exists (select 1 from allowed)
               and c.patient_id = :patient_id
               and d.patient_id = :patient_id
+              {ACTIVE_GENERATION_WHERE_SQL}
               and d.status in ('ready', 'ready_with_warnings')
               and c.deleted_at is null
               and d.deleted_at is null
@@ -408,9 +496,28 @@ class RetrievalService:
                 score=round(float(row["rank"]) / max(max_rank, 0.001), 4),
                 content=row["content"],
                 metadata={
-                    **(dict(row["metadata"] or {})),
+                    **(dict(row["meta_data"] or {})),
                     "retrieval_method": "bm25",
+                    "generation_id": str(row["generation_id"]) if row["generation_id"] else None,
+                    "revision_set_id": str(row["revision_set_id"]) if row["revision_set_id"] else None,
+                    "page_revision_id": str(row["page_revision_id"]) if row["page_revision_id"] else None,
+                    "start_offset": row["text_start_offset"],
+                    "end_offset": row["text_end_offset"],
+                    "bounding_boxes": aligned_boxes_only(row["bounding_boxes"]),
+                    "source_text_sha256": row["source_text_sha256"],
+                    "approval_state": row["approval_state"],
                 },
+                patient_id=row["patient_id"],
+                generation_id=row["generation_id"],
+                revision_set_id=row["revision_set_id"],
+                page_revision_id=row["page_revision_id"],
+                active_index_generation_id=row["active_index_generation_id"],
+                approval_state=row["approval_state"],
+                retrieval_method="bm25",
+                source_hash=row["source_text_sha256"],
+                start_offset=row["text_start_offset"],
+                end_offset=row["text_end_offset"],
+                bounding_boxes=aligned_boxes_only(row["bounding_boxes"]),
             )
             for index, row in enumerate(rows, start=1)
         ]
@@ -429,11 +536,11 @@ class RetrievalService:
         if patient_id is None:
             return []
 
-        permission_exists = active_patient_permission_exists(
+        allowed = ActiveEvidenceScope(self.session).authorized_chunk_ids(
             user_id=user_id,
             patient_id=patient_id,
-            accepted_scopes=PATIENT_READ_SCOPES,
         )
+
         stmt = (
             select(DocumentChunk, Document, DocumentPage)
             .join(Document, Document.id == DocumentChunk.document_id)
@@ -445,9 +552,7 @@ class RetrievalService:
                 ),
             )
             .where(
-                permission_exists,
-                DocumentChunk.patient_id == patient_id,
-                Document.patient_id == patient_id,
+                DocumentChunk.id.in_(allowed),
                 Document.status.in_(("ready", "ready_with_warnings")),
                 DocumentChunk.deleted_at.is_(None),
                 Document.deleted_at.is_(None),
@@ -464,7 +569,29 @@ class RetrievalService:
                 chunk_id=chunk.id,
                 score=0.0,
                 content=chunk.content,
-                metadata=dict(chunk.meta or {}),
+                metadata={
+                    **(dict(chunk.meta or {})),
+                    "retrieval_method": "bm25",
+                    "generation_id": str(chunk.generation_id) if chunk.generation_id else None,
+                    "revision_set_id": str(chunk.revision_set_id) if chunk.revision_set_id else None,
+                    "page_revision_id": str(chunk.page_revision_id) if chunk.page_revision_id else None,
+                    "start_offset": chunk.text_start_offset,
+                    "end_offset": chunk.text_end_offset,
+                    "bounding_boxes": aligned_boxes_only(chunk.bounding_boxes),
+                    "source_text_sha256": chunk.source_text_sha256,
+                    "approval_state": chunk.approval_state,
+                },
+                patient_id=chunk.patient_id,
+                generation_id=chunk.generation_id,
+                revision_set_id=chunk.revision_set_id,
+                page_revision_id=chunk.page_revision_id,
+                active_index_generation_id=document.active_index_generation_id,
+                approval_state=chunk.approval_state,
+                retrieval_method="bm25",
+                source_hash=chunk.source_text_sha256,
+                start_offset=chunk.text_start_offset,
+                end_offset=chunk.text_end_offset,
+                bounding_boxes=aligned_boxes_only(chunk.bounding_boxes),
             )
             for index, (chunk, document, page) in enumerate(result.all(), start=1)
         ]
@@ -504,7 +631,29 @@ class RetrievalService:
                 chunk_id=row["chunk_id"],
                 score=float(row["score"]),
                 content=row["content"],
-                metadata={**(dict(row["metadata"] or {})), "retrieval_method": "vector"},
+                metadata={
+                    **(dict(row["meta_data"] or {})),
+                    "retrieval_method": "vector",
+                    "generation_id": str(row["generation_id"]) if row["generation_id"] else None,
+                    "revision_set_id": str(row["revision_set_id"]) if row["revision_set_id"] else None,
+                    "page_revision_id": str(row["page_revision_id"]) if row["page_revision_id"] else None,
+                    "start_offset": row["text_start_offset"],
+                    "end_offset": row["text_end_offset"],
+                    "bounding_boxes": aligned_boxes_only(row["bounding_boxes"]),
+                    "source_text_sha256": row["source_text_sha256"],
+                    "approval_state": row["approval_state"],
+                },
+                patient_id=row["patient_id"],
+                generation_id=row["generation_id"],
+                revision_set_id=row["revision_set_id"],
+                page_revision_id=row["page_revision_id"],
+                active_index_generation_id=row["active_index_generation_id"],
+                approval_state=row["approval_state"],
+                retrieval_method="vector",
+                source_hash=row["source_text_sha256"],
+                start_offset=row["text_start_offset"],
+                end_offset=row["text_end_offset"],
+                bounding_boxes=aligned_boxes_only(row["bounding_boxes"]),
             )
             for index, row in enumerate(rows, start=1)
         ]
@@ -520,10 +669,9 @@ class RetrievalService:
         if patient_id is None:
             return []
 
-        permission_exists = active_patient_permission_exists(
+        allowed = ActiveEvidenceScope(self.session).authorized_chunk_ids(
             user_id=user_id,
             patient_id=patient_id,
-            accepted_scopes=PATIENT_READ_SCOPES,
         )
         stmt = (
             select(DocumentChunk, Document, DocumentPage)
@@ -536,9 +684,7 @@ class RetrievalService:
                 ),
             )
             .where(
-                permission_exists,
-                DocumentChunk.patient_id == patient_id,
-                Document.patient_id == patient_id,
+                DocumentChunk.id.in_(allowed),
                 Document.status.in_(("ready", "ready_with_warnings")),
                 DocumentChunk.deleted_at.is_(None),
                 Document.deleted_at.is_(None),
@@ -561,7 +707,29 @@ class RetrievalService:
                 chunk_id=chunk.id,
                 score=float(score),
                 content=chunk.content,
-                metadata={**(dict(chunk.meta or {})), "retrieval_method": "vector"},
+                metadata={
+                    **(dict(chunk.meta or {})),
+                    "retrieval_method": "vector",
+                    "generation_id": str(chunk.generation_id) if chunk.generation_id else None,
+                    "revision_set_id": str(chunk.revision_set_id) if chunk.revision_set_id else None,
+                    "page_revision_id": str(chunk.page_revision_id) if chunk.page_revision_id else None,
+                    "start_offset": chunk.text_start_offset,
+                    "end_offset": chunk.text_end_offset,
+                    "bounding_boxes": aligned_boxes_only(chunk.bounding_boxes),
+                    "source_text_sha256": chunk.source_text_sha256,
+                    "approval_state": chunk.approval_state,
+                },
+                patient_id=chunk.patient_id,
+                generation_id=chunk.generation_id,
+                revision_set_id=chunk.revision_set_id,
+                page_revision_id=chunk.page_revision_id,
+                active_index_generation_id=document.active_index_generation_id,
+                approval_state=chunk.approval_state,
+                retrieval_method="vector",
+                source_hash=chunk.source_text_sha256,
+                start_offset=chunk.text_start_offset,
+                end_offset=chunk.text_end_offset,
+                bounding_boxes=aligned_boxes_only(chunk.bounding_boxes),
             )
             for index, (score, chunk, document, page) in enumerate(scored[:top_k], start=1)
         ]

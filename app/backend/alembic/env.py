@@ -10,6 +10,7 @@ from hospital_ai.db.models import Base
 import hospital_ai.db.settings_store
 import hospital_ai.services.graph_rag
 import hospital_ai.services.metrics
+import hospital_ai.db.clinical_documents
 
 config = context.config
 if config.config_file_name is not None:

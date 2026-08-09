@@ -346,7 +346,7 @@ class ChatService:
                     evaluation_observer.record_graph_execution()
                 query_entities, _ = await extract_entities_and_relations_nlp(question)
                 if query_entities:
-                    entity_names = [e.name for e in query_entities]
+                    entity_names = [e.normalized_label for e in query_entities]
                     graph_ctx = await find_related_entities(
                         self.session, entity_names, max_hops=2, patient_id=patient_id
                     )

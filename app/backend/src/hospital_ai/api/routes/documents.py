@@ -399,6 +399,13 @@ def evidence_to_schema(item) -> EvidenceRead:
         score=item.score,
         content=item.content,
         metadata=item.metadata,
+        generation_id=item.generation_id,
+        revision_set_id=item.revision_set_id,
+        page_revision_id=item.page_revision_id,
+        approval_state=item.approval_state,
+        start_offset=item.start_offset,
+        end_offset=item.end_offset,
+        bounding_boxes=item.bounding_boxes,
     )
 
 

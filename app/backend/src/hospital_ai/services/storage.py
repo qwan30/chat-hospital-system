@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import hashlib
+import os
 import re
 import uuid
 from dataclasses import dataclass
@@ -149,14 +150,15 @@ class LocalStorageService:
         if storage_uri.startswith(("r2://", "hms://", "local://")):
             raise ValueError("The local storage backend cannot read this storage URI.")
 
-        root = self.root.resolve()
-        candidate = Path(storage_uri)
-        if not candidate.is_absolute():
-            candidate = Path.cwd() / candidate
-        resolved = candidate.resolve()
-        if not resolved.is_relative_to(root):
+        root = os.path.realpath(os.fspath(self.root))
+        if os.path.isabs(storage_uri):
+            candidate = os.path.realpath(storage_uri)
+        else:
+            validated_uri = validate_storage_object_key(storage_uri, allowed_prefixes=("source/", "patients/"))
+            candidate = os.path.realpath(os.path.join(root, validated_uri))
+        if candidate != root and not candidate.startswith(root + os.sep):
             raise ValueError("Storage URI points outside the configured local storage root.")
-        return resolved
+        return Path(candidate)
 
     def create_presigned_put(self, *, key: str, content_type: str, expires_seconds: int) -> PresignedPut:
         target_path = self._resolve_local_path(key)
@@ -337,6 +339,24 @@ def parse_r2_uri(storage_uri: str) -> str:
         or any(ord(char) < 32 for char in key)
     ):
         raise ValueError("R2 storage URI contains an unsafe object key.")
+    return key
+
+
+def validate_storage_object_key(key: str, *, allowed_prefixes: tuple[str, ...] = ()) -> str:
+    """Validate a storage key before it reaches a local or remote backend."""
+    if not isinstance(key, str) or not key or key.startswith(("/", "\\")):
+        raise ValueError("Storage object key must be a non-empty relative path.")
+    if "\\" in key or (len(key) >= 2 and key[1] == ":"):
+        raise ValueError("Storage object key must not contain a drive or backslash.")
+    if any(ord(char) < 32 for char in key):
+        raise ValueError("Storage object key contains an unsafe character.")
+    parts = key.split("/")
+    if any(not part or part in {".", ".."} for part in parts):
+        raise ValueError("Storage object key contains an unsafe path segment.")
+    if any(not re.fullmatch(r"[A-Za-z0-9._~-]+", part) for part in parts):
+        raise ValueError("Storage object key contains an unsafe character.")
+    if allowed_prefixes and not any(key.startswith(prefix) for prefix in allowed_prefixes):
+        raise ValueError("Storage object key uses an unexpected prefix.")
     return key
 
 

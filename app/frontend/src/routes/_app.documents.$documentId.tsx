@@ -16,6 +16,7 @@ import { ErrorState } from "@/components/hms/ErrorState";
 import { DocumentPreview } from "@/components/hms/DocumentPreview";
 import { DocumentProcessingTimeline } from "@/components/hms/DocumentProcessingTimeline";
 import { TypewriterText } from "@/components/ui/typewriter";
+import { isDocumentReadyForRetrieval } from "@/lib/document-status";
 
 export const Route = createFileRoute("/_app/documents/$documentId")({
   head: () => ({ meta: [{ title: "Document — HMS AI Copilot" }] }),
@@ -45,14 +46,14 @@ function Page() {
   const { data: intelligence } = useQuery({
     queryKey: ["document-intelligence", documentId],
     queryFn: () => getDocumentIntelligence(documentId),
-    enabled: !!d && d.status === "indexed",
+    enabled: isDocumentReadyForRetrieval(d?.status),
   });
 
   const pageQueries = useQueries({
     queries: Array.from({ length: d?.page_count || 0 }).map((_, i) => ({
       queryKey: ["document-page", documentId, i + 1],
       queryFn: () => getDocumentPage(documentId, i + 1),
-      enabled: !!d && d.status === "indexed",
+      enabled: isDocumentReadyForRetrieval(d?.status),
     })),
   });
 
@@ -177,7 +178,7 @@ function Page() {
                   className="text-sm text-foreground/90 font-mono leading-relaxed"
                   autoScroll={true}
                 />
-              ) : d.status !== "indexed" ? (
+              ) : !isDocumentReadyForRetrieval(d.status) ? (
                 <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
                   Document is not indexed yet. Status: {d.status}
                 </div>

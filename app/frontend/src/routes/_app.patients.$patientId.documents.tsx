@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { Card } from "@/components/ui/card";
 import { getPatientDocuments, type DocumentRead } from "@/lib/api/patients";
+import { isDocumentReadyForRetrieval } from "@/lib/document-status";
 
 export const Route = createFileRoute("/_app/patients/$patientId/documents")({
   head: () => ({ meta: [{ title: "Documents — HMS AI Copilot" }] }),
@@ -82,7 +83,7 @@ function Page() {
                 <td className="px-4 py-2 text-xs">
                   <span
                     className={
-                      doc.status === "indexed"
+                      isDocumentReadyForRetrieval(doc.status)
                         ? "text-success"
                         : doc.status === "index_failed" || doc.status === "ocr_failed"
                           ? "text-destructive"

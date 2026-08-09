@@ -15,6 +15,10 @@ const searchSchema = z.object({
   patientId: z.string().optional(),
 });
 
+export function canSearchDocuments(query: string, patientId: string): boolean {
+  return Boolean(query.trim() && patientId.trim());
+}
+
 export const Route = createFileRoute("/_app/documents/search")({
   validateSearch: (search) => searchSchema.parse(search),
   head: () => ({ meta: [{ title: "Search documents — HMS AI Copilot" }] }),
@@ -23,9 +27,7 @@ export const Route = createFileRoute("/_app/documents/search")({
 
 function Page() {
   const searchParams = Route.useSearch();
-  const [patientId, setPatientId] = useState(
-    searchParams.patientId || "20000000-0000-0000-0000-000000000001",
-  );
+  const [patientId, setPatientId] = useState(searchParams.patientId || "");
   const [q, setQ] = useState(searchParams.q || "");
 
   const searchMutation = useMutation({
@@ -33,9 +35,10 @@ function Page() {
   });
 
   const { mutate } = searchMutation;
+  const canSearch = canSearchDocuments(q, patientId);
 
   useEffect(() => {
-    if (searchParams.q) {
+    if (canSearchDocuments(searchParams.q || "", searchParams.patientId || "")) {
       mutate();
     }
   }, [searchParams.q, searchParams.patientId, mutate]);
@@ -44,7 +47,7 @@ function Page() {
     <AppShell>
       <PageHeader
         title="Document search"
-        description="Hybrid keyword + vector search across the indexed corpus."
+        description="Hybrid keyword + vector search within this patient's authorized documents."
       />
       <Card className="p-3">
         <div className="flex gap-2">
@@ -60,13 +63,21 @@ function Page() {
             value={q}
             onChange={(e) => setQ(e.target.value)}
             onKeyDown={(e) => {
-              if (e.key === "Enter") searchMutation.mutate();
+              if (e.key === "Enter" && canSearch) searchMutation.mutate();
             }}
           />
-          <Button onClick={() => searchMutation.mutate()} disabled={searchMutation.isPending || !q}>
+          <Button
+            onClick={() => searchMutation.mutate()}
+            disabled={searchMutation.isPending || !canSearch}
+          >
             {searchMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Search"}
           </Button>
         </div>
+        {!patientId.trim() && (
+          <p className="mt-2 text-xs text-muted-foreground">
+            Enter a Patient UUID to search only documents you are authorized to access.
+          </p>
+        )}
       </Card>
 
       {searchMutation.error && (

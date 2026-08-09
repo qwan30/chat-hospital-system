@@ -102,6 +102,11 @@ def test_paddle_v3_result_contract_extracts_text_and_scores() -> None:
 def test_ocr_extra_pins_supported_paddle_3_cpu_contract() -> None:
     config = tomllib.loads(Path("pyproject.toml").read_text(encoding="utf-8"))
     ocr_dependencies = config["project"]["optional-dependencies"]["ocr"]
+    vietocr_dependencies = config["project"]["optional-dependencies"]["vietocr"]
+    trocr_dependencies = config["project"]["optional-dependencies"]["trocr"]
 
     assert "paddleocr>=3.0.0,<4.0.0" in ocr_dependencies
     assert "paddlepaddle>=3.2.0,<4.0.0" in ocr_dependencies
+    assert "vietocr>=0.3.0,<0.4.0" in vietocr_dependencies
+    assert "transformers>=4.40.0,<5.0.0" in trocr_dependencies
+    assert "torch>=2.2.0,<3.0.0" in trocr_dependencies

@@ -311,7 +311,7 @@ class DocumentPage(TimestampMixin, SoftDeleteMixin, Base):
 
 class DocumentChunk(TimestampMixin, SoftDeleteMixin, Base):
     __tablename__ = "document_chunks"
-    __table_args__ = (UniqueConstraint("document_id", "chunk_index", name="uq_document_chunk_index"),)
+    __table_args__ = (UniqueConstraint("document_id", "generation_id", "chunk_index", name="uq_document_chunk_index"),)
 
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
     document_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("documents.id"), nullable=False, index=True)

@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
-from typing import Optional
+from typing import Any, Optional
 
 from hospital_ai.core.errors import ExternalServiceError
 from hospital_ai.services.loaders.base import BaseDocumentLoader, LoadedPage
@@ -101,15 +101,49 @@ class CompositeLoader:
         from hospital_ai.services.ocr import OcrService
 
         ocr = OcrService()
-        ocr_pages = ocr.extract_pages(storage_uri=str(file_path), mime_type=mime_type)
+        ocr_pages = ocr.extract_page_results(storage_uri=str(file_path), mime_type=mime_type)
         return [
             LoadedPage(
                 page_number=page.page_number,
-                text=page.text,
+                text=page.raw_text,
                 confidence=page.confidence,
             )
             for page in ocr_pages
         ]
+
+    def load_page_results(self, file_path: Path, mime_type: str = "") -> list[Any]:
+        from hospital_ai.services.ocr import OcrService
+        from hospital_ai.services.ocr_routing import OcrPageResult, OcrSpanResult
+
+        try:
+            pages = self.load(file_path, mime_type)
+            res = []
+            for p in pages:
+                span = OcrSpanResult(
+                    text=p.text,
+                    start_offset=0,
+                    end_offset=len(p.text),
+                    polygon=((0.0, 0.0), (100.0, 0.0), (100.0, 100.0), (0.0, 100.0)),
+                    confidence=p.confidence,
+                    reading_order=1,
+                    engine_family="native",
+                    engine_model="loader",
+                    engine_revision="v1",
+                )
+                res.append(
+                    OcrPageResult(
+                        page_number=p.page_number,
+                        raw_text=p.text,
+                        confidence=p.confidence,
+                        route="native",
+                        spans=(span,),
+                        latency_ms=0,
+                        peak_rss_mb=0,
+                    )
+                )
+            return res
+        except ExternalServiceError:
+            return OcrService().extract_page_results(storage_uri=str(file_path), mime_type=mime_type)
 
     def register(self, loader: BaseDocumentLoader) -> None:
         """Register an additional loader."""

@@ -16,6 +16,19 @@ from hospital_ai.services.storage import StorageService, get_storage_service
 
 
 async def process_document(session: AsyncSession, document_id: uuid.UUID, settings: Settings) -> None:
+    document = await session.get(Document, document_id)
+    if document is None:
+        return
+
+    # R2-backed uploads use the CDI V2 extraction/review lane.  Keep the
+    # filesystem and virtual-document path on the legacy indexer until the
+    # downstream generation PRs replace that contract end to end.
+    if document.storage_uri.startswith("r2://"):
+        from hospital_ai.workers.extraction_jobs import extract_document
+
+        await extract_document(session, document_id, settings)
+        return
+
     document = await _locked_current_document(session, document_id)
     if document is None:
         return

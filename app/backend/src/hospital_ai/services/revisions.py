@@ -86,7 +86,9 @@ class GenerationAccepted:
 
 
 def enqueue_build_generation_job(generation_id: uuid.UUID) -> None:
-    pass
+    from hospital_ai.workers.queue import enqueue_build_generation
+
+    enqueue_build_generation(generation_id)
 
 
 class RevisionService:

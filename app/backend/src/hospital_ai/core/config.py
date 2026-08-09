@@ -22,6 +22,9 @@ class Settings(BaseSettings):
     enable_break_glass: bool = False
     demo_mode: bool = True
     disable_guardrails: bool = False
+    cdi_v2_dual_read: bool = Field(default=False)
+    cdi_v2_active_generation_reads: bool = Field(default=False)
+    cdi_v2_authoring_enabled: bool = Field(default=False)
     # Seconds allowed for an llm-guard scan before the guardrail fails closed.
     # The prompt-injection model takes ~4s per scan on CPU, so the previous
     # hardcoded 3.0 timed out on every request and refused safe questions as
@@ -58,6 +61,8 @@ class Settings(BaseSettings):
     retrieval_top_k: int = 5
     evidence_threshold: float = 0.2
     max_upload_bytes: int = Field(default=10 * 1024 * 1024, ge=1)
+    ocr_memory_budget_mb: int = Field(default=4096, ge=512)
+    ocr_models_path: Path = Path(".models")
 
     # OpenAI / OpenAI-compatible provider
     openai_api_key: str = ""

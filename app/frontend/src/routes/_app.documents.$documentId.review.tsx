@@ -12,6 +12,7 @@ import {
 } from "@/lib/api/documents";
 import { Loader2, Check, X, Edit2 } from "lucide-react";
 import { DocumentPreview } from "@/components/hms/DocumentPreview";
+import { GeometryOverlay } from "@/components/hms/document-workspace/GeometryOverlay";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
@@ -50,17 +51,19 @@ function Page() {
       action,
       value,
       reason,
+      page_revision_id,
     }: {
       reviewItemId: string;
       action: "approve" | "reject" | "correct";
       value?: any;
       reason: string;
+      page_revision_id: string;
     }) =>
       patchReviewItem(documentId, reviewItemId, {
         action,
         value,
         reason,
-        version: 1,
+        page_revision_id,
       }),
     onSuccess: () => {
       toast.success("Review item updated");
@@ -90,11 +93,16 @@ function Page() {
               <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
             </div>
           ) : document ? (
-            <DocumentPreview
-              documentId={document.id}
-              mimeType={document.mime_type}
-              boundingBox={activeFact?.bounding_box}
-            />
+            <DocumentPreview documentId={document.id} mimeType={document.mime_type}>
+              {activeFact?.bounding_box && (
+                <GeometryOverlay
+                  boxes={[
+                    { id: activeFact.id, ...activeFact.bounding_box, alignment_status: "aligned" },
+                  ]}
+                  staleCount={0}
+                />
+              )}
+            </DocumentPreview>
           ) : (
             <div className="flex-1 flex items-center justify-center text-muted-foreground">
               Document not found
@@ -165,6 +173,7 @@ function ReviewItemCard({
       action,
       value: payloadValue,
       reason: finalReason,
+      page_revision_id: fact?.page_revision_id || "",
     });
     setIsEditing(false);
   };

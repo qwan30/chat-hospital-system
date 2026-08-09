@@ -150,6 +150,7 @@ export interface ClinicalFactRead {
   source_page: number | null;
   bounding_box: { top: number; left: number; width: number; height: number } | null;
   status: string;
+  page_revision_id?: string;
 }
 
 export interface DocumentFactsResponse {
@@ -185,8 +186,9 @@ export interface ReviewItemPatchRequest {
   action: "approve" | "reject" | "correct";
   value?: unknown;
   reason: string;
-  version: number;
+  version?: number;
   fact_type?: string;
+  page_revision_id: string;
 }
 
 export interface ReviewItemPatchResponse {
@@ -210,6 +212,8 @@ export const patchReviewItem = async (
 
 export interface UploadSessionCreate {
   patient_id: string;
+  title?: string;
+  document_type?: string;
   filename: string;
   expected_size: number;
   expected_sha256: string;
@@ -229,6 +233,7 @@ export interface UploadFinalizeResult {
   id: string;
   document_id: string;
   state: string;
+  reason?: string;
 }
 
 export const createUploadSession = async (
@@ -245,8 +250,57 @@ export const createUploadSession = async (
 export const finalizeUpload = async (
   documentId: string,
   uploadId: string,
+  options?: { idempotencyKey?: string },
 ): Promise<UploadFinalizeResult> => {
   return apiFetch<UploadFinalizeResult>(`/documents/${documentId}/uploads/${uploadId}/finalize`, {
     method: "POST",
+    headers: options?.idempotencyKey ? { "Idempotency-Key": options.idempotencyKey } : undefined,
   });
 };
+
+export class ApiError extends Error {
+  constructor(
+    public status: number,
+    message: string,
+  ) {
+    super(message);
+    this.name = "ApiError";
+  }
+}
+
+export function putPresignedObject(
+  upload: UploadSessionRead & { upload_url?: string }, // Handle both presigned_url and upload_url if there's inconsistency
+  file: File,
+  onProgress: (percent: number) => void,
+): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    const url = upload.presigned_url || upload.upload_url;
+    if (!url) return reject(new Error("No upload URL provided"));
+
+    xhr.open("PUT", url, true);
+    for (const [name, value] of Object.entries(upload.required_headers || {})) {
+      xhr.setRequestHeader(name, value);
+    }
+
+    xhr.upload.onprogress = ({ loaded, total }) => {
+      if (total > 0) onProgress(Math.round((loaded / total) * 100));
+    };
+
+    xhr.onload = () => {
+      if (xhr.status >= 200 && xhr.status < 300) {
+        resolve();
+      } else {
+        reject(
+          new ApiError(
+            xhr.status,
+            xhr.status === 412 ? "Immutable object key already exists" : "Object upload failed",
+          ),
+        );
+      }
+    };
+
+    xhr.onerror = () => reject(new ApiError(0, "Object upload failed"));
+    xhr.send(file);
+  });
+}

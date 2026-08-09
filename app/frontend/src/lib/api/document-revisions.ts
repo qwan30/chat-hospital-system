@@ -2,9 +2,9 @@ import { apiFetch } from "../api-client";
 import { mutationHeaders } from "../idempotency";
 
 export interface DraftPageWrite {
-  text: string;
+  corrected_text: string;
   parent_revision_id: string;
-  edit_reason?: string;
+  edit_reason: string;
 }
 
 export interface DraftPageRead {
@@ -118,4 +118,18 @@ export async function restoreRevision(
 
 export async function listRevisionSets(documentId: string): Promise<RevisionSetRead[]> {
   return apiFetch<RevisionSetRead[]>(`/documents/${documentId}/revision-sets`);
+}
+
+export async function getDraftPage(documentId: string, pageNumber: number): Promise<DraftPageRead> {
+  return apiFetch<DraftPageRead>(`/documents/${documentId}/draft/pages/${pageNumber}`);
+}
+
+export async function getRevisionPage(
+  documentId: string,
+  revisionSetId: string,
+  pageNumber: number,
+): Promise<DraftPageRead> {
+  return apiFetch<DraftPageRead>(
+    `/documents/${documentId}/revision-sets/${revisionSetId}/pages/${pageNumber}`,
+  );
 }

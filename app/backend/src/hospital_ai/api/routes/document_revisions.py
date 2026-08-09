@@ -8,7 +8,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from hospital_ai.api.deps import get_current_user, get_session
 from hospital_ai.core.errors import NotFoundError
 from hospital_ai.core.security import new_trace_id
-from hospital_ai.db.clinical_documents import DocumentRevisionSet
+from hospital_ai.db.clinical_documents import (
+    DocumentDraftHead,
+    DocumentPageRevision,
+    DocumentRevisionPage,
+    DocumentRevisionSet,
+)
 from hospital_ai.db.models import Document, User
 from hospital_ai.schemas.document_revisions import (
     ApproveRevisionRequest,
@@ -292,3 +297,67 @@ async def list_revision_sets(
         )
         for r in rows
     ]
+
+
+@router.get("/{document_id}/draft/pages/{page_number}", response_model=DraftPageRead, status_code=200)
+async def get_draft_page(
+    document_id: uuid.UUID,
+    page_number: int,
+    current_user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+) -> DraftPageRead:
+    await _get_document_or_404(session, document_id)
+    head = await session.get(DocumentDraftHead, document_id)
+    if not head:
+        raise NotFoundError("Draft head not found")
+    page_rev_id_str = head.selected_pages.get(str(page_number))
+    if not page_rev_id_str:
+        raise NotFoundError("Draft page not found")
+
+    page_rev = await session.get(DocumentPageRevision, uuid.UUID(page_rev_id_str))
+    if not page_rev:
+        raise NotFoundError("Revision not found")
+
+    return DraftPageRead(
+        page_revision_id=page_rev.id,
+        lock_version=head.lock_version,
+        page_number=page_number,
+        text=page_rev.corrected_text,
+        status="draft",
+    )
+
+
+@router.get(
+    "/{document_id}/revision-sets/{revision_set_id}/pages/{page_number}", response_model=DraftPageRead, status_code=200
+)
+async def get_revision_page(
+    document_id: uuid.UUID,
+    revision_set_id: uuid.UUID,
+    page_number: int,
+    current_user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+) -> DraftPageRead:
+    await _get_document_or_404(session, document_id)
+    rev_set = await session.get(DocumentRevisionSet, revision_set_id)
+    if not rev_set or rev_set.document_id != document_id:
+        raise NotFoundError("Revision set not found")
+
+    rev_page = await session.scalar(
+        select(DocumentRevisionPage)
+        .where(DocumentRevisionPage.revision_set_id == revision_set_id)
+        .where(DocumentRevisionPage.page_number == page_number)
+    )
+    if not rev_page:
+        raise NotFoundError("Revision page not found")
+
+    page_rev = await session.get(DocumentPageRevision, rev_page.page_revision_id)
+    if not page_rev:
+        raise NotFoundError("Revision content not found")
+
+    return DraftPageRead(
+        page_revision_id=page_rev.id,
+        lock_version=1,
+        page_number=page_number,
+        text=page_rev.corrected_text,
+        status=rev_set.status,
+    )

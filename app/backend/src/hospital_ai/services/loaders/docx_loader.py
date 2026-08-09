@@ -9,6 +9,8 @@ from zipfile import BadZipFile, ZipFile
 from hospital_ai.core.errors import ExternalServiceError
 from hospital_ai.services.loaders.base import BaseDocumentLoader, LoadedPage
 
+MAX_OOXML_DOCUMENT_BYTES = 8 * 1024 * 1024
+
 
 class DocxLoader(BaseDocumentLoader):
     """Extract text from DOCX files.
@@ -59,7 +61,13 @@ class DocxLoader(BaseDocumentLoader):
         """Read paragraph text from a DOCX OOXML package when python-docx is absent."""
         try:
             with ZipFile(file_path) as archive:
-                document_xml = archive.read("word/document.xml")
+                document_part = archive.getinfo("word/document.xml")
+                if document_part.file_size > MAX_OOXML_DOCUMENT_BYTES:
+                    raise ExternalServiceError("DOCX document.xml exceeds the maximum safe size.")
+                with archive.open(document_part) as source:
+                    document_xml = source.read(MAX_OOXML_DOCUMENT_BYTES + 1)
+            if len(document_xml) > MAX_OOXML_DOCUMENT_BYTES:
+                raise ExternalServiceError("DOCX document.xml exceeds the maximum safe size.")
             root = ElementTree.fromstring(document_xml)
         except (BadZipFile, KeyError, ElementTree.ParseError) as exc:
             raise ExternalServiceError(f"Failed to open DOCX: {exc}") from exc

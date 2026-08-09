@@ -191,17 +191,18 @@ def _load_docx_pages(document: Document, storage_service: StorageService) -> lis
     """Extract DOCX through the document loader for local and object storage."""
     from hospital_ai.services.loaders.docx_loader import DocxLoader
 
-    with NamedTemporaryFile(suffix=".docx", delete=False) as temporary_file:
-        temporary_file.write(storage_service.read_bytes(document.storage_uri))
-        temporary_path = Path(temporary_file.name)
-
+    temporary_path: Path | None = None
     try:
+        with NamedTemporaryFile(suffix=".docx", delete=False) as temporary_file:
+            temporary_path = Path(temporary_file.name)
+            temporary_file.write(storage_service.read_bytes(document.storage_uri))
         return [
             OcrPage(page_number=page.page_number, text=page.text, confidence=page.confidence)
             for page in DocxLoader().load(temporary_path, document.mime_type)
         ]
     finally:
-        temporary_path.unlink(missing_ok=True)
+        if temporary_path is not None:
+            temporary_path.unlink(missing_ok=True)
 
 
 async def _populate_tsvectors(session: AsyncSession, document_id: uuid.UUID) -> None:

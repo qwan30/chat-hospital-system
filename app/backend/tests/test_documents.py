@@ -1,5 +1,7 @@
 import hashlib
+from contextlib import contextmanager
 from pathlib import Path
+from types import SimpleNamespace
 from zipfile import ZIP_DEFLATED, ZipFile
 
 import pytest
@@ -171,6 +173,47 @@ def test_text_loader_routes_hl7_as_utf8_text(tmp_path: Path):
     loader = TextLoader()
     assert loader.can_handle(source)
     assert loader.load(source)[0].text.startswith("MSH|^~\\&")
+
+
+def test_docx_loader_rejects_oversized_ooxml_document_xml(tmp_path: Path):
+    from hospital_ai.core.errors import ExternalServiceError
+    from hospital_ai.services.loaders.docx_loader import MAX_OOXML_DOCUMENT_BYTES, DocxLoader
+
+    source = tmp_path / "oversized.docx"
+    with ZipFile(source, "w", compression=ZIP_DEFLATED) as archive:
+        archive.writestr("word/document.xml", b"x" * (MAX_OOXML_DOCUMENT_BYTES + 1))
+
+    with pytest.raises(ExternalServiceError, match="maximum safe size"):
+        DocxLoader().load(source)
+
+
+def test_docx_temp_file_is_removed_when_storage_read_fails(tmp_path: Path, monkeypatch):
+    from hospital_ai.workers import jobs
+
+    created_paths: list[Path] = []
+    original_named_temporary_file = jobs.NamedTemporaryFile
+
+    @contextmanager
+    def tracked_named_temporary_file(**kwargs):
+        with original_named_temporary_file(dir=tmp_path, **kwargs) as temporary_file:
+            created_paths.append(Path(temporary_file.name))
+            yield temporary_file
+
+    class FailingStorage:
+        def read_bytes(self, storage_uri: str) -> bytes:
+            raise OSError(f"Cannot read {storage_uri}")
+
+    monkeypatch.setattr(jobs, "NamedTemporaryFile", tracked_named_temporary_file)
+    document = SimpleNamespace(
+        storage_uri="r2://patients/synthetic.docx",
+        mime_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    )
+
+    with pytest.raises(OSError, match="Cannot read"):
+        jobs._load_docx_pages(document, FailingStorage())
+
+    assert created_paths
+    assert not created_paths[0].exists()
 
 
 @pytest.mark.asyncio

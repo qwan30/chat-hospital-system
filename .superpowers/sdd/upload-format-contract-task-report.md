@@ -52,3 +52,16 @@
   accepted.
 - Follow-up validation: 27 document/API/worker tests passed; Ruff check and
   format check passed for the expanded five-file production/test scope.
+
+## Safety follow-up
+
+- Final review found two DOCX safety issues. The worker now records the temp
+  path before storage I/O and unlinks it in `finally`, including a read/write
+  failure path.
+- The standard-library OOXML fallback now caps `word/document.xml` at 8 MiB
+  using ZIP metadata plus a bounded stream read before XML parsing. Oversized
+  parts fail closed rather than allocating unbounded text.
+- Added tests for temporary-file cleanup after a simulated object-storage read
+  failure and for an oversized compressed OOXML document part.
+- Final focused validation: 29 document/API/worker tests passed; Ruff check
+  and format check passed.

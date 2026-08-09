@@ -297,6 +297,32 @@ async def test_streaming_emits_only_cited_evidence_when_validated(monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_streaming_tokens_follow_validated_sse_contract(monkeypatch):
+    """The browser may only receive ordered sentence-validated token events."""
+    fake = _FakeLLM(answer="The dose is per protocol [E1].\nContinue monitoring [E1].")
+    monkeypatch.setattr(
+        "hospital_ai.api.routes.chat_stream.LLMManager",
+        lambda settings: type("M", (), {"get": lambda self: fake})(),
+    )
+
+    events = await _collect(
+        _generate_sse_events(
+            settings=_settings(),
+            question="What is the dose?",
+            evidence=_make_evidence(["E1"]),
+            conversation_history=[],
+            query_id=uuid.uuid4(),
+            pipeline_name="simple_qa",
+        )
+    )
+
+    tokens = [event for event in events if event["type"] == "token"]
+    assert tokens
+    assert [event["sequence"] for event in tokens] == list(range(1, len(tokens) + 1))
+    assert {event["validation_mode"] for event in tokens} == {"sentence_buffered"}
+
+
+@pytest.mark.asyncio
 async def test_streaming_output_guardrail_replaces_unsafe_buffer_before_emission(monkeypatch):
     unsafe_answer = "Secret patient detail must not leave the server [E1]."
     fake = _FakeLLM(answer=unsafe_answer)

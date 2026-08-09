@@ -464,7 +464,8 @@ async def _generate_sse_events(
     """Generate SSE events with token-by-token streaming.
 
     Event format:
-        data: {"type": "token", "content": "word"}
+        data: {"type": "token", "content": "word", "sequence": 1,
+               "validation_mode": "sentence_buffered"}
         data: {"type": "citations", "data": [...]}
         data: {"type": "done", "query_id": "..."}
         data: {"type": "error", "message": "..."}
@@ -479,6 +480,17 @@ async def _generate_sse_events(
         completion_callback_active = True
         await _complete_stream(on_complete, completion)
         completion_callback_active = False
+
+    def serialize_token(content: str, sequence: int) -> str:
+        event = json.dumps(
+            {
+                "type": "token",
+                "content": content,
+                "sequence": sequence,
+                "validation_mode": "sentence_buffered",
+            }
+        )
+        return f"data: {event}\n\n"
 
     async def emit_validated_statuses() -> AsyncIterator[str]:
         """Expose activity only after the answer has passed safety checks."""
@@ -518,8 +530,7 @@ async def _generate_sse_events(
 
             output_result = await get_output_guardrail().scan(question, full_text)
             if output_result.blocked:
-                refusal_event = json.dumps({"type": "token", "content": SAFE_PHI_LEAK_BLOCKED_ANSWER})
-                yield f"data: {refusal_event}\n\n"
+                yield serialize_token(SAFE_PHI_LEAK_BLOCKED_ANSWER, sequence=1)
                 await complete_terminal(
                     StreamCompletion(
                         validation_status="failed",
@@ -542,8 +553,7 @@ async def _generate_sse_events(
             async for status_event in emit_validated_statuses():
                 yield status_event
 
-            event = json.dumps({"type": "token", "content": full_text})
-            yield f"data: {event}\n\n"
+            yield serialize_token(full_text, sequence=1)
 
             # Emit metadata, done, and run on_complete
             meta_event = json.dumps(
@@ -552,6 +562,7 @@ async def _generate_sse_events(
                     "confidence": "high",
                     "pipeline": "chitchat",
                     "model": llm.model_name(),
+                    "validation_mode": "sentence_buffered",
                 }
             )
             yield f"data: {meta_event}\n\n"
@@ -605,8 +616,7 @@ async def _generate_sse_events(
                 query_id,
                 output_result.reason,
             )
-            refusal_event = json.dumps({"type": "token", "content": SAFE_PHI_LEAK_BLOCKED_ANSWER})
-            yield f"data: {refusal_event}\n\n"
+            yield serialize_token(SAFE_PHI_LEAK_BLOCKED_ANSWER, sequence=1)
             await complete_terminal(
                 StreamCompletion(
                     validation_status="failed",
@@ -641,8 +651,7 @@ async def _generate_sse_events(
                 sorted(citation_ids),
                 sorted(allowed_ids),
             )
-            refusal_event = json.dumps({"type": "token", "content": SAFE_NO_EVIDENCE_ANSWER})
-            yield f"data: {refusal_event}\n\n"
+            yield serialize_token(SAFE_NO_EVIDENCE_ANSWER, sequence=1)
             await complete_terminal(
                 StreamCompletion(
                     validation_status="failed",
@@ -671,10 +680,9 @@ async def _generate_sse_events(
         # Validated — emit the full answer as token events so existing
         # frontend parsers continue to accumulate the text.  Yield in
         # whitespace-preserving chunks to keep the streaming contract.
-        for piece in full_text.splitlines(keepends=True):
+        for sequence, piece in enumerate(full_text.splitlines(keepends=True), start=1):
             if piece:
-                event = json.dumps({"type": "token", "content": piece})
-                yield f"data: {event}\n\n"
+                yield serialize_token(piece, sequence=sequence)
 
         # Emit only evidence that was actually cited.
         cited_evidence = [item for item in evidence if item.evidence_id in citation_ids]
@@ -705,6 +713,7 @@ async def _generate_sse_events(
                 "confidence": confidence,
                 "pipeline": actual_pipeline,
                 "model": llm.model_name(),
+                "validation_mode": "sentence_buffered",
             }
         )
         yield f"data: {meta_event}\n\n"

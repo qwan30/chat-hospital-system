@@ -69,6 +69,27 @@ async def finalized_document(session_and_settings):
 
 
 @pytest.mark.asyncio
+async def test_process_document_routes_finalized_upload_to_cdi_extraction(
+    session_and_settings, finalized_document, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from unittest.mock import Mock
+
+    session, settings = session_and_settings
+    extract = Mock()
+
+    async def capture(*args, **kwargs):
+        extract(*args, **kwargs)
+
+    monkeypatch.setattr("hospital_ai.workers.extraction_jobs.extract_document", capture)
+
+    from hospital_ai.workers.jobs import process_document
+
+    await process_document(session, finalized_document.id, settings)
+
+    extract.assert_called_once_with(session, finalized_document.id, settings)
+
+
+@pytest.mark.asyncio
 async def test_extraction_creates_machine_revisions_but_no_chunks(
     session_and_settings, finalized_document, monkeypatch: pytest.MonkeyPatch
 ) -> None:

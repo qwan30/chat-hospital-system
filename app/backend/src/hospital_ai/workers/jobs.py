@@ -25,7 +25,7 @@ async def process_document(session: AsyncSession, document_id: uuid.UUID, settin
     # R2-backed uploads use the CDI V2 extraction/review lane.  Keep the
     # filesystem and virtual-document path on the legacy indexer until the
     # downstream generation PRs replace that contract end to end.
-    if document.storage_uri.startswith("r2://"):
+    if document.storage_uri.startswith("r2://") or document.finalized_upload_id is not None:
         from hospital_ai.workers.extraction_jobs import extract_document
 
         await extract_document(session, document_id, settings)

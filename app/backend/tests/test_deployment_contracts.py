@@ -7,6 +7,7 @@ import subprocess
 import sys
 from pathlib import Path
 from types import SimpleNamespace
+from typing import Optional
 
 import pytest
 
@@ -73,7 +74,7 @@ def _copy_deployment_contract_fixture(tmp_path: Path) -> None:
         shutil.copy2(REPO_ROOT / relative, target)
 
 
-def _run_validator(repo_root: Path, backend_image: str | None = None) -> subprocess.CompletedProcess[str]:
+def _run_validator(repo_root: Path, backend_image: Optional[str] = None) -> subprocess.CompletedProcess[str]:
     command = [sys.executable, str(DEPLOYMENT_VALIDATOR), "--repo-root", str(repo_root), "--json"]
     if backend_image is not None:
         command.extend(["--backend-image", backend_image])

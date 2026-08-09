@@ -4,6 +4,7 @@ import asyncio
 import importlib.util
 import json
 from pathlib import Path
+from typing import Optional
 from xml.etree import ElementTree
 
 import pytest
@@ -86,7 +87,7 @@ def _config(
     suite: str = "smoke",
     lane: str = "deterministic",
     components: tuple[str, ...] = ("corpus", "retrieval", "graph", "chat"),
-    environment: dict[str, str] | None = None,
+    environment: dict[str, Optional[str]] = None,
 ) -> EvaluationConfig:
     return EvaluationConfig(
         suite=suite,

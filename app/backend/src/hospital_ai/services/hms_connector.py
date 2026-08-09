@@ -4,6 +4,8 @@ Connects via HTTP to the HMS backend (Java Spring Boot, port 8080) to pull
 clinical data that gets ingested as retrievable evidence chunks.
 """
 
+from __future__ import annotations
+
 import logging
 from typing import Any, Optional
 

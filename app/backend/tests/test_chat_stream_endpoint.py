@@ -5,6 +5,8 @@ verifying SSE event format, authorization, no-evidence fallback, and error
 handling per F-SEC-004.
 """
 
+from __future__ import annotations
+
 import asyncio
 import json
 import uuid

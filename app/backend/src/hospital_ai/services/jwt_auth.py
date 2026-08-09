@@ -10,6 +10,8 @@ When no JWT settings are configured (empty defaults), this service
 returns None and the caller falls back to the static token map.
 """
 
+from __future__ import annotations
+
 import logging
 from typing import Optional
 

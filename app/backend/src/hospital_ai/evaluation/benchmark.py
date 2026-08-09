@@ -6,7 +6,7 @@ import csv
 from collections import Counter
 from collections.abc import Iterable
 from pathlib import Path
-from typing import Literal
+from typing import Literal, Optional
 from uuid import UUID, uuid5
 
 import fitz
@@ -132,7 +132,7 @@ class EvalCaseV2(BaseModel):
     forbidden_evidence: tuple[EvidenceLocator, ...]
     absence_terms: tuple[str, ...] = ()
     absence_checked_evidence: tuple[EvidenceLocator, ...] = ()
-    graph: GraphExpectation | None
+    graph: Optional[GraphExpectation]
     review: ReviewRecord
 
     @root_validator
@@ -306,7 +306,7 @@ def _answer_case(
     facts: tuple[ExpectedFact, ...],
     forbidden: EvidenceLocator,
     question: str,
-    graph: GraphExpectation | None = None,
+    graph: Optional[GraphExpectation] = None,
 ) -> EvalCaseV2:
     case_id = f"rag-v2-{category}-{index:03d}"
     allowed = tuple(locator for fact in facts for locator in fact.evidence)
@@ -565,7 +565,7 @@ def _all_locators(case: EvalCaseV2) -> tuple[EvidenceLocator, ...]:
 
 def _canonical_statement_for_fact(
     fact: ExpectedFact, artifacts: dict[str, SourceArtifact], data_root: Path
-) -> str | None:
+) -> Optional[str]:
     """Reconstruct the only valid fact statement from immutable source fields."""
     if len(fact.evidence) != 1:
         return None
@@ -599,7 +599,7 @@ def validate_benchmark(
             patient_sources.setdefault(artifact.patient_id, set()).add(artifact.canonical_relative_path)
     content_cache: dict[EvidenceLocator, str] = {}
 
-    def resolved_content(case: EvalCaseV2, locator: EvidenceLocator) -> str | None:
+    def resolved_content(case: EvalCaseV2, locator: EvidenceLocator) -> Optional[str]:
         if locator.source_path not in artifacts:
             return None
         try:

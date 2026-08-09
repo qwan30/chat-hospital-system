@@ -278,15 +278,13 @@ async def index_chunk_entities(
     if not chunk:
         return [], []
 
-    # The new patient-scoped graph is authoritative for CDI V2 callers.  Keep
-    # the renamed legacy tables populated during the staged migration so older
-    # routes, workers, and evaluation fixtures remain independently runnable.
+    # Keep the patient-scoped provenance graph authoritative while the renamed
+    # legacy tables remain available to old routes, workers, and fixtures.
     await GraphIndexService(session).index_chunk(
         chunk.generation_id,
         chunk,
         GraphExtraction(entities=entities, relations=relations),
     )
-
     await session.execute(delete(LegacyGraphRelation).where(LegacyGraphRelation.source_chunk_id == chunk.id))
     await session.execute(delete(LegacyGraphEntity).where(LegacyGraphEntity.source_chunk_id == chunk.id))
 
@@ -305,7 +303,6 @@ async def index_chunk_entities(
             entities_by_label[item.normalized_label] = entity
             legacy_entities.append(entity)
             session.add(entity)
-
     await session.flush()
 
     legacy_relations: list[LegacyGraphRelation] = []
@@ -323,7 +320,6 @@ async def index_chunk_entities(
         )
         legacy_relations.append(relation)
         session.add(relation)
-
     await session.flush()
     return legacy_entities, legacy_relations
 
@@ -526,7 +522,6 @@ async def _find_related_legacy_entities(
                 if entity_id not in visited_entity_ids:
                     visited_entity_ids.add(entity_id)
                     next_frontier.add(entity_id)
-
         if next_frontier:
             result = await session.execute(select(GraphEntity).where(GraphEntity.id.in_(next_frontier)))
             all_entities.extend(result.scalars().all())
@@ -548,12 +543,10 @@ async def _find_related_legacy_entities(
     ]
     chunk_ids = {entity.source_chunk_id for entity in all_entities}
     chunk_ids.update(relation.source_chunk_id for relation in all_relations)
-
     summary_parts = [f"Found {len(entity_list)} entities and {len(relation_list)} relations."]
     summary_parts.extend(f"- {entity.name} ({entity.entity_type})" for entity in entity_list[:5])
     if len(entity_list) > 5:
         summary_parts.append("...")
-
     return GraphContext(
         entities=entity_list,
         relations=relation_list,

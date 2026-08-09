@@ -13,6 +13,7 @@ import hashlib
 import io
 from collections.abc import Iterable
 from pathlib import Path
+from typing import Optional
 from uuid import UUID
 
 import fitz
@@ -48,7 +49,7 @@ class ProductRetrievalAdapter:
     def __init__(
         self,
         source_root: Path,
-        evidence_threshold: float | None = None,
+        evidence_threshold: Optional[float] = None,
         retrieval_mode: str = "vector",
     ) -> None:
         if retrieval_mode not in {"vector", "bm25", "hybrid", "graph"}:
@@ -169,7 +170,7 @@ class ProductRetrievalAdapter:
 
     @staticmethod
     def _unique_locators(locators: tuple[EvidenceLocator, ...]) -> tuple[EvidenceLocator, ...]:
-        seen: set[tuple[str, int | None, int | None, str | None]] = set()
+        seen: set[tuple[str, Optional[int], Optional[int], Optional[str]]] = set()
         output = []
         for locator in locators:
             key = (locator.source_path, locator.page_number, locator.row_number, locator.record_id)

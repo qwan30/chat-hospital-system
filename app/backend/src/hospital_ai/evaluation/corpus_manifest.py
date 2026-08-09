@@ -7,7 +7,7 @@ import hashlib
 import json
 import re
 from pathlib import Path
-from typing import Literal
+from typing import Literal, Optional
 from uuid import UUID
 
 from pydantic import BaseModel, root_validator, validator
@@ -37,14 +37,14 @@ def _validate_relative_path(value: str) -> str:
 
 class EvidenceLocator(BaseModel):
     source_path: str
-    page_number: int | None = None
-    row_number: int | None = None
-    record_id: str | None = None
+    page_number: Optional[int] = None
+    row_number: Optional[int] = None
+    record_id: Optional[str] = None
 
     _source_path_is_relative = validator("source_path", allow_reuse=True)(_validate_relative_path)
 
     @validator("page_number", "row_number")
-    def _positive_positions(cls, value: int | None) -> int | None:
+    def _positive_positions(cls, value: Optional[int]) -> Optional[int]:
         if value is not None and value < 1:
             raise ValueError("locator positions must be positive")
         return value
@@ -63,7 +63,7 @@ class SourceArtifact(BaseModel):
         "public_drug",
         "duplicate",
     ]
-    patient_id: UUID | None = None
+    patient_id: Optional[UUID] = None
     mime_type: str
     document_type: str
     generator: str
@@ -72,7 +72,7 @@ class SourceArtifact(BaseModel):
     license_status: str
     access_tags: tuple[str, ...] = ()
     locator: EvidenceLocator
-    duplicate_of: str | None = None
+    duplicate_of: Optional[str] = None
 
     @validator("source_sha256")
     def _source_hash_is_valid(cls, value: str) -> str:
@@ -194,7 +194,9 @@ def _load_ingestion_metadata(data_root: Path, known_patient_ids: set[UUID]) -> d
     return by_path
 
 
-def _patient_id_for_path(relative_path: str, metadata: dict[str, dict], known_by_mrn: dict[str, UUID]) -> UUID | None:
+def _patient_id_for_path(
+    relative_path: str, metadata: dict[str, dict], known_by_mrn: dict[str, UUID]
+) -> Optional[UUID]:
     logical_path = relative_path
     nested_marker = "/app/backend/data/"
     if nested_marker in logical_path:

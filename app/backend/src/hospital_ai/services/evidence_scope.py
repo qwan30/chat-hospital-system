@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import uuid
 from collections.abc import Collection
+from typing import Optional
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -37,7 +38,7 @@ class ActiveEvidenceScope:
         *,
         user_id: uuid.UUID,
         patient_id: uuid.UUID,
-        document_ids: Collection[uuid.UUID] | None = None,
+        document_ids: Optional[Collection[uuid.UUID]] = None,
     ):
         stmt = (
             select(DocumentChunk.id)

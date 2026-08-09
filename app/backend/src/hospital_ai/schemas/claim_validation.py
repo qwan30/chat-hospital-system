@@ -1,4 +1,4 @@
-from typing import Any
+from typing import Any, Optional
 
 from pydantic import BaseModel
 
@@ -12,7 +12,7 @@ class SentenceValidation(BaseModel):
 class ClaimResult(BaseModel):
     claim: Any
     passed: bool
-    reason: str | None = None
+    reason: Optional[str] = None
 
     @classmethod
     def failed(cls, claim, reason):

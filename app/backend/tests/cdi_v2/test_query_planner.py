@@ -1,3 +1,6 @@
+from __future__ import annotations
+
+
 def test_query_planner_strategies() -> None:
     from hospital_ai.services.query_planner import ChatScope, QueryPlanner
 

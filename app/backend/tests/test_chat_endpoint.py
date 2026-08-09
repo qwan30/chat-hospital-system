@@ -5,6 +5,8 @@ confirming that Pydantic validation, authorization, pipeline dispatch,
 and response serialisation work end to end.
 """
 
+from __future__ import annotations
+
 import uuid
 
 import pytest

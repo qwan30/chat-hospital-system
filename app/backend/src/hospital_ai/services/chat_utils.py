@@ -3,6 +3,8 @@
 Extracted to avoid circular imports between chat.py and reasoning.py.
 """
 
+from __future__ import annotations
+
 import re
 from collections.abc import Sequence
 from typing import Optional

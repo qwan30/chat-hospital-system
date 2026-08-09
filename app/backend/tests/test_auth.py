@@ -5,6 +5,8 @@ static bearer token fallback, missing/invalid credentials, inactive users,
 and malformed Authorization headers.
 """
 
+from __future__ import annotations
+
 import pytest
 from fastapi import HTTPException, Request, status
 from fastapi.security import HTTPAuthorizationCredentials

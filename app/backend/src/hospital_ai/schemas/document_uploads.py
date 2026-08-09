@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import uuid
+from typing import Optional
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -19,7 +20,7 @@ class UploadSessionRead(BaseModel):
     document_id: uuid.UUID
     upload_id: uuid.UUID
     object_key: str
-    presigned_url: str | None = None
+    presigned_url: Optional[str] = None
     required_headers: dict[str, str] = Field(default_factory=dict)
     state: str
 

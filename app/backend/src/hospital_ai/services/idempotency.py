@@ -1,9 +1,11 @@
+from __future__ import annotations
+
 import json
 import uuid
 from collections.abc import Mapping
 from dataclasses import dataclass
 from hashlib import sha256
-from typing import Any
+from typing import Any, Optional
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -16,8 +18,8 @@ from hospital_ai.db.clinical_documents import IdempotencyRecord
 class IdempotencyDecision:
     record_id: uuid.UUID
     is_replay: bool
-    status_code: int | None = None
-    response_body: dict[str, Any] | None = None
+    status_code: Optional[int] = None
+    response_body: dict[str, Optional[Any]] = None
 
 
 def canonical_json(payload: Mapping[str, Any]) -> bytes:
@@ -29,7 +31,7 @@ class IdempotencyService:
         self.session = session
         self.actor_user_id = actor_user_id
 
-    async def _lock(self, actor_user_id: uuid.UUID, scope: str, key_hash: str) -> IdempotencyRecord | None:
+    async def _lock(self, actor_user_id: uuid.UUID, scope: str, key_hash: str) -> Optional[IdempotencyRecord]:
         stmt = (
             select(IdempotencyRecord)
             .where(

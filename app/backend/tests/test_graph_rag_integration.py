@@ -8,6 +8,8 @@ Covers:
 - Integration with retrieval pipeline via RetrievalService.get_chunks_by_ids()
 """
 
+from __future__ import annotations
+
 import pytest
 from sqlalchemy import select
 
@@ -16,8 +18,6 @@ from hospital_ai.services.graph_rag import (
     ExtractedEntity,
     ExtractedRelation,
     GraphContext,
-    GraphEntity,
-    GraphRelation,
     _extract_explicit_relations_fallback,
     extract_entities_and_relations_nlp,
     extract_entities_and_relations_offline,
@@ -50,12 +50,12 @@ def test_explicit_relation_fallback_is_deterministic():
         "Metformin treats diabetes. Insulin also treats diabetes."
     )
 
-    assert {(entity.name, entity.entity_type) for entity in entities} == {
+    assert {(entity.normalized_label, entity.entity_type) for entity in entities} == {
         ("metformin", "concept"),
         ("diabetes", "concept"),
         ("insulin", "concept"),
     }
-    assert {(relation.source_name, relation.target_name, relation.relation_type) for relation in relations} == {
+    assert {(relation.subject_label, relation.object_label, relation.relation_type) for relation in relations} == {
         ("metformin", "diabetes", "treats"),
         ("insulin", "diabetes", "treats"),
     }
@@ -65,12 +65,12 @@ def test_explicit_relation_fallback_extracts_complete_labeled_lab_observation():
     """A lab observation graph must be derived only from explicit source fields."""
     entities, relations = _extract_explicit_relations_fallback("MRN: MRN-0001\nAnalyte: Creatinine\nStatus: High")
 
-    assert {(entity.name, entity.entity_type) for entity in entities} == {
+    assert {(entity.normalized_label, entity.entity_type) for entity in entities} == {
         ("patient:mrn-0001", "patient"),
         ("analyte:creatinine", "lab_analyte"),
         ("status:high", "lab_status"),
     }
-    assert {(relation.source_name, relation.target_name, relation.relation_type) for relation in relations} == {
+    assert {(relation.subject_label, relation.object_label, relation.relation_type) for relation in relations} == {
         ("patient:mrn-0001", "analyte:creatinine", "has_observation"),
         ("analyte:creatinine", "status:high", "has_status"),
     }
@@ -104,11 +104,11 @@ async def test_llm_failure_uses_explicit_relation_fallback(monkeypatch):
 
     entities, relations = await extract_entities_and_relations_nlp("Metformin treats diabetes.")
 
-    assert {(entity.name, entity.entity_type) for entity in entities} == {
+    assert {(entity.normalized_label, entity.entity_type) for entity in entities} == {
         ("metformin", "concept"),
         ("diabetes", "concept"),
     }
-    assert [(relation.source_name, relation.target_name, relation.relation_type) for relation in relations] == [
+    assert [(relation.subject_label, relation.object_label, relation.relation_type) for relation in relations] == [
         ("metformin", "diabetes", "treats")
     ]
 
@@ -163,7 +163,7 @@ async def test_index_chunk_entities_with_offline_extractor_never_gets_llm_manage
 
     monkeypatch.setattr("hospital_ai.services.graph_rag.get_llm_manager", llm_manager_was_called)
 
-    entities, relations = await index_chunk_entities(
+    await index_chunk_entities(
         session,
         chunk.id,
         doc.id,
@@ -171,8 +171,21 @@ async def test_index_chunk_entities_with_offline_extractor_never_gets_llm_manage
         extractor=extract_entities_and_relations_offline,
     )
 
-    assert [entity.name for entity in entities] == ["metformin", "diabetes"]
-    assert [(relation.relation_type, relation.weight) for relation in relations] == [("treats", 1.0)]
+    from hospital_ai.db.clinical_graph import GraphEntity, GraphRelationAssertion
+
+    entities = list(
+        (await session.execute(select(GraphEntity).where(GraphEntity.patient_id == PATIENT_ALICE_ID))).scalars()
+    )
+    relations = list(
+        (
+            await session.execute(
+                select(GraphRelationAssertion).where(GraphRelationAssertion.patient_id == PATIENT_ALICE_ID)
+            )
+        ).scalars()
+    )
+
+    assert sorted([entity.normalized_label for entity in entities]) == ["diabetes", "metformin"]
+    assert [(relation.relation_type) for relation in relations] == ["treats"]
 
 
 @pytest.mark.asyncio
@@ -193,7 +206,7 @@ async def test_index_chunk_entities_persists(session_and_settings):
     chunk = result.scalars().first()
     assert chunk is not None
 
-    entities, relations = await index_chunk_entities(
+    await index_chunk_entities(
         session,
         chunk_id=chunk.id,
         document_id=doc.id,
@@ -201,13 +214,14 @@ async def test_index_chunk_entities_persists(session_and_settings):
     )
     await session.commit()
 
-    assert len(entities) >= 3  # metformin, diabetes, lisinopril, hypertension
-    assert all(isinstance(e, GraphEntity) for e in entities)
+    from hospital_ai.db.clinical_graph import GraphEntity
 
-    # Verify persisted in DB
-    db_entities = await session.execute(select(GraphEntity).where(GraphEntity.source_chunk_id == chunk.id))
-    persisted = list(db_entities.scalars().all())
-    assert len(persisted) >= 3
+    result = await session.execute(select(GraphEntity).where(GraphEntity.patient_id == doc.patient_id))
+    db_entities = result.scalars().all()
+    assert len(db_entities) == 4
+    names = {e.normalized_label for e in db_entities}
+    assert "metformin" in names
+    assert "lisinopril" in names
 
 
 @pytest.mark.asyncio
@@ -226,7 +240,7 @@ async def test_index_chunk_entities_creates_relations(session_and_settings):
     result = await session.execute(select(DocumentChunk).where(DocumentChunk.document_id == doc.id))
     chunk = result.scalars().first()
 
-    entities, relations = await index_chunk_entities(
+    await index_chunk_entities(
         session,
         chunk_id=chunk.id,
         document_id=doc.id,
@@ -234,12 +248,15 @@ async def test_index_chunk_entities_creates_relations(session_and_settings):
     )
     await session.commit()
 
-    # Should have at least co-occurrence relations
-    assert len(relations) >= 0  # relations depend on text matching
-    # Verify relations are persisted
-    db_relations = await session.execute(select(GraphRelation).where(GraphRelation.source_chunk_id == chunk.id))
-    persisted_relations = list(db_relations.scalars().all())
-    assert len(persisted_relations) == len(relations)
+    from hospital_ai.db.clinical_graph import GraphRelationAssertion
+
+    result = await session.execute(
+        select(GraphRelationAssertion).where(GraphRelationAssertion.patient_id == doc.patient_id)
+    )
+    db_relations = result.scalars().all()
+    assert len(db_relations) == 2
+    types = {r.relation_type for r in db_relations}
+    assert "treats" in types
 
 
 # ── Integration: find_related_entities ───────────────────────────────
@@ -273,7 +290,7 @@ async def test_find_related_entities_returns_context(session_and_settings):
     ctx = await find_related_entities(session, ["metformin"], max_hops=2)
     assert isinstance(ctx, GraphContext)
     assert len(ctx.entities) >= 1
-    assert any(e.name == "metformin" for e in ctx.entities)
+    assert any(e.normalized_label == "metformin" for e in ctx.entities)
     assert chunk.id in ctx.related_chunk_ids
 
 
@@ -321,7 +338,7 @@ async def test_find_related_entities_bfs_multi_hop(session_and_settings):
     ctx = await find_related_entities(session, ["metformin"], max_hops=2)
     assert len(ctx.entities) >= 1
     # At minimum, metformin itself should be found
-    assert any(e.name == "metformin" for e in ctx.entities)
+    assert any(e.normalized_label == "metformin" for e in ctx.entities)
 
 
 # ── Integration: get_chunks_by_ids with graph evidence ───────────────

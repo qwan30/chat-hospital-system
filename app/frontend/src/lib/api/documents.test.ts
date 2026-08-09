@@ -8,7 +8,12 @@ vi.mock("../api-client", () => ({
 }));
 
 import { apiFetch, apiFetchBlob } from "../api-client";
-import { getDocumentBlob, createUploadSession, finalizeUpload } from "./documents";
+import {
+  getDocumentBlob,
+  createUploadSession,
+  finalizeUpload,
+  putPresignedObject,
+} from "./documents";
 
 describe("getDocumentBlob", () => {
   it("uses the protected content endpoint", async () => {

@@ -285,6 +285,11 @@ export function putPresignedObject(
   onProgress: (percent: number) => void,
 ): Promise<void> {
   return new Promise((resolve, reject) => {
+    if (upload.required_headers?.["If-None-Match"] !== "*") {
+      reject(new Error("Upload contract must require If-None-Match: *"));
+      return;
+    }
+
     const xhr = new XMLHttpRequest();
     const isLocalUpload = upload.presigned_url?.startsWith("local://") === true;
     const url = isLocalUpload

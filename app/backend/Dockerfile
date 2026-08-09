@@ -1,29 +1,36 @@
 # -- Stage 1: Build dependencies --------------------------------------
-FROM python:3.11-slim AS builder
+# Alpine keeps the runtime image free of the Debian base packages that are
+# not required by this service (including Perl and ncurses utilities).
+FROM python:3.11-alpine3.23 AS builder
 
 WORKDIR /build
 
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    build-essential libpq-dev && \
-    rm -rf /var/lib/apt/lists/*
+RUN apk add --no-cache --virtual .build-deps \
+    build-base postgresql-dev
 
 COPY pyproject.toml .
 RUN pip install --no-cache-dir --prefix=/install \
     $(python -c "import tomllib; d=tomllib.load(open('pyproject.toml','rb')); print(' '.join(d['project']['dependencies']+d['project']['optional-dependencies']['postgres']))")
 
 # -- Stage 2: Production image ----------------------------------------
-FROM python:3.11-slim
+FROM python:3.11-alpine3.23
 
 WORKDIR /app
 
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    libpq5 && \
-    rm -rf /var/lib/apt/lists/* && \
-    groupadd -r appuser && useradd -r -g appuser appuser
+RUN apk add --no-cache libpq && \
+    addgroup -S appuser && adduser -S -G appuser appuser
 
 RUN mkdir -p /data/storage && chown -R appuser:appuser /data
 
 COPY --from=builder /install /usr/local
+
+# The application does not install packages at runtime. Remove the package
+# manager and build helpers from the production image so their bundled
+# vulnerabilities cannot ship with the service.
+RUN python -m pip uninstall --disable-pip-version-check --no-input --yes \
+    pip setuptools wheel && \
+    rm -rf /root/.cache/pip /usr/local/bin/pip /usr/local/bin/pip3
+
 COPY src/ src/
 COPY alembic/ alembic/
 COPY alembic.ini .

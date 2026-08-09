@@ -121,6 +121,9 @@ describe("DocumentWorkspace", () => {
     );
 
     const editor = await screen.findByRole("textbox", { name: "Corrected page text" });
+    const submitButton = screen.getByRole("button", { name: "Submit Draft" });
+    // The toolbar is enabled only after the revision-page query has loaded its lock version.
+    await waitFor(() => expect(submitButton).toBeEnabled());
     fireEvent.change(editor, { target: { value: "saved draft" } });
     fireEvent.change(screen.getByPlaceholderText("Edit reason"), {
       target: { value: "corrected text" },
@@ -130,7 +133,9 @@ describe("DocumentWorkspace", () => {
     fireEvent.click(saveButton);
 
     await waitFor(() => expect(saveDraftPage).toHaveBeenCalled());
-    fireEvent.click(screen.getByRole("button", { name: "Submit Draft" }));
+    await waitFor(() => expect(screen.getByPlaceholderText("Edit reason")).toHaveValue(""));
+    await waitFor(() => expect(submitButton).toBeEnabled());
+    fireEvent.click(submitButton);
 
     await waitFor(() => {
       expect(submitDraft).toHaveBeenCalledWith(

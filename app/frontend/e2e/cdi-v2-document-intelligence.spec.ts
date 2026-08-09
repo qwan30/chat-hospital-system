@@ -24,6 +24,9 @@ async function signInAsRealUser(page: Page, username: string) {
   await realLoginPanel.getByLabel("Password").fill("demo");
   await realLoginPanel.getByRole("button", { name: "Sign in", exact: true }).click();
   await expect(page).toHaveURL(/\/dashboard$/, { timeout: 15000 });
+  await expect(page.getByRole("heading", { name: /^Good morning,/ })).toBeVisible({
+    timeout: 15000,
+  });
 }
 
 test("upload, correct, approve, explore graph and timeline, chat, and open exact evidence", async ({
@@ -33,7 +36,6 @@ test("upload, correct, approve, explore graph and timeline, chat, and open exact
 
   // 1. log in as the doctor editor through the real backend auth flow
   await signInAsRealUser(page, "doctor@example.test");
-  await expect(page.getByText("Welcome")).toBeVisible({ timeout: 15000 });
 
   // 2. create direct upload session and PUT synthetic scan
   await page.getByRole("link", { name: "Documents", exact: true }).click();
@@ -113,7 +115,6 @@ test("upload, correct, approve, explore graph and timeline, chat, and open exact
   // We can just navigate to /auth/login, it will wipe the session in memory?
   // Actually, there's no sign out button in the test right now, so let's try just going to login
   await signInAsRealUser(page, "admin@example.test");
-  await expect(page.getByText("Welcome")).toBeVisible();
 
   // 8. approve
   await page.getByRole("link", { name: "Documents", exact: true }).click();
@@ -131,7 +132,6 @@ test("upload, correct, approve, explore graph and timeline, chat, and open exact
   // back to the doctor with patient read access before asserting grounded chat
   // and evidence navigation.
   await signInAsRealUser(page, "doctor@example.test");
-  await expect(page.getByText("Welcome")).toBeVisible();
 
   // 10. graph and timeline are separate patient-scoped surfaces in the product.
   // Use in-app navigation here because the real-login token is intentionally

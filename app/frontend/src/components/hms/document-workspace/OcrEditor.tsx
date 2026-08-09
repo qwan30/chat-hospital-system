@@ -39,7 +39,7 @@ export function OcrEditor({
       return saveDraftPage(
         documentId,
         page,
-        { corrected_text: newText, parent_revision_id: revision?.id || "", edit_reason: reason },
+        { text: newText, parent_revision_id: revision?.id || "", edit_reason: reason },
         { idempotencyKey: idempotencyKeyRef.current, lockVersion: initialLockVersion },
       );
     },

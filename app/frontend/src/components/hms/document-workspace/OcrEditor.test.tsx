@@ -35,6 +35,12 @@ describe("OcrEditor", () => {
 
     await user.type(screen.getByPlaceholderText("Edit reason"), "fixed a typo");
     await user.click(screen.getByRole("button", { name: "Save draft" }));
+    expect(saveDraftPage).toHaveBeenCalledWith(
+      "doc-1",
+      1,
+      { text: "local correction", parent_revision_id: "rev-1", edit_reason: "fixed a typo" },
+      { idempotencyKey: expect.any(String), lockVersion: 3 },
+    );
     expect(screen.getByDisplayValue("local correction")).toBeVisible();
     expect(screen.getByRole("button", { name: "Compare with latest" })).toBeVisible();
   });

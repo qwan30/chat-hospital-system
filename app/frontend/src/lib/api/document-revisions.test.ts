@@ -22,7 +22,7 @@ describe("document-revisions client", () => {
   it("sends Idempotency-Key and If-Match on draft save", async () => {
     vi.mocked(apiFetch).mockResolvedValue({ page_revision_id: "rev-1" });
     const payload = {
-      corrected_text: "Updated clinical text",
+      text: "Updated clinical text",
       parent_revision_id: "prev-1",
       edit_reason: "Typo fix",
     };
@@ -33,6 +33,7 @@ describe("document-revisions client", () => {
       expect.objectContaining({
         method: "PATCH",
         headers: expect.objectContaining({ "Idempotency-Key": "draft-1", "If-Match": "7" }),
+        body: JSON.stringify(payload),
       }),
     );
   });

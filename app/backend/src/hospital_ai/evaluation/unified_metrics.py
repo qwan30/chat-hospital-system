@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from collections.abc import Sequence
 from pathlib import Path
 from typing import Any, Optional
@@ -219,4 +220,4 @@ def evaluate_hard_gates(
 def write_summary_json(report: UnifiedEvaluationRunReport, path: Path) -> None:
     """Write out the final summary JSON file with deterministic schema mapping."""
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(report.json(indent=2), encoding="utf-8")
+    path.write_text(json.dumps(report.model_dump(mode="json"), indent=2), encoding="utf-8")

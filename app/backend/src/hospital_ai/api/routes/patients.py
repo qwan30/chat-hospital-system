@@ -67,7 +67,7 @@ async def search_patients(
 
 
 class PatientCreate(BaseModel):
-    mrn: str = Field(min_length=5, max_length=64, regex=r"^[A-Z0-9-]+$")
+    mrn: str = Field(min_length=5, max_length=64, pattern=r"^[A-Z0-9-]+$")
     full_name: str = Field(min_length=1, max_length=255)
     dob: Optional[date] = None
     department: Optional[str] = Field(default=None, max_length=128)

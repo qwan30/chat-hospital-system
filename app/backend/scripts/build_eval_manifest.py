@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import json
 import sys
 from pathlib import Path
 
@@ -25,7 +26,7 @@ def main(argv: list[str] | None = None) -> int:
     validation_error, build_manifest = _load_manifest_builder()
     try:
         manifest = build_manifest(BACKEND_ROOT / "data")
-        rendered = manifest.json(indent=2, sort_keys=True) + "\n"
+        rendered = json.dumps(manifest.model_dump(mode="json"), indent=2, sort_keys=True) + "\n"
         if args.check:
             if args.output is not None and args.output.exists() and args.output.read_text(encoding="utf-8") != rendered:
                 raise validation_error("manifest output is stale")

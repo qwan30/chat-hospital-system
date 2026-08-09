@@ -93,7 +93,7 @@ class GraphExpectation(BaseModel):
     required_edges: tuple[tuple[str, str, str], ...]
     evidence: tuple[EvidenceLocator, ...]
 
-    @root_validator
+    @root_validator(skip_on_failure=True)
     def _graph_has_path_and_evidence(cls, values: dict) -> dict:
         if not values.get("required_nodes") or not values.get("required_edges"):
             raise ValueError("graph expectations require nodes and edges")
@@ -135,10 +135,10 @@ class EvalCaseV2(BaseModel):
     forbidden_evidence: tuple[EvidenceLocator, ...]
     absence_terms: tuple[str, ...] = ()
     absence_checked_evidence: tuple[EvidenceLocator, ...] = ()
-    graph: Optional[GraphExpectation]
+    graph: Optional[GraphExpectation] = None
     review: ReviewRecord
 
-    @root_validator
+    @root_validator(skip_on_failure=True)
     def _enforce_answer_and_refusal_shape(cls, values: dict) -> dict:
         policy = values.get("answer_policy")
         category = values.get("category")

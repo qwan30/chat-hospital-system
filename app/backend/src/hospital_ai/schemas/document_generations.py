@@ -1,20 +1,17 @@
 import uuid
 from datetime import datetime
-from typing import Literal, Optional
+from typing import Annotated, Literal, Optional
 
-from pydantic import BaseModel, ConfigDict, constr
+from pydantic import BaseModel, ConfigDict, StringConstraints
 
 
 class GenerationRollbackRequest(BaseModel):
     expected_active_generation_id: uuid.UUID
-    reason: constr(strip_whitespace=True, min_length=3, max_length=500)
+    reason: Annotated[str, StringConstraints(strip_whitespace=True, min_length=3, max_length=500)]
 
 
 class GenerationRollbackRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
-
-    class Config:
-        orm_mode = True
 
     document_id: uuid.UUID
     active_index_generation_id: uuid.UUID
@@ -26,9 +23,6 @@ class GenerationRollbackRead(BaseModel):
 
 class DocumentIndexGenerationRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
-
-    class Config:
-        orm_mode = True
 
     id: uuid.UUID
     document_id: uuid.UUID

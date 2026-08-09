@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import hashlib
 import inspect
+import json
 import os
 import time
 from collections.abc import Awaitable, Callable, Mapping
@@ -148,7 +149,7 @@ def _case_from_dataset_entry(case):
 
 def _case_json_without_review(case: EvalCaseV2) -> str:
     normalized = case.copy(update={"review": ReviewRecord(status="draft")})
-    return normalized.json(sort_keys=True)
+    return json.dumps(normalized.model_dump(mode="json"), sort_keys=True)
 
 
 def _load_and_validate_dataset(config: EvaluationConfig):

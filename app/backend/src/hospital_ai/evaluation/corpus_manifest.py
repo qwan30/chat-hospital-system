@@ -82,7 +82,7 @@ class SourceArtifact(BaseModel):
 
     _canonical_path_is_relative = validator("canonical_relative_path", allow_reuse=True)(_validate_relative_path)
 
-    @root_validator
+    @root_validator(skip_on_failure=True)
     def _enforce_identity_and_duplicate_contract(cls, values: dict) -> dict:
         kind = values.get("kind")
         patient_id = values.get("patient_id")

@@ -100,7 +100,7 @@ class UnifiedCorpusV3(BaseModel):
     corpus_id: Literal["hospital-ai-unified-clinical-corpus-v3"] = "hospital-ai-unified-clinical-corpus-v3"
     items: tuple[UnifiedCorpusItemV3, ...] = ()
 
-    @root_validator(pre=False)
+    @root_validator(skip_on_failure=True)
     def _enforce_split_isolation(cls, values: dict) -> dict:
         items = values.get("items") or ()
         seen_patient_splits: dict[str, set[str]] = defaultdict(set)

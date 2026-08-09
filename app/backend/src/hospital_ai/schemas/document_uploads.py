@@ -13,7 +13,7 @@ class UploadSessionCreate(BaseModel):
     title: Optional[str] = Field(default=None, min_length=1, max_length=255)
     document_type: Optional[str] = Field(default=None, min_length=1, max_length=100)
     expected_size: int = Field(..., gt=0)
-    expected_sha256: str = Field(..., min_length=64, max_length=64, regex=r"^[0-9a-fA-F]{64}$")
+    expected_sha256: str = Field(..., min_length=64, max_length=64, pattern=r"^[0-9a-fA-F]{64}$")
     claimed_mime_type: Literal["application/pdf", "image/png", "image/jpeg"]
 
 

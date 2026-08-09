@@ -135,7 +135,7 @@ class PublicDataSource(BaseModel):
             raise ValueError("source must contain at least one artifact")
         return value
 
-    @root_validator
+    @root_validator(skip_on_failure=True)
     def _artifact_paths_are_unique(cls, values: dict) -> dict:
         artifacts = values.get("artifacts") or ()
         upstream_paths = [artifact.upstream_path for artifact in artifacts]
@@ -160,7 +160,7 @@ class SourceRegistry(BaseModel):
             raise ValueError("registry must contain at least one source")
         return value
 
-    @root_validator
+    @root_validator(skip_on_failure=True)
     def _source_ids_are_unique(cls, values: dict) -> dict:
         sources = values.get("sources") or ()
         source_ids = [source.source_id for source in sources]

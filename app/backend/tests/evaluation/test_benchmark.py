@@ -304,7 +304,9 @@ def test_generation_and_sentinel_selection_are_reproducible(manifest: CorpusMani
     first = build_benchmark(manifest, DATA_ROOT)
     second = build_benchmark(manifest, DATA_ROOT)
 
-    assert [case.json(sort_keys=True) for case in first] == [case.json(sort_keys=True) for case in second]
+    assert [json.dumps(case.model_dump(mode="json"), sort_keys=True) for case in first] == [
+        json.dumps(case.model_dump(mode="json"), sort_keys=True) for case in second
+    ]
     assert select_sentinel(first) == select_sentinel(second)
     assert json.dumps([case.dict() for case in first], default=str, sort_keys=True) == json.dumps(
         [case.dict() for case in second], default=str, sort_keys=True

@@ -11,7 +11,7 @@ class TextLoader(BaseDocumentLoader):
     """Load plain text and markdown files."""
 
     def supported_extensions(self) -> set[str]:
-        return {".txt", ".md", ".text", ".log", ".csv", ".json", ".xml", ".yaml", ".yml"}
+        return {".txt", ".md", ".text", ".log", ".csv", ".json", ".xml", ".yaml", ".yml", ".hl7"}
 
     def load(self, file_path: Path, mime_type: str = "") -> list[LoadedPage]:
         text = file_path.read_text(encoding="utf-8", errors="replace")

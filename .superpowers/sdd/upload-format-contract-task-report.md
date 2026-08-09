@@ -1,0 +1,37 @@
+# Upload format contract task report
+
+## Scope delivered
+
+- Added the standard DOCX OpenXML MIME type to the route allow-list already
+  supported by the existing DOCX loader.
+- Added `normalize_upload_mime_type`: only a filename ending in `.hl7` plus a
+  known HL7 textual MIME type or browser `application/octet-stream` is stored
+  as `text/plain`.
+- Added `.hl7` to `TextLoader`'s UTF-8 extension set.
+- Kept generic binary uploads fail-closed; `application/octet-stream` is not a
+  globally allowed MIME type and DICOM behavior is unchanged.
+
+## TDD evidence
+
+- RED with the project Python 3.11 virtual environment: the route-normalizer
+  import was absent, `TextLoader` rejected `.hl7`, and browser-style HL7 upload
+  raised `Unsupported file type: application/octet-stream`; a non-HL7 binary
+  rejection already passed.
+- GREEN contract tests: browser `.hl7` upload reaches `ready` with one page and
+  normalized `text/plain`; HL7 loader routing, DOCX MIME normalization, and
+  arbitrary octet-stream rejection pass.
+
+## Validation
+
+- `app/backend/.venv/Scripts/python.exe -m pytest tests/test_documents.py tests/api/test_documents.py tests/workers/test_documents_pipeline.py` — 25 passed.
+- Focused contract selection — 4 passed.
+- Ruff check and format check for all owned files passed.
+- GitNexus impact before edits: `upload_document` LOW (no indexed callers) and
+  `TextLoader` LOW (one direct caller). Staged change detection and diff check
+  run before commit.
+
+## Environment note
+
+- The shell `python` resolves to Python 3.9 and global Python 3.12 contains an
+  incompatible Pydantic major version. Backend checks used the repository's
+  `.venv` Python 3.11 environment, matching the project dependencies.

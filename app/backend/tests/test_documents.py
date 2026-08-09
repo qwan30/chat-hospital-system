@@ -113,6 +113,98 @@ async def test_chat_attachment_upload_records_initial_activity(session_and_setti
     )
 
 
+def test_upload_mime_normalization_allows_hl7_and_docx_but_not_arbitrary_binary():
+    from hospital_ai.api.routes.documents import normalize_upload_mime_type
+
+    assert normalize_upload_mime_type("synthetic-message.hl7", "application/octet-stream") == "text/plain"
+    assert normalize_upload_mime_type("synthetic-message.HL7", "application/hl7-v2") == "text/plain"
+    assert (
+        normalize_upload_mime_type(
+            "clinical-note.docx",
+            "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        )
+        == "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+    )
+    assert normalize_upload_mime_type("unknown.bin", "application/octet-stream") == "application/octet-stream"
+
+
+def test_text_loader_routes_hl7_as_utf8_text(tmp_path: Path):
+    from hospital_ai.services.loaders.text_loader import TextLoader
+
+    source = tmp_path / "synthetic-message.hl7"
+    source.write_text("MSH|^~\\&|E2E|HMS|LAB|HOSPITAL|20260809||ORU^R01|1|P|2.5", encoding="utf-8")
+
+    loader = TextLoader()
+    assert loader.can_handle(source)
+    assert loader.load(source)[0].text.startswith("MSH|^~\\&")
+
+
+@pytest.mark.asyncio
+async def test_upload_accepts_browser_hl7_octet_stream_and_indexes_it(session_and_settings):
+    from io import BytesIO
+
+    from fastapi import Request, UploadFile
+    from starlette.datastructures import Headers
+
+    from hospital_ai.api.routes.documents import upload_document
+    from hospital_ai.db.models import User
+
+    session, settings = session_and_settings
+    current_user = await session.get(User, RECORDS_ID)
+    upload = UploadFile(
+        filename="synthetic-message.hl7",
+        file=BytesIO(b"MSH|^~\\&|E2E|HMS|LAB|HOSPITAL|20260809||ORU^R01|1|P|2.5"),
+        headers=Headers({"content-type": "application/octet-stream"}),
+    )
+
+    document = await upload_document(
+        request=Request({"type": "http", "client": ("127.0.0.1", 8000)}),
+        patient_id=PATIENT_ALICE_ID,
+        title="Synthetic HL7 result",
+        document_type="lab_result",
+        file=upload,
+        session=session,
+        current_user=current_user,
+        settings=settings,
+    )
+
+    assert document.mime_type == "text/plain"
+    assert document.status == "ready"
+    assert document.page_count == 1
+
+
+@pytest.mark.asyncio
+async def test_upload_rejects_non_hl7_octet_stream(session_and_settings):
+    from io import BytesIO
+
+    from fastapi import Request, UploadFile
+    from starlette.datastructures import Headers
+
+    from hospital_ai.api.routes.documents import upload_document
+    from hospital_ai.core.errors import ValidationAppError
+    from hospital_ai.db.models import User
+
+    session, settings = session_and_settings
+    current_user = await session.get(User, RECORDS_ID)
+    upload = UploadFile(
+        filename="unknown.bin",
+        file=BytesIO(b"not an approved document format"),
+        headers=Headers({"content-type": "application/octet-stream"}),
+    )
+
+    with pytest.raises(ValidationAppError, match="Unsupported file type: application/octet-stream"):
+        await upload_document(
+            request=Request({"type": "http", "client": ("127.0.0.1", 8000)}),
+            patient_id=PATIENT_ALICE_ID,
+            title="Unknown binary",
+            document_type="clinical_note",
+            file=upload,
+            session=session,
+            current_user=current_user,
+            settings=settings,
+        )
+
+
 @pytest.mark.asyncio
 async def test_processing_records_safe_ordered_activity_events(session_and_settings):
     session, settings = session_and_settings

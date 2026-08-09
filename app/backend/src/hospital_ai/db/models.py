@@ -13,6 +13,7 @@ from sqlalchemy import (
     Date,
     DateTime,
     ForeignKey,
+    Index,
     Integer,
     Numeric,
     String,
@@ -20,7 +21,7 @@ from sqlalchemy import (
     UniqueConstraint,
     func,
 )
-from sqlalchemy.dialects.postgresql import INET
+from sqlalchemy.dialects.postgresql import INET, TSVECTOR
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 from sqlalchemy.types import TypeDecorator
 
@@ -48,6 +49,18 @@ class EmbeddingVector(TypeDecorator):
             except Exception:
                 return dialect.type_descriptor(JSON())
         return dialect.type_descriptor(JSON())
+
+
+class FullTextSearchVector(TypeDecorator):
+    """Use PostgreSQL's ``tsvector`` while remaining SQLite-test compatible."""
+
+    impl = Text
+    cache_ok = True
+
+    def load_dialect_impl(self, dialect: Any) -> Any:
+        if dialect.name == "postgresql":
+            return dialect.type_descriptor(TSVECTOR())
+        return dialect.type_descriptor(Text())
 
 
 class InetAddress(TypeDecorator):
@@ -311,7 +324,16 @@ class DocumentPage(TimestampMixin, SoftDeleteMixin, Base):
 
 class DocumentChunk(TimestampMixin, SoftDeleteMixin, Base):
     __tablename__ = "document_chunks"
-    __table_args__ = (UniqueConstraint("document_id", "generation_id", "chunk_index", name="uq_document_chunk_index"),)
+    __table_args__ = (
+        UniqueConstraint("document_id", "generation_id", "chunk_index", name="uq_document_chunk_index"),
+        Index(
+            "document_chunks_embedding_hnsw",
+            "embedding",
+            postgresql_using="hnsw",
+            postgresql_ops={"embedding": "vector_cosine_ops"},
+        ),
+        Index("ix_document_chunks_search_vector", "search_vector", postgresql_using="gin"),
+    )
 
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
     document_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("documents.id"), nullable=False, index=True)
@@ -321,6 +343,7 @@ class DocumentChunk(TimestampMixin, SoftDeleteMixin, Base):
     content: Mapped[str] = mapped_column(Text, nullable=False)
     token_count: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     embedding: Mapped[Optional[list[float]]] = mapped_column(EmbeddingVector(1024), nullable=True)
+    search_vector: Mapped[Optional[str]] = mapped_column(FullTextSearchVector(), nullable=True)
     meta: Mapped[dict[str, Any]] = mapped_column("metadata", JSON, nullable=False, default=dict)
 
     generation_id: Mapped[Optional[uuid.UUID]] = mapped_column(

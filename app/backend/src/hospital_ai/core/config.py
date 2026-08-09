@@ -4,10 +4,19 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Optional
 
-from pydantic import BaseSettings, Field, validator
+from pydantic import Field, validator
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
+    model_config = SettingsConfigDict(
+        env_prefix="HOSPITAL_AI_",
+        env_file=".env",
+        env_file_encoding="utf-8",
+        case_sensitive=False,
+        extra="ignore",
+    )
+
     environment: str = "local"
     api_v1_prefix: str = "/api/v1"
     database_url: str = "postgresql+asyncpg://hospital_ai:hospital_ai@localhost:5432/hospital_ai"
@@ -145,7 +154,7 @@ class Settings(BaseSettings):
         # an explicit acknowledgment and accepted.
         if (
             self.environment != "local"
-            and self.dev_bearer_tokens == self.__class__.__fields__["dev_bearer_tokens"].default
+            and self.dev_bearer_tokens == self.__class__.model_fields["dev_bearer_tokens"].default
         ):
             return {}
 
@@ -162,12 +171,6 @@ class Settings(BaseSettings):
     @property
     def cors_origin_list(self) -> list[str]:
         return [origin.strip().rstrip("/") for origin in self.cors_origins.split(",") if origin.strip()]
-
-    class Config:
-        env_prefix = "HOSPITAL_AI_"
-        env_file = ".env"
-        env_file_encoding = "utf-8"
-        case_sensitive = False
 
 
 @lru_cache(maxsize=1)

@@ -19,7 +19,7 @@ class PatientScopeMixin(ApiSchema):
     scope: ThreadScope = "general"
     patient_id: Optional[UUID] = None
 
-    @root_validator
+    @root_validator(skip_on_failure=True)
     def validate_patient_scope(cls, values: dict[str, object]) -> dict[str, object]:
         scope = values.get("scope")
         patient_id = values.get("patient_id")

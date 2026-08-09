@@ -375,9 +375,11 @@ async def test_get_exact_evidence_endpoint(session_and_settings, setup_data) -> 
 
 
 def test_routes_registered_in_router() -> None:
-    from hospital_ai.api.router import api_router
+    from hospital_ai.core.config import Settings
+    from hospital_ai.main import create_app
 
-    paths = [route.path for route in api_router.routes]
+    app = create_app(Settings(prometheus_enabled=False))
+    paths = list(app.openapi()["paths"])
     assert any("draft/pages" in p for p in paths)
     assert any("draft/submit" in p for p in paths)
     assert any("revision-sets" in p for p in paths)

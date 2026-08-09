@@ -151,15 +151,15 @@ class LocalStorageService:
         if storage_uri.startswith(("r2://", "hms://", "local://")):
             raise ValueError("The local storage backend cannot read this storage URI.")
 
-        root = self.root.resolve()
-        candidate = Path(storage_uri)
-        if not candidate.is_absolute():
+        root = os.path.realpath(os.fspath(self.root))
+        if os.path.isabs(storage_uri):
+            candidate = os.path.realpath(storage_uri)
+        else:
             validated_uri = validate_storage_object_key(storage_uri, allowed_prefixes=("source/", "patients/"))
-            candidate = root / validated_uri
-        resolved = candidate.resolve()
-        if not resolved.is_relative_to(root):
+            candidate = os.path.realpath(os.path.join(root, validated_uri))
+        if candidate != root and not candidate.startswith(root + os.sep):
             raise ValueError("Storage URI points outside the configured local storage root.")
-        return resolved
+        return Path(candidate)
 
     def create_presigned_put(self, *, key: str, content_type: str, expires_seconds: int) -> PresignedPut:
         validated_key = _validated_local_storage_key(key)
@@ -373,6 +373,8 @@ def validate_storage_object_key(key: str, *, allowed_prefixes: tuple[str, ...] =
     parts = key.split("/")
     if any(not part or part in {".", ".."} for part in parts):
         raise ValueError("Storage object key contains an unsafe path segment.")
+    if any(not re.fullmatch(r"[A-Za-z0-9._~-]+", part) for part in parts):
+        raise ValueError("Storage object key contains an unsafe character.")
     if allowed_prefixes and not any(key.startswith(prefix) for prefix in allowed_prefixes):
         raise ValueError("Storage object key uses an unexpected prefix.")
     return key

@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import hashlib
 import inspect
+import json
 import os
 import time
 from collections.abc import Awaitable, Callable, Mapping
@@ -148,7 +149,7 @@ def _case_from_dataset_entry(case):
 
 def _case_json_without_review(case: EvalCaseV2) -> str:
     normalized = case.copy(update={"review": ReviewRecord(status="draft")})
-    return normalized.json(sort_keys=True)
+    return json.dumps(normalized.model_dump(mode="json"), sort_keys=True)
 
 
 def _load_and_validate_dataset(config: EvaluationConfig):
@@ -732,11 +733,15 @@ async def run_evaluation_async(
         else:
             assert isolation is not None
             if component in ("graph", "timeline"):
-                expectation_attr = "graph" if component == "graph" else "timeline_expectations"
                 component_cases = [
                     c
                     for c in selected
-                    if (c[1].graph if isinstance(c, tuple) else getattr(c, expectation_attr, None)) is not None
+                    if (
+                        c[1].graph
+                        if isinstance(c, tuple)
+                        else getattr(c, "graph" if component == "graph" else "timeline_expectations", None)
+                    )
+                    is not None
                 ]
                 if component == "graph":
                     gates.append(_graph_case_coverage_gate(component_cases))

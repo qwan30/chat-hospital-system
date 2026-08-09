@@ -365,9 +365,10 @@ async def test_finalize_upload_session_failure_releases_idempotency_key(
 
 
 def test_routes_registered_in_router() -> None:
-    from hospital_ai.api.router import api_router
+    from hospital_ai.core.config import Settings
+    from hospital_ai.main import create_app
 
-    paths = [route.path for route in api_router.routes]
+    paths = list(create_app(Settings(prometheus_enabled=False)).openapi()["paths"])
     assert any("upload-sessions" in p for p in paths)
     assert any("finalize" in p for p in paths)
 

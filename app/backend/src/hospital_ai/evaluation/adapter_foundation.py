@@ -49,7 +49,7 @@ class RuntimeEvidenceChunk(BaseModel):
 
     runtime_chunk_id: str
     source_path: str
-    source_sha256: Optional[str]
+    source_sha256: Optional[str] = None
     patient_id: Optional[UUID] = None
     page_number: Optional[int] = None
     row_number: Optional[int] = None
@@ -274,7 +274,7 @@ class EvaluatorIsolationConfig(BaseModel):
             raise EvaluationIsolationError("run namespace must start with ai-eval/")
         return value
 
-    @root_validator
+    @root_validator(skip_on_failure=True)
     def _database_is_isolated(cls, values: dict) -> dict:
         evaluation_url = values.get("evaluation_database_url")
         approved_url = values.get("approved_evaluation_database_url")

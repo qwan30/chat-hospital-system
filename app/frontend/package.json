@@ -11,7 +11,7 @@
     "lint": "eslint src e2e eslint.config.js playwright.config.ts vite.config.ts",
     "format": "prettier --write .",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run src",
+    "test": "vitest run src --pool=threads --maxWorkers=1",
     "verify:public-bundle": "node scripts/verify-public-bundle.mjs .vercel/output",
     "verify:public-bundle:self-test": "node scripts/verify-public-bundle.mjs --self-test",
     "test:e2e": "playwright test",

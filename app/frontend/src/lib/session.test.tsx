@@ -445,90 +445,114 @@ describe("SessionProvider / useSession", () => {
     vi.doUnmock("@/lib/auth-context");
     vi.doUnmock("@/lib/api-client");
     vi.resetModules();
-    mockLocalStorage({
-      "hms.session": JSON.stringify({ role: "admin" }),
-    });
+    let unmountRealProvider: (() => void) | null = null;
 
-    const fetchMock = vi.fn((input: RequestInfo | URL) => {
-      const url = String(input);
-      if (url.endsWith("/auth/token")) {
-        return Promise.resolve({
-          ok: true,
-          json: async () => ({ access_token: "integration-jwt" }),
-        } as Response);
+    try {
+      mockLocalStorage({
+        "hms.session": JSON.stringify({ role: "admin" }),
+      });
+
+      const fetchMock = vi.fn((input: RequestInfo | URL) => {
+        const url = String(input);
+        if (url.endsWith("/auth/token")) {
+          return Promise.resolve({
+            ok: true,
+            json: async () => ({ access_token: "integration-jwt" }),
+          } as Response);
+        }
+        if (url.endsWith("/auth/me")) {
+          return Promise.resolve({
+            ok: true,
+            json: async () => ({
+              id: "integration-user",
+              email: "integration@example.test",
+              full_name: "Integration User",
+              role: "doctor",
+              is_active: true,
+            }),
+          } as Response);
+        }
+        throw new Error(`Unexpected fetch: ${url}`);
+      });
+      vi.stubGlobal("fetch", fetchMock);
+
+      const [
+        { AuthProvider, useAuth: useRealAuth },
+        { SessionProvider: RealSessionProvider, useSession: useRealSession },
+        { getToken },
+      ] = await Promise.all([
+        import("./auth-context"),
+        import("./session"),
+        import("./api-client"),
+      ]);
+
+      let realAuth: ReturnType<typeof useRealAuth> | null = null;
+      let realSession: ReturnType<typeof useRealSession> | null = null;
+
+      function RealProviderCapture() {
+        realAuth = useRealAuth();
+        realSession = useRealSession();
+        return (
+          <output data-testid="real-auth-state">
+            {realAuth.authUser ? "authenticated" : "anonymous"}
+          </output>
+        );
       }
-      if (url.endsWith("/auth/me")) {
-        return Promise.resolve({
-          ok: true,
-          json: async () => ({
-            id: "integration-user",
-            email: "integration@example.test",
-            full_name: "Integration User",
-            role: "doctor",
-            is_active: true,
-          }),
-        } as Response);
-      }
-      throw new Error(`Unexpected fetch: ${url}`);
-    });
-    vi.stubGlobal("fetch", fetchMock);
 
-    const [
-      { AuthProvider, useAuth: useRealAuth },
-      { SessionProvider: RealSessionProvider, useSession: useRealSession },
-      { getToken },
-    ] = await Promise.all([import("./auth-context"), import("./session"), import("./api-client")]);
+      unmountRealProvider = render(
+        <AuthProvider>
+          <RealSessionProvider>
+            <RealProviderCapture />
+          </RealSessionProvider>
+        </AuthProvider>,
+      ).unmount;
 
-    let realAuth: ReturnType<typeof useRealAuth> | null = null;
-    let realSession: ReturnType<typeof useRealSession> | null = null;
+      await waitFor(() => {
+        expect(realAuth?.hydrated).toBe(true);
+      });
 
-    function RealProviderCapture() {
-      realAuth = useRealAuth();
-      realSession = useRealSession();
-      return (
-        <output data-testid="real-auth-state">
-          {realAuth.authUser ? "authenticated" : "anonymous"}
-        </output>
-      );
+      await act(async () => {
+        expect(await realAuth!.login("integration-user", "test-password")).toBe(true);
+      });
+
+      await waitFor(() => {
+        expect(realSession?.session?.isRealAuth).toBe(true);
+        expect(getToken()).toBe("integration-jwt");
+      });
+
+      act(() => {
+        realSession!.signOut();
+      });
+
+      await waitFor(() => {
+        expect(screen.getByTestId("real-auth-state").textContent).toBe("anonymous");
+        expect(realAuth?.authUser).toBeNull();
+        expect(realAuth?.token).toBeNull();
+        expect(realSession?.session).toBeNull();
+        expect(getToken()).toBeNull();
+      });
+
+      expect(getMockStore()).not.toHaveProperty("hms.session");
+      expect(Object.values(getMockStore())).not.toContain("integration-jwt");
+      expect(Object.values(getMockStore()).some((value) => value.startsWith("dev-"))).toBe(false);
+      expect(fetchMock).toHaveBeenCalledTimes(2);
+    } finally {
+      unmountRealProvider?.();
+      vi.doMock("@/lib/auth-context", () => ({
+        useAuth: () => authStateRef.current,
+      }));
+      vi.doMock("@/lib/api-client", () => ({ persistToken }));
+      vi.resetModules();
+      vi.unstubAllGlobals();
     }
+  });
 
-    render(
-      <AuthProvider>
-        <RealSessionProvider>
-          <RealProviderCapture />
-        </RealSessionProvider>
-      </AuthProvider>,
-    );
+  it("restores the hoisted auth-context and api-client mocks after the real-provider test", async () => {
+    const [{ useAuth: restoredUseAuth }, { persistToken: restoredPersistToken }] =
+      await Promise.all([import("./auth-context"), import("./api-client")]);
 
-    await waitFor(() => {
-      expect(realAuth?.hydrated).toBe(true);
-    });
-
-    await act(async () => {
-      expect(await realAuth!.login("integration-user", "test-password")).toBe(true);
-    });
-
-    await waitFor(() => {
-      expect(realSession?.session?.isRealAuth).toBe(true);
-      expect(getToken()).toBe("integration-jwt");
-    });
-
-    act(() => {
-      realSession!.signOut();
-    });
-
-    await waitFor(() => {
-      expect(screen.getByTestId("real-auth-state").textContent).toBe("anonymous");
-      expect(realAuth?.authUser).toBeNull();
-      expect(realAuth?.token).toBeNull();
-      expect(realSession?.session).toBeNull();
-      expect(getToken()).toBeNull();
-    });
-
-    expect(getMockStore()).not.toHaveProperty("hms.session");
-    expect(Object.values(getMockStore())).not.toContain("integration-jwt");
-    expect(Object.values(getMockStore()).some((value) => value.startsWith("dev-"))).toBe(false);
-    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(restoredUseAuth()).toBe(authStateRef.current);
+    expect(restoredPersistToken).toBe(persistToken);
   });
 });
 

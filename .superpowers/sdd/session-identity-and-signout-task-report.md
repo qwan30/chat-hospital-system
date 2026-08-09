@@ -191,3 +191,35 @@ Green:
 
 - all edits remain within `app/frontend/src/lib/session.tsx`, `app/frontend/src/lib/session.test.tsx`, and this append-only report
 - Topbar, AuthProvider, demo mappings (including `security -> dev-security`), and memory-only token handling remain otherwise unchanged
+
+## Mock-isolation review follow-up (2026-08-09)
+
+### Finding addressed
+
+The real-AuthProvider sign-out test temporarily unmocked `auth-context` and `api-client`, reset the module cache, and dynamically imported the real modules, but did not deterministically restore the hoisted module mocks. That state could leak into following tests.
+
+### TDD evidence
+
+Red:
+
+- added a following sentinel that dynamically imports `auth-context` and `api-client`, then proves `useAuth()` returns the hoisted auth state and `persistToken` is the hoisted spy
+- `cd app/frontend && bun run test -- session.test.tsx`
+  - failed as expected: the sentinel reached the real `useAuth` and raised `Invalid hook call`
+  - result: 1 failed test, 114 passing tests
+
+Green:
+
+- kept the real-provider test's `doUnmock`, module reset, real `AuthProvider`, real `SessionProvider`, and real API-client imports intact
+- wrapped the real-provider path in `try/finally`; the `finally` unmounts the rendered provider tree, restores both hoisted module factories with `vi.doMock`, resets the module cache, and unstubs globals
+- retained suite-level global cleanup in `afterEach` to prevent fetch/localStorage leakage when other tests stub globals
+
+### Verification
+
+- `cd app/frontend && bunx vitest run src/lib/session.test.tsx`
+  - pass: 1 test file, 13 tests
+- `cd app/frontend && bun run test`
+  - pass: 15 test files, 115 tests
+- `cd app/frontend && bun run typecheck`
+  - pass
+- `cd app/frontend && bun run lint`
+  - pass

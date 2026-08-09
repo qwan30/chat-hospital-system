@@ -1,6 +1,8 @@
 import { test, expect } from "@playwright/test";
 import { seedSession } from "./_helpers";
 
+const isGlobalTimelineRequest = (url: URL) => url.pathname === "/api/timeline";
+
 test.describe("Global Timeline Page", () => {
   test.beforeEach(async ({ page }) => {
     await seedSession(page);
@@ -8,7 +10,7 @@ test.describe("Global Timeline Page", () => {
 
   test("loads timeline events correctly", async ({ page }) => {
     // We will intercept the API call to mock a successful response
-    await page.route("**/api/v1/timeline*", async (route) => {
+    await page.route(isGlobalTimelineRequest, async (route) => {
       await route.fulfill({
         status: 200,
         contentType: "application/json",
@@ -55,7 +57,7 @@ test.describe("Global Timeline Page", () => {
 
   test("handles empty state", async ({ page }) => {
     // Intercept to mock empty response
-    await page.route("**/api/v1/timeline*", async (route) => {
+    await page.route(isGlobalTimelineRequest, async (route) => {
       await route.fulfill({
         status: 200,
         contentType: "application/json",
@@ -74,7 +76,7 @@ test.describe("Global Timeline Page", () => {
 
   test("handles error state", async ({ page }) => {
     // Intercept to mock error response
-    await page.route("**/api/v1/timeline*", async (route) => {
+    await page.route(isGlobalTimelineRequest, async (route) => {
       await route.fulfill({
         status: 500,
         contentType: "application/json",

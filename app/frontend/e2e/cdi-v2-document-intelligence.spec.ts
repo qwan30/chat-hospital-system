@@ -170,9 +170,9 @@ test("upload, correct, approve, explore graph and timeline, chat, and open exact
     // The dev server exposes /api and rewrites it to the backend's /api/v1.
     "**/api/chat/stream",
     async (route) => {
-      // Return an invalid stream order: tokens before metadata
+      // Return an invalid stream order: skip the first token sequence.
       const invalidPayload =
-        'data: {"type":"token","sequence":1,"content":"hello","validation_mode":"sentence_buffered"}\n\n';
+        'data: {"type":"token","sequence":2,"content":"hello","validation_mode":"sentence_buffered"}\n\n';
       await route.fulfill({
         status: 200,
         contentType: "text/event-stream",
@@ -183,7 +183,7 @@ test("upload, correct, approve, explore graph and timeline, chat, and open exact
   );
 
   await page.getByRole("button", { name: "Send" }).click();
-  await expect(page.getByText("Invalid SSE event order")).toBeVisible();
+  await expect(page.getByText("Invalid SSE token sequence")).toBeVisible();
 
   // Send the actual question
   await page

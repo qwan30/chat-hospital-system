@@ -43,3 +43,14 @@
   patient scope and that q-only links submit nothing.
 - Follow-up validation: focused Vitest passed with 17 files / 128 tests;
   typecheck and lint passed.
+
+## Route-level regression follow-up
+
+- The final review required a component-level navigation regression, not only
+  a pure mutation-helper assertion. `DocumentSearchPage` now owns the route
+  behavior while the route wrapper supplies validated search parameters.
+- A jsdom component test renders that page with one QueryClient, rerenders it
+  with a new URL query/patient scope, and verifies exactly one API mutation
+  carries the new scope. It also verifies that a q-only legacy URL makes zero
+  API calls.
+- Focused validation passed with 18 files / 130 tests, followed by typecheck.

@@ -14,6 +14,7 @@ const searchSchema = z.object({
   q: z.string().optional(),
   patientId: z.string().optional(),
 });
+type DocumentSearchParams = z.infer<typeof searchSchema>;
 
 export function canSearchDocuments(query: string, patientId: string): boolean {
   return Boolean(query.trim() && patientId.trim());
@@ -41,7 +42,10 @@ export const Route = createFileRoute("/_app/documents/search")({
 });
 
 function Page() {
-  const searchParams = Route.useSearch();
+  return <DocumentSearchPage searchParams={Route.useSearch()} />;
+}
+
+export function DocumentSearchPage({ searchParams }: { searchParams: DocumentSearchParams }) {
   const [patientId, setPatientId] = useState(searchParams.patientId || "");
   const [q, setQ] = useState(searchParams.q || "");
 

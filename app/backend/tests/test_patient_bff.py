@@ -2,13 +2,19 @@ import uuid
 from unittest.mock import patch
 
 import pytest
+from sqlalchemy import select
 from starlette.requests import Request
 
 from hospital_ai.api.routes.hms import sync_patient
-from hospital_ai.api.routes.patients import get_patient_overview, get_patient_timeline
+from hospital_ai.api.routes.patients import (
+    get_patient_labs,
+    get_patient_medications,
+    get_patient_overview,
+    get_patient_timeline,
+)
 from hospital_ai.core.errors import PermissionDeniedError
 from hospital_ai.db.migrations import DOCTOR_ID, PATIENT_ALICE_ID, PATIENT_BOB_ID, RECORDS_ID
-from hospital_ai.db.models import User
+from hospital_ai.db.models import DocumentChunk, User
 from hospital_ai.services.hms_connector import HmsApiClient
 from tests.conftest import create_indexed_document
 
@@ -110,9 +116,133 @@ async def test_patient_overview_fallback_and_summary_pipeline(session_and_settin
         assert response.gender == "Unknown"
         assert response.cccd == "0123456789"
         assert response.blood_type == "O+"
-        assert response.medication_count >= 1
         assert response.ai_summary is not None
         assert "AI summary response" in response.ai_summary
+
+
+@pytest.mark.asyncio
+async def test_patient_overview_fallback_medication_count_matches_medication_tab(session_and_settings):
+    session, settings = session_and_settings
+    doctor = await session.get(User, DOCTOR_ID)
+    settings.hms_sync_enabled = False
+
+    prescription = await create_indexed_document(
+        session=session,
+        patient_id=PATIENT_ALICE_ID,
+        uploaded_by=DOCTOR_ID,
+        title="Active Prescription",
+        content="Continue antihypertensive therapy.",
+    )
+    prescription.document_type = "prescription"
+    prescription_chunk = (
+        await session.scalars(select(DocumentChunk).where(DocumentChunk.document_id == prescription.id))
+    ).one()
+    prescription_chunk.meta = {
+        "medications": [
+            {"name": "Lisinopril", "dose": "10mg daily"},
+            {"drug": "Metformin", "dose": "500mg BID"},
+        ]
+    }
+
+    discharge_summary = await create_indexed_document(
+        session=session,
+        patient_id=PATIENT_ALICE_ID,
+        uploaded_by=DOCTOR_ID,
+        title="Discharge Summary",
+        content="Discharge medication list",
+    )
+    discharge_summary.document_type = "discharge_summary"
+    discharge_chunk = (
+        await session.scalars(select(DocumentChunk).where(DocumentChunk.document_id == discharge_summary.id))
+    ).one()
+    discharge_chunk.meta = {"medications": [{"name": "Aspirin", "dose": "81mg daily"}]}
+    await session.commit()
+
+    with patch("hospital_ai.services.chat_utils.ChatGenerator.generate", return_value="AI summary response [E1]"):
+        overview = await get_patient_overview(
+            patient_id=PATIENT_ALICE_ID,
+            request=_request(path=f"/api/v1/patients/{PATIENT_ALICE_ID}/overview"),
+            session=session,
+            current_user=doctor,
+            settings=settings,
+        )
+
+    medications = await get_patient_medications(
+        patient_id=PATIENT_ALICE_ID,
+        request=_request(path=f"/api/v1/patients/{PATIENT_ALICE_ID}/medications"),
+        session=session,
+        current_user=doctor,
+    )
+
+    assert {item.drug_name for item in medications.medications} == {"Aspirin", "Lisinopril", "Metformin"}
+    assert len(medications.medications) == 3
+    assert overview.medication_count == len(medications.medications)
+
+
+@pytest.mark.asyncio
+async def test_patient_overview_fallback_lab_count_matches_lab_tab(session_and_settings):
+    session, settings = session_and_settings
+    doctor = await session.get(User, DOCTOR_ID)
+    settings.hms_sync_enabled = False
+
+    structured_labs = await create_indexed_document(
+        session=session,
+        patient_id=PATIENT_ALICE_ID,
+        uploaded_by=DOCTOR_ID,
+        title="Structured Labs",
+        content="Structured lab metadata",
+    )
+    structured_labs.document_type = "lab_result"
+    structured_chunk = (
+        await session.scalars(select(DocumentChunk).where(DocumentChunk.document_id == structured_labs.id))
+    ).one()
+    structured_chunk.meta = {
+        "labs": [
+            {"analyte": "Glucose", "value": "180", "reference_range": "70-110"},
+            {"analyte": "Sodium", "value": "135", "reference_range": "136-145"},
+        ]
+    }
+
+    text_labs = await create_indexed_document(
+        session=session,
+        patient_id=PATIENT_ALICE_ID,
+        uploaded_by=DOCTOR_ID,
+        title="Text Labs",
+        content="Follow-up lab observations",
+    )
+    text_labs.document_type = "hms_lab_result"
+    text_chunk = await session.scalars(select(DocumentChunk).where(DocumentChunk.document_id == text_labs.id))
+    text_chunk.one().meta = {
+        "labs": [
+            {"analyte": "Glucose", "value": "180", "reference_range": "70-110"},
+            {"analyte": "Hemoglobin", "value": "11", "reference_range": "12-16"},
+        ]
+    }
+    await session.commit()
+
+    with patch("hospital_ai.services.chat_utils.ChatGenerator.generate", return_value="AI summary response [E1]"):
+        overview = await get_patient_overview(
+            patient_id=PATIENT_ALICE_ID,
+            request=_request(path=f"/api/v1/patients/{PATIENT_ALICE_ID}/overview"),
+            session=session,
+            current_user=doctor,
+            settings=settings,
+        )
+
+    labs = await get_patient_labs(
+        patient_id=PATIENT_ALICE_ID,
+        request=_request(path=f"/api/v1/patients/{PATIENT_ALICE_ID}/labs"),
+        session=session,
+        current_user=doctor,
+    )
+
+    assert {(item.analyte, item.flag) for item in labs.labs} == {
+        ("Glucose", "H"),
+        ("Sodium", "L"),
+        ("Hemoglobin", "L"),
+    }
+    assert len(labs.labs) == 3
+    assert overview.lab_count == len(labs.labs)
 
 
 @pytest.mark.asyncio

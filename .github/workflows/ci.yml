@@ -36,7 +36,9 @@ on:
           - vector
           - bm25
           - hybrid
-        default: vector
+        # Hybrid is the deterministic quality-gate baseline; vector and bm25
+        # remain explicit ablation modes for diagnostics.
+        default: hybrid
       run_live_ai_evaluation:
         description: "Run the credentialed live-model evaluation after deterministic gates pass"
         required: false
@@ -359,7 +361,9 @@ jobs:
       # PR validates the source-backed sentinel contract only. Full release/nightly
       # lanes request every component, which fails honestly until real adapters run.
       AI_EVAL_COMPONENTS: ${{ github.event_name == 'pull_request' && 'corpus' || github.event_name == 'workflow_dispatch' && inputs.ai_eval_components || 'corpus,ocr,retrieval,graph,chat' }}
-      AI_EVAL_RETRIEVAL_MODE: ${{ github.event_name == 'workflow_dispatch' && inputs.ai_eval_retrieval_mode || 'vector' }}
+      # Keep PR/push evaluation on the quality-gate baseline. Vector and bm25
+      # remain available through workflow_dispatch for retrieval ablations.
+      AI_EVAL_RETRIEVAL_MODE: ${{ github.event_name == 'workflow_dispatch' && inputs.ai_eval_retrieval_mode || 'hybrid' }}
 
     steps:
       - name: Checkout

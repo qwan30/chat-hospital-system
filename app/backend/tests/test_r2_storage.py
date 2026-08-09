@@ -29,6 +29,16 @@ class _FakeS3:
         assert Bucket == "hospital-documents"
         return {"Body": io.BytesIO(self.objects[Key])}
 
+    def generate_presigned_url(self, operation: str, Params: dict[str, Any], ExpiresIn: int) -> str:
+        return f"https://presigned.r2/{Params['Key']}?expires={ExpiresIn}"
+
+    def head_object(self, *, Bucket: str, Key: str) -> dict[str, Any]:
+        if Key not in self.objects:
+            from botocore.exceptions import ClientError
+
+            raise ClientError({"Error": {"Code": "404"}}, "head_object")
+        return {"ContentLength": len(self.objects[Key]), "ETag": '"etag"', "ContentType": "application/pdf"}
+
 
 def _r2_settings() -> Settings:
     return Settings(
@@ -103,3 +113,19 @@ def test_storage_factory_selects_local_and_r2(monkeypatch: pytest.MonkeyPatch) -
 def test_r2_requires_all_connection_settings() -> None:
     with pytest.raises(ValueError, match="R2 storage requires"):
         R2StorageService(Settings(storage_backend="r2"), client=_FakeS3())
+
+
+def test_r2_presigned_put_and_head_object() -> None:
+    client = _FakeS3()
+    storage = R2StorageService(_r2_settings(), client=client)
+    put_res = storage.create_presigned_put(key="test/file.pdf", content_type="application/pdf", expires_seconds=300)
+    assert "https://presigned.r2/test/file.pdf" in put_res.url
+    assert put_res.required_headers == {"Content-Type": "application/pdf", "If-None-Match": "*"}
+
+    with pytest.raises(FileNotFoundError):
+        storage.head_object("test/file.pdf")
+
+    client.objects["test/file.pdf"] = b"test content"
+    head = storage.head_object("test/file.pdf")
+    assert head.byte_size == 12
+    assert head.etag == '"etag"'

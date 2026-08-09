@@ -2,8 +2,10 @@ from __future__ import annotations
 
 import asyncio
 import hashlib
+import os
 import re
 import uuid
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, BinaryIO, Protocol
 from urllib.parse import urlsplit
@@ -11,12 +13,27 @@ from urllib.parse import urlsplit
 import boto3
 from botocore.exceptions import ClientError
 from fastapi import UploadFile
+from werkzeug.utils import secure_filename
 
 from hospital_ai.core.config import Settings
 from hospital_ai.core.errors import ValidationAppError
 
 SAFE_NAME_PATTERN = re.compile(r"[^a-zA-Z0-9._-]+")
 R2_SCHEME = "r2"
+
+
+@dataclass(frozen=True)
+class StorageObjectHead:
+    key: str
+    byte_size: int
+    etag: str
+    content_type: str | None
+
+
+@dataclass(frozen=True)
+class PresignedPut:
+    url: str
+    required_headers: dict[str, str]
 
 
 class StorageService(Protocol):
@@ -46,6 +63,14 @@ class StorageService(Protocol):
         document_id: uuid.UUID | str,
         page_number: int,
     ) -> bytes: ...
+
+    def create_presigned_put(self, *, key: str, content_type: str, expires_seconds: int) -> PresignedPut: ...
+
+    def head_object(self, key: str) -> StorageObjectHead: ...
+
+    def read_stream(self, key: str) -> BinaryIO: ...
+
+    def delete_object(self, key: str) -> None: ...
 
 
 class LocalStorageService:
@@ -126,14 +151,54 @@ class LocalStorageService:
         if storage_uri.startswith(("r2://", "hms://", "local://")):
             raise ValueError("The local storage backend cannot read this storage URI.")
 
-        root = self.root.resolve()
-        candidate = Path(storage_uri)
-        if not candidate.is_absolute():
-            candidate = Path.cwd() / candidate
-        resolved = candidate.resolve()
-        if not resolved.is_relative_to(root):
+        root = os.path.realpath(os.fspath(self.root))
+        if os.path.isabs(storage_uri):
+            candidate = os.path.realpath(storage_uri)
+        else:
+            validated_uri = validate_storage_object_key(storage_uri, allowed_prefixes=("source/", "patients/"))
+            candidate = os.path.realpath(os.path.join(root, validated_uri))
+        if candidate != root and not candidate.startswith(root + os.sep):
             raise ValueError("Storage URI points outside the configured local storage root.")
-        return resolved
+        return Path(candidate)
+
+    def create_presigned_put(self, *, key: str, content_type: str, expires_seconds: int) -> PresignedPut:
+        validated_key = _validated_local_storage_key(key)
+        root = os.path.realpath(os.fspath(self.root))
+        target = os.path.realpath(os.path.join(root, validated_key))
+        if target != root and not target.startswith(root + os.sep):
+            raise ValueError("Storage URI points outside the configured local storage root.")
+        target_path = Path(target)
+        target_path.parent.mkdir(parents=True, exist_ok=True)
+        return PresignedPut(
+            url=f"local://{validated_key}",
+            required_headers={"Content-Type": content_type, "If-None-Match": "*"},
+        )
+
+    def head_object(self, key: str) -> StorageObjectHead:
+        validated_key = _validated_local_storage_key(key)
+        root = os.path.realpath(os.fspath(self.root))
+        target = os.path.realpath(os.path.join(root, validated_key))
+        if target != root and not target.startswith(root + os.sep):
+            raise ValueError("Storage URI points outside the configured local storage root.")
+        target_path = Path(target)
+        if not target_path.exists():
+            raise FileNotFoundError("Storage object not found.")
+        return StorageObjectHead(
+            key=validated_key,
+            byte_size=target_path.stat().st_size,
+            etag='"local-etag"',
+            content_type=None,
+        )
+
+    def read_stream(self, key: str) -> BinaryIO:
+        validated_key = validate_storage_object_key(key, allowed_prefixes=("source/", "patients/"))
+        target_path = self._resolve_local_path(validated_key)
+        return target_path.open("rb")
+
+    def delete_object(self, key: str) -> None:
+        validated_key = validate_storage_object_key(key, allowed_prefixes=("source/", "patients/"))
+        target_path = self._resolve_local_path(validated_key)
+        target_path.unlink(missing_ok=True)
 
 
 class R2StorageService:
@@ -234,6 +299,43 @@ class R2StorageService:
     ) -> bytes:
         return self.read_bytes(_r2_uri(_page_key(patient_id, document_id, page_number)))
 
+    def create_presigned_put(self, *, key: str, content_type: str, expires_seconds: int) -> PresignedPut:
+        url = self.client.generate_presigned_url(
+            "put_object",
+            Params={"Bucket": self.bucket, "Key": key, "ContentType": content_type},
+            ExpiresIn=expires_seconds,
+        )
+        return PresignedPut(
+            url=url,
+            required_headers={"Content-Type": content_type, "If-None-Match": "*"},
+        )
+
+    def head_object(self, key: str) -> StorageObjectHead:
+        try:
+            row = self.client.head_object(Bucket=self.bucket, Key=key)
+            return StorageObjectHead(
+                key=key, byte_size=int(row["ContentLength"]), etag=str(row["ETag"]), content_type=row.get("ContentType")
+            )
+        except ClientError as exc:
+            code = str(exc.response.get("Error", {}).get("Code", ""))
+            if code in {"404", "NoSuchKey", "NoSuchObject", "NoSuchBucket"}:
+                raise FileNotFoundError("Storage object not found.") from exc
+            raise
+
+    def read_stream(self, key: str) -> BinaryIO:
+        try:
+            response = self.client.get_object(Bucket=self.bucket, Key=key)
+            body = response["Body"]
+            return body
+        except ClientError as exc:
+            code = str(exc.response.get("Error", {}).get("Code", ""))
+            if code in {"404", "NoSuchKey", "NoSuchObject", "NoSuchBucket"}:
+                raise FileNotFoundError("Storage object not found.") from exc
+            raise
+
+    def delete_object(self, key: str) -> None:
+        self.client.delete_object(Bucket=self.bucket, Key=key)
+
 
 def parse_r2_uri(storage_uri: str) -> str:
     parsed = urlsplit(storage_uri)
@@ -251,6 +353,33 @@ def parse_r2_uri(storage_uri: str) -> str:
     ):
         raise ValueError("R2 storage URI contains an unsafe object key.")
     return key
+
+
+def validate_storage_object_key(key: str, *, allowed_prefixes: tuple[str, ...] = ()) -> str:
+    """Validate a storage key before it reaches a local or remote backend."""
+    if not isinstance(key, str) or not key or key.startswith(("/", "\\")):
+        raise ValueError("Storage object key must be a non-empty relative path.")
+    if "\\" in key or (len(key) >= 2 and key[1] == ":"):
+        raise ValueError("Storage object key must not contain a drive or backslash.")
+    if any(ord(char) < 32 for char in key):
+        raise ValueError("Storage object key contains an unsafe character.")
+    parts = key.split("/")
+    if any(not part or part in {".", ".."} for part in parts):
+        raise ValueError("Storage object key contains an unsafe path segment.")
+    if any(not re.fullmatch(r"[A-Za-z0-9._~-]+", part) for part in parts):
+        raise ValueError("Storage object key contains an unsafe character.")
+    if allowed_prefixes and not any(key.startswith(prefix) for prefix in allowed_prefixes):
+        raise ValueError("Storage object key uses an unexpected prefix.")
+    return key
+
+
+def _validated_local_storage_key(key: str) -> str:
+    validated_key = validate_storage_object_key(key, allowed_prefixes=("source/", "patients/"))
+    segments = validated_key.split("/")
+    safe_segments = [secure_filename(segment) for segment in segments]
+    if safe_segments != segments or any(not segment for segment in safe_segments):
+        raise ValueError("Storage object key contains an unsafe filename segment.")
+    return "/".join(safe_segments)
 
 
 def get_storage_service(settings: Settings) -> StorageService:

@@ -10,7 +10,7 @@ import {
 import type { Role } from "@/lib/rbac";
 import { mockUsers, type MockUser } from "@/data/mockUsers";
 import { getWorkspace, type Workspace } from "@/data/workspaces";
-import { useAuth } from "@/lib/auth-context";
+import { useAuth, type AuthUser } from "@/lib/auth-context";
 import { persistToken } from "@/lib/api-client";
 
 const STORAGE_KEY = "hms.session";
@@ -53,6 +53,7 @@ function buildSession(
   workspaceId?: string,
   isRealAuth = false,
   token?: string | null,
+  authUser?: AuthUser | null,
 ): Session {
   const user = mockUsers[role];
   const wsId =
@@ -60,6 +61,26 @@ function buildSession(
       ? workspaceId
       : user.defaultWorkspaceId;
   const workspace = getWorkspace(wsId)!;
+
+  const initialsParts = authUser?.full_name.match(/[A-Za-z0-9]+/g) ?? [];
+  const firstInitialPart = initialsParts[0];
+  const lastInitialPart = initialsParts[initialsParts.length - 1];
+  const safeInitials =
+    initialsParts.length === 0
+      ? user.initials
+      : initialsParts.length === 1
+        ? (firstInitialPart ?? user.initials).slice(0, 2).toUpperCase()
+        : `${firstInitialPart?.[0] ?? user.initials[0]}${lastInitialPart?.[0] ?? user.initials[1] ?? user.initials[0]}`.toUpperCase();
+  const resolvedUser: MockUser =
+    authUser && isRealAuth
+      ? {
+          ...user,
+          name: authUser.full_name,
+          email: authUser.email,
+          initials: safeInitials,
+          title: authUser.department?.trim() || user.title,
+        }
+      : user;
 
   if (!isRealAuth && !token) {
     const roleTokens: Record<string, string> = {
@@ -69,15 +90,16 @@ function buildSession(
       pharmacist: "dev-pharmacist",
       front_desk: "dev-records",
       admin: "dev-admin",
+      security: "dev-security",
     };
     token = roleTokens[role] || "dev-doctor";
   }
 
-  return { user, role, workspace, isRealAuth, token };
+  return { user: resolvedUser, role, workspace, isRealAuth, token };
 }
 
 export function SessionProvider({ children }: { children: ReactNode }) {
-  const { authUser, token, hydrated: authHydrated } = useAuth();
+  const { authUser, token, hydrated: authHydrated, logout } = useAuth();
   const [session, setSession] = useState<Session | null>(null);
   const [hydrated, setHydrated] = useState(false);
 
@@ -88,7 +110,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
 
     if (authUser && token) {
       const role = mapBackendRole(authUser.role);
-      const s = buildSession(role, undefined, true, token);
+      const s = buildSession(role, undefined, true, token, authUser);
       persistToken(token);
       setSession(s);
     } else {
@@ -137,9 +159,10 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const signOut = useCallback(() => {
+    logout();
     setSession(null);
     persist(null);
-  }, []);
+  }, [logout]);
 
   const switchRole = useCallback((role: Role) => {
     const s = buildSession(role);

@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useState, useEffect } from "react";
 import { useMutation } from "@tanstack/react-query";
-import { searchDocuments } from "@/lib/api/documents";
+import { searchDocuments, type DocumentSearchRequest } from "@/lib/api/documents";
 import { Loader2 } from "lucide-react";
 import { z } from "zod";
 
@@ -17,6 +17,21 @@ const searchSchema = z.object({
 
 export function canSearchDocuments(query: string, patientId: string): boolean {
   return Boolean(query.trim() && patientId.trim());
+}
+
+export function submitDocumentSearch(
+  mutate: (payload: DocumentSearchRequest) => void,
+  query: string,
+  patientId: string,
+): boolean {
+  if (!canSearchDocuments(query, patientId)) return false;
+
+  mutate({
+    patient_id: patientId.trim(),
+    query: query.trim(),
+    top_k: 5,
+  });
+  return true;
 }
 
 export const Route = createFileRoute("/_app/documents/search")({
@@ -31,16 +46,19 @@ function Page() {
   const [q, setQ] = useState(searchParams.q || "");
 
   const searchMutation = useMutation({
-    mutationFn: () => searchDocuments({ patient_id: patientId, query: q, top_k: 5 }),
+    mutationFn: searchDocuments,
   });
 
   const { mutate } = searchMutation;
   const canSearch = canSearchDocuments(q, patientId);
 
   useEffect(() => {
-    if (canSearchDocuments(searchParams.q || "", searchParams.patientId || "")) {
-      mutate();
-    }
+    setPatientId(searchParams.patientId || "");
+    setQ(searchParams.q || "");
+  }, [searchParams.patientId, searchParams.q]);
+
+  useEffect(() => {
+    submitDocumentSearch(mutate, searchParams.q || "", searchParams.patientId || "");
   }, [searchParams.q, searchParams.patientId, mutate]);
 
   return (
@@ -63,11 +81,13 @@ function Page() {
             value={q}
             onChange={(e) => setQ(e.target.value)}
             onKeyDown={(e) => {
-              if (e.key === "Enter" && canSearch) searchMutation.mutate();
+              if (e.key === "Enter" && canSearch) {
+                submitDocumentSearch(mutate, q, patientId);
+              }
             }}
           />
           <Button
-            onClick={() => searchMutation.mutate()}
+            onClick={() => submitDocumentSearch(mutate, q, patientId)}
             disabled={searchMutation.isPending || !canSearch}
           >
             {searchMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Search"}

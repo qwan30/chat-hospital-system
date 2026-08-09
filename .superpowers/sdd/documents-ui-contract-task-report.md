@@ -31,3 +31,15 @@
 
 - No API route, backend permission rule, authentication code, upload handler, or DICOM support was changed.
 - q-only historical deep links remain renderable, but do not trigger a search until an explicit patient scope is supplied.
+
+## Review follow-up
+
+- Independent review found that a route navigation could call the search
+  mutation with stale React state even though URL parameters were valid.
+- The mutation now accepts `DocumentSearchRequest` directly. Both route-param
+  auto-search and manual submission build an explicit, trimmed payload at the
+  call site; route state also synchronizes when search parameters change.
+- Added regression tests that assert the mutation receives the current URL
+  patient scope and that q-only links submit nothing.
+- Follow-up validation: focused Vitest passed with 17 files / 128 tests;
+  typecheck and lint passed.

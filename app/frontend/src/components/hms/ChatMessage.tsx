@@ -2,7 +2,7 @@ import { cn } from "@/lib/utils";
 import { Sparkles, User } from "lucide-react";
 import { CitationChip } from "./CitationChip";
 import type { ReactNode } from "react";
-
+import { GraphExplanationPanel } from "./GraphExplanationPanel";
 import type { StreamCitation } from "@/lib/stream-client";
 
 export interface ChatCitationRef {
@@ -16,8 +16,95 @@ export interface ChatMessageData {
   content: string;
   citations?: ChatCitationRef[];
   rawCitations?: StreamCitation[];
+  evidenceById?: Record<
+    string,
+    { id?: string; n?: number; sourceId?: string; document_id?: string; [key: string]: unknown }
+  >;
+  graphExplanation?: unknown;
+  streamingMode?: string;
+  isStreaming?: boolean;
   time?: string;
   extra?: ReactNode;
+}
+
+export interface MarkdownRendererProps {
+  content: string;
+  allowHtml?: boolean;
+  allowedProtocols?: string[];
+  renderCitation?: (id: string, n?: number) => ReactNode;
+  citations?: ChatCitationRef[];
+  evidenceById?: Record<
+    string,
+    { id?: string; n?: number; sourceId?: string; document_id?: string; [key: string]: unknown }
+  >;
+}
+
+export function MarkdownRenderer({
+  content,
+  allowHtml = false,
+  allowedProtocols = ["http", "https"],
+  renderCitation,
+  citations,
+  evidenceById,
+}: MarkdownRendererProps) {
+  // Keep model output as React text. React escapes text nodes, so markup is
+  // displayed literally instead of being interpreted as HTML.
+  const safeText = content;
+
+  const parts = safeText.split(/(\[[a-zA-Z0-9_-]+\])/g);
+
+  return (
+    <div className="whitespace-pre-wrap leading-relaxed">
+      {parts.map((part, index) => {
+        const match = part.match(/^\[([a-zA-Z0-9_-]+)\]$/);
+        if (match) {
+          const rawId = match[1];
+          let nVal = Number(rawId);
+          if (isNaN(nVal)) {
+            const numMatch = rawId.match(/\d+/);
+            if (numMatch) nVal = Number(numMatch[0]);
+            else nVal = Math.floor(index / 2) + 1;
+          }
+          if (renderCitation) {
+            return (
+              <span key={index} className="inline-block mx-0.5">
+                {renderCitation(rawId, !isNaN(nVal) ? nVal : undefined)}
+              </span>
+            );
+          }
+          if (evidenceById && evidenceById[rawId]) {
+            const ev = evidenceById[rawId];
+            return (
+              <CitationChip
+                key={index}
+                n={ev.n ?? nVal}
+                sourceId={ev.sourceId ?? ev.document_id ?? ev.id ?? ""}
+                evidence={ev}
+                className="mx-0.5"
+              />
+            );
+          }
+          if (!isNaN(nVal) && citations) {
+            const cit = citations.find((c) => c.n === nVal);
+            if (cit) {
+              return (
+                <CitationChip key={index} n={cit.n} sourceId={cit.sourceId} className="mx-0.5" />
+              );
+            }
+          }
+          return (
+            <CitationChip
+              key={index}
+              n={!isNaN(nVal) ? nVal : 1}
+              sourceId={rawId}
+              className="mx-0.5"
+            />
+          );
+        }
+        return <span key={index}>{part}</span>;
+      })}
+    </div>
+  );
 }
 
 export function ChatMessage({
@@ -31,22 +118,51 @@ export function ChatMessage({
 }) {
   const isAssistant = msg.role === "assistant";
 
-  // Render assistant content with inline [n] markers replaced by chips
   const renderContent = () => {
-    if (!msg.citations?.length) return <p className="whitespace-pre-wrap">{msg.content}</p>;
-    const parts = msg.content.split(/(\[\d+\])/g);
+    if (!isAssistant) {
+      return <p className="whitespace-pre-wrap">{msg.content}</p>;
+    }
+
     return (
-      <p className="whitespace-pre-wrap leading-relaxed">
-        {parts.map((p, i) => {
-          const m = p.match(/^\[(\d+)\]$/);
-          if (m) {
-            const n = Number(m[1]);
-            const c = msg.citations!.find((c) => c.n === n);
-            if (c) return <CitationChip key={i} n={n} sourceId={c.sourceId} className="mx-0.5" />;
-          }
-          return <span key={i}>{p}</span>;
-        })}
-      </p>
+      <div className="space-y-3">
+        <MarkdownRenderer
+          content={msg.content}
+          allowHtml={false}
+          allowedProtocols={["http", "https"]}
+          citations={msg.citations}
+          evidenceById={msg.evidenceById}
+          renderCitation={(id, n) => {
+            if (msg.evidenceById && msg.evidenceById[id]) {
+              const ev = msg.evidenceById[id];
+              return (
+                <CitationChip
+                  evidence={ev}
+                  n={ev.n ?? n}
+                  sourceId={ev.sourceId ?? ev.document_id ?? ev.id ?? id}
+                />
+              );
+            }
+            const nVal = Number(id);
+            if (!isNaN(nVal) && msg.citations) {
+              const cit = msg.citations.find((c) => c.n === nVal);
+              if (cit) {
+                return <CitationChip n={cit.n} sourceId={cit.sourceId} />;
+              }
+            }
+            return <CitationChip n={n ?? 1} sourceId={id} />;
+          }}
+        />
+        <GraphExplanationPanel explanation={msg.graphExplanation} />
+        {(msg.isStreaming || msg.streamingMode) && (
+          <div className="pt-1 text-[11px] font-medium text-muted-foreground flex items-center gap-1.5 border-t border-border/40">
+            <span
+              className="inline-block w-2 h-2 rounded-full bg-ai animate-pulse"
+              aria-hidden="true"
+            />
+            <span>Validated sentence streaming</span>
+          </div>
+        )}
+      </div>
     );
   };
 

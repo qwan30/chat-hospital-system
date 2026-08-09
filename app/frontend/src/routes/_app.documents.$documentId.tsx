@@ -1,16 +1,10 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { AppShell } from "@/components/shell/AppShell";
 import { PageHeader } from "@/components/hms/PageHeader";
-import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { useQuery, useQueries, useMutation, useQueryClient } from "@tanstack/react-query";
-import {
-  getDocument,
-  getDocumentPage,
-  retryIndex,
-  getDocumentIntelligence,
-} from "@/lib/api/documents";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { getDocument, retryIndex, getDocumentIntelligence } from "@/lib/api/documents";
 import { Loader2 } from "lucide-react";
 import { DocumentWorkspace } from "@/components/hms/document-workspace/DocumentWorkspace";
 import { ErrorState } from "@/components/hms/ErrorState";

@@ -80,11 +80,7 @@ async def main() -> None:
             return
 
         print("Clearing old synthetic Graph RAG patients...")
-        await session.execute(
-            delete(Patient).where(
-                or_(Patient.mrn.like("MOCK-%"), Patient.mrn.like("MIMIC-%"))
-            )
-        )
+        await session.execute(delete(Patient).where(or_(Patient.mrn.like("MOCK-%"), Patient.mrn.like("MIMIC-%"))))
         await session.commit()
 
         print("Seeding deterministic synthetic clinical notes for Graph RAG development...")

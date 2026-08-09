@@ -152,13 +152,15 @@ class LocalStorageService:
         root = self.root.resolve()
         candidate = Path(storage_uri)
         if not candidate.is_absolute():
-            candidate = Path.cwd() / candidate
+            validate_storage_object_key(storage_uri, allowed_prefixes=("source/", "patients/"))
+            candidate = root / candidate
         resolved = candidate.resolve()
         if not resolved.is_relative_to(root):
             raise ValueError("Storage URI points outside the configured local storage root.")
         return resolved
 
     def create_presigned_put(self, *, key: str, content_type: str, expires_seconds: int) -> PresignedPut:
+        validate_storage_object_key(key, allowed_prefixes=("source/", "patients/"))
         target_path = self._resolve_local_path(key)
         target_path.parent.mkdir(parents=True, exist_ok=True)
         return PresignedPut(
@@ -285,6 +287,7 @@ class R2StorageService:
         return self.read_bytes(_r2_uri(_page_key(patient_id, document_id, page_number)))
 
     def create_presigned_put(self, *, key: str, content_type: str, expires_seconds: int) -> PresignedPut:
+        validate_storage_object_key(key, allowed_prefixes=("source/", "patients/"))
         url = self.client.generate_presigned_url(
             "put_object",
             Params={"Bucket": self.bucket, "Key": key, "ContentType": content_type},
@@ -296,6 +299,7 @@ class R2StorageService:
         )
 
     def head_object(self, key: str) -> StorageObjectHead:
+        validate_storage_object_key(key, allowed_prefixes=("source/", "patients/"))
         try:
             row = self.client.head_object(Bucket=self.bucket, Key=key)
             return StorageObjectHead(
@@ -308,6 +312,7 @@ class R2StorageService:
             raise
 
     def read_stream(self, key: str) -> BinaryIO:
+        validate_storage_object_key(key, allowed_prefixes=("source/", "patients/"))
         try:
             response = self.client.get_object(Bucket=self.bucket, Key=key)
             body = response["Body"]
@@ -319,6 +324,7 @@ class R2StorageService:
             raise
 
     def delete_object(self, key: str) -> None:
+        validate_storage_object_key(key, allowed_prefixes=("source/", "patients/"))
         self.client.delete_object(Bucket=self.bucket, Key=key)
 
 
@@ -328,15 +334,22 @@ def parse_r2_uri(storage_uri: str) -> str:
         raise ValueError("Storage URI must be an r2:// URI without query or fragment.")
 
     key = f"{parsed.netloc}{parsed.path}"
+    return validate_storage_object_key(key, allowed_prefixes=("source/", "patients/"))
+
+
+def validate_storage_object_key(key: str, *, allowed_prefixes: tuple[str, ...] = ()) -> str:
+    """Validate a storage key before it reaches a local or remote backend."""
+    if not isinstance(key, str) or not key or key.startswith(("/", "\\")):
+        raise ValueError("Storage object key must be a non-empty relative path.")
+    if "\\" in key or (len(key) >= 2 and key[1] == ":"):
+        raise ValueError("Storage object key must not contain a drive or backslash.")
+    if any(ord(char) < 32 for char in key):
+        raise ValueError("Storage object key contains an unsafe character.")
     parts = key.split("/")
-    if (
-        not key
-        or key.startswith(("/", "\\"))
-        or "\\" in key
-        or any(not part or part in {".", ".."} for part in parts)
-        or any(ord(char) < 32 for char in key)
-    ):
-        raise ValueError("R2 storage URI contains an unsafe object key.")
+    if any(not part or part in {".", ".."} for part in parts):
+        raise ValueError("Storage object key contains an unsafe path segment.")
+    if allowed_prefixes and not any(key.startswith(prefix) for prefix in allowed_prefixes):
+        raise ValueError("Storage object key uses an unexpected prefix.")
     return key
 
 

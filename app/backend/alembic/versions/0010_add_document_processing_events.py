@@ -5,9 +5,9 @@ Revises: 0009_repair_search_vector_gin
 Create Date: 2026-07-22
 """
 
-from alembic import op
 import sqlalchemy as sa
 
+from alembic import op
 
 revision = "0010_document_processing_events"
 down_revision = "0009_repair_search_vector_gin"

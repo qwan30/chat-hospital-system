@@ -13,6 +13,7 @@ from hospital_ai.db.clinical_documents import (
     DocumentDraftHead,
     DocumentExtractionRun,
     DocumentPageRevision,
+    DocumentUpload,
     OcrBlock,
     OcrLine,
     OcrSpan,
@@ -28,7 +29,13 @@ class PageExtractionError(Exception):
 async def require_finalized_document_for_extraction(
     session: AsyncSession, document_id: uuid.UUID
 ) -> Optional[Document]:
-    return await session.get(Document, document_id)
+    document = await session.get(Document, document_id)
+    if not document or not document.finalized_upload_id or document.storage_uri == "pending":
+        return None
+    upload = await session.get(DocumentUpload, document.finalized_upload_id)
+    if not upload or upload.document_id != document.id or upload.state != "finalized":
+        return None
+    return document
 
 
 class _ExtractionRuns:
@@ -58,16 +65,23 @@ class _ExtractionRuns:
         document.status = "failed"
 
 
-async def ocr_pipeline_extract(document: Document, run: DocumentExtractionRun, settings: Settings) -> list[Any]:
+async def ocr_pipeline_extract(
+    document: Document,
+    run: DocumentExtractionRun,
+    settings: Settings,
+    expected_source_sha256: Optional[str] = None,
+) -> list[Any]:
     from hospital_ai.workers import jobs
 
     storage = jobs.get_storage_service(settings)
     try:
         source_sha256 = storage.source_sha256(document.storage_uri)
-        document.indexed_source_sha256 = source_sha256
-        run.source_sha256 = source_sha256
-    except Exception:
-        pass
+    except Exception as exc:
+        raise PageExtractionError("Unable to verify the finalized source object.") from exc
+    if expected_source_sha256 and source_sha256 != expected_source_sha256:
+        raise PageExtractionError("Finalized source hash does not match upload evidence.")
+    document.indexed_source_sha256 = source_sha256
+    run.source_sha256 = source_sha256
 
     try:
         ocr = OcrService()
@@ -84,8 +98,14 @@ async def ocr_pipeline_extract(document: Document, run: DocumentExtractionRun, s
 
 
 class _OcrPipeline:
-    async def extract(self, document: Document, run: DocumentExtractionRun, settings: Settings) -> list[Any]:
-        return await ocr_pipeline_extract(document, run, settings)
+    async def extract(
+        self,
+        document: Document,
+        run: DocumentExtractionRun,
+        settings: Settings,
+        expected_source_sha256: Optional[str] = None,
+    ) -> list[Any]:
+        return await ocr_pipeline_extract(document, run, settings, expected_source_sha256)
 
 
 class _RevisionIngest:
@@ -104,7 +124,7 @@ class _RevisionIngest:
                 raw_text_snapshot=p.raw_text,
                 corrected_text=p.raw_text,
                 confidence=p.confidence,
-                status="machine_initial",
+                status="machine_draft",
                 created_by_user_id=document.uploaded_by,
                 content_sha256=sha256_val,
                 version=1,
@@ -201,9 +221,17 @@ async def extract_document(session: AsyncSession, document_id: uuid.UUID, settin
     document = await require_finalized_document_for_extraction(session, document_id)
     if not document:
         return
+    upload = await session.get(DocumentUpload, document.finalized_upload_id)
+    if not upload or upload.document_id != document.id or upload.state != "finalized":
+        return
     run = await extraction_runs.start(session, document, settings)
     try:
-        pages = await ocr_pipeline.extract(document, run, settings)
+        pages = await ocr_pipeline.extract(
+            document,
+            run,
+            settings,
+            expected_source_sha256=upload.expected_sha256,
+        )
         await revision_ingest.persist_machine_drafts(session, document, run, pages)
         document.status = "review_required"
         run.status = "completed"

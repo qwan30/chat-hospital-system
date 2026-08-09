@@ -50,54 +50,9 @@ def upgrade() -> None:
             existing_nullable=False,
         )
 
-    with op.batch_alter_table("ai_queries", schema=None) as batch_op:
-        batch_op.drop_column("last_emitted_sequence")
-        batch_op.drop_column("validation_mode")
-
     with op.batch_alter_table("document_chunks", schema=None) as batch_op:
         batch_op.drop_constraint(batch_op.f("uq_document_chunk_index"), type_="unique")
         batch_op.create_unique_constraint("uq_document_chunk_index", ["document_id", "generation_id", "chunk_index"])
-
-    with op.batch_alter_table("document_uploads", schema=None) as batch_op:
-        batch_op.drop_column("quarantine_result")
-
-    with op.batch_alter_table("graph_entities", schema=None) as batch_op:
-        batch_op.create_unique_constraint("uq_graph_entity_patient_id", ["patient_id", "id"])
-
-    with op.batch_alter_table("graph_mentions", schema=None) as batch_op:
-        if batch_op.impl.dialect.name != "sqlite":
-            batch_op.drop_constraint("graph_mentions_entity_id_fkey", type_="foreignkey")
-        batch_op.create_foreign_key(
-            "fk_graph_mention_entity_patient", "graph_entities", ["patient_id", "entity_id"], ["patient_id", "id"]
-        )
-
-    with op.batch_alter_table("graph_relation_assertions", schema=None) as batch_op:
-        batch_op.create_unique_constraint("uq_graph_assertion_patient_id", ["patient_id", "id"])
-        if batch_op.impl.dialect.name != "sqlite":
-            batch_op.drop_constraint("graph_relation_assertions_object_entity_id_fkey", type_="foreignkey")
-            batch_op.drop_constraint("graph_relation_assertions_subject_entity_id_fkey", type_="foreignkey")
-        batch_op.create_foreign_key(
-            "fk_graph_assertion_object_patient",
-            "graph_entities",
-            ["patient_id", "object_entity_id"],
-            ["patient_id", "id"],
-        )
-        batch_op.create_foreign_key(
-            "fk_graph_assertion_subject_patient",
-            "graph_entities",
-            ["patient_id", "subject_entity_id"],
-            ["patient_id", "id"],
-        )
-
-    with op.batch_alter_table("graph_relation_evidence", schema=None) as batch_op:
-        if batch_op.impl.dialect.name != "sqlite":
-            batch_op.drop_constraint("graph_relation_evidence_assertion_id_fkey", type_="foreignkey")
-        batch_op.create_foreign_key(
-            "fk_graph_evidence_assertion_patient",
-            "graph_relation_assertions",
-            ["patient_id", "assertion_id"],
-            ["patient_id", "id"],
-        )
 
     with op.batch_alter_table("legacy_graph_entities", schema=None) as batch_op:
         batch_op.drop_index(batch_op.f("ix_graph_entities_entity_type"))
@@ -164,35 +119,8 @@ def downgrade() -> None:
         batch_op.create_index(batch_op.f("ix_graph_relations_source_entity_id"), ["source_entity_id"], unique=False)
         batch_op.create_index(batch_op.f("ix_graph_relations_target_entity_id"), ["target_entity_id"], unique=False)
 
-    with op.batch_alter_table("graph_relation_evidence", schema=None) as batch_op:
-        batch_op.drop_constraint("fk_graph_evidence_assertion_patient", type_="foreignkey")
-        batch_op.create_foreign_key(None, "graph_relation_assertions", ["assertion_id"], ["id"])
-
-    with op.batch_alter_table("graph_relation_assertions", schema=None) as batch_op:
-        batch_op.drop_constraint("fk_graph_assertion_subject_patient", type_="foreignkey")
-        batch_op.drop_constraint("fk_graph_assertion_object_patient", type_="foreignkey")
-        batch_op.create_foreign_key(None, "graph_entities", ["subject_entity_id"], ["id"])
-        batch_op.create_foreign_key(None, "graph_entities", ["object_entity_id"], ["id"])
-        batch_op.drop_constraint("uq_graph_assertion_patient_id", type_="unique")
-
-    with op.batch_alter_table("graph_mentions", schema=None) as batch_op:
-        batch_op.drop_constraint("fk_graph_mention_entity_patient", type_="foreignkey")
-        batch_op.create_foreign_key(None, "graph_entities", ["entity_id"], ["id"])
-
-    with op.batch_alter_table("graph_entities", schema=None) as batch_op:
-        batch_op.drop_constraint("uq_graph_entity_patient_id", type_="unique")
-
-    with op.batch_alter_table("document_uploads", schema=None) as batch_op:
-        batch_op.add_column(sa.Column("quarantine_result", sa.TEXT(), nullable=True))
-
     with op.batch_alter_table("document_chunks", schema=None) as batch_op:
         batch_op.drop_constraint("uq_document_chunk_index", type_="unique")
         batch_op.create_unique_constraint(batch_op.f("uq_document_chunk_index"), ["document_id", "chunk_index"])
-
-    with op.batch_alter_table("ai_queries", schema=None) as batch_op:
-        batch_op.add_column(sa.Column("validation_mode", sa.VARCHAR(length=64), nullable=True))
-        batch_op.add_column(
-            sa.Column("last_emitted_sequence", sa.INTEGER(), server_default=sa.text("'0'"), nullable=True)
-        )
 
     # ### end Alembic commands ###

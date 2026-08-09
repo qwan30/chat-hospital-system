@@ -371,6 +371,8 @@ class AiQuery(Base):
     status: Mapped[str] = mapped_column(String(32), nullable=False)
     latency_ms: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     model: Mapped[Optional[str]] = mapped_column(String(128), nullable=True)
+    validation_mode: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
+    last_emitted_sequence: Mapped[Optional[int]] = mapped_column(Integer, nullable=True, server_default="0")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
 
     evidence: Mapped[list[RetrievedEvidence]] = relationship(back_populates="query", cascade="all, delete-orphan")
@@ -667,7 +669,3 @@ class Notification(TimestampMixin, Base):
     reference_url: Mapped[Optional[str]] = mapped_column(String(1024), nullable=True)
 
     user: Mapped[User] = relationship(back_populates="notifications")
-
-
-from hospital_ai.db import clinical_documents as _clinical_documents  # noqa: E402,F401
-from hospital_ai.db import clinical_graph as _clinical_graph  # noqa: E402,F401

@@ -6,7 +6,7 @@ import pytest
 from fastapi import Request
 
 from hospital_ai.db.clinical_documents import DocumentDraftHead, DocumentPageRevision
-from hospital_ai.db.migrations import DOCTOR_ID, PATIENT_ALICE_ID
+from hospital_ai.db.migrations import DOCTOR_ID, PATIENT_ALICE_ID, RECORDS_ID
 from hospital_ai.db.models import Document, PatientPermission, User
 
 
@@ -46,11 +46,11 @@ async def setup_data(session_and_settings):
         document_id=doc.id,
         page_number=1,
         revision_number=1,
-        revision_type="machine_initial",
+        revision_type="machine_ocr",
         raw_text_snapshot="initial text",
         corrected_text="initial text",
         confidence=0.95,
-        status="machine_initial",
+        status="machine_draft",
         created_by_user_id=doctor.id,
         content_sha256="a" * 64,
         version=1,
@@ -122,6 +122,88 @@ async def test_submit_and_approve_endpoints(session_and_settings, setup_data, mo
         session=session,
     )
     assert approved.state == "building"
+
+
+@pytest.mark.asyncio
+async def test_reject_endpoint_enforces_idempotency_payload(session_and_settings, setup_data) -> None:
+    session, _ = session_and_settings
+    doc, doctor, _, _ = setup_data
+    records = await session.get(User, RECORDS_ID)
+    from hospital_ai.api.routes import document_revisions as rev_routes
+    from hospital_ai.schemas.document_revisions import RejectRevisionRequest
+
+    submitted = await rev_routes.submit_draft(
+        document_id=doc.id,
+        request=_request(method="POST", path=f"/api/v1/documents/{doc.id}/draft/submit"),
+        if_match=1,
+        idempotency_key="reject-submit-1",
+        current_user=doctor,
+        session=session,
+    )
+    first = await rev_routes.reject_revision_set(
+        document_id=doc.id,
+        revision_set_id=submitted.revision_set_id,
+        payload=RejectRevisionRequest(reason="first reason"),
+        request=_request(path=f"/api/v1/documents/{doc.id}/revision-sets/{submitted.revision_set_id}/reject"),
+        idempotency_key="reject-1",
+        current_user=records,
+        session=session,
+    )
+    assert first.status == "rejected"
+
+    from hospital_ai.core.errors import ConflictError
+
+    with pytest.raises(ConflictError):
+        await rev_routes.reject_revision_set(
+            document_id=doc.id,
+            revision_set_id=submitted.revision_set_id,
+            payload=RejectRevisionRequest(reason="different reason"),
+            request=_request(path=f"/api/v1/documents/{doc.id}/revision-sets/{submitted.revision_set_id}/reject"),
+            idempotency_key="reject-1",
+            current_user=records,
+            session=session,
+        )
+
+
+@pytest.mark.asyncio
+async def test_restore_endpoint_enforces_idempotency_payload(session_and_settings, setup_data) -> None:
+    session, _ = session_and_settings
+    doc, doctor, _, machine_id = setup_data
+    records = await session.get(User, RECORDS_ID)
+    from hospital_ai.api.routes import document_revisions as rev_routes
+    from hospital_ai.schemas.document_revisions import RestoreRevisionRequest
+
+    submitted = await rev_routes.submit_draft(
+        document_id=doc.id,
+        request=_request(method="POST", path=f"/api/v1/documents/{doc.id}/draft/submit"),
+        if_match=1,
+        idempotency_key="restore-submit-1",
+        current_user=doctor,
+        session=session,
+    )
+    first = await rev_routes.restore_revision(
+        document_id=doc.id,
+        revision_set_id=submitted.revision_set_id,
+        payload=RestoreRevisionRequest(revision_id=machine_id, reason="first reason"),
+        request=_request(path=f"/api/v1/documents/{doc.id}/revision-sets/{submitted.revision_set_id}/restore"),
+        idempotency_key="restore-1",
+        current_user=records,
+        session=session,
+    )
+    assert first.status == "human_draft"
+
+    from hospital_ai.core.errors import ConflictError
+
+    with pytest.raises(ConflictError):
+        await rev_routes.restore_revision(
+            document_id=doc.id,
+            revision_set_id=submitted.revision_set_id,
+            payload=RestoreRevisionRequest(revision_id=machine_id, reason="different reason"),
+            request=_request(path=f"/api/v1/documents/{doc.id}/revision-sets/{submitted.revision_set_id}/restore"),
+            idempotency_key="restore-1",
+            current_user=records,
+            session=session,
+        )
 
 
 def test_routes_registered_in_router() -> None:

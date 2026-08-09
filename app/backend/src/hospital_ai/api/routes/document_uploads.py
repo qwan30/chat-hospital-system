@@ -1,11 +1,16 @@
+import json
 import uuid
 
 from fastapi import APIRouter, Depends, Header, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from hospital_ai.api.deps import get_current_user, get_session
-from hospital_ai.db.models import User
+from hospital_ai.api.deps import get_current_user, get_request_ip, get_session
+from hospital_ai.core.errors import ConflictError, NotFoundError
+from hospital_ai.core.security import new_trace_id
+from hospital_ai.db.models import Document, User
 from hospital_ai.schemas.document_uploads import UploadFinalizeResult, UploadSessionCreate, UploadSessionRead
+from hospital_ai.services.idempotency import IdempotencyService
+from hospital_ai.services.permissions import PermissionService
 from hospital_ai.services.upload_sessions import UploadSessionService
 
 router = APIRouter()
@@ -19,9 +24,18 @@ async def create_upload_session(
     session: AsyncSession = Depends(get_session),
     current_user: User = Depends(get_current_user),
 ) -> UploadSessionRead:
-    return await UploadSessionService.from_request(session, request).create(
+    await PermissionService(session).require_upload_or_admin_role(
+        user=current_user,
+        patient_id=payload.patient_id,
+        action="document.upload_session.create",
+        trace_id=new_trace_id(),
+        ip_address=get_request_ip(request),
+    )
+    result = await UploadSessionService.from_request(session, request).create(
         actor=current_user, payload=payload, idempotency_key=idempotency_key
     )
+    await session.commit()
+    return result
 
 
 @router.post("/{document_id}/uploads/{upload_id}/finalize", response_model=UploadFinalizeResult, status_code=200)
@@ -29,9 +43,44 @@ async def finalize_upload_session(
     document_id: uuid.UUID,
     upload_id: uuid.UUID,
     request: Request,
+    idempotency_key: str = Header(..., alias="Idempotency-Key"),
     session: AsyncSession = Depends(get_session),
     current_user: User = Depends(get_current_user),
 ) -> UploadFinalizeResult:
-    return await UploadSessionService.from_request(session, request).finalize(
-        document_id=document_id, upload_id=upload_id, actor=current_user
+    document = await session.get(Document, document_id)
+    if document is None:
+        raise NotFoundError("Document not found.")
+    await PermissionService(session).require_upload_or_admin_role(
+        user=current_user,
+        patient_id=document.patient_id,
+        action="document.upload_session.finalize",
+        trace_id=new_trace_id(),
+        object_type="document",
+        object_id=document.id,
+        ip_address=get_request_ip(request),
     )
+    idemp = IdempotencyService(session, current_user.id)
+    decision = await idemp.begin(
+        f"upload.finalize.{document_id}:{upload_id}",
+        idempotency_key,
+        {"document_id": str(document_id), "upload_id": str(upload_id)},
+    )
+    if decision.is_in_progress:
+        raise ConflictError("Request is already in progress; retry later.")
+    if decision.is_replay:
+        return UploadFinalizeResult(**decision.response_body)
+
+    try:
+        result = await UploadSessionService.from_request(session, request).finalize(
+            document_id=document_id, upload_id=upload_id, actor=current_user, commit=False
+        )
+    except Exception:
+        await idemp.abort(decision.record_id)
+        raise
+    await idemp.complete(
+        decision.record_id,
+        200,
+        json.loads(result.model_dump_json() if hasattr(result, "model_dump_json") else result.json()),
+    )
+    await session.commit()
+    return result

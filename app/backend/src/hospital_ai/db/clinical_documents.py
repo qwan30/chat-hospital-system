@@ -25,7 +25,7 @@ DOCUMENT_UPLOAD_STATES = frozenset(
     {"pending_upload", "uploaded_unverified", "quarantined", "verified", "finalized", "rejected"}
 )
 PAGE_REVISION_STATES = frozenset({"machine_draft", "human_draft", "approved", "rejected", "superseded"})
-REVISION_SET_STATES = frozenset({"submitted", "approved", "rejected", "superseded"})
+REVISION_SET_STATES = frozenset({"submitted", "build_authorized", "approved", "rejected", "superseded"})
 GENERATION_STATES = frozenset({"building", "active", "failed", "superseded"})
 ALIGNMENT_STATES = frozenset({"aligned", "partially_aligned", "stale"})
 
@@ -39,6 +39,7 @@ class DocumentUpload(TimestampMixin, Base):
     expected_sha256: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
     byte_size: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     mime_type: Mapped[Optional[str]] = mapped_column(String(128), nullable=True)
+    quarantine_result: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     actor_user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"), nullable=False)
 
     def apply_verification(self, decision: Any) -> None:
@@ -101,7 +102,7 @@ class DocumentRevisionSet(Base):
     __tablename__ = "document_revision_sets"
     __table_args__ = (
         CheckConstraint(
-            "status in ('submitted','approved','rejected','superseded')",
+            "status in ('submitted','build_authorized','approved','rejected','superseded')",
             name="ck_document_revision_sets_status",
         ),
         UniqueConstraint("document_id", "revision_number", name="uq_document_revision_set_number"),

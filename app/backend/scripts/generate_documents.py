@@ -4,6 +4,7 @@ Generate 100 realistic Vietnamese medical documents for all patients.
 Mirrors: tests/conftest.py create_indexed_document() pattern
 Run: python scripts/generate_documents.py
 """
+
 import asyncio
 import hashlib
 import random
@@ -13,10 +14,11 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 
-from hospital_ai.db.models import Document, DocumentPage, DocumentChunk, Patient
+from sqlalchemy import select
+
+from hospital_ai.db.models import Document, DocumentChunk, DocumentPage, Patient
 from hospital_ai.db.session import get_session
 from hospital_ai.services.embeddings import deterministic_embedding
-from sqlalchemy import select
 
 DOCTOR_ID = uuid.UUID("10000000-0000-0000-0000-000000000001")
 DOC_UUID_PREFIX = "30000000-0000-0000-0000-"
@@ -265,8 +267,8 @@ def gen_discharge_summary(rng):
         discharge_date=gen_date(rng.randint(1001, 2000)),
         diagnosis=rng.choice(diagnoses),
         comorbid="Tang huyet ap, Dai thao duong type 2" if rng.random() > 0.4 else "Khong",
-        course=f"Benh nhan nhap vien trong tinh trang {rng.choice(['kho tho','dau nguc','sot cao'])}. "
-               f"Dap ung tot voi {rng.choice(['khang sinh','thuoc van mach','thuoc loi tieu'])}.",
+        course=f"Benh nhan nhap vien trong tinh trang {rng.choice(['kho tho', 'dau nguc', 'sot cao'])}. "
+        f"Dap ung tot voi {rng.choice(['khang sinh', 'thuoc van mach', 'thuoc loi tieu'])}.",
         meds="- {} 10mg, 1 vien/ngay\n- {} 500mg, 2 vien/ngay".format(
             rng.choice(["Amlodipine", "Lisinopril", "Losartan"]),
             rng.choice(["Metformin", "Atorvastatin", "Clopidogrel"]),
@@ -291,7 +293,9 @@ def gen_imaging_report(rng):
         measurements="Kich thuoc trong gioi han binh thuong.",
         findings=rng.choice(findings_list),
         conclusion="Binh thuong" if rng.random() > 0.3 else "Can theo doi them",
-        recommendation="Chup CT neu trieu chung khong cai thien." if rng.random() > 0.5 else "Khong can can thiep them.",
+        recommendation="Chup CT neu trieu chung khong cai thien."
+        if rng.random() > 0.5
+        else "Khong can can thiep them.",  # noqa: E501
         doctor=rng.choice(["BS. Tran Van Minh", "BS. Le Hoang Phuc"]),
     )
 
@@ -324,18 +328,22 @@ def gen_encounter_note(rng):
     template = rng.choice(ENCOUNTER_NOTES)
     return template["title"], template["content"].format(
         date=gen_date(rng.randint(1, 1000)),
-        subjective=rng.choice([
-            "Benh nhan than dau dau 3 ngay, dau tang khi van dong.",
-            "Benh nhan ho khan 1 tuan, khong sot, khong kho tho.",
-            "Benh nhan met moi keo dai, an uong kem.",
-        ]),
-        objective=f"Mach {rng.randint(65,100)} l/p, HA {rng.randint(100,150)}/{rng.randint(60,95)}, "
-                  f"nhiet do {rng.uniform(36.5,38.5):.1f} do C, SpO2 {rng.randint(94,99)}%.",
-        assessment=rng.choice([
-            "Dau dau cang co, chua loai tru nguyen nhan mach mau.",
-            "Viem hong cap, khong bien chung.",
-            "Suy nhuoc co the, can kiem tra cong thuc mau.",
-        ]),
+        subjective=rng.choice(
+            [
+                "Benh nhan than dau dau 3 ngay, dau tang khi van dong.",
+                "Benh nhan ho khan 1 tuan, khong sot, khong kho tho.",
+                "Benh nhan met moi keo dai, an uong kem.",
+            ]
+        ),
+        objective=f"Mach {rng.randint(65, 100)} l/p, HA {rng.randint(100, 150)}/{rng.randint(60, 95)}, "
+        f"nhiet do {rng.uniform(36.5, 38.5):.1f} do C, SpO2 {rng.randint(94, 99)}%.",
+        assessment=rng.choice(
+            [
+                "Dau dau cang co, chua loai tru nguyen nhan mach mau.",
+                "Viem hong cap, khong bien chung.",
+                "Suy nhuoc co the, can kiem tra cong thuc mau.",
+            ]
+        ),
         plan="Ke don thuoc dieu tri trieu chung, hen tai kham sau 1 tuan.",
         doctor=rng.choice(["BS. Nguyen Thi Lan", "BS. Tran Van Minh"]),
     )
@@ -351,16 +359,18 @@ GENERATORS = {
 }
 
 TYPE_WEIGHTS = [
-    ("lab_result", 25), ("clinical_note", 20), ("discharge_summary", 10),
-    ("imaging_report", 15), ("prescription", 20), ("encounter_note", 10),
+    ("lab_result", 25),
+    ("clinical_note", 20),
+    ("discharge_summary", 10),
+    ("imaging_report", 15),
+    ("prescription", 20),
+    ("encounter_note", 10),
 ]
 
 
 async def generate():
     async for session in get_session():
-        result = await session.execute(
-            select(Patient).where(Patient.deleted_at.is_(None)).order_by(Patient.mrn)
-        )
+        result = await session.execute(select(Patient).where(Patient.deleted_at.is_(None)).order_by(Patient.mrn))
         patients = result.scalars().all()
         print(f"Found {len(patients)} patients")
 

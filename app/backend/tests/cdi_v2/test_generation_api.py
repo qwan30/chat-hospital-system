@@ -119,6 +119,37 @@ async def test_rollback_api_rejects_stale_active_pointer(api_fixture) -> None:
 
 
 @pytest.mark.asyncio
+async def test_rollback_api_replays_completed_idempotent_request(api_fixture, monkeypatch: pytest.MonkeyPatch) -> None:
+    session, doc, gen_a, gen_b, admin = api_fixture
+    from hospital_ai.api.routes import document_generations as gen_routes
+    from hospital_ai.schemas.document_generations import GenerationRollbackRequest
+
+    payload = GenerationRollbackRequest(expected_active_generation_id=gen_b.id, reason="Operational rollback")
+    monkeypatch.setattr(
+        "hospital_ai.workers.generation_jobs.enqueue_build_generation_job", lambda *args, **kwargs: None, raising=False
+    )
+    first = await gen_routes.rollback_generation(
+        document_id=doc.id,
+        generation_id=gen_a.id,
+        payload=payload,
+        request=_request(method="POST", path=f"/api/v1/documents/{doc.id}/index-generations/{gen_a.id}/rollback"),
+        idempotency_key="rollback-replay-1",
+        current_user=admin,
+        session=session,
+    )
+    replay = await gen_routes.rollback_generation(
+        document_id=doc.id,
+        generation_id=gen_a.id,
+        payload=payload,
+        request=_request(method="POST", path=f"/api/v1/documents/{doc.id}/index-generations/{gen_a.id}/rollback"),
+        idempotency_key="rollback-replay-1",
+        current_user=admin,
+        session=session,
+    )
+    assert replay.active_index_generation_id == first.active_index_generation_id == gen_a.id
+
+
+@pytest.mark.asyncio
 async def test_retry_api_creates_building_row(api_fixture, monkeypatch: pytest.MonkeyPatch) -> None:
     session, doc, gen_a, gen_b, admin = api_fixture
     from hospital_ai.api.routes import document_generations as gen_routes
@@ -134,8 +165,19 @@ async def test_retry_api_creates_building_row(api_fixture, monkeypatch: pytest.M
         document_id=doc.id,
         generation_id=gen_b.id,
         request=_request(method="POST", path=f"/api/v1/documents/{doc.id}/index-generations/{gen_b.id}/retry"),
+        idempotency_key="retry-1",
         current_user=admin,
         session=session,
     )
     assert res.state == "building"
     assert res.retry_of_generation_id == gen_b.id
+
+    replay = await gen_routes.retry_generation(
+        document_id=doc.id,
+        generation_id=gen_b.id,
+        request=_request(method="POST", path=f"/api/v1/documents/{doc.id}/index-generations/{gen_b.id}/retry"),
+        idempotency_key="retry-1",
+        current_user=admin,
+        session=session,
+    )
+    assert replay.id == res.id

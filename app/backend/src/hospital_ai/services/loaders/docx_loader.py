@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 from pathlib import Path
+from xml.etree import ElementTree
+from zipfile import BadZipFile, ZipFile
 
 from hospital_ai.core.errors import ExternalServiceError
 from hospital_ai.services.loaders.base import BaseDocumentLoader, LoadedPage
@@ -24,9 +26,7 @@ class DocxLoader(BaseDocumentLoader):
         try:
             from docx import Document  # type: ignore[import-untyped]
         except ImportError:
-            raise ExternalServiceError(
-                "python-docx is not installed. Install it with `pip install python-docx`."
-            ) from None
+            return self._load_ooxml_without_python_docx(file_path)
 
         try:
             doc = Document(str(file_path))
@@ -52,4 +52,26 @@ class DocxLoader(BaseDocumentLoader):
         if not full_text.strip():
             raise ExternalServiceError("DOCX document is empty or contains no extractable text.")
 
+        return [LoadedPage(page_number=1, text=full_text, confidence=1.0)]
+
+    @staticmethod
+    def _load_ooxml_without_python_docx(file_path: Path) -> list[LoadedPage]:
+        """Read paragraph text from a DOCX OOXML package when python-docx is absent."""
+        try:
+            with ZipFile(file_path) as archive:
+                document_xml = archive.read("word/document.xml")
+            root = ElementTree.fromstring(document_xml)
+        except (BadZipFile, KeyError, ElementTree.ParseError) as exc:
+            raise ExternalServiceError(f"Failed to open DOCX: {exc}") from exc
+
+        namespace = "{http://schemas.openxmlformats.org/wordprocessingml/2006/main}"
+        paragraphs = []
+        for paragraph in root.iter(f"{namespace}p"):
+            text = "".join(node.text or "" for node in paragraph.iter(f"{namespace}t")).strip()
+            if text:
+                paragraphs.append(text)
+
+        full_text = "\n".join(paragraphs)
+        if not full_text:
+            raise ExternalServiceError("DOCX document is empty or contains no extractable text.")
         return [LoadedPage(page_number=1, text=full_text, confidence=1.0)]

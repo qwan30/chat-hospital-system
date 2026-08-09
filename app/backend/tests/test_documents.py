@@ -1,5 +1,6 @@
 import hashlib
 from pathlib import Path
+from zipfile import ZIP_DEFLATED, ZipFile
 
 import pytest
 from sqlalchemy import select, update
@@ -17,6 +18,38 @@ from tests.conftest import create_indexed_document
 def _storage_file(settings, name: str) -> Path:
     settings.storage_root.mkdir(parents=True, exist_ok=True)
     return settings.storage_root / name
+
+
+def _write_minimal_docx(path: Path, text: str) -> None:
+    with ZipFile(path, "w", compression=ZIP_DEFLATED) as archive:
+        archive.writestr(
+            "[Content_Types].xml",
+            '<?xml version="1.0" encoding="UTF-8"?>\n'
+            '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">\n'
+            '<Default Extension="rels" '
+            'ContentType="application/vnd.openxmlformats-package.relationships+xml"/>\n'
+            '<Default Extension="xml" ContentType="application/xml"/>\n'
+            '<Override PartName="/word/document.xml" '
+            'ContentType="application/vnd.openxmlformats-officedocument.'
+            'wordprocessingml.document.main+xml"/>\n'
+            "</Types>",
+        )
+        archive.writestr(
+            "_rels/.rels",
+            '<?xml version="1.0" encoding="UTF-8"?>\n'
+            '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">\n'
+            '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/'
+            'officeDocument/2006/relationships/officeDocument" '
+            'Target="word/document.xml"/>\n'
+            "</Relationships>",
+        )
+        archive.writestr(
+            "word/document.xml",
+            f"""<?xml version="1.0" encoding="UTF-8"?>
+            <w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+              <w:body><w:p><w:r><w:t>{text}</w:t></w:r></w:p><w:sectPr/></w:body>
+            </w:document>""",
+        )
 
 
 async def _attach_source_file(
@@ -126,6 +159,7 @@ def test_upload_mime_normalization_allows_hl7_and_docx_but_not_arbitrary_binary(
         == "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
     )
     assert normalize_upload_mime_type("unknown.bin", "application/octet-stream") == "application/octet-stream"
+    assert normalize_upload_mime_type("synthetic-message.hl7", None) == "application/octet-stream"
 
 
 def test_text_loader_routes_hl7_as_utf8_text(tmp_path: Path):
@@ -171,6 +205,75 @@ async def test_upload_accepts_browser_hl7_octet_stream_and_indexes_it(session_an
     assert document.mime_type == "text/plain"
     assert document.status == "ready"
     assert document.page_count == 1
+
+
+@pytest.mark.asyncio
+async def test_upload_rejects_hl7_without_content_type(session_and_settings):
+    from io import BytesIO
+
+    from fastapi import Request, UploadFile
+
+    from hospital_ai.api.routes.documents import upload_document
+    from hospital_ai.core.errors import ValidationAppError
+    from hospital_ai.db.models import User
+
+    session, settings = session_and_settings
+    current_user = await session.get(User, RECORDS_ID)
+    upload = UploadFile(
+        filename="synthetic-message.hl7",
+        file=BytesIO(b"MSH|^~\\&|E2E|HMS|LAB|HOSPITAL|20260809||ORU^R01|1|P|2.5"),
+    )
+
+    with pytest.raises(ValidationAppError, match="Unsupported file type: application/octet-stream"):
+        await upload_document(
+            request=Request({"type": "http", "client": ("127.0.0.1", 8000)}),
+            patient_id=PATIENT_ALICE_ID,
+            title="HL7 without content type",
+            document_type="lab_result",
+            file=upload,
+            session=session,
+            current_user=current_user,
+            settings=settings,
+        )
+
+
+@pytest.mark.asyncio
+async def test_upload_accepts_docx_mime_and_indexes_with_docx_loader(session_and_settings, tmp_path: Path):
+    from io import BytesIO
+
+    from fastapi import Request, UploadFile
+    from starlette.datastructures import Headers
+
+    from hospital_ai.api.routes.documents import upload_document
+    from hospital_ai.db.models import User
+
+    source = tmp_path / "synthetic-note.docx"
+    _write_minimal_docx(source, "Synthetic DOCX content for loader routing.")
+
+    session, settings = session_and_settings
+    current_user = await session.get(User, RECORDS_ID)
+    upload = UploadFile(
+        filename="synthetic-note.docx",
+        file=BytesIO(source.read_bytes()),
+        headers=Headers({"content-type": "application/vnd.openxmlformats-officedocument.wordprocessingml.document"}),
+    )
+
+    document = await upload_document(
+        request=Request({"type": "http", "client": ("127.0.0.1", 8000)}),
+        patient_id=PATIENT_ALICE_ID,
+        title="Synthetic DOCX note",
+        document_type="clinical_note",
+        file=upload,
+        session=session,
+        current_user=current_user,
+        settings=settings,
+    )
+
+    page = await session.scalar(select(DocumentPage).where(DocumentPage.document_id == document.id))
+    assert document.status == "ready"
+    assert document.page_count == 1
+    assert page is not None
+    assert page.ocr_text == "Synthetic DOCX content for loader routing."
 
 
 @pytest.mark.asyncio

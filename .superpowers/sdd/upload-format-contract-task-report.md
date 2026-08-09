@@ -35,3 +35,20 @@
 - The shell `python` resolves to Python 3.9 and global Python 3.12 contains an
   incompatible Pydantic major version. Backend checks used the repository's
   `.venv` Python 3.11 environment, matching the project dependencies.
+
+## Review follow-up
+
+- Independent review found that allowing DOCX only at the API boundary was
+  insufficient: the active worker sent DOCX bytes to PyMuPDF. It also found
+  that missing HL7 content types were accidentally treated as browser octet
+  streams.
+- The worker now routes `.docx` sources through `DocxLoader` using a temporary
+  file for both local and object storage. `DocxLoader` has a standard-library
+  OOXML ZIP/XML fallback when optional `python-docx` is absent, so the accepted
+  MIME reaches `ready` in the repository environment without a dependency or
+  lockfile change.
+- A missing/blank content type is fail-closed before HL7 normalization; only an
+  explicitly supplied allowed HL7 MIME or browser octet-stream on `.hl7` is
+  accepted.
+- Follow-up validation: 27 document/API/worker tests passed; Ruff check and
+  format check passed for the expanded five-file production/test scope.

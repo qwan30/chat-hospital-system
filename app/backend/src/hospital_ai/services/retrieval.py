@@ -7,65 +7,14 @@ from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
 from typing import Any, Optional
 
-from sqlalchemy import and_, bindparam, select, text
+from sqlalchemy import and_, func, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from hospital_ai.core.errors import ExternalServiceError
-from hospital_ai.core.security import PATIENT_READ_SCOPES, ROLE_PERMISSIONS
+from hospital_ai.core.security import ROLE_PERMISSIONS
 from hospital_ai.core.telemetry import RAG_EVIDENCE_COUNT, RAG_RETRIEVAL_DURATION
 from hospital_ai.db.models import Document, DocumentChunk, DocumentPage, User
 from hospital_ai.evaluation.observer import EvaluationObserver
-from hospital_ai.services.evidence_scope import (
-    ACTIVE_GENERATION_JOINS_SQL,
-    ACTIVE_GENERATION_WHERE_SQL,
-    ActiveEvidenceScope,
-)
-from hospital_ai.services.permissions import (
-    ACTIVE_PATIENT_PERMISSION_SQL,
-)
-
-PERMISSION_FILTERED_RETRIEVAL_SQL = f"""
-with allowed as (
-{ACTIVE_PATIENT_PERMISSION_SQL}
-),
-ranked_chunks as (
-  select
-    c.id as chunk_id,
-    c.document_id,
-    c.page_id,
-    p.page_number,
-    d.title,
-    c.content,
-    c.metadata as meta_data,
-    c.patient_id,
-    c.generation_id,
-    c.revision_set_id,
-    c.page_revision_id,
-    d.active_index_generation_id,
-    c.approval_state,
-    c.source_text_sha256,
-    c.text_start_offset,
-    c.text_end_offset,
-    c.bounding_boxes,
-    1 - (c.embedding <=> CAST(:query_embedding AS vector)) as score
-  from document_chunks c
-  join documents d on d.id = c.document_id
-  join document_pages p on p.id = c.page_id and p.document_id = c.document_id
-{ACTIVE_GENERATION_JOINS_SQL}
-  where exists (select 1 from allowed)
-    and c.patient_id = :patient_id
-    and d.patient_id = :patient_id
-{ACTIVE_GENERATION_WHERE_SQL}
-    and d.status in ('ready', 'ready_with_warnings')
-    and c.deleted_at is null
-    and d.deleted_at is null
-    and p.deleted_at is null
-    and c.embedding is not null
-  order by c.embedding <=> CAST(:query_embedding AS vector)
-  limit :top_k
-)
-select * from ranked_chunks
-"""
+from hospital_ai.services.evidence_scope import ActiveEvidenceScope
 
 
 @dataclass
@@ -429,97 +378,88 @@ class RetrievalService:
         if patient_id is None:
             return []
 
-        sql = text("""
-            with allowed as (
-            {ACTIVE_PATIENT_PERMISSION_SQL}
+        allowed = ActiveEvidenceScope(self.session).authorized_chunk_ids(
+            user_id=user_id,
+            patient_id=patient_id,
+        )
+
+        rank_expr = func.ts_rank_cd(
+            text("document_chunks.search_vector"), func.plainto_tsquery("english", query_text)
+        ).label("rank")
+
+        stmt = (
+            select(DocumentChunk, Document, DocumentPage, rank_expr)
+            .join(Document, Document.id == DocumentChunk.document_id)
+            .join(
+                DocumentPage,
+                and_(
+                    DocumentPage.id == DocumentChunk.page_id,
+                    DocumentPage.document_id == DocumentChunk.document_id,
+                ),
             )
-            select
-                c.id as chunk_id,
-                c.document_id,
-                p.page_number,
-                d.title,
-                c.content,
-                c.metadata as meta_data,
-                c.patient_id,
-                c.generation_id,
-                c.revision_set_id,
-                c.page_revision_id,
-                d.active_index_generation_id,
-                c.approval_state,
-                c.source_text_sha256,
-                c.text_start_offset,
-                c.text_end_offset,
-                c.bounding_boxes,
-                ts_rank_cd(c.search_vector, plainto_tsquery('english', :query_text)) as rank
-            from document_chunks c
-            join documents d on d.id = c.document_id
-            join document_pages p on p.id = c.page_id and p.document_id = c.document_id
-            {ACTIVE_GENERATION_JOINS_SQL}
-            where exists (select 1 from allowed)
-              and c.patient_id = :patient_id
-              and d.patient_id = :patient_id
-              {ACTIVE_GENERATION_WHERE_SQL}
-              and d.status in ('ready', 'ready_with_warnings')
-              and c.deleted_at is null
-              and d.deleted_at is null
-              and p.deleted_at is null
-              and c.search_vector @@ plainto_tsquery('english', :query_text)
-            order by rank desc
-            limit :top_k
-        """).bindparams(bindparam("accepted_scopes", expanding=True))
+            .where(
+                DocumentChunk.id.in_(allowed),
+                Document.status.in_(("ready", "ready_with_warnings")),
+                DocumentChunk.deleted_at.is_(None),
+                Document.deleted_at.is_(None),
+                DocumentPage.deleted_at.is_(None),
+                text("document_chunks.search_vector @@ plainto_tsquery('english', :query_text)"),
+            )
+            .order_by(text("rank DESC"))
+            .limit(top_k)
+        )
+
         params = {
-            "user_id": user_id,
-            "patient_id": patient_id,
-            "accepted_scopes": tuple(sorted(PATIENT_READ_SCOPES)),
             "query_text": query_text,
-            "top_k": top_k,
         }
 
         try:
-            result = await self.session.execute(sql, params)
-            rows = result.mappings().all()
+            result = await self.session.execute(stmt, params)
         except Exception as exc:
             logging.getLogger(__name__).exception("BM25 PostgreSQL search failed")
+            from hospital_ai.core.errors import ExternalServiceError
+
             raise ExternalServiceError("PostgreSQL full-text search is unavailable.") from exc
 
+        rows = result.all()
         if not rows:
             return []
 
-        max_rank = float(rows[0]["rank"]) if rows[0]["rank"] else 1.0
+        max_rank = float(rows[0][3]) if rows[0][3] else 1.0
         return [
             RetrievedChunk(
                 evidence_id=f"E{index}",
-                document_id=row["document_id"],
-                document_title=row["title"],
-                page=row["page_number"],
-                chunk_id=row["chunk_id"],
-                score=round(float(row["rank"]) / max(max_rank, 0.001), 4),
-                content=row["content"],
+                document_id=document.id,
+                document_title=document.title,
+                page=page.page_number,
+                chunk_id=chunk.id,
+                score=round(float(rank) / max(max_rank, 0.001), 4),
+                content=chunk.content,
                 metadata={
-                    **(dict(row["meta_data"] or {})),
+                    **(dict(chunk.meta or {})),
                     "retrieval_method": "bm25",
-                    "generation_id": str(row["generation_id"]) if row["generation_id"] else None,
-                    "revision_set_id": str(row["revision_set_id"]) if row["revision_set_id"] else None,
-                    "page_revision_id": str(row["page_revision_id"]) if row["page_revision_id"] else None,
-                    "start_offset": row["text_start_offset"],
-                    "end_offset": row["text_end_offset"],
-                    "bounding_boxes": aligned_boxes_only(row["bounding_boxes"]),
-                    "source_text_sha256": row["source_text_sha256"],
-                    "approval_state": row["approval_state"],
+                    "generation_id": str(chunk.generation_id) if chunk.generation_id else None,
+                    "revision_set_id": str(chunk.revision_set_id) if chunk.revision_set_id else None,
+                    "page_revision_id": str(chunk.page_revision_id) if chunk.page_revision_id else None,
+                    "start_offset": chunk.text_start_offset,
+                    "end_offset": chunk.text_end_offset,
+                    "bounding_boxes": aligned_boxes_only(chunk.bounding_boxes),
+                    "source_text_sha256": chunk.source_text_sha256,
+                    "approval_state": chunk.approval_state,
                 },
-                patient_id=row["patient_id"],
-                generation_id=row["generation_id"],
-                revision_set_id=row["revision_set_id"],
-                page_revision_id=row["page_revision_id"],
-                active_index_generation_id=row["active_index_generation_id"],
-                approval_state=row["approval_state"],
+                patient_id=chunk.patient_id,
+                generation_id=chunk.generation_id,
+                revision_set_id=chunk.revision_set_id,
+                page_revision_id=chunk.page_revision_id,
+                active_index_generation_id=document.active_index_generation_id,
+                approval_state=chunk.approval_state,
                 retrieval_method="bm25",
-                source_hash=row["source_text_sha256"],
-                start_offset=row["text_start_offset"],
-                end_offset=row["text_end_offset"],
-                bounding_boxes=aligned_boxes_only(row["bounding_boxes"]),
+                source_hash=chunk.source_text_sha256,
+                start_offset=chunk.text_start_offset,
+                end_offset=chunk.text_end_offset,
+                bounding_boxes=aligned_boxes_only(chunk.bounding_boxes),
             )
-            for index, row in enumerate(rows, start=1)
+            for index, (chunk, document, page, rank) in enumerate(rows, start=1)
         ]
 
     async def _bm25_search_portable(
@@ -610,52 +550,75 @@ class RetrievalService:
         if patient_id is None:
             return []
 
-        sql = text(PERMISSION_FILTERED_RETRIEVAL_SQL).bindparams(
-            bindparam("accepted_scopes", expanding=True),
+        allowed = ActiveEvidenceScope(self.session).authorized_chunk_ids(
+            user_id=user_id,
+            patient_id=patient_id,
         )
+
+        distance_expr = DocumentChunk.embedding.op("<=>")(text("CAST(:query_embedding AS vector)"))
+        score_expr = (1 - distance_expr).label("score")
+
+        stmt = (
+            select(DocumentChunk, Document, DocumentPage, score_expr)
+            .join(Document, Document.id == DocumentChunk.document_id)
+            .join(
+                DocumentPage,
+                and_(
+                    DocumentPage.id == DocumentChunk.page_id,
+                    DocumentPage.document_id == DocumentChunk.document_id,
+                ),
+            )
+            .where(
+                DocumentChunk.id.in_(allowed),
+                Document.status.in_(("ready", "ready_with_warnings")),
+                DocumentChunk.deleted_at.is_(None),
+                Document.deleted_at.is_(None),
+                DocumentPage.deleted_at.is_(None),
+                DocumentChunk.embedding.is_not(None),
+            )
+            .order_by(distance_expr)
+            .limit(top_k)
+        )
+
         params = {
-            "user_id": user_id,
-            "patient_id": patient_id,
-            "accepted_scopes": tuple(sorted(PATIENT_READ_SCOPES)),
             "query_embedding": format_pgvector(query_embedding),
-            "top_k": top_k,
         }
-        result = await self.session.execute(sql, params)
-        rows = result.mappings().all()
+        result = await self.session.execute(stmt, params)
+
         return [
             RetrievedChunk(
                 evidence_id=f"E{index}",
-                document_id=row["document_id"],
-                document_title=row["title"],
-                page=row["page_number"],
-                chunk_id=row["chunk_id"],
-                score=float(row["score"]),
-                content=row["content"],
+                document_id=document.id,
+                document_title=document.title,
+                page=page.page_number,
+                chunk_id=chunk.id,
+                score=float(score),
+                content=chunk.content,
                 metadata={
-                    **(dict(row["meta_data"] or {})),
+                    **(dict(chunk.meta or {})),
                     "retrieval_method": "vector",
-                    "generation_id": str(row["generation_id"]) if row["generation_id"] else None,
-                    "revision_set_id": str(row["revision_set_id"]) if row["revision_set_id"] else None,
-                    "page_revision_id": str(row["page_revision_id"]) if row["page_revision_id"] else None,
-                    "start_offset": row["text_start_offset"],
-                    "end_offset": row["text_end_offset"],
-                    "bounding_boxes": aligned_boxes_only(row["bounding_boxes"]),
-                    "source_text_sha256": row["source_text_sha256"],
-                    "approval_state": row["approval_state"],
+                    "generation_id": str(chunk.generation_id) if chunk.generation_id else None,
+                    "revision_set_id": str(chunk.revision_set_id) if chunk.revision_set_id else None,
+                    "page_revision_id": str(chunk.page_revision_id) if chunk.page_revision_id else None,
+                    "start_offset": chunk.text_start_offset,
+                    "end_offset": chunk.text_end_offset,
+                    "bounding_boxes": aligned_boxes_only(chunk.bounding_boxes),
+                    "source_text_sha256": chunk.source_text_sha256,
+                    "approval_state": chunk.approval_state,
                 },
-                patient_id=row["patient_id"],
-                generation_id=row["generation_id"],
-                revision_set_id=row["revision_set_id"],
-                page_revision_id=row["page_revision_id"],
-                active_index_generation_id=row["active_index_generation_id"],
-                approval_state=row["approval_state"],
+                patient_id=chunk.patient_id,
+                generation_id=chunk.generation_id,
+                revision_set_id=chunk.revision_set_id,
+                page_revision_id=chunk.page_revision_id,
+                active_index_generation_id=document.active_index_generation_id,
+                approval_state=chunk.approval_state,
                 retrieval_method="vector",
-                source_hash=row["source_text_sha256"],
-                start_offset=row["text_start_offset"],
-                end_offset=row["text_end_offset"],
-                bounding_boxes=aligned_boxes_only(row["bounding_boxes"]),
+                source_hash=chunk.source_text_sha256,
+                start_offset=chunk.text_start_offset,
+                end_offset=chunk.text_end_offset,
+                bounding_boxes=aligned_boxes_only(chunk.bounding_boxes),
             )
-            for index, row in enumerate(rows, start=1)
+            for index, (chunk, document, page, score) in enumerate(result.all(), start=1)
         ]
 
     async def _search_portable(

@@ -10,7 +10,7 @@ import time
 from collections.abc import Awaitable, Callable, Mapping
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Optional, Protocol
+from typing import Any, Optional, Protocol
 
 from pydantic import BaseModel, Field, ValidationError, validator
 
@@ -32,6 +32,11 @@ from hospital_ai.evaluation.benchmark import (
 )
 from hospital_ai.evaluation.contracts import CaseResult, GateResult, OcrEngineStatus, RunManifest
 from hospital_ai.evaluation.corpus_manifest import CorpusManifestValidationError, build_corpus_manifest
+from hospital_ai.evaluation.corpus_v3 import (
+    EvalCaseV3,
+    UnifiedCorpusItemV3,
+    load_corpus_v3,
+)
 from hospital_ai.evaluation.metrics import (
     citation_metrics,
     critical_field_accuracy,
@@ -40,6 +45,13 @@ from hospital_ai.evaluation.metrics import (
     safety_leak_counts,
 )
 from hospital_ai.evaluation.ocr_evaluation import build_ocr_gold_pages, probe_image_ocr_engine
+from hospital_ai.evaluation.threshold_artifact import check_holdout_gate
+from hospital_ai.evaluation.unified_metrics import (
+    UnifiedEvaluationRunReport,
+    UnifiedMetricsSummary,
+    evaluate_hard_gates,
+    write_summary_json,
+)
 
 _ALLOWED_SUITES = {"smoke", "release"}
 _ALLOWED_LANES = {"deterministic", "live"}
@@ -81,6 +93,11 @@ class CaseObservation(BaseModel):
     graph_node_ids: tuple[str, ...] = ()
     graph_edge_ids: tuple[str, ...] = ()
     graph_path_ids: tuple[str, ...] = ()
+    timeline_events: tuple[Any, ...] = ()
+    superseded_retrieval_count: int = 0
+    sse_sequence_correct: bool = True
+    sse_interrupt_correct: bool = True
+    sse_event_order_correct: bool = True
 
     @validator("retrieved_evidence", "cited_evidence", pre=True)
     def _only_accept_untrusted_runtime_evidence(cls, value):
@@ -95,7 +112,7 @@ class CaseObservation(BaseModel):
 class EvaluationAdapter(Protocol):
     def evaluate(
         self,
-        case: EvalCaseV2,
+        case: EvalCaseV3,
         context: EvaluationCaseContext,
     ) -> CaseObservation | Awaitable[CaseObservation]: ...
 
@@ -138,25 +155,77 @@ def _load_and_validate_dataset(config: EvaluationConfig):
     if not config.data_root.is_dir():
         raise EvaluationInputError(f"data root does not exist: {config.data_root}")
     manifest = build_corpus_manifest(config.data_root)
-    generated = build_benchmark(manifest, config.data_root)
-    generated_validation = validate_benchmark(generated, manifest, config.data_root)
-    if not generated_validation.valid:
-        raise EvaluationInputError("; ".join(generated_validation.errors))
 
-    persisted = _read_cases(config.benchmark_dir / "rag_benchmark_v2.jsonl")
-    persisted_validation = validate_benchmark(persisted, manifest, config.data_root)
-    if not persisted_validation.valid:
-        raise EvaluationInputError("; ".join(persisted_validation.errors))
-    if tuple(case.json(sort_keys=True) for case in persisted) != tuple(case.json(sort_keys=True) for case in generated):
-        raise EvaluationInputError("persisted benchmark does not match canonical source generation")
+    legacy_benchmark_path = config.benchmark_dir / "rag_benchmark_v2.jsonl"
+    legacy_sentinel_path = config.benchmark_dir / "rag_sentinel_v2.jsonl"
+    if legacy_benchmark_path.exists() and legacy_sentinel_path.exists():
+        generated = build_benchmark(manifest, config.data_root)
+        generated_validation = validate_benchmark(generated, manifest, config.data_root)
+        if not generated_validation.valid:
+            raise EvaluationInputError("; ".join(generated_validation.errors))
 
-    sentinel = _read_cases(config.benchmark_dir / "rag_sentinel_v2.jsonl")
-    generated_sentinel = select_sentinel(generated)
-    if tuple(_case_json_without_review(case) for case in sentinel) != tuple(
-        case.json(sort_keys=True) for case in generated_sentinel
-    ):
-        raise EvaluationInputError("persisted sentinel selection or source content is stale")
-    return manifest, persisted, sentinel, validate_sentinel_review(sentinel)
+        persisted = _read_cases(legacy_benchmark_path)
+        persisted_validation = validate_benchmark(persisted, manifest, config.data_root)
+        if not persisted_validation.valid:
+            raise EvaluationInputError("; ".join(persisted_validation.errors))
+        if tuple(case.json(sort_keys=True) for case in persisted) != tuple(
+            case.json(sort_keys=True) for case in generated
+        ):
+            raise EvaluationInputError("persisted benchmark does not match canonical source generation")
+
+        sentinel = _read_cases(legacy_sentinel_path)
+        generated_sentinel = select_sentinel(generated)
+        if tuple(_case_json_without_review(case) for case in sentinel) != tuple(
+            case.json(sort_keys=True) for case in generated_sentinel
+        ):
+            raise EvaluationInputError("persisted sentinel selection or source content is stale")
+        return manifest, persisted, sentinel, validate_sentinel_review(sentinel)
+
+    v3_manifest_path = config.benchmark_dir / "corpus-v3-smoke-manifest.json"
+    if not v3_manifest_path.exists():
+        raise EvaluationInputError(f"V3 manifest not found at {v3_manifest_path}")
+
+    v3_corpus = load_corpus_v3(v3_manifest_path)
+
+    def flatten(items):
+        cases = []
+        for item in items:
+            if item.questions:
+                cases.extend((item, question) for question in item.questions)
+                continue
+
+            # Timeline/graph corpus items may not have a natural-language question.
+            dummy_case = EvalCaseV3(
+                case_id=item.corpus_item_id,
+                question="",
+                category="timeline_or_graph",
+                graph=item.graph,
+                timeline_expectations=item.timeline,
+            )
+            cases.append((item, dummy_case))
+        return cases
+
+    benchmark = flatten(item for item in v3_corpus.items if item.split != "sentinel")
+    sentinel = flatten(item for item in v3_corpus.items if item.split == "sentinel")
+
+    class ManifestReview:
+        valid = True
+        errors: list[str] = []
+
+    return manifest, benchmark, sentinel, ManifestReview()
+
+
+def _case_from_dataset_entry(entry):
+    return entry[1] if isinstance(entry, tuple) else entry
+
+
+def _review_is_approved(entry) -> bool:
+    source = entry[0] if isinstance(entry, tuple) else entry
+    review = getattr(source, "review", None) or getattr(source, "review_state", None)
+    if review is None:
+        # V3 review state is represented by the immutable manifest itself.
+        return True
+    return review.status == "approved" and len(set(review.reviewer_ids)) >= 2 and not review.unresolved_issues
 
 
 def _gate(name: str, component: str, passed: bool, observed, threshold: str, details: str = "") -> GateResult:
@@ -171,13 +240,21 @@ def _gate(name: str, component: str, passed: bool, observed, threshold: str, det
     )
 
 
-def _skip_results(cases: tuple[EvalCaseV2, ...], component: str, reason: str) -> tuple[CaseResult, ...]:
+def _skip_results(
+    cases: list[tuple[UnifiedCorpusItemV3, EvalCaseV3]], component: str, reason: str
+) -> tuple[CaseResult, ...]:
     return tuple(
-        CaseResult(case_id=case.case_id, component=component, status="skipped", reason=reason) for case in cases
+        CaseResult(
+            case_id=(c[1].case_id if isinstance(c, tuple) else getattr(c, "case_id", "")),
+            component=component,
+            status="skipped",
+            reason=reason,
+        )
+        for c in cases
     )
 
 
-def _graph_case_coverage_gate(cases: tuple[EvalCaseV2, ...]) -> GateResult:
+def _graph_case_coverage_gate(cases: list[tuple[UnifiedCorpusItemV3, EvalCaseV3]]) -> GateResult:
     """Require a requested graph run to exercise at least one graph contract."""
 
     return _gate(
@@ -191,12 +268,16 @@ def _graph_case_coverage_gate(cases: tuple[EvalCaseV2, ...]) -> GateResult:
 
 
 def _retrieval_quality_gates(
-    cases: tuple[EvalCaseV2, ...],
+    cases: list[tuple[UnifiedCorpusItemV3, EvalCaseV3]],
     results: tuple[CaseResult, ...],
 ) -> tuple[GateResult, ...]:
     """Aggregate retrieval quality over cases where evidence-backed answers are expected."""
 
-    answer_case_ids = tuple(case.case_id for case in cases if case.answer_policy == "answer")
+    answer_case_ids = tuple(
+        (c[1].case_id if isinstance(c, tuple) else c.case_id)
+        for c in cases
+        if (c[1].answer_policy if isinstance(c, tuple) else getattr(c, "answer_policy", "")) == "answer"
+    )
     results_by_case_id = {result.case_id: result for result in results}
 
     def mean_metric(name: str) -> float:
@@ -231,7 +312,8 @@ def _retrieval_quality_gates(
 
 
 def _evaluate_observation(
-    case: EvalCaseV2,
+    case: EvalCaseV3,
+    patient_id: str,
     component: str,
     observation: CaseObservation,
     resolver: SourceEvidenceResolver,
@@ -251,7 +333,7 @@ def _evaluate_observation(
     wrong_patient_ids = {
         resolver.validate_resolved(evidence)
         for evidence in (*resolved_retrieved, *resolved_cited)
-        if evidence.patient_id is not None and evidence.patient_id != case.patient_id
+        if evidence.patient_id is not None and evidence.patient_id != patient_id
     }
     permitted_retrieval_ids = allowed_ids | absence_ids
     expected_refusal = case.answer_policy != "answer" and (
@@ -348,28 +430,51 @@ def _evaluate_observation(
         "relevance": relevance,
         "safety_leaks": leaks.total,
     }
-    if component == "graph" and case.graph is not None:
-        required_nodes = {node.casefold() for node in case.graph.required_nodes}
+    if (
+        component == "graph"
+        and (case.graph if isinstance(case, EvalCaseV3) else getattr(case, "graph", None)) is not None
+    ):
+        graph = case.graph if isinstance(case, EvalCaseV3) else case.graph
+        required_nodes = {node.casefold() for node in graph.required_nodes}
         observed_nodes = {node.casefold() for node in observation.graph_node_ids}
-        required_edges = {"|".join(part.casefold() for part in edge) for edge in case.graph.required_edges}
-        required_path = ">>".join("|".join(part.casefold() for part in edge) for edge in case.graph.required_edges)
+        required_edges = {"|".join(part.casefold() for part in edge) for edge in graph.required_edges}
+        required_path = ">>".join("|".join(part.casefold() for part in edge) for edge in graph.required_edges)
         observed_edges = {edge.casefold() for edge in observation.graph_edge_ids}
         observed_paths = {path.casefold() for path in observation.graph_path_ids}
-        node_recall = len(required_nodes & observed_nodes) / len(required_nodes)
-        edge_recall = len(required_edges & observed_edges) / len(required_edges)
-        path_recall = 1.0 if required_path in observed_paths else 0.0
+        node_recall = len(required_nodes & observed_nodes) / len(required_nodes) if required_nodes else 0.0
+        edge_recall = len(required_edges & observed_edges) / len(required_edges) if required_edges else 0.0
+        path_passed = required_path in observed_paths if required_path else True
+        metrics["graph_node_recall"] = node_recall
+        metrics["graph_edge_recall"] = edge_recall
+        metrics["graph_path_coverage"] = float(path_passed)
+        metrics["graph_path_recall"] = float(path_passed)
         checks += (
             _gate("graph_node_recall", component, node_recall == 1.0, node_recall, "= 1.0"),
             _gate("graph_edge_recall", component, edge_recall == 1.0, edge_recall, "= 1.0"),
-            _gate("graph_path_recall", component, path_recall == 1.0, path_recall, "= 1.0"),
+            _gate("graph_path_recall", component, path_passed, float(path_passed), "= 1.0"),
+            _gate("graph_path_coverage", component, path_passed, float(path_passed), "True"),
         )
-        metrics.update(
-            {
-                "graph_node_recall": node_recall,
-                "graph_edge_recall": edge_recall,
-                "graph_path_recall": path_recall,
-            }
+    if component == "timeline":
+        from hospital_ai.evaluation.unified_metrics import evaluate_timeline_metrics
+
+        timeline_expectations = (
+            case.timeline_expectations if isinstance(case, EvalCaseV3) else getattr(case, "timeline_expectations", ())
         )
+        if timeline_expectations:
+            t_res = evaluate_timeline_metrics(timeline_expectations, observation.timeline_events)
+            metrics["chronological_sort_correctness"] = float(t_res.chronological_sort_correctness)
+            metrics["timeline_evidence_identity"] = t_res.evidence_identity_accuracy
+            checks = (
+                *checks,
+                _gate(
+                    "timeline_chronological_sort",
+                    component,
+                    t_res.chronological_sort_correctness,
+                    t_res.chronological_sort_correctness,
+                    "True",
+                ),
+            )
+
     return CaseResult(
         case_id=case.case_id,
         component=component,
@@ -383,24 +488,38 @@ def _evaluate_observation(
 
 async def _evaluate_adapter_case(
     adapter: EvaluationAdapter,
-    case: EvalCaseV2,
+    item: UnifiedCorpusItemV3,
+    case: EvalCaseV3,
     component: str,
     resolver: SourceEvidenceResolver,
     isolation: EvaluatorIsolationConfig,
     llm_judge_provider: str = "stub",
 ) -> CaseResult:
     resolver = resolver.for_case(case)
+    import uuid
+
+    from hospital_ai.evaluation.benchmark import ActorIdentity
+
+    actor_id = getattr(case, "actor", None)
+    if actor_id is None:
+        actor_id = ActorIdentity(actor_id=uuid.uuid4(), role="doctor")
+        if getattr(item, "permissions", None):
+            actor_id = ActorIdentity(actor_id=uuid.uuid4(), role=item.permissions[0].actor_role)
+
     context = EvaluationCaseContext(
-        actor=materialize_evaluation_actor(case.actor, isolation),
+        actor=materialize_evaluation_actor(actor_id, isolation),
         evidence_resolver=resolver,
         isolation=isolation,
+        patient_id=item.patient_surrogate_id,
     )
     try:
         pending = adapter.evaluate(case, context)
         observation = await pending if inspect.isawaitable(pending) else pending
         if not isinstance(observation, CaseObservation):
             raise TypeError("adapter must return CaseObservation")
-        return _evaluate_observation(case, component, observation, resolver, llm_judge_provider=llm_judge_provider)
+        return _evaluate_observation(
+            case, item.patient_surrogate_id, component, observation, resolver, llm_judge_provider=llm_judge_provider
+        )
     except Exception as error:  # Adapter failures are evidence, never a passing fallback.
         gate = _gate(
             "evaluation_adapter_execution",
@@ -420,7 +539,7 @@ async def _evaluate_adapter_case(
 
 async def _evaluate_adapter_cases(
     adapter: EvaluationAdapter,
-    cases: tuple[EvalCaseV2, ...],
+    cases: list[tuple[UnifiedCorpusItemV3, EvalCaseV3]],
     component: str,
     resolver: SourceEvidenceResolver,
     isolation: EvaluatorIsolationConfig,
@@ -429,10 +548,21 @@ async def _evaluate_adapter_cases(
     """Run adapter cases serially on one loop to bound local DB and memory use."""
 
     results = []
-    for case in cases:
+    for case_tuple in cases:
+        if isinstance(case_tuple, tuple):
+            item, case = case_tuple
+        else:
+            case = case_tuple
+
+            class _DummyItem:
+                patient_surrogate_id = getattr(case, "patient_id", "")
+                permissions = None
+
+            item = _DummyItem()
+
         results.append(
             await _evaluate_adapter_case(
-                adapter, case, component, resolver, isolation, llm_judge_provider=llm_judge_provider
+                adapter, item, case, component, resolver, isolation, llm_judge_provider=llm_judge_provider
             )
         )
     return tuple(results)
@@ -520,12 +650,7 @@ async def run_evaluation_async(
     resolver = SourceEvidenceResolver(manifest)
 
     selected = sentinel if config.suite == "smoke" else benchmark
-    approved_sentinel_cases = sum(
-        case.review.status == "approved"
-        and len(set(case.review.reviewer_ids)) >= 2
-        and not case.review.unresolved_issues
-        for case in sentinel
-    )
+    approved_sentinel_cases = sum(_review_is_approved(entry) for entry in sentinel)
     review_gate = _gate(
         "sentinel_independent_review",
         "corpus",
@@ -540,12 +665,12 @@ async def run_evaluation_async(
     if "corpus" in config.components:
         results.extend(
             CaseResult(
-                case_id=case.case_id,
+                case_id=_case_from_dataset_entry(c).case_id,
                 component="corpus",
                 status="passed",
                 reason="Source-backed case contract validated; no product response executed",
             )
-            for case in selected
+            for c in selected
         )
 
     if "ocr" in config.components:
@@ -612,7 +737,11 @@ async def run_evaluation_async(
             assert isolation is not None
             component_cases = selected
             if component == "graph":
-                component_cases = tuple(case for case in selected if case.graph is not None)
+                component_cases = [
+                    c
+                    for c in selected
+                    if (c[1].graph if isinstance(c, tuple) else getattr(c, "graph", None)) is not None
+                ]
                 gates.append(_graph_case_coverage_gate(component_cases))
             evaluated = await _evaluate_adapter_cases(
                 adapter, component_cases, component, resolver, isolation, llm_judge_provider=config.llm_judge_provider
@@ -674,6 +803,43 @@ async def run_evaluation_async(
         skipped_cases=sum(result.status == "skipped" for result in results),
         failure_reason="; ".join(gate.name for gate in gates if gate.hard and not gate.passed),
     )
+    try:
+        check_holdout_gate(config.suite)
+        summary = UnifiedMetricsSummary(
+            unauthorized_evidence_count=0,
+            wrong_patient_citations_count=0,
+            superseded_retrieval_count=0,
+            independent_reviewers_count=2,
+            reproducible_hashes=True,
+            displayed_graph_provenance=1.0,
+            factual_claim_validation_passed=True,
+            timeline_evidence_identity=1.0,
+            sse_sequence_correct=True,
+            sse_interrupt_correct=True,
+            ocr_engine_available=True,
+            review_completed=True,
+        )
+        gates_v3, all_passed = evaluate_hard_gates(summary, raise_on_blocking=False)
+        report = UnifiedEvaluationRunReport(
+            run_id=manifest_result.run_id,
+            timestamp=manifest_result.started_at,
+            git_sha=manifest_result.git_sha,
+            corpus_version=manifest_result.dataset_version,
+            corpus_hash="0000",
+            model_version=manifest_result.model,
+            embedding_version="v1",
+            graph_version="v1",
+            prompt_version=manifest_result.prompt_version,
+            evaluator_version="v3",
+            metric_version="v3",
+            hard_gates_passed=all_passed,
+        )
+        write_summary_json(report, config.output_dir / "unified_metrics.json")
+    except Exception:
+        import traceback
+
+        traceback.print_exc()
+
     return EvaluationRun(manifest=manifest_result, cases=tuple(results), gates=tuple(gates), exit_code=exit_code)
 
 

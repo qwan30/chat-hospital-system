@@ -353,6 +353,7 @@ def test_retrieval_may_inspect_absence_sources_without_claiming_chat_refusal() -
 
     result = _evaluate_observation(
         case,
+        case.patient_id,
         "retrieval",
         CaseObservation(retrieved_evidence=(evidence,)),
         resolver,
@@ -371,6 +372,7 @@ def test_same_patient_forbidden_evidence_is_unauthorized_but_not_wrong_patient()
 
     result = _evaluate_observation(
         case,
+        case.patient_id,
         "retrieval",
         CaseObservation(retrieved_evidence=(evidence,)),
         resolver,
@@ -393,6 +395,7 @@ def test_cross_patient_evidence_still_fails_wrong_patient_gate() -> None:
 
     result = _evaluate_observation(
         case,
+        case.patient_id,
         "retrieval",
         CaseObservation(retrieved_evidence=(evidence,)),
         resolver,

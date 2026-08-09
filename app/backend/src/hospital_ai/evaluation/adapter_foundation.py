@@ -339,3 +339,4 @@ class EvaluationCaseContext:
     actor: MaterializedEvaluationActor
     evidence_resolver: SourceEvidenceResolver
     isolation: EvaluatorIsolationConfig
+    patient_id: str = ""

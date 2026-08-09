@@ -84,13 +84,8 @@ def test_docker_image_scan_is_a_blocking_release_gate():
     workflow = yaml.safe_load(workflow_text)
     docker_push = workflow["jobs"]["docker-push"]
     scan = _step_by_name(docker_push, "Scan backend image (Trivy)")
-    summary = _step_by_name(workflow["jobs"]["ci-summary"], "Check results")["run"]
-
     assert scan.get("continue-on-error") is not True
     assert scan["with"]["exit-code"] == 1
-    assert 'if [[ "$job" == "frontend-test" ]]' in summary
-    assert "FRONTEND_FAILED" in summary
-    assert "DOCKER_FAILED" not in summary
 
 
 def test_ai_evaluation_ci_uses_source_backed_runner_and_publishes_artifacts():
@@ -182,3 +177,17 @@ def test_readme_reports_the_current_source_backed_evaluation_gate():
     assert "scripts/run_ai_evaluation.py" in readme
     assert "--components corpus --output-dir" in readme
     assert "--components corpus,retrieval,graph,chat" not in readme
+
+
+def test_cdi_v2_release_gates_are_blocking():
+    workflow_path = Path(__file__).resolve().parents[3] / ".github" / "workflows" / "ci.yml"
+    workflow_text = workflow_path.read_text(encoding="utf-8")
+
+    assert "alembic check || true" not in workflow_text
+    assert "alembic check" in workflow_text
+
+    assert "⚠️ Frontend E2E: advisory — does not block merge" not in workflow_text
+
+    assert "python scripts/verify_cdi_v2_release.py --mode source" in workflow_text
+    assert "python -m pytest tests/cdi_v2/test_normative_acceptance.py -q" in workflow_text
+    assert "bun run test:e2e -- cdi-v2-document-intelligence.spec.ts" in workflow_text

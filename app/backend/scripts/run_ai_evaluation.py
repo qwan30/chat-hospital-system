@@ -11,7 +11,7 @@ from pathlib import Path
 BACKEND_ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_DATA_ROOT = BACKEND_ROOT / "data"
 DEFAULT_BENCHMARK_DIR = DEFAULT_DATA_ROOT / "evaluation"
-_PRODUCT_COMPONENTS = {"retrieval", "graph", "chat"}
+_PRODUCT_COMPONENTS = {"retrieval", "graph", "chat", "timeline", "stream"}
 
 
 class _Parser(argparse.ArgumentParser):
@@ -36,9 +36,9 @@ def _git_sha() -> str:
 
 def _parse_components(raw: str) -> tuple[str, ...]:
     components = tuple(item.strip() for item in raw.split(",") if item.strip())
-    allowed = {"corpus", "ocr", "retrieval", "graph", "chat"}
+    allowed = {"corpus", "ocr", "retrieval", "graph", "chat", "timeline", "stream"}
     if not components or set(components) - allowed:
-        raise ValueError("components must be a comma-separated subset of corpus,ocr,retrieval,graph,chat")
+        raise ValueError("components must be a comma-separated subset of corpus,ocr,retrieval,graph,chat,timeline,stream")
     return components
 
 
@@ -66,6 +66,14 @@ def _deterministic_product_adapters(
         from hospital_ai.evaluation.product_chat_adapter import ProductChatAdapter
 
         requested["chat"] = ProductChatAdapter(source_root)
+    if "timeline" in components:
+        from hospital_ai.evaluation.product_timeline_adapter import ProductTimelineAdapter
+
+        requested["timeline"] = ProductTimelineAdapter(source_root)
+    if "stream" in components:
+        from hospital_ai.evaluation.product_stream_adapter import ProductStreamAdapter
+
+        requested["stream"] = ProductStreamAdapter(source_root)
     isolation = EvaluatorIsolationConfig(
         evaluation_database_url="sqlite+aiosqlite:///:memory:",
         approved_evaluation_database_url="sqlite+aiosqlite:///:memory:",
@@ -79,7 +87,7 @@ def main(argv: list[str] | None = None) -> int:
     parser = _Parser(description=__doc__, add_help=True)
     parser.add_argument("--suite", default="smoke")
     parser.add_argument("--lane", default="deterministic")
-    parser.add_argument("--components", default="corpus,ocr,retrieval,graph,chat")
+    parser.add_argument("--components", default="corpus,ocr,retrieval,graph,chat,timeline,stream")
     parser.add_argument("--output-dir", required=True, type=Path)
     parser.add_argument("--data-root", type=Path, default=DEFAULT_DATA_ROOT)
     parser.add_argument("--benchmark-dir", type=Path, default=DEFAULT_BENCHMARK_DIR)

@@ -47,12 +47,11 @@ export function MarkdownRenderer({
   citations,
   evidenceById,
 }: MarkdownRendererProps) {
-  const sanitized = content
-    .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, "")
-    .replace(/<iframe\b[^<]*(?:(?!<\/iframe>)<[^<]*)*<\/iframe>/gi, "")
-    .replace(/<[^>]+>/g, "");
+  // Keep model output as React text. React escapes text nodes, so markup is
+  // displayed literally instead of being interpreted as HTML.
+  const safeText = content;
 
-  const parts = sanitized.split(/(\[[a-zA-Z0-9_-]+\])/g);
+  const parts = safeText.split(/(\[[a-zA-Z0-9_-]+\])/g);
 
   return (
     <div className="whitespace-pre-wrap leading-relaxed">

@@ -7,7 +7,7 @@ from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
 from typing import Any, Optional
 
-from sqlalchemy import and_, func, select, text
+from sqlalchemy import Float, String, and_, bindparam, func, select, text, type_coerce
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from hospital_ai.core.security import ROLE_PERMISSIONS
@@ -554,7 +554,11 @@ class RetrievalService:
             patient_id=patient_id,
         )
 
-        distance_expr = DocumentChunk.embedding.op("<=>")(text("CAST(:query_embedding AS vector)"))
+        query_embedding_param = bindparam("query_embedding", type_=String())
+        distance_expr = type_coerce(
+            text("(document_chunks.embedding <=> CAST(:query_embedding AS vector))").bindparams(query_embedding_param),
+            Float,
+        )
         score_expr = (1 - distance_expr).label("score")
 
         stmt = (
@@ -579,9 +583,7 @@ class RetrievalService:
             .limit(top_k)
         )
 
-        params = {
-            "query_embedding": format_pgvector(query_embedding),
-        }
+        params = {"query_embedding": format_pgvector(query_embedding)}
         result = await self.session.execute(stmt, params)
 
         return [

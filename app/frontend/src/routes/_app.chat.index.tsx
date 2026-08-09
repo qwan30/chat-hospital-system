@@ -525,6 +525,7 @@ function GlobalChat() {
             snippet: c.content || "",
             relevance: c.score ?? 0.5,
             document_id: c.document_id,
+            page: c.page || 1,
           });
         }
       });

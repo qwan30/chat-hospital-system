@@ -322,6 +322,19 @@ async def test_extraction_fails_closed_on_missing_source_object(finalized_docume
 
 
 @pytest.mark.asyncio
+async def test_extraction_failure_exposes_only_safe_error_code(finalized_document, session_and_settings):
+    session, settings = session_and_settings
+    Path(finalized_document.storage_uri).unlink(missing_ok=True)
+
+    await extract_document(session, finalized_document.id, settings)
+
+    document = await session.get(Document, finalized_document.id)
+    assert document is not None
+    assert document.ocr_error == "MISSING_SOURCE_OBJECT"
+    assert "Unable to verify" not in document.ocr_error
+
+
+@pytest.mark.asyncio
 async def test_acquire_model_and_resource_limits(tmp_path: Path) -> None:
     artifact_path = tmp_path / "oom.model"
     artifact_bytes = b"approved model artifact"

@@ -240,9 +240,16 @@ export function DocumentWorkspace({ documentId }: { documentId: string }) {
                   revision={revision}
                   initialText={originalText}
                   lockVersion={currentLockVersion}
+                  parentRevisionId={revisionPageQuery.data?.page_revision_id}
                   onCompare={handleCompare}
                   onLockVersionChange={setCurrentLockVersion}
                   onSavingChange={setIsDraftSaving}
+                  onSaved={(savedPage) => {
+                    queryClient.setQueryData(
+                      ["document-revision-page", documentId, selectedRevisionId, selectedPage],
+                      savedPage,
+                    );
+                  }}
                 />
               )}
             </TabsContent>

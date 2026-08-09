@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import hashlib
+import logging
 import uuid
 from datetime import UTC, datetime
 from typing import Any, Optional
@@ -20,6 +21,8 @@ from hospital_ai.db.clinical_documents import (
 )
 from hospital_ai.db.models import Document, DocumentPage, DocumentProcessingEvent
 from hospital_ai.services.ocr import OcrService
+
+logger = logging.getLogger(__name__)
 
 
 class PageExtractionError(Exception):
@@ -63,10 +66,16 @@ class _ExtractionRuns:
     async def fail_pagewise(
         self, session: AsyncSession, document: Document, run: DocumentExtractionRun, exc: Exception
     ) -> None:
+        error_code = str(getattr(exc, "error_code", "OCR_FAILED"))
         run.status = "failed"
-        run.error_code = getattr(exc, "error_code", "OCR_FAILED")
+        run.error_code = error_code
         run.completed_at = datetime.now(UTC)
         document.status = "failed"
+        document.ocr_error = error_code
+        logger.exception(
+            "Document extraction failed",
+            extra={"document_id": str(document.id), "run_id": str(run.id), "error_code": error_code},
+        )
 
 
 async def ocr_pipeline_extract(

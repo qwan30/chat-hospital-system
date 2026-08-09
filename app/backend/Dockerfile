@@ -17,7 +17,7 @@ FROM python:3.11-alpine3.23
 
 WORKDIR /app
 
-RUN apk add --no-cache libpq && \
+RUN apk add --no-cache libpq libstdc++ && \
     addgroup -S appuser && adduser -S -G appuser appuser
 
 RUN mkdir -p /data/storage && chown -R appuser:appuser /data

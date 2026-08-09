@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useMutation } from "@tanstack/react-query";
-import { saveDraftPage } from "@/lib/api/document-revisions";
+import { saveDraftPage, type DraftPageRead } from "@/lib/api/document-revisions";
 import { ApiError } from "@/lib/api-client";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -11,10 +11,12 @@ interface OcrEditorProps {
   page: number;
   initialText?: string;
   lockVersion?: number;
+  parentRevisionId?: string;
   revision?: any;
   onCompare?: () => void;
   onLockVersionChange?: (lockVersion: number) => void;
   onSavingChange?: (isSaving: boolean) => void;
+  onSaved?: (savedPage: DraftPageRead) => void;
 }
 
 export function OcrEditor({
@@ -22,10 +24,12 @@ export function OcrEditor({
   page,
   initialText = "",
   lockVersion: initialLockVersion,
+  parentRevisionId,
   revision,
   onCompare,
   onLockVersionChange,
   onSavingChange,
+  onSaved,
 }: OcrEditorProps) {
   const [text, setText] = useState(initialText);
   const [reason, setReason] = useState("");
@@ -45,18 +49,22 @@ export function OcrEditor({
 
   const saveMutation = useMutation({
     mutationFn: (newText: string) => {
+      if (currentLockVersion === undefined || !parentRevisionId) {
+        return Promise.reject(new Error("The latest page revision is not loaded."));
+      }
       return saveDraftPage(
         documentId,
         page,
-        { text: newText, parent_revision_id: revision?.id || "", edit_reason: reason },
+        { text: newText, parent_revision_id: parentRevisionId, edit_reason: reason },
         { idempotencyKey: idempotencyKeyRef.current, lockVersion: currentLockVersion },
       );
     },
-    onSuccess: (result) => {
-      setCurrentLockVersion(result.lock_version);
-      onLockVersionChange?.(result.lock_version);
+    onSuccess: (savedPage) => {
+      setCurrentLockVersion(savedPage.lock_version);
+      onLockVersionChange?.(savedPage.lock_version);
       idempotencyKeyRef.current = crypto.randomUUID();
       setReason("");
+      onSaved?.(savedPage);
     },
     onError: (error) => {
       if (error instanceof ApiError && error.status === 409) {
@@ -77,7 +85,8 @@ export function OcrEditor({
     isHistorical ||
     saveMutation.isPending ||
     reason.trim().length === 0 ||
-    currentLockVersion === undefined;
+    currentLockVersion === undefined ||
+    !parentRevisionId;
 
   return (
     <div className="flex flex-col gap-4">

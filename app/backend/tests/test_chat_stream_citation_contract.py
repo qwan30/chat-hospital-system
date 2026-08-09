@@ -47,9 +47,7 @@ async def test_stream_citation_persists_with_chunk_id_and_validates_as_chat_mess
         title="Stream citation contract note",
         content="The patient record states a stable condition.",
     )
-    chunk = (
-        await session.execute(select(DocumentChunk).where(DocumentChunk.document_id == document.id))
-    ).scalar_one()
+    chunk = (await session.execute(select(DocumentChunk).where(DocumentChunk.document_id == document.id))).scalar_one()
     thread = ChatThread(
         title="Stream citation contract",
         scope="patient-linked",

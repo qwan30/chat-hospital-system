@@ -14,6 +14,8 @@ import { useAuth, type AuthUser } from "@/lib/auth-context";
 import { persistToken } from "@/lib/api-client";
 
 const STORAGE_KEY = "hms.session";
+const REAL_AUTH_FALLBACK_NAME = "Authenticated User";
+const REAL_AUTH_FALLBACK_INITIALS = "AU";
 
 export interface Session {
   user: MockUser;
@@ -48,6 +50,42 @@ interface SessionContextValue {
 
 const SessionContext = createContext<SessionContextValue | null>(null);
 
+function getUnicodeWords(name: string): string[] {
+  return name.normalize("NFC").match(/\p{L}+/gu) ?? [];
+}
+
+function getLeadingCharacters(value: string, count: number): string {
+  return Array.from(value.normalize("NFC")).slice(0, count).join("");
+}
+
+function resolveRealAuthIdentity(authUser: AuthUser): {
+  name: string;
+  email: string;
+  initials: string;
+} {
+  const normalizedName = authUser.full_name.normalize("NFC").trim();
+  const words = getUnicodeWords(normalizedName);
+
+  if (words.length === 0) {
+    return {
+      name: REAL_AUTH_FALLBACK_NAME,
+      email: authUser.email,
+      initials: REAL_AUTH_FALLBACK_INITIALS,
+    };
+  }
+
+  const initials =
+    words.length === 1
+      ? getLeadingCharacters(words[0]!, 2)
+      : `${getLeadingCharacters(words[0]!, 1)}${getLeadingCharacters(words[words.length - 1]!, 1)}`;
+
+  return {
+    name: normalizedName,
+    email: authUser.email,
+    initials: initials.toLocaleUpperCase() || REAL_AUTH_FALLBACK_INITIALS,
+  };
+}
+
 function buildSession(
   role: Role,
   workspaceId?: string,
@@ -62,22 +100,11 @@ function buildSession(
       : user.defaultWorkspaceId;
   const workspace = getWorkspace(wsId)!;
 
-  const initialsParts = authUser?.full_name.match(/[A-Za-z0-9]+/g) ?? [];
-  const firstInitialPart = initialsParts[0];
-  const lastInitialPart = initialsParts[initialsParts.length - 1];
-  const safeInitials =
-    initialsParts.length === 0
-      ? user.initials
-      : initialsParts.length === 1
-        ? (firstInitialPart ?? user.initials).slice(0, 2).toUpperCase()
-        : `${firstInitialPart?.[0] ?? user.initials[0]}${lastInitialPart?.[0] ?? user.initials[1] ?? user.initials[0]}`.toUpperCase();
   const resolvedUser: MockUser =
     authUser && isRealAuth
       ? {
           ...user,
-          name: authUser.full_name,
-          email: authUser.email,
-          initials: safeInitials,
+          ...resolveRealAuthIdentity(authUser),
           title: authUser.department?.trim() || user.title,
         }
       : user;
@@ -159,9 +186,9 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const signOut = useCallback(() => {
-    logout();
     setSession(null);
     persist(null);
+    logout();
   }, [logout]);
 
   const switchRole = useCallback((role: Role) => {

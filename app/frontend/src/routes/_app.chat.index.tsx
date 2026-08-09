@@ -783,9 +783,9 @@ function GlobalChat() {
                 )}
                 <ul className="space-y-1">
                   {unpinnedThreads.length === 0 && pinnedThreads.length === 0 ? (
-                    <div className="p-4 text-center text-xs text-muted-foreground">
+                    <li className="p-4 text-center text-xs text-muted-foreground">
                       No previous sessions
-                    </div>
+                    </li>
                   ) : (
                     unpinnedThreads.map((t) => renderThreadItem(t, false))
                   )}

@@ -66,7 +66,7 @@ async def create_indexed_document(
         document_type="synthetic_eval_note",
         storage_uri=f"memory://rag-eval/{uuid.uuid4()}",
         mime_type="text/plain",
-        status="indexed",
+        status="ready",
         page_count=1,
     )
     session.add(document)

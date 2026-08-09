@@ -234,7 +234,7 @@ async def seed(session: AsyncSession) -> None:
             document_type=doc_type,
             storage_uri=f"seed://{doc_id}",
             mime_type="text/plain",
-            status="indexed",
+            status="ready",
             page_count=1,
             indexed_source_sha256=hashlib.sha256(content.encode()).hexdigest(),
             index_generation=1,

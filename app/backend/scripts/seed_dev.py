@@ -92,7 +92,7 @@ async def _add_document(
         document_type=document_type,
         storage_uri=f"memory://synthetic/{doc_id}",
         mime_type="text/plain",
-        status="indexed",
+        status="ready",
         page_count=1,
     )
     session.add(doc)

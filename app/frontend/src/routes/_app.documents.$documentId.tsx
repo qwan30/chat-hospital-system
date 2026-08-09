@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, Outlet, useRouterState } from "@tanstack/react-router";
 import { AppShell } from "@/components/shell/AppShell";
 import { PageHeader } from "@/components/hms/PageHeader";
 import { Card } from "@/components/ui/card";
@@ -25,6 +25,16 @@ export const Route = createFileRoute("/_app/documents/$documentId")({
 
 function Page() {
   const { documentId } = Route.useParams();
+  const path = useRouterState({ select: (state) => state.location.pathname });
+
+  if (path !== `/documents/${documentId}`) {
+    return <Outlet />;
+  }
+
+  return <DocumentDetail documentId={documentId} />;
+}
+
+function DocumentDetail({ documentId }: { documentId: string }) {
   const queryClient = useQueryClient();
 
   const {

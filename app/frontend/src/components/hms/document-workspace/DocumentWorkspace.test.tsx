@@ -16,6 +16,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import "@testing-library/jest-dom/vitest";
 
 vi.mock("@/lib/api/document-revisions", () => ({
+  saveDraftPage: vi.fn(),
   restoreRevision: vi.fn(),
   submitDraft: vi.fn(),
   approveRevisionSet: vi.fn(),
@@ -113,6 +114,37 @@ describe("DocumentWorkspace", () => {
     );
 
     expect(await screen.findByRole("button", { name: "Approve" })).toBeVisible();
+  });
+
+  it("submits the draft with the current lock version", async () => {
+    vi.mocked(submitDraft).mockResolvedValueOnce({
+      revision_set_id: "submitted-set",
+      document_id: "doc-1",
+      revision_number: 2,
+      status: "submitted",
+      created_by_user_id: "doctor-1",
+      created_at: null,
+      submitted_at: null,
+      approved_by_user_id: null,
+      approved_at: null,
+    });
+
+    render(
+      <QueryClientProvider client={new QueryClient()}>
+        <DocumentWorkspace documentId="doc-1" />
+      </QueryClientProvider>,
+    );
+
+    const submitButton = await screen.findByRole("button", { name: "Submit Draft" });
+    await waitFor(() => expect(submitButton).toBeEnabled());
+    fireEvent.click(submitButton);
+
+    await waitFor(() => {
+      expect(submitDraft).toHaveBeenCalledWith("doc-1", {
+        idempotencyKey: expect.any(String),
+        lockVersion: 1,
+      });
+    });
   });
 });
 

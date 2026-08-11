@@ -5,7 +5,9 @@ clinical data that gets ingested as retrievable evidence chunks.
 """
 
 import logging
+import re
 from typing import Any, Optional
+from urllib.parse import urlparse
 
 import httpx
 
@@ -13,6 +15,8 @@ from hospital_ai.core.config import Settings
 from hospital_ai.core.errors import ExternalServiceError
 
 logger = logging.getLogger(__name__)
+
+_SAFE_HMS_PATH = re.compile(r"/[A-Za-z0-9/_-]*\Z")
 
 
 class HmsApiClient:
@@ -31,14 +35,30 @@ class HmsApiClient:
             headers["X-Api-Key"] = self.api_key
         return headers
 
-    async def _get(self, path: str, *, jwt_token: Optional[str] = None, params: Optional[dict[str, Any]] = None) -> Any:
-        url = f"{self.base_url}{path}"
-        from urllib.parse import urlparse
+    def _build_url(self, path: str) -> str:
+        """Build an HMS URL from a server-defined path shape only.
 
+        Query parameters are passed separately to httpx. Restricting the path
+        to endpoint-safe characters prevents caller-controlled values from
+        adding a scheme, host, query, fragment, or path traversal segment.
+        """
+        if _SAFE_HMS_PATH.fullmatch(path) is None:
+            raise ExternalServiceError("Invalid HMS request path")
+
+        url = f"{self.base_url}{path}"
         parsed_base = urlparse(self.base_url)
         parsed_url = urlparse(url)
-        if parsed_url.netloc != parsed_base.netloc or parsed_url.scheme != parsed_base.scheme:
+        if (
+            parsed_base.scheme not in {"http", "https"}
+            or not parsed_base.netloc
+            or parsed_url.netloc != parsed_base.netloc
+            or parsed_url.scheme != parsed_base.scheme
+        ):
             raise ExternalServiceError("Invalid destination URL (SSRF detected)")
+        return url
+
+    async def _get(self, path: str, *, jwt_token: Optional[str] = None, params: Optional[dict[str, Any]] = None) -> Any:
+        url = self._build_url(path)
         try:
             async with httpx.AsyncClient(timeout=self.timeout) as client:
                 response = await client.get(url, headers=self._headers(jwt_token), params=params)
@@ -63,13 +83,7 @@ class HmsApiClient:
         jwt_token: Optional[str] = None,
         json: Optional[dict[str, Any]] = None,
     ) -> Any:
-        url = f"{self.base_url}{path}"
-        from urllib.parse import urlparse
-
-        parsed_base = urlparse(self.base_url)
-        parsed_url = urlparse(url)
-        if parsed_url.netloc != parsed_base.netloc or parsed_url.scheme != parsed_base.scheme:
-            raise ExternalServiceError("Invalid destination URL (SSRF detected)")
+        url = self._build_url(path)
         try:
             async with httpx.AsyncClient(timeout=self.timeout) as client:
                 response = await client.post(

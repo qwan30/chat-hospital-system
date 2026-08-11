@@ -76,9 +76,10 @@ class HmsApiClient:
         if path_segment is None:
             url = self._build_url(path + path_suffix)
         else:
-            if re.fullmatch(r"[A-Za-z0-9_-]+", path_segment) is None:
+            if re.fullmatch(r"[A-Za-z0-9_-]+", path_segment):
+                url = f"{self.base_url}{path}/{path_segment}{path_suffix}"
+            else:
                 raise ExternalServiceError("Invalid HMS request path segment")
-            url = f"{self.base_url}{path}/{path_segment}{path_suffix}"
         try:
             async with httpx.AsyncClient(timeout=self.timeout) as client:
                 response = await client.get(url, headers=self._headers(jwt_token), params=params)
@@ -110,9 +111,10 @@ class HmsApiClient:
         if path_segment is None:
             url = self._build_url(path + path_suffix)
         else:
-            if re.fullmatch(r"[A-Za-z0-9_-]+", path_segment) is None:
+            if re.fullmatch(r"[A-Za-z0-9_-]+", path_segment):
+                url = f"{self.base_url}{path}/{path_segment}{path_suffix}"
+            else:
                 raise ExternalServiceError("Invalid HMS request path segment")
-            url = f"{self.base_url}{path}/{path_segment}{path_suffix}"
         try:
             async with httpx.AsyncClient(timeout=self.timeout) as client:
                 response = await client.post(

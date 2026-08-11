@@ -421,6 +421,7 @@ async def _generate_sse_events(
                     "document_id": str(item.document_id),
                     "document_title": item.document_title,
                     "page": item.page,
+                    "chunk_id": str(item.chunk_id),
                     "score": item.score,
                     "content": item.content[:200],
                 }

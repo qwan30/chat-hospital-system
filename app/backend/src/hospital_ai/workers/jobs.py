@@ -1,6 +1,8 @@
 import asyncio
 import logging
 import uuid
+from pathlib import Path
+from tempfile import NamedTemporaryFile
 from typing import Literal, Optional
 
 from sqlalchemy import delete, func, select
@@ -11,7 +13,7 @@ from hospital_ai.db.models import Document, DocumentChunk, DocumentPage, Documen
 from hospital_ai.db.session import get_session_factory
 from hospital_ai.services.chunking import ChunkingService
 from hospital_ai.services.embeddings import EmbeddingService
-from hospital_ai.services.ocr import OcrService
+from hospital_ai.services.ocr import OcrPage, OcrService
 from hospital_ai.services.storage import StorageService, get_storage_service
 
 
@@ -44,9 +46,9 @@ async def process_document(session: AsyncSession, document_id: uuid.UUID, settin
             if not db_pages:
                 raise RuntimeError(f"Virtual document has no existing pages to re-index. URI: {document.storage_uri}")
 
-            from hospital_ai.services.ocr import OcrPage
-
             pages = [OcrPage(page_number=p.page_number, text=p.ocr_text, confidence=p.ocr_confidence) for p in db_pages]
+        elif Path(document.storage_uri.split("?", 1)[0]).suffix.lower() == ".docx":
+            pages = _load_docx_pages(document, storage_service)
         else:
             pages = OcrService().extract_pages(
                 storage_uri=document.storage_uri,
@@ -183,6 +185,24 @@ async def process_document(session: AsyncSession, document_id: uuid.UUID, settin
             "index",
             attempt,
         )
+
+
+def _load_docx_pages(document: Document, storage_service: StorageService) -> list[OcrPage]:
+    """Extract DOCX through the document loader for local and object storage."""
+    from hospital_ai.services.loaders.docx_loader import DocxLoader
+
+    temporary_path: Path | None = None
+    try:
+        with NamedTemporaryFile(suffix=".docx", delete=False) as temporary_file:
+            temporary_path = Path(temporary_file.name)
+            temporary_file.write(storage_service.read_bytes(document.storage_uri))
+        return [
+            OcrPage(page_number=page.page_number, text=page.text, confidence=page.confidence)
+            for page in DocxLoader().load(temporary_path, document.mime_type)
+        ]
+    finally:
+        if temporary_path is not None:
+            temporary_path.unlink(missing_ok=True)
 
 
 async def _populate_tsvectors(session: AsyncSession, document_id: uuid.UUID) -> None:

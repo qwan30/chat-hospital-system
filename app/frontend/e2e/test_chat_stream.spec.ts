@@ -49,9 +49,9 @@ test.describe("Chat Stream Flow - QA/QC Phase 5", () => {
     expect(responseText).not.toMatch(/i could not find authorized evidence/i);
 
     // 2. Assert that the LLM returns standard Citations
-    // Check for inline citations like [1], [2], or a Sources list
+    // The stream renders numbered UI citations and raw evidence IDs such as [E1].
     const hasCitations =
-      /\[\d+\]/.test(responseText) ||
+      /\[(?:\d+|E\d+)\]/.test(responseText) ||
       /sources?:/i.test(responseText) ||
       /tài liệu tham khảo:/i.test(responseText) ||
       /nguồn:/i.test(responseText);

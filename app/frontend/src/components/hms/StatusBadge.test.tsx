@@ -17,6 +17,14 @@ describe("StatusBadge", () => {
     expect(screen.getByText("Indexed")).toBeInTheDocument();
   });
 
+  it.each([
+    ["ready", "Ready"],
+    ["ready_with_warnings", "Ready with warnings"],
+  ])("renders a friendly positive label for %s", (status, label) => {
+    render(<StatusBadge status={status} />);
+    expect(screen.getByText(label)).toBeInTheDocument();
+  });
+
   it("prefers an explicit label over the mapped one", () => {
     render(<StatusBadge status="indexed" label="Ready" />);
     expect(screen.getByText("Ready")).toBeInTheDocument();
@@ -37,6 +45,8 @@ describe("StatusBadge", () => {
       "indexing",
       "index_failed",
       "indexed",
+      "ready",
+      "ready_with_warnings",
       "archived",
     ] as const;
     for (const status of documentStatuses) {

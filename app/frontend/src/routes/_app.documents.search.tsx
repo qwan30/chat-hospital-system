@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useState, useEffect } from "react";
 import { useMutation } from "@tanstack/react-query";
-import { searchDocuments } from "@/lib/api/documents";
+import { searchDocuments, type DocumentSearchRequest } from "@/lib/api/documents";
 import { Loader2 } from "lucide-react";
 import { z } from "zod";
 
@@ -14,6 +14,26 @@ const searchSchema = z.object({
   q: z.string().optional(),
   patientId: z.string().optional(),
 });
+type DocumentSearchParams = z.infer<typeof searchSchema>;
+
+export function canSearchDocuments(query: string, patientId: string): boolean {
+  return Boolean(query.trim() && patientId.trim());
+}
+
+export function submitDocumentSearch(
+  mutate: (payload: DocumentSearchRequest) => void,
+  query: string,
+  patientId: string,
+): boolean {
+  if (!canSearchDocuments(query, patientId)) return false;
+
+  mutate({
+    patient_id: patientId.trim(),
+    query: query.trim(),
+    top_k: 5,
+  });
+  return true;
+}
 
 export const Route = createFileRoute("/_app/documents/search")({
   validateSearch: (search) => searchSchema.parse(search),
@@ -22,29 +42,34 @@ export const Route = createFileRoute("/_app/documents/search")({
 });
 
 function Page() {
-  const searchParams = Route.useSearch();
-  const [patientId, setPatientId] = useState(
-    searchParams.patientId || "20000000-0000-0000-0000-000000000001",
-  );
+  return <DocumentSearchPage searchParams={Route.useSearch()} />;
+}
+
+export function DocumentSearchPage({ searchParams }: { searchParams: DocumentSearchParams }) {
+  const [patientId, setPatientId] = useState(searchParams.patientId || "");
   const [q, setQ] = useState(searchParams.q || "");
 
   const searchMutation = useMutation({
-    mutationFn: () => searchDocuments({ patient_id: patientId, query: q, top_k: 5 }),
+    mutationFn: searchDocuments,
   });
 
   const { mutate } = searchMutation;
+  const canSearch = canSearchDocuments(q, patientId);
 
   useEffect(() => {
-    if (searchParams.q) {
-      mutate();
-    }
+    setPatientId(searchParams.patientId || "");
+    setQ(searchParams.q || "");
+  }, [searchParams.patientId, searchParams.q]);
+
+  useEffect(() => {
+    submitDocumentSearch(mutate, searchParams.q || "", searchParams.patientId || "");
   }, [searchParams.q, searchParams.patientId, mutate]);
 
   return (
     <AppShell>
       <PageHeader
         title="Document search"
-        description="Hybrid keyword + vector search across the indexed corpus."
+        description="Hybrid keyword + vector search within this patient's authorized documents."
       />
       <Card className="p-3">
         <div className="flex gap-2">
@@ -60,13 +85,23 @@ function Page() {
             value={q}
             onChange={(e) => setQ(e.target.value)}
             onKeyDown={(e) => {
-              if (e.key === "Enter") searchMutation.mutate();
+              if (e.key === "Enter" && canSearch) {
+                submitDocumentSearch(mutate, q, patientId);
+              }
             }}
           />
-          <Button onClick={() => searchMutation.mutate()} disabled={searchMutation.isPending || !q}>
+          <Button
+            onClick={() => submitDocumentSearch(mutate, q, patientId)}
+            disabled={searchMutation.isPending || !canSearch}
+          >
             {searchMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Search"}
           </Button>
         </div>
+        {!patientId.trim() && (
+          <p className="mt-2 text-xs text-muted-foreground">
+            Enter a Patient UUID to search only documents you are authorized to access.
+          </p>
+        )}
       </Card>
 
       {searchMutation.error && (

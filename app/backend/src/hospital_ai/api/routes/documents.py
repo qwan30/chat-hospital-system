@@ -45,8 +45,16 @@ ALLOWED_MIME_TYPES = {
     "text/markdown",
     "application/json",
     "application/pdf",
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
     "image/png",
     "image/jpeg",
+}
+
+HL7_UPLOAD_MIME_TYPES = {
+    "application/octet-stream",
+    "text/plain",
+    "application/hl7-v2",
+    "application/hl7-v2+er7",
 }
 
 ALLOWED_DOCUMENT_TYPES = {
@@ -57,6 +65,17 @@ ALLOWED_DOCUMENT_TYPES = {
     "discharge_summary",
     "imaging_report",
 }
+
+
+def normalize_upload_mime_type(filename: str | None, content_type: str | None) -> str:
+    """Normalize browser HL7 uploads without admitting generic binary files."""
+    if not content_type or not content_type.strip():
+        return "application/octet-stream"
+
+    mime_type = content_type.strip().lower()
+    if (filename or "").lower().endswith(".hl7") and mime_type in HL7_UPLOAD_MIME_TYPES:
+        return "text/plain"
+    return mime_type
 
 
 @router.post("", response_model=DocumentRead)
@@ -89,7 +108,7 @@ async def upload_document(
     if document_type not in ALLOWED_DOCUMENT_TYPES:
         raise ValidationAppError(f"Invalid document type. Allowed types: {', '.join(sorted(ALLOWED_DOCUMENT_TYPES))}")
 
-    mime_type = file.content_type or "application/octet-stream"
+    mime_type = normalize_upload_mime_type(file.filename, file.content_type)
     if mime_type not in ALLOWED_MIME_TYPES:
         raise ValidationAppError(f"Unsupported file type: {mime_type}")
 

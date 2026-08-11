@@ -2,6 +2,8 @@ import { cn } from "@/lib/utils";
 
 type Status =
   | "indexed"
+  | "ready"
+  | "ready_with_warnings"
   | "processing"
   | "queued"
   | "ocr"
@@ -28,6 +30,16 @@ const map: Record<Status, { label: string; cls: string; dot: string }> = {
     label: "Indexed",
     cls: "bg-success/10 text-success border-success/20",
     dot: "bg-success",
+  },
+  ready: {
+    label: "Ready",
+    cls: "bg-success/10 text-success border-success/20",
+    dot: "bg-success",
+  },
+  ready_with_warnings: {
+    label: "Ready with warnings",
+    cls: "bg-warning/10 text-warning border-warning/20",
+    dot: "bg-warning",
   },
   processing: {
     label: "Processing",

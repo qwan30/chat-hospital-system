@@ -220,27 +220,9 @@ async def get_patient_overview(
             or 0
         )
     if medication_count == 0:
-        medication_count = (
-            await session.scalar(
-                select(func.count(Document.id)).where(
-                    Document.patient_id == patient_id,
-                    Document.document_type == "hms_medical_record",
-                    Document.deleted_at.is_(None),
-                )
-            )
-            or 0
-        )
+        medication_count = len(await _load_patient_medications(session, patient_id))
     if lab_count == 0:
-        lab_count = (
-            await session.scalar(
-                select(func.count(Document.id)).where(
-                    Document.patient_id == patient_id,
-                    Document.document_type == "hms_lab_result",
-                    Document.deleted_at.is_(None),
-                )
-            )
-            or 0
-        )
+        lab_count = len(await _load_patient_labs(session, patient_id))
 
     appointment_count = (
         await session.scalar(
@@ -448,80 +430,7 @@ async def get_patient_medications(
 
         raise NotFoundError("Patient not found.")
 
-    # Query medication-related documents: prescriptions and discharge summaries
-    stmt = (
-        select(DocumentChunk, Document)
-        .join(Document, Document.id == DocumentChunk.document_id)
-        .join(
-            DocumentPage,
-            (DocumentPage.id == DocumentChunk.page_id) & (DocumentPage.document_id == DocumentChunk.document_id),
-        )
-        .where(
-            DocumentChunk.patient_id == patient_id,
-            Document.patient_id == patient_id,
-            Document.document_type.in_(["prescription", "discharge_summary"]),
-            Document.status.in_(("ready", "ready_with_warnings")),
-            DocumentChunk.deleted_at.is_(None),
-            Document.deleted_at.is_(None),
-            DocumentPage.deleted_at.is_(None),
-        )
-        .order_by(Document.created_at.desc())
-        .limit(50)
-    )
-    result = await session.execute(stmt)
-    rows = result.all()
-
-    # Parse structured medications from document content and metadata
-    medications: list[PatientMedicationItem] = []
-    seen_meds: set[str] = set()
-
-    for chunk, doc in rows:
-        content = chunk.content or ""
-        meta = chunk.meta or {}
-        doc_title = doc.title or ""
-
-        # Extract medication entries from chunk metadata if available
-        meds_from_meta = meta.get("medications", meta.get("meds", []))
-        if isinstance(meds_from_meta, list):
-            for med in meds_from_meta:
-                if isinstance(med, dict):
-                    drug = med.get("name", med.get("drug", ""))
-                    if drug and drug.lower() not in seen_meds:
-                        seen_meds.add(drug.lower())
-                        medications.append(
-                            PatientMedicationItem(
-                                drug_name=str(drug),
-                                dose=med.get("dose"),
-                                route=med.get("route"),
-                                frequency=med.get("frequency"),
-                                started=med.get("started"),
-                                prescriber=med.get("prescriber"),
-                                source_document_id=doc.id,
-                                source_document_title=doc_title,
-                            )
-                        )
-        else:
-            # Parse from text content (prescription format: "- Drug dose, frequency")
-            for line in content.split("\n"):
-                line = line.strip()
-                if line.startswith("- ") or line.startswith("• "):
-                    line = line.lstrip("- •").strip()
-                    drug_name = line.split()[0] if line else ""
-                    if drug_name and drug_name.lower() not in seen_meds and len(drug_name) > 2:
-                        seen_meds.add(drug_name.lower())
-                        dose_match = _extract_dose(line)
-                        medications.append(
-                            PatientMedicationItem(
-                                drug_name=drug_name,
-                                dose=dose_match,
-                                route="PO" if "viên" in content.lower() or "uống" in content.lower() else None,
-                                frequency=None,
-                                started=str(doc.created_at.date()) if doc.created_at else None,
-                                prescriber=_extract_doctor(content),
-                                source_document_id=doc.id,
-                                source_document_title=doc_title,
-                            )
-                        )
+    medications = await _load_patient_medications(session, patient_id)
 
     await AuditService(session).record(
         actor_user_id=current_user.id,
@@ -562,84 +471,7 @@ async def get_patient_labs(
 
         raise NotFoundError("Patient not found.")
 
-    # Query lab result documents
-    stmt = (
-        select(DocumentChunk, Document)
-        .join(Document, Document.id == DocumentChunk.document_id)
-        .join(
-            DocumentPage,
-            (DocumentPage.id == DocumentChunk.page_id) & (DocumentPage.document_id == DocumentChunk.document_id),
-        )
-        .where(
-            DocumentChunk.patient_id == patient_id,
-            Document.patient_id == patient_id,
-            Document.document_type.in_(["lab_result", "hms_lab_result"]),
-            Document.status.in_(("ready", "ready_with_warnings")),
-            DocumentChunk.deleted_at.is_(None),
-            Document.deleted_at.is_(None),
-            DocumentPage.deleted_at.is_(None),
-        )
-        .order_by(Document.created_at.desc())
-        .limit(50)
-    )
-    result = await session.execute(stmt)
-    rows = result.all()
-
-    labs: list[PatientLabItem] = []
-
-    for chunk, doc in rows:
-        content = chunk.content or ""
-        meta = chunk.meta or {}
-        doc_title = doc.title or ""
-
-        # Extract lab entries from chunk metadata if available
-        labs_from_meta = meta.get("labs", meta.get("lab_results", []))
-        if isinstance(labs_from_meta, list):
-            for lab in labs_from_meta:
-                if isinstance(lab, dict):
-                    analyte = lab.get("analyte", lab.get("test", lab.get("testName", "")))
-                    if analyte:
-                        value_str = lab.get("value", lab.get("result", ""))
-                        ref_str = lab.get("reference_range", lab.get("referenceRange", lab.get("ref", "")))
-                        flag = _compute_lab_flag(str(value_str), str(ref_str)) if value_str and ref_str else None
-                        labs.append(
-                            PatientLabItem(
-                                analyte=str(analyte),
-                                value=str(value_str) if value_str else None,
-                                reference_range=str(ref_str) if ref_str else None,
-                                flag=flag,
-                                collected=str(doc.created_at.date()) if doc.created_at else None,
-                                source_document_id=doc.id,
-                                source_document_title=doc_title,
-                            )
-                        )
-        else:
-            # Parse from text content: lines with analyte patterns
-            lab_matches = _parse_lab_content(content)
-            for lab_item in lab_matches:
-                lab_item.source_document_id = doc.id
-                lab_item.source_document_title = doc_title
-                if lab_item.collected is None and doc.created_at:
-                    lab_item.collected = str(doc.created_at.date())
-                labs.append(lab_item)
-
-    # Deduplicate by analyte name, keeping the most recent
-    seen_analytes: set[str] = set()
-    deduped_labs: list[PatientLabItem] = []
-    for lab in labs:
-        # Do not collapse clinically opposing observations (e.g. high then
-        # low glucose) merely because they share an analyte name.
-        key = "|".join(
-            [
-                lab.analyte.strip().casefold(),
-                (lab.value or "").strip().casefold(),
-                (lab.flag or "").strip().casefold(),
-                (lab.collected or "").strip(),
-            ]
-        )
-        if key not in seen_analytes:
-            seen_analytes.add(key)
-            deduped_labs.append(lab)
+    deduped_labs = await _load_patient_labs(session, patient_id)
 
     await AuditService(session).record(
         actor_user_id=current_user.id,
@@ -724,6 +556,158 @@ async def get_patient_documents(
 
 
 # ── Helper parsers ──────────────────────────────────────────────────
+
+
+async def _load_patient_medications(session: AsyncSession, patient_id: uuid.UUID) -> list[PatientMedicationItem]:
+    stmt = (
+        select(DocumentChunk, Document)
+        .join(Document, Document.id == DocumentChunk.document_id)
+        .join(
+            DocumentPage,
+            (DocumentPage.id == DocumentChunk.page_id) & (DocumentPage.document_id == DocumentChunk.document_id),
+        )
+        .where(
+            DocumentChunk.patient_id == patient_id,
+            Document.patient_id == patient_id,
+            Document.document_type.in_(["prescription", "discharge_summary"]),
+            Document.status.in_(("ready", "ready_with_warnings")),
+            DocumentChunk.deleted_at.is_(None),
+            Document.deleted_at.is_(None),
+            DocumentPage.deleted_at.is_(None),
+        )
+        .order_by(Document.created_at.desc())
+        .limit(50)
+    )
+    result = await session.execute(stmt)
+    rows = result.all()
+
+    medications: list[PatientMedicationItem] = []
+    seen_meds: set[str] = set()
+
+    for chunk, doc in rows:
+        content = chunk.content or ""
+        meta = chunk.meta or {}
+        doc_title = doc.title or ""
+
+        meds_from_meta = meta.get("medications", meta.get("meds", []))
+        if isinstance(meds_from_meta, list):
+            for med in meds_from_meta:
+                if isinstance(med, dict):
+                    drug = med.get("name", med.get("drug", ""))
+                    if drug and drug.lower() not in seen_meds:
+                        seen_meds.add(drug.lower())
+                        medications.append(
+                            PatientMedicationItem(
+                                drug_name=str(drug),
+                                dose=med.get("dose"),
+                                route=med.get("route"),
+                                frequency=med.get("frequency"),
+                                started=med.get("started"),
+                                prescriber=med.get("prescriber"),
+                                source_document_id=doc.id,
+                                source_document_title=doc_title,
+                            )
+                        )
+        else:
+            for line in content.split("\n"):
+                line = line.strip()
+                if line.startswith("- ") or line.startswith("• "):
+                    line = line.lstrip("- •").strip()
+                    drug_name = line.split()[0] if line else ""
+                    if drug_name and drug_name.lower() not in seen_meds and len(drug_name) > 2:
+                        seen_meds.add(drug_name.lower())
+                        dose_match = _extract_dose(line)
+                        medications.append(
+                            PatientMedicationItem(
+                                drug_name=drug_name,
+                                dose=dose_match,
+                                route="PO" if "viên" in content.lower() or "uống" in content.lower() else None,
+                                frequency=None,
+                                started=str(doc.created_at.date()) if doc.created_at else None,
+                                prescriber=_extract_doctor(content),
+                                source_document_id=doc.id,
+                                source_document_title=doc_title,
+                            )
+                        )
+
+    return medications
+
+
+async def _load_patient_labs(session: AsyncSession, patient_id: uuid.UUID) -> list[PatientLabItem]:
+    stmt = (
+        select(DocumentChunk, Document)
+        .join(Document, Document.id == DocumentChunk.document_id)
+        .join(
+            DocumentPage,
+            (DocumentPage.id == DocumentChunk.page_id) & (DocumentPage.document_id == DocumentChunk.document_id),
+        )
+        .where(
+            DocumentChunk.patient_id == patient_id,
+            Document.patient_id == patient_id,
+            Document.document_type.in_(["lab_result", "hms_lab_result"]),
+            Document.status.in_(("ready", "ready_with_warnings")),
+            DocumentChunk.deleted_at.is_(None),
+            Document.deleted_at.is_(None),
+            DocumentPage.deleted_at.is_(None),
+        )
+        .order_by(Document.created_at.desc())
+        .limit(50)
+    )
+    result = await session.execute(stmt)
+    rows = result.all()
+
+    labs: list[PatientLabItem] = []
+
+    for chunk, doc in rows:
+        content = chunk.content or ""
+        meta = chunk.meta or {}
+        doc_title = doc.title or ""
+
+        labs_from_meta = meta.get("labs", meta.get("lab_results", []))
+        if isinstance(labs_from_meta, list):
+            for lab in labs_from_meta:
+                if isinstance(lab, dict):
+                    analyte = lab.get("analyte", lab.get("test", lab.get("testName", "")))
+                    if analyte:
+                        value_str = lab.get("value", lab.get("result", ""))
+                        ref_str = lab.get("reference_range", lab.get("referenceRange", lab.get("ref", "")))
+                        flag = _compute_lab_flag(str(value_str), str(ref_str)) if value_str and ref_str else None
+                        labs.append(
+                            PatientLabItem(
+                                analyte=str(analyte),
+                                value=str(value_str) if value_str else None,
+                                reference_range=str(ref_str) if ref_str else None,
+                                flag=flag,
+                                collected=str(doc.created_at.date()) if doc.created_at else None,
+                                source_document_id=doc.id,
+                                source_document_title=doc_title,
+                            )
+                        )
+        else:
+            lab_matches = _parse_lab_content(content)
+            for lab_item in lab_matches:
+                lab_item.source_document_id = doc.id
+                lab_item.source_document_title = doc_title
+                if lab_item.collected is None and doc.created_at:
+                    lab_item.collected = str(doc.created_at.date())
+                labs.append(lab_item)
+
+    seen_analytes: set[str] = set()
+    deduped_labs: list[PatientLabItem] = []
+    for lab in labs:
+        key = "|".join(
+            [
+                lab.analyte.strip().casefold(),
+                (lab.value or "").strip().casefold(),
+                (lab.flag or "").strip().casefold(),
+                (lab.collected or "").strip(),
+            ]
+        )
+        if key not in seen_analytes:
+            seen_analytes.add(key)
+            deduped_labs.append(lab)
+
+    return deduped_labs
 
 
 def _extract_dose(text: str) -> Optional[str]:

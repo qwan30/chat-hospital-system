@@ -19,6 +19,7 @@ import { FileText, Search, Sparkles, Upload, Loader2 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { listDocuments } from "@/lib/api/documents";
 import { ErrorState } from "@/components/hms/ErrorState";
+import { isDocumentReadyForRetrieval } from "@/lib/document-status";
 import { useState } from "react";
 
 export const Route = createFileRoute("/_app/documents/")({
@@ -35,6 +36,7 @@ export const Route = createFileRoute("/_app/documents/")({
 function DocumentsPage() {
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState("anticoagulation contraindications in elderly");
+  const [searchPatientId, setSearchPatientId] = useState("");
   const { data, isLoading, error } = useQuery({
     queryKey: ["documents"],
     queryFn: () => listDocuments(),
@@ -45,6 +47,17 @@ function DocumentsPage() {
     (acc, d) => ((acc[d.status] = (acc[d.status] ?? 0) + 1), acc),
     {} as Record<string, number>,
   );
+  const readyCount = docs.filter((document) => isDocumentReadyForRetrieval(document.status)).length;
+  const canSearch = Boolean(searchQuery.trim() && searchPatientId.trim());
+
+  const openPatientScopedSearch = () => {
+    if (!canSearch) return;
+
+    navigate({
+      to: "/documents/search",
+      search: { q: searchQuery.trim(), patientId: searchPatientId.trim() },
+    });
+  };
 
   return (
     <AppShell
@@ -54,8 +67,8 @@ function DocumentsPage() {
             <h3 className="mb-2 text-sm font-semibold">Indexing pipeline</h3>
             <ul className="space-y-2 text-sm">
               <li className="flex items-center justify-between">
-                <span className="text-muted-foreground">Indexed</span>
-                <span className="font-semibold">{counts.indexed ?? 0}</span>
+                <span className="text-muted-foreground">Ready</span>
+                <span className="font-semibold">{readyCount}</span>
               </li>
               <li className="flex items-center justify-between">
                 <span className="text-muted-foreground">Processing</span>
@@ -119,37 +132,40 @@ function DocumentsPage() {
               <Badge variant="secondary">DOCX</Badge>
               <Badge variant="secondary">JPG/PNG (scan)</Badge>
               <Badge variant="secondary">HL7 v2</Badge>
-              <Badge variant="secondary">DICOM SR</Badge>
             </div>
           </Card>
 
           <Card className="mt-6 p-4">
             <div className="flex flex-wrap items-center gap-3">
               <Sparkles className="h-4 w-4 text-ai" />
+              <Input
+                value={searchPatientId}
+                onChange={(e) => setSearchPatientId(e.target.value)}
+                className="h-10 w-full sm:w-64"
+                placeholder="Patient UUID (required)"
+                aria-label="Patient UUID"
+              />
               <div className="relative flex-1 max-w-2xl">
                 <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                 <Input
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   onKeyDown={(e) => {
-                    if (e.key === "Enter" && searchQuery.trim()) {
-                      navigate({ to: "/documents/search", search: { q: searchQuery } });
+                    if (e.key === "Enter") {
+                      openPatientScopedSearch();
                     }
                   }}
                   className="h-10 pl-8"
-                  placeholder="Semantic search across the knowledge base..."
+                  placeholder="Search this patient's documents..."
                 />
               </div>
-              <Button
-                onClick={() => {
-                  if (searchQuery.trim()) {
-                    navigate({ to: "/documents/search", search: { q: searchQuery } });
-                  }
-                }}
-              >
+              <Button onClick={openPatientScopedSearch} disabled={!canSearch}>
                 Search
               </Button>
             </div>
+            <p className="mt-2 text-xs text-muted-foreground">
+              Search is limited to the selected patient's authorized documents.
+            </p>
           </Card>
 
           <Card className="mt-6 overflow-hidden p-0">

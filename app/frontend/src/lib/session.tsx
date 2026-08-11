@@ -10,10 +10,12 @@ import {
 import type { Role } from "@/lib/rbac";
 import { mockUsers, type MockUser } from "@/data/mockUsers";
 import { getWorkspace, type Workspace } from "@/data/workspaces";
-import { useAuth } from "@/lib/auth-context";
+import { useAuth, type AuthUser } from "@/lib/auth-context";
 import { persistToken } from "@/lib/api-client";
 
 const STORAGE_KEY = "hms.session";
+const REAL_AUTH_FALLBACK_NAME = "Authenticated User";
+const REAL_AUTH_FALLBACK_INITIALS = "AU";
 
 export interface Session {
   user: MockUser;
@@ -48,11 +50,48 @@ interface SessionContextValue {
 
 const SessionContext = createContext<SessionContextValue | null>(null);
 
+function getUnicodeWords(name: string): string[] {
+  return name.normalize("NFC").match(/\p{L}+/gu) ?? [];
+}
+
+function getLeadingCharacters(value: string, count: number): string {
+  return Array.from(value.normalize("NFC")).slice(0, count).join("");
+}
+
+function resolveRealAuthIdentity(authUser: AuthUser): {
+  name: string;
+  email: string;
+  initials: string;
+} {
+  const normalizedName = authUser.full_name.normalize("NFC").trim();
+  const words = getUnicodeWords(normalizedName);
+
+  if (words.length === 0) {
+    return {
+      name: REAL_AUTH_FALLBACK_NAME,
+      email: authUser.email,
+      initials: REAL_AUTH_FALLBACK_INITIALS,
+    };
+  }
+
+  const initials =
+    words.length === 1
+      ? getLeadingCharacters(words[0]!, 2)
+      : `${getLeadingCharacters(words[0]!, 1)}${getLeadingCharacters(words[words.length - 1]!, 1)}`;
+
+  return {
+    name: normalizedName,
+    email: authUser.email,
+    initials: initials.toUpperCase() || REAL_AUTH_FALLBACK_INITIALS,
+  };
+}
+
 function buildSession(
   role: Role,
   workspaceId?: string,
   isRealAuth = false,
   token?: string | null,
+  authUser?: AuthUser | null,
 ): Session {
   const user = mockUsers[role];
   const wsId =
@@ -60,6 +99,15 @@ function buildSession(
       ? workspaceId
       : user.defaultWorkspaceId;
   const workspace = getWorkspace(wsId)!;
+
+  const resolvedUser: MockUser =
+    authUser && isRealAuth
+      ? {
+          ...user,
+          ...resolveRealAuthIdentity(authUser),
+          title: authUser.department?.trim() || user.title,
+        }
+      : user;
 
   if (!isRealAuth && !token) {
     const roleTokens: Record<string, string> = {
@@ -69,15 +117,16 @@ function buildSession(
       pharmacist: "dev-pharmacist",
       front_desk: "dev-records",
       admin: "dev-admin",
+      security: "dev-security",
     };
     token = roleTokens[role] || "dev-doctor";
   }
 
-  return { user, role, workspace, isRealAuth, token };
+  return { user: resolvedUser, role, workspace, isRealAuth, token };
 }
 
 export function SessionProvider({ children }: { children: ReactNode }) {
-  const { authUser, token, hydrated: authHydrated } = useAuth();
+  const { authUser, token, hydrated: authHydrated, logout } = useAuth();
   const [session, setSession] = useState<Session | null>(null);
   const [hydrated, setHydrated] = useState(false);
 
@@ -88,7 +137,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
 
     if (authUser && token) {
       const role = mapBackendRole(authUser.role);
-      const s = buildSession(role, undefined, true, token);
+      const s = buildSession(role, undefined, true, token, authUser);
       persistToken(token);
       setSession(s);
     } else {
@@ -139,7 +188,8 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   const signOut = useCallback(() => {
     setSession(null);
     persist(null);
-  }, []);
+    logout();
+  }, [logout]);
 
   const switchRole = useCallback((role: Role) => {
     const s = buildSession(role);

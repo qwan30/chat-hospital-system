@@ -407,7 +407,7 @@ async def generate():
                     document_type=doc_type,
                     storage_uri=storage_uri,
                     mime_type="text/plain",
-                    status="indexed",
+                    status="ready",
                     page_count=1,
                     indexed_source_sha256=hashlib.sha256(content.encode()).hexdigest(),
                     index_generation=1,

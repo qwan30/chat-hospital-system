@@ -110,7 +110,7 @@ async def main() -> None:
                 document_type="clinical_note",
                 storage_uri="local://mock-clinical-note",
                 mime_type="text/plain",
-                status="indexed",
+                status="ready",
                 uploaded_by=DOCTOR_ID,
             )
             session.add(doc)

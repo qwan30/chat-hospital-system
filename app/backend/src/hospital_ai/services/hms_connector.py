@@ -16,7 +16,17 @@ from hospital_ai.core.errors import ExternalServiceError
 
 logger = logging.getLogger(__name__)
 
-_SAFE_HMS_PATH = re.compile(r"/[A-Za-z0-9/_-]*\Z")
+_ALLOWED_HMS_PATHS = frozenset(
+    {
+        "/ai/changes",
+        "/ai/patients",
+        "/appointments",
+        "/lab-results",
+        "/medical-records",
+        "/vital-signs",
+    }
+)
+_ALLOWED_HMS_SUFFIXES = frozenset({"", "/access-requests", "/permissions", "/snapshot", "/timeline"})
 
 
 class HmsApiClient:
@@ -36,13 +46,8 @@ class HmsApiClient:
         return headers
 
     def _build_url(self, path: str) -> str:
-        """Build an HMS URL from a server-defined path shape only.
-
-        Query parameters are passed separately to httpx. Restricting the path
-        to endpoint-safe characters prevents caller-controlled values from
-        adding a scheme, host, query, fragment, or path traversal segment.
-        """
-        if _SAFE_HMS_PATH.fullmatch(path) is None:
+        """Build an HMS URL from a server-defined endpoint allowlist."""
+        if path not in _ALLOWED_HMS_PATHS:
             raise ExternalServiceError("Invalid HMS request path")
 
         url = f"{self.base_url}{path}"
@@ -57,8 +62,23 @@ class HmsApiClient:
             raise ExternalServiceError("Invalid destination URL (SSRF detected)")
         return url
 
-    async def _get(self, path: str, *, jwt_token: Optional[str] = None, params: Optional[dict[str, Any]] = None) -> Any:
-        url = self._build_url(path)
+    async def _get(
+        self,
+        path: str,
+        *,
+        path_segment: Optional[str] = None,
+        path_suffix: str = "",
+        jwt_token: Optional[str] = None,
+        params: Optional[dict[str, Any]] = None,
+    ) -> Any:
+        if path not in _ALLOWED_HMS_PATHS or path_suffix not in _ALLOWED_HMS_SUFFIXES:
+            raise ExternalServiceError("Invalid HMS request path")
+        if path_segment is None:
+            url = self._build_url(path + path_suffix)
+        else:
+            if re.fullmatch(r"[A-Za-z0-9_-]+", path_segment) is None:
+                raise ExternalServiceError("Invalid HMS request path segment")
+            url = f"{self.base_url}{path}/{path_segment}{path_suffix}"
         try:
             async with httpx.AsyncClient(timeout=self.timeout) as client:
                 response = await client.get(url, headers=self._headers(jwt_token), params=params)
@@ -80,10 +100,19 @@ class HmsApiClient:
         self,
         path: str,
         *,
+        path_segment: Optional[str] = None,
+        path_suffix: str = "",
         jwt_token: Optional[str] = None,
         json: Optional[dict[str, Any]] = None,
     ) -> Any:
-        url = self._build_url(path)
+        if path not in _ALLOWED_HMS_PATHS or path_suffix not in _ALLOWED_HMS_SUFFIXES:
+            raise ExternalServiceError("Invalid HMS request path")
+        if path_segment is None:
+            url = self._build_url(path + path_suffix)
+        else:
+            if re.fullmatch(r"[A-Za-z0-9_-]+", path_segment) is None:
+                raise ExternalServiceError("Invalid HMS request path segment")
+            url = f"{self.base_url}{path}/{path_segment}{path_suffix}"
         try:
             async with httpx.AsyncClient(timeout=self.timeout) as client:
                 response = await client.post(
@@ -135,11 +164,21 @@ class HmsApiClient:
 
     async def get_patient_snapshot(self, patient_id: str, *, jwt_token: Optional[str] = None) -> dict[str, Any]:
         self._validate_patient_id(patient_id)
-        return await self._get(f"/ai/patients/{patient_id}/snapshot", jwt_token=jwt_token)
+        return await self._get(
+            "/ai/patients",
+            path_segment=patient_id,
+            path_suffix="/snapshot",
+            jwt_token=jwt_token,
+        )
 
     async def get_patient_timeline(self, patient_id: str, *, jwt_token: Optional[str] = None) -> list[dict[str, Any]]:
         self._validate_patient_id(patient_id)
-        result = await self._get(f"/ai/patients/{patient_id}/timeline", jwt_token=jwt_token)
+        result = await self._get(
+            "/ai/patients",
+            path_segment=patient_id,
+            path_suffix="/timeline",
+            jwt_token=jwt_token,
+        )
         return result if isinstance(result, list) else []
 
     async def check_clinician_permissions(
@@ -147,7 +186,11 @@ class HmsApiClient:
     ) -> dict[str, Any]:
         self._validate_patient_id(patient_id)
         return await self._get(
-            f"/ai/patients/{patient_id}/permissions", jwt_token=jwt_token, params={"userId": user_id}
+            "/ai/patients",
+            path_segment=patient_id,
+            path_suffix="/permissions",
+            jwt_token=jwt_token,
+            params={"userId": user_id},
         )
 
     async def request_patient_access(
@@ -165,7 +208,9 @@ class HmsApiClient:
         """
         self._validate_patient_id(patient_id)
         return await self._post(
-            f"/ai/patients/{patient_id}/access-requests",
+            "/ai/patients",
+            path_segment=patient_id,
+            path_suffix="/access-requests",
             jwt_token=jwt_token,
             json={
                 "userId": clinician_user_id,
@@ -194,7 +239,7 @@ class HmsApiClient:
         return result if isinstance(result, list) else []
 
     async def get_appointment(self, appointment_id: str, *, jwt_token: Optional[str] = None) -> dict[str, Any]:
-        return await self._get(f"/appointments/{appointment_id}", jwt_token=jwt_token)
+        return await self._get("/appointments", path_segment=appointment_id, jwt_token=jwt_token)
 
     # ── Lab result endpoints ───────────────────────────────────────
 

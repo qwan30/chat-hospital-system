@@ -203,50 +203,7 @@ sequenceDiagram
 >
 > The release lane also enforces `sentinel_independent_review` — *50 sentinel cases approved by two independent reviewers with no unresolved issues*. See [`evaluation/runner.py`](app/backend/src/hospital_ai/evaluation/runner.py) and [`rag_sentinel_v2.jsonl`](app/backend/data/evaluation/rag_sentinel_v2.jsonl).
 
-```mermaid
-graph LR
-    subgraph "Trigger"
-        P[Push / PR to main]
-    end
-
-    subgraph "Security Gates"
-        CQ[CodeQL<br/>Python + JS/TS]
-        TS[TruffleHog<br/>Secret Scan]
-    end
-
-    subgraph "Quality Gates"
-        RL[Ruff Lint<br/>+ Format]
-        PY[Pytest<br/>250+ tests]
-        AC[API Contract<br/>Verification]
-        ES[ESLint<br/>+ TypeScript]
-        VT[Vitest<br/>Unit Tests]
-        PW[Playwright<br/>E2E Tests]
-        MG[Alembic<br/>Migration Check]
-    end
-
-    subgraph "Build & Scan"
-        DB[Docker Build<br/>Multi-stage]
-        TV[Trivy Scan<br/>CRITICAL+HIGH]
-        GH[Push to GHCR]
-    end
-
-    subgraph "Deploy"
-        STG[Staging<br/>Auto-deploy]
-        SMK[Smoke Test<br/>Health Check]
-        PRD[Production<br/>Manual Promote]
-        SLK[Slack<br/>Notification]
-    end
-
-    P --> CQ
-    P --> RL --> PY --> AC
-    P --> ES --> VT --> PW
-    PY --> MG
-    CQ --> DB
-    PW --> DB
-    MG --> DB
-    DB --> TV --> GH
-    GH --> STG --> SMK --> PRD --> SLK
-```
+![CI/CD Pipeline](docs/architecture/cicd-pipeline.png)
 
 ---
 

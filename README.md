@@ -11,7 +11,7 @@
 [![Redis](https://img.shields.io/badge/Redis-7-DC382D?style=for-the-badge&logo=redis&logoColor=white)](https://redis.io/)
 [![Docker](https://img.shields.io/badge/Docker-✓-2496ED?style=for-the-badge&logo=docker&logoColor=white)](https://www.docker.com/)
 [![CI/CD](https://img.shields.io/badge/CI%2FCD-Active-2088FF?style=for-the-badge&logo=githubactions&logoColor=white)](https://github.com/qwan30/chat-hospital-system/actions)
-[![Tests](https://img.shields.io/badge/Tests-260%2B_Passing-22C55E?style=for-the-badge)](https://github.com/qwan30/chat-hospital-system/actions)
+[![Tests](https://img.shields.io/badge/Tests-670%2B_Backend_Passing-22C55E?style=for-the-badge)](https://github.com/qwan30/chat-hospital-system/actions)
 [![AI Eval](https://img.shields.io/badge/AI_Eval-Review_Pending-F59E0B?style=for-the-badge)](app/backend/data/evaluation/rag_sentinel_v2.jsonl)
 [![Release Gate](https://img.shields.io/badge/Release_Gate-Conditional-F59E0B?style=for-the-badge)](app/backend/scripts/run_ai_evaluation.py)
 
@@ -20,9 +20,43 @@
 > **🟠 AI evaluation status: CONDITIONAL**
 > The versioned corpus and 300 source-backed cases are available, but the 50-case sentinel is still `draft`. It requires two independent reviewer approvals with no unresolved issues and therefore blocks release. Retrieval, Graph RAG, chat, and controlled-scan OCR are not represented as passing until their real adapters execute and produce run artifacts.
 >
+> **Mainline snapshot:** `main` is at `467dbc3` (PR #104, 2026-08-11). PR #90's CDI V2 foundation and PR #104's full-project E2E/security fixes are in this tree. GitHub marks stacked PRs #91–#103 as merged, but their merge SHAs are not ancestors of `main`; their follow-on generation, evidence, and release-lane code is therefore not advertised here as shipped. See the [PR/commit audit](history/pr-commit-audit-2026-08-13.md).
+>
 > 📚 **[Interactive Documentation Portal →](docs/documentation-portal.html)** | 📂 **[Documentation Index →](docs/README.md)** | 📋 **[API Contract →](docs/05-api/api-contract.md)**
 
 </div>
+
+---
+
+## 🧭 Three Core AI Architectures
+
+The three diagrams below are the shortest way to understand how this system turns hospital documents into permissioned clinical answers. Each diagram is available as an editable [Excalidraw source](docs/architecture/) and as an SVG preview for GitHub.
+
+### 1. OCR and document indexing
+
+The ingestion path starts with an immutable upload session and ends with page-level evidence, searchable chunks, embeddings, and an optional graph projection. A Redis/RQ worker performs the work asynchronously, retries failed jobs through the indexing dead-letter queue, and protects an existing ready index when a same-source reindex fails. The current source adapters are text, HL7/DOCX normalization, native PDF text extraction through PyMuPDF, and optional PaddleOCR for image-only PDF pages.
+
+![OCR and document indexing architecture](docs/architecture/ocr-architecture.svg)
+
+Editable source: [ocr-architecture.excalidraw](docs/architecture/ocr-architecture.excalidraw). Implementation anchors: [`process_document`](app/backend/src/hospital_ai/workers/jobs.py), [`OcrService`](app/backend/src/hospital_ai/services/ocr.py), [upload sessions](app/backend/src/hospital_ai/api/routes/document_uploads.py), and [document revisions](app/backend/src/hospital_ai/api/routes/document_revisions.py). The CDI V2 upload/revision APIs are a mainline foundation; the post-foundation generation/review stack is not claimed as shipped here.
+
+### 2. Clinical chatbot and permission-first RAG
+
+The chat stream checks authentication and patient scope before retrieval context is assembled. Input guardrails can terminate unsafe requests early; clinical requests use vector, BM25, or hybrid retrieval, optionally enrich results with GraphRAG, apply attachment/document scope, and refuse safely when evidence is missing or below threshold. Only then does the LLM generate. Output guardrails and citation-ID validation run before the answer is streamed over SSE, persisted, and made abortable by the client.
+
+![Clinical chatbot architecture](docs/architecture/chatbot-architecture.svg)
+
+Editable source: [chatbot-architecture.excalidraw](docs/architecture/chatbot-architecture.excalidraw). Implementation anchors: [`chat_stream`](app/backend/src/hospital_ai/api/routes/chat_stream.py), [retrieval services](app/backend/src/hospital_ai/services/retrieval.py), [guardrails](app/backend/src/hospital_ai/services/guardrails.py), and the [frontend stream client](app/frontend/src/lib/stream-client.ts). Graph enrichment is optional and must re-enter the permission-scoped retrieval boundary.
+
+### 3. SQL-backed GraphRAG
+
+GraphRAG is implemented as a provenance-preserving projection over the existing relational store, not as a separate Neo4j-style database. Ready document chunks are processed into `GraphEntity` and `GraphRelation` rows with source chunk/document IDs. At query time, normalized terms seed a patient-scoped breadth-first traversal (default maximum two hops); related chunk IDs and a graph summary are returned to the chatbot, while the patient graph route exposes persisted nodes and edges for visualization. Invalid, deleted, or out-of-scope chunks are excluded, and GraphRAG may be skipped if extraction or traversal is unavailable.
+
+![SQL-backed GraphRAG architecture](docs/architecture/graphrag-architecture.svg)
+
+Editable source: [graphrag-architecture.excalidraw](docs/architecture/graphrag-architecture.excalidraw). Implementation anchors: [`graph_rag` module](app/backend/src/hospital_ai/services/graph_rag.py), [patient graph route](app/backend/src/hospital_ai/api/routes/graph.py), and the [chat-stream enrichment path](app/backend/src/hospital_ai/api/routes/chat_stream.py).
+
+> **Architecture boundary:** these diagrams describe the current `main` source snapshot. They do not turn the conditional AI-evaluation state, optional OCR adapter, or un-ancestried stacked PRs into a release claim. See the [PR/commit audit](history/pr-commit-audit-2026-08-13.md) for the exact SHA and merge-history evidence.
 
 ---
 
@@ -30,15 +64,21 @@
 
 | # | Clinical Domain | Technical Implementation | Business Impact |
 |---|---------------|-------------------------|-----------------|
-| 🔍 | **Permission-Aware RAG** | Vector search with SQL JOIN permission filter — only document chunks the user's role can access are included in LLM context | Zero PHI leakage across role boundaries; HIPAA-aligned data access |
-| ✅ | **Citation Validation** | Regex-based post-generation verification: validates that LLM citation IDs (e.g. [E1]) exist in retrieved evidence. (Note: factual content cross-checking is unimplemented) | Blocks hallucinated source references before streaming |
-| 📄 | **Document OCR & Indexing** | Async RQ pipeline: PDF parsing (PyMuPDF) → conditional OCR fallback (PaddleOCR) → chunking → embedding (Ollama/Gemini) → pgvector index → BM25 tsvector → Graph RAG extraction → CDSS trigger | Converts unstructured hospital documents into searchable knowledge base |
+| 🔍 | **Permission-Aware RAG** | Vector/search retrieval applies patient and role scope before context assembly; the current mainline also retains the legacy Graph RAG boundary | Zero PHI leakage across role boundaries; HIPAA-aligned data access |
+| ✅ | **Citation Validation** | Post-generation checks validate citation IDs against retrieved evidence; streaming retains citation and abort contracts | Blocks fabricated source references before they reach the client |
+| 📄 | **Document Ingestion & Review Foundation** | PDF/PyMuPDF ingestion plus safe browser HL7/DOCX normalization and cleanup; CDI V2 adds immutable upload sessions, capability checks, idempotency, and revision APIs | Converts synthetic hospital documents into a reviewable searchable knowledge base |
 | 🏥 | **HMS Data Sync** | API bridge to Hospital Management System — imports appointments, lab results, medications; caches as RAG-readable context | Real-time patient context without manual data entry |
 | 💊 | **Drug-Allergy Pre-Check** | Cross-references prescribed medications against patient allergy list + current medications using RAG context + LLM analysis | Prevents adverse drug events at point of care |
 | 🔐 | **RBAC + ABAC Security** | JWT authentication with role-based claims; 7 roles with scoped patient permissions; enforcement at API gateway + RAG retrieval layers | Enforced separation of duties; audit-ready access control |
 | 🚨 | **Autonomous CDSS Agent** | Background RQ worker automatically analyses every ingested document using a flat dump of the patient's Knowledge Graph entities/relations as context; feeds LLM a structured risk-analysis prompt; persists `ClinicalAlert` records | Proactive clinical decision support — alerts clinicians to risk factors before they are noticed manually |
 | 📊 | **Impact Metrics** | Time-saved and cost-saved tracking per AI-assisted query; helpfulness feedback loop; dashboard analytics | Quantifiable ROI for hospital administration |
-| 🔄 | **Streaming SSE** | Server-Sent Events for real-time token streaming; buffered until citation validation passes; client-side progressive rendering | Immediate clinician feedback with safety gate |
+| 🔄 | **Streaming SSE** | Server-Sent Events with citation validation, safe refusal handling, client-side abort, and progressive rendering | Immediate clinician feedback with a safety boundary |
+
+---
+
+## 🎯 Engineering Skills Demonstrated
+
+| Dimension | Demonstrated Skills |
 
 ---
 
@@ -47,82 +87,17 @@
 | Dimension | Demonstrated Skills |
 |-----------|-------------------|
 | **AI/ML Engineering** | RAG pipeline with citation ID validation, permission-aware vector search, multi-provider LLM/embedding abstraction (Ollama/Gemini), source-backed AI evaluation contracts, centralized prompt registry |
-| **Backend Engineering** | FastAPI async, SQLAlchemy 2.0+asyncpg, pgvector HNSW, Redis/RQ workers, Alembic migrations, API contract verification, structured JSON logging |
+| **Backend Engineering** | FastAPI async, SQLAlchemy 2.0+asyncpg, pgvector HNSW, Redis/RQ workers, Alembic migrations, immutable upload/revision contracts, API verification, structured JSON logging |
 | **Frontend Engineering** | TanStack Start (Vite 8), React 19, shadcn/ui, Tailwind CSS v4, SSE streaming, Playwright E2E, 90+ routes with RBAC-gated navigation |
 | **DevOps / SRE** | 5 GitHub Actions workflows (CI/CD/Security/Rollback/Dependabot), Docker multi-stage, Trivy+CodeQL scanning, Grafana+Prometheus+Loki+Tempo observability |
 | **Security** | JWT RBAC+ABAC, PHI-aware SQL JOIN filters, citation hallucination detection, TruffleHog+Bandit+pip-audit+npm audit, security headers |
-| **Documentation** | 100+ docs across 12 domains, interactive HTML portal with dark mode+search+Mermaid, ADRs, 5 architecture diagrams |
+| **Documentation** | 100+ docs across 12 domains, interactive HTML portal with dark mode+search+Mermaid, ADRs, 8 architecture diagrams |
 
 ---
 
 ## 🏗️ System Architecture
 
-```mermaid
-graph TB
-    subgraph "Client Layer"
-        U[👨‍⚕️ Healthcare Staff<br/><i>Doctors · Nurses · Pharmacists</i>]
-        N[🔀 Nginx :80<br/><i>Reverse Proxy</i>]
-    end
-
-    subgraph "Application Layer"
-        FE[⚛️ TanStack Start Frontend<br/><i>Vite 8 · shadcn/ui · Streaming SSE</i>]
-        BE[🐍 FastAPI Backend<br/><i>Python 3.12 · Async · JWT Auth</i>]
-        W[⚙️ RQ Worker<br/><i>Document Processing · OCR · Embedding</i>]
-        CD[🚨 CDSS Worker<br/><i>Graph Context · LLM Risk Analysis</i>]
-    end
-
-    subgraph "Data Layer"
-        PG[("🐘 PostgreSQL + pgvector<br/><i>14 Tables · Vector Search · HNSW</i>")]
-        RD[("🗄️ Redis 7<br/><i>Job Queue · Cache</i>")]
-    end
-
-    subgraph "AI Layer"
-        LLM[🧠 LLM Provider<br/><i>Ollama / OpenAI<br/>Citation Validation</i>]
-        EMB[📐 Embedding Provider<br/><i>Deterministic / Ollama / Gemini</i>]
-    end
-
-    subgraph "External"
-        HMS[🏥 HMS API<br/><i>Appointments · Labs · Sync</i>]
-    end
-
-    subgraph "Observability"
-        PR[📊 Prometheus] --> GF[📈 Grafana]
-        LK[📝 Loki · Tempo] --> GF
-    end
-
-    U --> N
-    N -->|"/api/*"| BE
-    N -->|"/"| FE
-    FE --> BE
-    BE --> PG
-    BE --> RD
-    BE --> LLM
-    BE --> EMB
-    BE --> HMS
-    W --> PG
-    W --> RD
-    W --> EMB
-    W --> CD
-    CD --> PG
-    CD --> LLM
-    BE -.-> PR
-    BE -.-> LK
-
-    style U fill:#1e40af,stroke:#3b82f6,color:#fff
-    style N fill:#ea580c,stroke:#fb923c,color:#fff
-    style FE fill:#000,stroke:#666,color:#fff
-    style BE fill:#059669,stroke:#34d399,color:#fff
-    style W fill:#7c3aed,stroke:#a78bfa,color:#fff
-    style PG fill:#1e40af,stroke:#60a5fa,color:#fff
-    style RD fill:#dc2626,stroke:#f87171,color:#fff
-    style LLM fill:#b91c1c,stroke:#ef4444,color:#fff
-    style EMB fill:#0891b2,stroke:#22d3ee,color:#fff
-    style CD fill:#be185d,stroke:#f472b6,color:#fff
-    style HMS fill:#4b5563,stroke:#9ca3af,color:#fff
-    style PR fill:#eab308,stroke:#facc15,color:#000
-    style GF fill:#eab308,stroke:#facc15,color:#000
-    style LK fill:#eab308,stroke:#facc15,color:#000
-```
+![System Architecture](docs/architecture/system-architecture.png)
 
 ---
 
@@ -224,60 +199,11 @@ sequenceDiagram
 
 ## 🔄 CI/CD Pipeline
 
-> **Note on the `main` build status.** Pull requests run the evaluation `smoke` suite and
-> pass. Pushes to `main` and the nightly schedule run the **`release`** suite, which enforces
-> `sentinel_independent_review` — *50 sentinel cases approved by two independent reviewers
-> with no unresolved issues*. That human review is still outstanding, so the
-> `rag-evaluation` job fails **by design** rather than passing by skip. Every other job
-> (CodeQL ×2, backend tests, migrations, frontend, observability, Docker) is green.
-> This is a deliberate quality gate, not a broken pipeline — see
-> [`evaluation/runner.py`](app/backend/src/hospital_ai/evaluation/runner.py) and
-> [`rag_sentinel_v2.jsonl`](app/backend/data/evaluation/rag_sentinel_v2.jsonl).
+> **Current `main` build status (SHA `467dbc3`).** In [CI run `31666780395`](https://github.com/qwan30/chat-hospital-system/actions/runs/31666780395), path detection, observability validation, CodeQL, backend lint/tests/contracts, migrations, and frontend lint/tests/build/E2E passed. The source-backed evaluation failed with repeated NLP extraction errors and no deterministic summary artifact; the Docker image job also failed during the build/Trivy lane. Live-model evaluation was skipped. The release gate therefore remains conditional/NO-GO; this is not release certification.
+>
+> The release lane also enforces `sentinel_independent_review` — *50 sentinel cases approved by two independent reviewers with no unresolved issues*. See [`evaluation/runner.py`](app/backend/src/hospital_ai/evaluation/runner.py) and [`rag_sentinel_v2.jsonl`](app/backend/data/evaluation/rag_sentinel_v2.jsonl).
 
-```mermaid
-graph LR
-    subgraph "Trigger"
-        P[Push / PR to main]
-    end
-
-    subgraph "Security Gates"
-        CQ[CodeQL<br/>Python + JS/TS]
-        TS[TruffleHog<br/>Secret Scan]
-    end
-
-    subgraph "Quality Gates"
-        RL[Ruff Lint<br/>+ Format]
-        PY[Pytest<br/>250+ tests]
-        AC[API Contract<br/>Verification]
-        ES[ESLint<br/>+ TypeScript]
-        VT[Vitest<br/>Unit Tests]
-        PW[Playwright<br/>E2E Tests]
-        MG[Alembic<br/>Migration Check]
-    end
-
-    subgraph "Build & Scan"
-        DB[Docker Build<br/>Multi-stage]
-        TV[Trivy Scan<br/>CRITICAL+HIGH]
-        GH[Push to GHCR]
-    end
-
-    subgraph "Deploy"
-        STG[Staging<br/>Auto-deploy]
-        SMK[Smoke Test<br/>Health Check]
-        PRD[Production<br/>Manual Promote]
-        SLK[Slack<br/>Notification]
-    end
-
-    P --> CQ
-    P --> RL --> PY --> AC
-    P --> ES --> VT --> PW
-    PY --> MG
-    CQ --> DB
-    PW --> DB
-    MG --> DB
-    DB --> TV --> GH
-    GH --> STG --> SMK --> PRD --> SLK
-```
+![CI/CD Pipeline](docs/architecture/cicd-pipeline.png)
 
 ---
 
@@ -367,61 +293,7 @@ erDiagram
 
 ## 🚢 Deployment Architecture
 
-```mermaid
-graph TB
-    subgraph "VPS / Cloud Instance"
-        NG[🔀 Nginx :80<br/><i>Reverse Proxy</i>]
-        FE[⚛️ Frontend<br/><i>TanStack Start :3000</i>]
-        BE[🐍 Backend<br/><i>FastAPI :8000</i>]
-        W[⚙️ Worker<br/><i>RQ :queue</i>]
-        PG[("🐘 PostgreSQL<br/><i>pgvector :5432</i>")]
-        RD[("🗄️ Redis<br/><i>:6379</i>")]
-    end
-
-    subgraph "Observability Stack"
-        GF[📈 Grafana<br/><i>:3001</i>]
-        PR[📊 Prometheus<br/><i>:9090</i>]
-        LK[📝 Loki<br/><i>:3100</i>]
-        TP[🔍 Tempo<br/><i>:3200</i>]
-    end
-
-    subgraph "External Services"
-        GHCR[📦 GitHub Container Registry]
-        LLM[🧠 LLM Provider<br/><i>Ollama / OpenAI</i>]
-        HMS[🏥 HMS<br/><i>Hospital System</i>]
-    end
-
-    NG -->|"/"| FE
-    NG -->|"/api/*"| BE
-    FE -->|"REST + SSE"| BE
-    BE --> PG
-    BE --> RD
-    W --> PG
-    W --> RD
-    BE --> LLM
-    BE --> HMS
-    BE -.->|"metrics"| PR
-    BE -.->|"logs/traces"| LK
-    BE -.->|"traces"| TP
-    PR --> GF
-    LK --> GF
-    TP --> GF
-    GHCR -.->|"pull image"| BE
-
-    style NG fill:#ea580c,stroke:#fb923c,color:#fff
-    style FE fill:#000,stroke:#666,color:#fff
-    style BE fill:#059669,stroke:#34d399,color:#fff
-    style W fill:#7c3aed,stroke:#a78bfa,color:#fff
-    style PG fill:#1e40af,stroke:#60a5fa,color:#fff
-    style RD fill:#dc2626,stroke:#f87171,color:#fff
-    style GF fill:#eab308,stroke:#facc15,color:#000
-    style PR fill:#eab308,stroke:#facc15,color:#000
-    style LK fill:#eab308,stroke:#facc15,color:#000
-    style TP fill:#eab308,stroke:#facc15,color:#000
-    style GHCR fill:#4b5563,stroke:#9ca3af,color:#fff
-    style LLM fill:#b91c1c,stroke:#ef4444,color:#fff
-    style HMS fill:#4b5563,stroke:#9ca3af,color:#fff
-```
+![Deployment Architecture](docs/architecture/deployment-architecture.png)
 
 ---
 
@@ -440,11 +312,12 @@ xychart-beta
 | **Canonical patient corpus** | 100 PDF documents + 100 lab CSV files | ✅ Versioned manifest: `synthetic-100-v2` |
 | **Source-backed AI benchmark** | 300 cases; 50-case sentinel | 🟠 Corpus smoke validates all 50 contracts; independent review still blocks release |
 | **Evaluation evidence** | `run.json`, `cases.jsonl`, `junit.xml`, `summary.md` | ✅ Produced by each evaluation-runner invocation |
-| **REST API surface** | 62 OpenAPI paths/routes | ℹ️ Repository inventory; not a production-traffic claim |
-| **Database schema** | 18 tables, 16 Alembic migrations | ℹ️ Repository inventory; migration execution is environment-specific |
-| **Frontend components** | 84 React components (32 domain, 6 shell, 46 shadcn/ui) | ℹ️ Repository inventory |
-| **Backend test suite** | 550 Pytest tests | ✅ Verified locally; see CI for the current run |
-| **E2E test suites** | 13 Playwright specs (auth, RBAC, business flow, CDSS, chat, graph, accessibility) | 🔴 Written but **not executed in CI** — the job needs a backend service container (gh#123) |
+| **REST API surface** | FastAPI routes for chat/SSE, RBAC, HMS sync, uploads, revisions, patients, documents, and Graph RAG | ℹ️ Repository inventory; not a production-traffic claim |
+| **Database schema** | 19 Alembic migration files, including the CDI V2 foundation migration | ℹ️ Repository inventory; migration execution is environment-specific |
+| **Frontend components** | TanStack/React UI with document upload, review, chat, graph, timeline, audit, and RBAC surfaces | ℹ️ Repository inventory |
+| **Backend test suite** | 670 passed, 3 skipped in the PR #104 validation snapshot | ✅ Core backend CI job passes on `main`; see the current run |
+| **E2E test suites** | 15 Playwright specs; PR #104 recorded 150 passed, 1 skipped against isolated synthetic SQLite | ✅ Frontend lint/test/build/E2E job passes on current `main`; broader release certification remains separate |
+| **CDI V2 delivery** | Immutable upload/revision foundation is on `main`; stacked follow-ons #91–#103 are not in `main` ancestry | 🟠 Reconcile the remote merged-PR state before claiming generation/evidence/release-lane delivery |
 | **CI/CD workflows** | 5 pipelines (CI, CD, Security, Rollback, Dependabot) | ℹ️ Workflow inventory; check the current GitHub run for status |
 | **Backend coverage** | 73.3% statements (6,117 / 8,059), branch coverage on | ✅ CI gate at `--cov-fail-under=60`. Gaps are concentrated in LLM/embedding providers and document loaders (0%) — they need live services to exercise meaningfully |
 | **Code quality** | Ruff + ESLint + TypeScript strict | ✅ Focused evaluation checks are recorded; no blanket “zero errors” claim |
@@ -460,7 +333,7 @@ The `hospital-management-system` is a **complex ERP CRUD** application with deep
 This project (`chatbot-hospital-system`) is a **RAG data pipeline** — the core flow is:
 
 ```
-Ingest Document → Chunk → Embed → Store Vector → Query → Retrieve → Generate → Validate → Stream
+    Upload / Ingest → Normalize → Chunk → Embed → Store Vector → Query → Retrieve → Generate → Validate → Stream
 ```
 
 This maps naturally to a **pipeline architecture** where each stage is a self-contained service. Adding DDD directory layers would introduce **indirection without benefit** — the data flow IS the domain.
@@ -546,7 +419,7 @@ This is the **Clean Architecture dependency rule** implemented through conventio
 │   │   │   ├── services/       # RAG pipeline, LLM, embedding, HMS integration
 │   │   │   └── workers/        # RQ job handlers: OCR, Graph indexing, CDSS agent
 │   │   ├── alembic/            # Database migration history
-│   │   └── tests/              # 260+ Pytest tests (incl. CDSS agent tests)
+│   │   └── tests/              # 670+ Pytest tests (incl. CDI, security, and CDSS tests)
 │   └── frontend/
 │       ├── src/
 │       │   ├── routes/         # TanStack Router pages (90+ routes)
@@ -592,158 +465,7 @@ cd app/frontend
 bun install
 bun run dev
 ```
-UI: http://localhost:3000 (Vite dev server; the Docker image serves on **8082**)
-
-### 4. Full Local Docker Stack
-```bash
-export BACKEND_IMAGE=hospital-ai-backend:local
-docker compose -f infra/docker-compose.yml -f infra/docker-compose.local-build.yml up -d
-# Optional local observability:
-docker compose -f infra/docker-compose.yml -f infra/docker-compose.local-build.yml -f infra/docker-compose.observability.yml up -d
-```
-
-Staging uses the GitHub-built immutable GHCR image through Dokploy. Set
-`BACKEND_IMAGE` to the approved `sha-<7-hex>` tag or digest in Dokploy; do not
-build the backend from a VPS source clone.
-
-### Demo Accounts
-
-Synthetic local-only accounts seeded by `scripts/seed_dev.py`. **All roles share the
-password `demo`** — `/auth/token` is a portfolio stub that checks for that literal and
-returns a static dev token; there is no password hashing or credential store. These
-accounts exist only against synthetic data and are refused outside `HOSPITAL_AI_ENVIRONMENT=local`
-(audit finding F-SEC-001).
-
-| Role | Email | Password | Static token |
-|------|-------|----------|--------------|
-| 👨‍⚕️ Doctor | `doctor@example.test` | `demo` | `dev-doctor` |
-| 👩‍⚕️ Nurse | `nurse@example.test` | `demo` | `dev-nurse` |
-| 💊 Pharmacist | `pharmacist@example.test` | `demo` | `dev-pharmacist` |
-| 📁 Records | `records@example.test` | `demo` | `dev-records` |
-| 🔒 Security | `security@example.test` | `demo` | `dev-security` |
-| ⚙️ Admin | `admin@example.test` | `demo` | `dev-admin` |
-
-### Before a live demo
-
-The prompt-injection and PHI-redaction scanners are ONNX models that run on CPU. Measured on
-a dev laptop: **~7.8s** for the first input scan and **~4.4s** for the first output scan,
-settling to **~4s per chat turn** once warm. The app warms the models on startup
-(`warm_up_guardrails`), but the very first chat still pays model-load cost.
-
-Measured end-to-end chat latency: **22.5s cold → 5.7s → 4.0s warm**.
-
-So: **start the backend and send one throwaway question before presenting.** Watch for
-`Guardrail scanners warmed up` in the log, then verify with:
-
-```bash
-curl -s -X POST http://127.0.0.1:8000/api/v1/chat \
-  -H "Authorization: Bearer dev-doctor" -H "Content-Type: application/json" \
-  -d '{"question":"List the current medications","patient_id":"20000000-0000-0000-0000-000000000001","top_k":3}'
-```
-
-A healthy response has `"pipeline":"simple_qa"` and a non-empty `citations` array. If you
-see `"pipeline":"blocked"` with *"security policy violation"*, the guardrail scan exceeded
-`HOSPITAL_AI_GUARDRAIL_TIMEOUT_SECONDS` (default 15s) and failed closed — raise it rather
-than disabling guardrails. Setting `HOSPITAL_AI_DISABLE_GUARDRAILS=true` removes the delay
-but also removes the prompt-injection defence that is worth demonstrating.
-
-Note `HOSPITAL_AI_CHAT_PROVIDER=stub` in `.env` returns canned answers. Point it at
-`ollama` or `openai` if you want the LLM path live.
-
----
-
-## 🧪 Testing & Quality
-
-```bash
-# Backend — 549 Pytest tests (546 pass, 3 skipped)
-cd app/backend && python -m pytest tests/ -v --tb=short
-
-# Backend — deterministic source-backed PR sentinel contract (not product scoring)
-cd app/backend && python scripts/run_ai_evaluation.py --suite smoke --lane deterministic --components corpus --output-dir evaluation-artifacts/deterministic
-
-# Backend — full 300-case deterministic evaluation
-cd app/backend && python scripts/run_ai_evaluation.py --suite release --lane deterministic --components corpus,ocr,retrieval,graph,chat --output-dir evaluation-artifacts/release
-
-# Note: retrieval, Graph RAG, chat, and controlled-scan OCR require real adapters.
-# If an adapter is unavailable, the requested component is a hard failing gate; it is never a pass by skip.
-
-# Backend — API contract verification
-cd app/backend && python scripts/verify_contracts.py
-
-# Frontend — Unit tests (Vitest)
-cd app/frontend && bun run test
-
-# Frontend — E2E tests (Playwright)
-cd app/frontend && bun run test:e2e
-
-# CDSS-specific E2E test
-cd app/frontend && bun run test:e2e e2e/cdss-flow.spec.ts
-```
-
----
-
-## 📈 CI/CD & Observability
-
-| Pipeline | Trigger | Actions |
-|----------|---------|---------|
-| **CI** (`ci.yml`) | Push / PR | CodeQL · Ruff · Pytest · ESLint · Playwright · Docker build+Trivy → GHCR |
-| **CD** (`cd.yml`) | CI success / Manual | SCP configs · SSH deploy · Alembic migrate · Smoke checks · Slack notify |
-| **Rollback** (`rollback.yml`) | Manual | Confirmation gate · Specific tag deploy · Health check |
-| **Security** (`security-scan.yml`) | Weekly / Manual | pip-audit · npm audit · Bandit · TruffleHog · Trivy container scan |
-| **Dependabot** (`dependabot.yml`) | Weekly | Automated PRs for npm, pip, GitHub Actions |
-
-**Observability Stack:** `Nginx → Backend → Prometheus → Grafana + Loki → Tempo`
-
-Configurations in [`infra/observability/`](infra/observability/) — Prometheus metrics, Grafana dashboards, Loki log aggregation, Tempo distributed tracing.
-
----
-
-## 📚 Documentation
-
-| Section | Content | Primary Doc |
-|---------|---------|-------------|
-| **00-overview** | Project foundation, conventions, governance | [`project-foundation.md`](docs/00-overview/project-foundation.md) |
-| **01-business** | Business rules, BR-001–BR-007 + BR-CDSS-001, glossary, scope | [`business-rules.md`](docs/01-business/business-rules.md) |
-| **02-product** | PRD, personas, MVP criteria | [`prd.md`](docs/02-product/prd.md) |
-| **03-requirements** | SRS (25 FRs + 22 NFRs), use cases UC-001–UC-009, permissions | [`srs.md`](docs/03-requirements/srs.md) |
-| **04-architecture** | System design, security architecture, ADR-001–ADR-012, coding standards | [`architecture.md`](docs/04-architecture/architecture.md) |
-| **05-api** | API contract, endpoint specs, error codes | [`api-contract.md`](docs/05-api/api-contract.md) |
-| **06-database** | Schema (14 tables), ERD, data dictionary, migrations | [`db-schema.md`](docs/06-database/db-schema.md) |
-| **07-flows** | Business flows, state machines, user journeys | [`end-to-end-business-flow.md`](docs/07-flows/end-to-end-business-flow.md) |
-| **08-ui-ux** | Design system, Figma specs, UI/API traceability | [`00_product_ui_truth.md`](docs/08-ui-ux/00_product_ui_truth.md) |
-| **09-testing** | Test strategy, plan, RTM, 250+ test cases | [`test-plan.md`](docs/09-testing/test-plan.md) |
-| **10-deployment** | CI/CD (5 workflows), env variables, Docker, rollback | [`deployment-guide.md`](docs/10-deployment/deployment-guide.md) |
-| **11-operations** | Monitoring (Grafana), incident response, troubleshooting | [`monitoring-guide.md`](docs/11-operations/monitoring-guide.md) |
-| **12-handover** | Developer onboarding, repository guide, known issues | [`developer-onboarding.md`](docs/12-handover/developer-onboarding.md) |
-
-> 📄 **[Interactive Documentation Portal →](docs/documentation-portal.html)** | 📂 **[Full Documentation Index →](docs/README.md)**
-
----
-
-## 🛡️ Security & Compliance
-
-- **PHI Protection**: Permission filters applied at SQL JOIN level before LLM context assembly — zero PHI leakage to unauthorized roles
-- **Citation Validation**: Every LLM response verified against source database before streaming to client — hallucination detection blocks fabricated references
-- **Authentication**: JWT bearer validation with pinned algorithm, issuer/audience checks, and expiry enforcement (`services/jwt_auth.py`). ⚠️ The demo login endpoint is a **portfolio stub** — it accepts the literal password `demo` and returns a static token; password hashing, refresh rotation, and httpOnly cookies are documented as future work, not implemented
-- **Authorization**: RBAC with ABAC overlay — 7 roles with scoped patient permissions enforced at API gateway + RAG retrieval layers
-- **Rate Limiting**: Per-endpoint limits via slowapi, enabled by default and fail-closed — login `10/min`, chat `10/min`, streaming `5/min`, search `20/min`, access requests `3/min`, global default `60/min`. Disabled only when `TESTING=true` is set explicitly (test suite and local dev)
-- **Audit Trail**: Patient reads, permission denials, chat queries, document access, and config changes are logged with actor ID, trace ID, and timestamp via `PermissionService.require_read` / `AuditService`. User-authored text is passed through `sanitize_audit_query` so raw clinical free text does not enter audit metadata
-- **Container Scanning**: Trivy scans on every CI push (CRITICAL+HIGH severity) + weekly scheduled full scan (CRITICAL,HIGH,MEDIUM)
-- **Secret Detection**: TruffleHog weekly scan across full git history + Bandit SAST for Python source code
-- **Dependency Monitoring**: Dependabot (npm, pip, GitHub Actions) + pip-audit + npm audit for continuous vulnerability tracking
-- **Transport Security**: Nginx reverse proxy with security headers (X-Frame-Options, X-Content-Type-Options, X-XSS-Protection, Referrer-Policy)
-
----
-
-## 🧠 Knowledge Graph Explainability
-
-The Knowledge Graph (previously "Graph RAG") is a backend-backed explainability feature that shows how clinical reasoning connects patient data, diagnoses, medications, labs, and evidence documents.
-
-```mermaid
-graph LR
-    P[👤 Patient] -->|diagnosed with| D[🩺 Diagnosis]
-    D -->|treated with| M[💊 Medication]
-    P -->|allergic to| A[⚠️ Allergy]
+UI: http://localhost:8082 (Vite dev server; Playwright uses the same default port; the Docker image serves on **8082**)
     P -->|lab result| L[🧪 Lab]
     M -->|documented in| DOC[📄 Document]
     M -->|contraindicates| A
@@ -774,14 +496,15 @@ This project is a **portfolio demonstration**, not a certified medical device. T
 
 | Area | Current Status | Future Plan |
 |------|---------------|-------------|
-| **Citation Validation** | Uses regex to verify citation IDs (`[E1]`) exist in context. Factual content cross-checking is currently dead code. | Implement full semantic verification of generated claims against source evidence |
+| **Citation Validation** | Citation IDs are checked against retrieved evidence and streaming has explicit abort/safe-refusal contracts. Full semantic fact verification remains limited. | Extend claim-level verification across every answer path |
 | **Streaming Endpoint** | The `chat_stream.py` endpoint forces `simple_qa` and ignores advanced reasoning pipelines (`decompose`, `patient_summary`) and HyDE | Enable full reasoning pipeline support for streaming responses |
-| **Document Loaders** | Advanced file loaders (`docx`, `xlsx`, `html`) are implemented but bypassed by the worker which only calls PyMuPDF | Wire up the `services/loaders/` suite into the `jobs.py` ingestion worker |
-| **OCR Pipeline** | PaddleOCR is an optional fallback for blank/image PDFs. Cohere and OpenAI are not wired to the embedding pipeline | Make OCR a standard deterministic step; fix provider integrations |
+| **Document Loaders** | Browser HL7/DOCX normalization and DOCX cleanup are covered; the broader loader/provider matrix remains environment-dependent | Complete the loader matrix and run it through the production ingestion worker |
+| **OCR Pipeline** | PyMuPDF is the dependable local path; PaddleOCR remains an optional fallback and the full CDI V2 generation/review stack is not on `main` yet | Reconcile/land the stacked CDI V2 follow-ons, then certify OCR and generation adapters with artifacts |
 | **Login / Credentials** | `/auth/token` is a stub: accepts the literal password `demo` and returns a static, non-expiring token. JWT *validation* is real; JWT *issuance* is not | Password hashing (argon2), real token minting, refresh rotation, revocation |
 | **Token Storage** | Bearer token is kept in-memory to prevent XSS, but session rehydration re-derives a dev token | Implement an httpOnly refresh cookie for secure, persistent sessions |
 | **CDSS Alert Grounding** | Clinical alerts are written from raw LLM JSON with no citation or confidence gate | Apply the same evidence-grounding contract to the CDSS worker |
-| **E2E in CI** | 13 Playwright specs exist but do not run in CI — the job needs a backend service container (gh#123) | Add a backend service to the frontend CI job and make E2E blocking |
+| **E2E in CI** | The current `main` frontend CI job passes its Playwright lane, and PR #104 recorded an isolated synthetic browser run; an in-app browser recheck was not available in this audit | Keep the browser evidence tied to an exact SHA and add live-service coverage when the environment is available |
+| **CDI V2 rollout** | GitHub reports PRs #91–#103 as merged, but their merge SHAs are not ancestors of `main@467dbc3`; only the #90 foundation is present in the current tree | Reconcile the stacked merge delivery and rerun exact-SHA CI/release evidence |
 | **PHI Redaction** | Not implemented — UI honestly states "PHI redaction is planned for production hardening" | Implement NER-based PHI detection before embedding pipeline |
 | **Break-Glass Emergency Access** | Disabled by default (`ENABLE_BREAK_GLASS=false`) — treated as planned/future | Implement with justification, expiry, audit trail, and mandatory review |
 | **Session-Only Attachments** | All uploaded files go to the knowledge base — session-only temp files are planned | Add ephemeral document scope that expires with the chat thread |

@@ -1,0 +1,54 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1100" height="650" viewBox="0 0 1100 650" role="img" aria-labelledby="title desc">
+  <title id="title">Permission-first clinical chatbot architecture</title>
+  <desc id="desc">A hand-drawn style flow from a clinician through authentication, patient scope, guardrails, hybrid retrieval and optional GraphRAG enrichment to validated SSE output.</desc>
+  <defs><marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto"><path d="M0,0 L10,5 L0,10" fill="none" stroke="#374151" stroke-width="2"/></marker></defs>
+  <rect x="12" y="12" width="1076" height="626" rx="24" fill="#fffdf7" stroke="#2563eb" stroke-width="4" stroke-dasharray="14 10"/>
+  <text x="52" y="58" font-family="Comic Sans MS, Segoe Print, cursive" font-size="28" font-weight="700" fill="#1f2937">Clinical Chatbot Architecture</text>
+  <text x="52" y="88" font-family="Comic Sans MS, Segoe Print, cursive" font-size="16" fill="#6b7280">Permission-first RAG with safe refusal, citation validation and abortable SSE</text>
+
+  <rect x="48" y="124" width="178" height="82" rx="18" fill="#dbeafe" stroke="#2563eb" stroke-width="3"/>
+  <text x="137" y="155" text-anchor="middle" font-family="Comic Sans MS, Segoe Print, cursive" font-size="18" font-weight="700">Clinician UI</text>
+  <text x="137" y="181" text-anchor="middle" font-family="Comic Sans MS, Segoe Print, cursive" font-size="14">thread + patient context</text>
+  <rect x="260" y="124" width="178" height="82" rx="18" fill="#fee2e2" stroke="#dc2626" stroke-width="3"/>
+  <text x="349" y="155" text-anchor="middle" font-family="Comic Sans MS, Segoe Print, cursive" font-size="18" font-weight="700">Auth + scope</text>
+  <text x="349" y="181" text-anchor="middle" font-family="Comic Sans MS, Segoe Print, cursive" font-size="14">JWT • patient access</text>
+  <rect x="472" y="124" width="178" height="82" rx="18" fill="#fef3c7" stroke="#d97706" stroke-width="3"/>
+  <text x="561" y="155" text-anchor="middle" font-family="Comic Sans MS, Segoe Print, cursive" font-size="18" font-weight="700">Input guardrail</text>
+  <text x="561" y="181" text-anchor="middle" font-family="Comic Sans MS, Segoe Print, cursive" font-size="14">block unsafe prompts</text>
+  <rect x="684" y="124" width="178" height="82" rx="18" fill="#ede9fe" stroke="#7c3aed" stroke-width="3"/>
+  <text x="773" y="155" text-anchor="middle" font-family="Comic Sans MS, Segoe Print, cursive" font-size="18" font-weight="700">Query route</text>
+  <text x="773" y="181" text-anchor="middle" font-family="Comic Sans MS, Segoe Print, cursive" font-size="14">history • chitchat • clinical</text>
+  <rect x="896" y="124" width="156" height="82" rx="18" fill="#dcfce7" stroke="#16a34a" stroke-width="3"/>
+  <text x="974" y="155" text-anchor="middle" font-family="Comic Sans MS, Segoe Print, cursive" font-size="18" font-weight="700">Retrieve</text>
+  <text x="974" y="181" text-anchor="middle" font-family="Comic Sans MS, Segoe Print, cursive" font-size="14">scoped evidence</text>
+  <path d="M226 165 H260 M438 165 H472 M650 165 H684 M862 165 H896" fill="none" stroke="#374151" stroke-width="3" marker-end="url(#arrow)"/>
+
+  <rect x="80" y="278" width="300" height="108" rx="18" fill="#dbeafe" stroke="#2563eb" stroke-width="3"/>
+  <text x="230" y="312" text-anchor="middle" font-family="Comic Sans MS, Segoe Print, cursive" font-size="18" font-weight="700">Vector / BM25 / hybrid</text>
+  <text x="230" y="339" text-anchor="middle" font-family="Comic Sans MS, Segoe Print, cursive" font-size="14">query embedding + ranked chunks</text>
+  <text x="230" y="362" text-anchor="middle" font-family="Comic Sans MS, Segoe Print, cursive" font-size="14">patient / role filters before context</text>
+  <rect x="400" y="278" width="300" height="108" rx="18" fill="#fce7f3" stroke="#db2777" stroke-width="3"/>
+  <text x="550" y="312" text-anchor="middle" font-family="Comic Sans MS, Segoe Print, cursive" font-size="18" font-weight="700">Optional GraphRAG</text>
+  <text x="550" y="339" text-anchor="middle" font-family="Comic Sans MS, Segoe Print, cursive" font-size="14">query entities → max 2-hop BFS</text>
+  <text x="550" y="362" text-anchor="middle" font-family="Comic Sans MS, Segoe Print, cursive" font-size="14">graph chunks re-enter scoped retrieval</text>
+  <rect x="720" y="278" width="300" height="108" rx="18" fill="#fee2e2" stroke="#dc2626" stroke-width="3"/>
+  <text x="870" y="312" text-anchor="middle" font-family="Comic Sans MS, Segoe Print, cursive" font-size="18" font-weight="700">Evidence gate</text>
+  <text x="870" y="339" text-anchor="middle" font-family="Comic Sans MS, Segoe Print, cursive" font-size="14">threshold + attachment scope</text>
+  <text x="870" y="362" text-anchor="middle" font-family="Comic Sans MS, Segoe Print, cursive" font-size="14">no evidence → safe refusal</text>
+  <path d="M974 206 V244 H230 V278" fill="none" stroke="#374151" stroke-width="3" marker-end="url(#arrow)"/>
+  <path d="M380 332 H400" fill="none" stroke="#db2777" stroke-width="3" marker-end="url(#arrow)"/>
+  <path d="M700 332 H720" fill="none" stroke="#374151" stroke-width="3" marker-end="url(#arrow)"/>
+
+  <rect x="80" y="454" width="300" height="96" rx="18" fill="#f3e8ff" stroke="#7c3aed" stroke-width="3"/>
+  <text x="230" y="488" text-anchor="middle" font-family="Comic Sans MS, Segoe Print, cursive" font-size="18" font-weight="700">LLM generation</text>
+  <text x="230" y="515" text-anchor="middle" font-family="Comic Sans MS, Segoe Print, cursive" font-size="14">only retrieved evidence enters prompt</text>
+  <rect x="400" y="454" width="300" height="96" rx="18" fill="#fff0c2" stroke="#f59e0b" stroke-width="3"/>
+  <text x="550" y="488" text-anchor="middle" font-family="Comic Sans MS, Segoe Print, cursive" font-size="18" font-weight="700">Output safety</text>
+  <text x="550" y="515" text-anchor="middle" font-family="Comic Sans MS, Segoe Print, cursive" font-size="14">citation IDs + output guardrail</text>
+  <rect x="720" y="454" width="300" height="96" rx="18" fill="#d9f5f7" stroke="#0891b2" stroke-width="3"/>
+  <text x="870" y="488" text-anchor="middle" font-family="Comic Sans MS, Segoe Print, cursive" font-size="18" font-weight="700">SSE + persistence</text>
+  <text x="870" y="515" text-anchor="middle" font-family="Comic Sans MS, Segoe Print, cursive" font-size="14">progressive UI • abort • audit outcome</text>
+  <path d="M870 386 V420 H230 V454" fill="none" stroke="#374151" stroke-width="3" marker-end="url(#arrow)"/>
+  <path d="M380 502 H400 M700 502 H720" fill="none" stroke="#374151" stroke-width="3" marker-end="url(#arrow)"/>
+  <text x="80" y="603" font-family="Comic Sans MS, Segoe Print, cursive" font-size="13" fill="#6b7280">Evidence: api/routes/chat_stream.py • services/retrieval.py • services/graph_rag.py • frontend/src/lib/stream-client.ts</text>
+</svg>

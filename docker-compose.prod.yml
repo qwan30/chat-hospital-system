@@ -6,7 +6,6 @@ services:
       POSTGRES_DB: hospital_ai
       POSTGRES_USER: hospital_ai
       POSTGRES_PASSWORD: hospital_ai
-    # No ports exposed to outside, backend will connect internally
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U hospital_ai -d hospital_ai"]
       interval: 5s
@@ -14,6 +13,8 @@ services:
       retries: 10
     volumes:
       - postgres-data:/var/lib/postgresql/data
+    networks:
+      - default
 
   # -- Redis 7 -------------------------------------------------------
   redis:
@@ -23,13 +24,14 @@ services:
       interval: 5s
       timeout: 3s
       retries: 5
+    networks:
+      - default
 
   # -- Chatbot Backend (FastAPI) ------------------------------------
   backend:
     build:
       context: ./app/backend
       dockerfile: Dockerfile
-    # Removed env_file to prevent missing file error. Dokploy will inject from its UI.
     environment:
       HOSPITAL_AI_DATABASE_URL: postgresql+asyncpg://hospital_ai:hospital_ai@postgres:5432/hospital_ai
       HOSPITAL_AI_REDIS_URL: redis://redis:6379/0
@@ -43,9 +45,12 @@ services:
         condition: service_healthy
     volumes:
       - storage-data:/data/storage
+    networks:
+      - default
+      - dokploy-network
     labels:
       - "traefik.enable=true"
-      # IMPORTANT: Replace YOUR_BACKEND_DOMAIN below with your actual API domain (e.g. api-chat-hospital.quanmariodev.id.vn)
+      - "traefik.docker.network=dokploy-network"
       - "traefik.http.routers.hospital-backend.rule=Host(`api-chat-hospital.quanmariodev.id.vn`)"
       - "traefik.http.routers.hospital-backend.entrypoints=websecure"
       - "traefik.http.routers.hospital-backend.tls.certresolver=letsencrypt"
@@ -54,3 +59,7 @@ services:
 volumes:
   postgres-data:
   storage-data:
+
+networks:
+  dokploy-network:
+    external: true

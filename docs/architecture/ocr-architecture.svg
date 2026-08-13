@@ -1,0 +1,59 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1100" height="650" viewBox="0 0 1100 650" role="img" aria-labelledby="title desc">
+  <title id="title">OCR and document indexing architecture</title>
+  <desc id="desc">A hand-drawn style flow from upload session and queued worker through PDF, DOCX and text extraction, chunking, embeddings, PostgreSQL indexes and graph projection.</desc>
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto"><path d="M0,0 L10,5 L0,10" fill="none" stroke="#374151" stroke-width="2"/></marker>
+  </defs>
+  <rect x="12" y="12" width="1076" height="626" rx="24" fill="#fffdf7" stroke="#f59e0b" stroke-width="4" stroke-dasharray="14 10"/>
+  <text x="52" y="58" font-family="Comic Sans MS, Segoe Print, cursive" font-size="28" font-weight="700" fill="#1f2937">OCR + Document Indexing Architecture</text>
+  <text x="52" y="88" font-family="Comic Sans MS, Segoe Print, cursive" font-size="16" fill="#6b7280">Current mainline: upload → queued processing → source extraction → searchable evidence</text>
+
+  <rect x="48" y="120" width="210" height="92" rx="18" fill="#fff0c2" stroke="#f59e0b" stroke-width="3"/>
+  <text x="153" y="151" text-anchor="middle" font-family="Comic Sans MS, Segoe Print, cursive" font-size="18" font-weight="700">Upload session</text>
+  <text x="153" y="178" text-anchor="middle" font-family="Comic Sans MS, Segoe Print, cursive" font-size="14">capability • idempotency</text>
+  <text x="153" y="198" text-anchor="middle" font-family="Comic Sans MS, Segoe Print, cursive" font-size="14">finalize → document</text>
+
+  <rect x="315" y="120" width="210" height="92" rx="18" fill="#d9f5f7" stroke="#0891b2" stroke-width="3"/>
+  <text x="420" y="151" text-anchor="middle" font-family="Comic Sans MS, Segoe Print, cursive" font-size="18" font-weight="700">Redis / RQ worker</text>
+  <text x="420" y="178" text-anchor="middle" font-family="Comic Sans MS, Segoe Print, cursive" font-size="14">document-indexing</text>
+  <text x="420" y="198" text-anchor="middle" font-family="Comic Sans MS, Segoe Print, cursive" font-size="14">retry + DLQ on failure</text>
+
+  <rect x="582" y="120" width="470" height="92" rx="18" fill="#f2e8ff" stroke="#7c3aed" stroke-width="3"/>
+  <text x="817" y="151" text-anchor="middle" font-family="Comic Sans MS, Segoe Print, cursive" font-size="18" font-weight="700">Source adapters</text>
+  <text x="817" y="178" text-anchor="middle" font-family="Comic Sans MS, Segoe Print, cursive" font-size="14">text / HL7 / DOCX → normalized pages</text>
+  <text x="817" y="198" text-anchor="middle" font-family="Comic Sans MS, Segoe Print, cursive" font-size="14">PDF text → PyMuPDF → optional PaddleOCR</text>
+
+  <path d="M258 166 H315" fill="none" stroke="#374151" stroke-width="3" marker-end="url(#arrow)"/>
+  <path d="M525 166 H582" fill="none" stroke="#374151" stroke-width="3" marker-end="url(#arrow)"/>
+
+  <rect x="80" y="282" width="214" height="104" rx="18" fill="#dcfce7" stroke="#16a34a" stroke-width="3"/>
+  <text x="187" y="316" text-anchor="middle" font-family="Comic Sans MS, Segoe Print, cursive" font-size="18" font-weight="700">Page evidence</text>
+  <text x="187" y="343" text-anchor="middle" font-family="Comic Sans MS, Segoe Print, cursive" font-size="14">text • page number</text>
+  <text x="187" y="365" text-anchor="middle" font-family="Comic Sans MS, Segoe Print, cursive" font-size="14">confidence • PDF image</text>
+
+  <rect x="338" y="282" width="214" height="104" rx="18" fill="#dbeafe" stroke="#2563eb" stroke-width="3"/>
+  <text x="445" y="316" text-anchor="middle" font-family="Comic Sans MS, Segoe Print, cursive" font-size="18" font-weight="700">Chunk + embed</text>
+  <text x="445" y="343" text-anchor="middle" font-family="Comic Sans MS, Segoe Print, cursive" font-size="14">ChunkingService</text>
+  <text x="445" y="365" text-anchor="middle" font-family="Comic Sans MS, Segoe Print, cursive" font-size="14">EmbeddingService</text>
+
+  <rect x="596" y="282" width="214" height="104" rx="18" fill="#fee2e2" stroke="#dc2626" stroke-width="3"/>
+  <text x="703" y="316" text-anchor="middle" font-family="Comic Sans MS, Segoe Print, cursive" font-size="18" font-weight="700">Permissioned store</text>
+  <text x="703" y="343" text-anchor="middle" font-family="Comic Sans MS, Segoe Print, cursive" font-size="14">DocumentPage / Chunk</text>
+  <text x="703" y="365" text-anchor="middle" font-family="Comic Sans MS, Segoe Print, cursive" font-size="14">pgvector + tsvector</text>
+
+  <rect x="854" y="282" width="198" height="104" rx="18" fill="#fce7f3" stroke="#db2777" stroke-width="3"/>
+  <text x="953" y="316" text-anchor="middle" font-family="Comic Sans MS, Segoe Print, cursive" font-size="18" font-weight="700">Graph projection</text>
+  <text x="953" y="343" text-anchor="middle" font-family="Comic Sans MS, Segoe Print, cursive" font-size="14">GraphEntity</text>
+  <text x="953" y="365" text-anchor="middle" font-family="Comic Sans MS, Segoe Print, cursive" font-size="14">GraphRelation + provenance</text>
+
+  <path d="M817 212 V244 H187 V282" fill="none" stroke="#374151" stroke-width="3" marker-end="url(#arrow)"/>
+  <path d="M294 334 H338" fill="none" stroke="#374151" stroke-width="3" marker-end="url(#arrow)"/>
+  <path d="M552 334 H596" fill="none" stroke="#374151" stroke-width="3" marker-end="url(#arrow)"/>
+  <path d="M810 334 H854" fill="none" stroke="#374151" stroke-width="3" marker-end="url(#arrow)"/>
+
+  <rect x="80" y="462" width="972" height="112" rx="18" fill="#fff7ed" stroke="#ea580c" stroke-width="3" stroke-dasharray="10 8"/>
+  <text x="106" y="495" font-family="Comic Sans MS, Segoe Print, cursive" font-size="18" font-weight="700" fill="#c2410c">Safety and operational boundary</text>
+  <text x="106" y="523" font-family="Comic Sans MS, Segoe Print, cursive" font-size="15" fill="#374151">Current-source behavior: lock the current document generation, preserve a ready index when the same source fails,</text>
+  <text x="106" y="548" font-family="Comic Sans MS, Segoe Print, cursive" font-size="15" fill="#374151">then mark failed / retry through the DLQ. CDI V2 upload and revision APIs are foundation work; full generation review is not advertised as shipped.</text>
+  <text x="106" y="606" font-family="Comic Sans MS, Segoe Print, cursive" font-size="13" fill="#6b7280">Evidence: workers/jobs.py • services/ocr.py • api/routes/document_uploads.py • api/routes/document_revisions.py</text>
+</svg>

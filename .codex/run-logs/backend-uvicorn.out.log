@@ -1,8 +1,0 @@
-INFO:     127.0.0.1:50415 - "GET /api/v1/health HTTP/1.1" 200 OK
-INFO:     127.0.0.1:50417 - "OPTIONS /api/v1/health HTTP/1.1" 200 OK
-INFO:     127.0.0.1:50437 - "OPTIONS /api/v1/health HTTP/1.1" 200 OK
-INFO:     127.0.0.1:50438 - "GET /docs HTTP/1.1" 200 OK
-INFO:     127.0.0.1:50440 - "GET /api/v1/auth/me HTTP/1.1" 200 OK
-INFO:     127.0.0.1:65434 - "GET /docs HTTP/1.1" 200 OK
-INFO:     127.0.0.1:65434 - "GET /docs HTTP/1.1" 200 OK
-INFO:     127.0.0.1:65434 - "GET /openapi.json HTTP/1.1" 200 OK

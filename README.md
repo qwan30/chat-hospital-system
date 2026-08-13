@@ -79,6 +79,12 @@ Editable source: [graphrag-architecture.excalidraw](docs/architecture/graphrag-a
 ## 🎯 Engineering Skills Demonstrated
 
 | Dimension | Demonstrated Skills |
+
+---
+
+## 🎯 Engineering Skills Demonstrated
+
+| Dimension | Demonstrated Skills |
 |-----------|-------------------|
 | **AI/ML Engineering** | RAG pipeline with citation ID validation, permission-aware vector search, multi-provider LLM/embedding abstraction (Ollama/Gemini), source-backed AI evaluation contracts, centralized prompt registry |
 | **Backend Engineering** | FastAPI async, SQLAlchemy 2.0+asyncpg, pgvector HNSW, Redis/RQ workers, Alembic migrations, immutable upload/revision contracts, API verification, structured JSON logging |
@@ -91,72 +97,7 @@ Editable source: [graphrag-architecture.excalidraw](docs/architecture/graphrag-a
 
 ## 🏗️ System Architecture
 
-```mermaid
-graph TB
-    subgraph "Client Layer"
-        U[👨‍⚕️ Healthcare Staff<br/><i>Doctors · Nurses · Pharmacists</i>]
-        N[🔀 Nginx :80<br/><i>Reverse Proxy</i>]
-    end
-
-    subgraph "Application Layer"
-        FE[⚛️ TanStack Start Frontend<br/><i>Vite 8 · shadcn/ui · Streaming SSE</i>]
-        BE[🐍 FastAPI Backend<br/><i>Python 3.12 · Async · JWT Auth</i>]
-        W[⚙️ RQ Worker<br/><i>Document Processing · OCR · Embedding</i>]
-        CD[🚨 CDSS Worker<br/><i>Graph Context · LLM Risk Analysis</i>]
-    end
-
-    subgraph "Data Layer"
-        PG[("🐘 PostgreSQL + pgvector<br/><i>Vector Search · HNSW · CDI lineage foundation</i>")]
-        RD[("🗄️ Redis 7<br/><i>Job Queue · Cache</i>")]
-    end
-
-    subgraph "AI Layer"
-        LLM[🧠 LLM Provider<br/><i>Ollama / OpenAI<br/>Citation Validation</i>]
-        EMB[📐 Embedding Provider<br/><i>Deterministic / Ollama / Gemini</i>]
-    end
-
-    subgraph "External"
-        HMS[🏥 HMS API<br/><i>Appointments · Labs · Sync</i>]
-    end
-
-    subgraph "Observability"
-        PR[📊 Prometheus] --> GF[📈 Grafana]
-        LK[📝 Loki · Tempo] --> GF
-    end
-
-    U --> N
-    N -->|"/api/*"| BE
-    N -->|"/"| FE
-    FE --> BE
-    BE --> PG
-    BE --> RD
-    BE --> LLM
-    BE --> EMB
-    BE --> HMS
-    W --> PG
-    W --> RD
-    W --> EMB
-    W --> CD
-    CD --> PG
-    CD --> LLM
-    BE -.-> PR
-    BE -.-> LK
-
-    style U fill:#1e40af,stroke:#3b82f6,color:#fff
-    style N fill:#ea580c,stroke:#fb923c,color:#fff
-    style FE fill:#000,stroke:#666,color:#fff
-    style BE fill:#059669,stroke:#34d399,color:#fff
-    style W fill:#7c3aed,stroke:#a78bfa,color:#fff
-    style PG fill:#1e40af,stroke:#60a5fa,color:#fff
-    style RD fill:#dc2626,stroke:#f87171,color:#fff
-    style LLM fill:#b91c1c,stroke:#ef4444,color:#fff
-    style EMB fill:#0891b2,stroke:#22d3ee,color:#fff
-    style CD fill:#be185d,stroke:#f472b6,color:#fff
-    style HMS fill:#4b5563,stroke:#9ca3af,color:#fff
-    style PR fill:#eab308,stroke:#facc15,color:#000
-    style GF fill:#eab308,stroke:#facc15,color:#000
-    style LK fill:#eab308,stroke:#facc15,color:#000
-```
+![System Architecture](docs/architecture/system-architecture.png)
 
 ---
 
@@ -395,61 +336,7 @@ erDiagram
 
 ## 🚢 Deployment Architecture
 
-```mermaid
-graph TB
-    subgraph "VPS / Cloud Instance"
-        NG[🔀 Nginx :80<br/><i>Reverse Proxy</i>]
-        FE[⚛️ Frontend<br/><i>TanStack Start :3000</i>]
-        BE[🐍 Backend<br/><i>FastAPI :8000</i>]
-        W[⚙️ Worker<br/><i>RQ :queue</i>]
-        PG[("🐘 PostgreSQL<br/><i>pgvector :5432</i>")]
-        RD[("🗄️ Redis<br/><i>:6379</i>")]
-    end
-
-    subgraph "Observability Stack"
-        GF[📈 Grafana<br/><i>:3001</i>]
-        PR[📊 Prometheus<br/><i>:9090</i>]
-        LK[📝 Loki<br/><i>:3100</i>]
-        TP[🔍 Tempo<br/><i>:3200</i>]
-    end
-
-    subgraph "External Services"
-        GHCR[📦 GitHub Container Registry]
-        LLM[🧠 LLM Provider<br/><i>Ollama / OpenAI</i>]
-        HMS[🏥 HMS<br/><i>Hospital System</i>]
-    end
-
-    NG -->|"/"| FE
-    NG -->|"/api/*"| BE
-    FE -->|"REST + SSE"| BE
-    BE --> PG
-    BE --> RD
-    W --> PG
-    W --> RD
-    BE --> LLM
-    BE --> HMS
-    BE -.->|"metrics"| PR
-    BE -.->|"logs/traces"| LK
-    BE -.->|"traces"| TP
-    PR --> GF
-    LK --> GF
-    TP --> GF
-    GHCR -.->|"pull image"| BE
-
-    style NG fill:#ea580c,stroke:#fb923c,color:#fff
-    style FE fill:#000,stroke:#666,color:#fff
-    style BE fill:#059669,stroke:#34d399,color:#fff
-    style W fill:#7c3aed,stroke:#a78bfa,color:#fff
-    style PG fill:#1e40af,stroke:#60a5fa,color:#fff
-    style RD fill:#dc2626,stroke:#f87171,color:#fff
-    style GF fill:#eab308,stroke:#facc15,color:#000
-    style PR fill:#eab308,stroke:#facc15,color:#000
-    style LK fill:#eab308,stroke:#facc15,color:#000
-    style TP fill:#eab308,stroke:#facc15,color:#000
-    style GHCR fill:#4b5563,stroke:#9ca3af,color:#fff
-    style LLM fill:#b91c1c,stroke:#ef4444,color:#fff
-    style HMS fill:#4b5563,stroke:#9ca3af,color:#fff
-```
+![Deployment Architecture](docs/architecture/deployment-architecture.png)
 
 ---
 
@@ -622,157 +509,6 @@ bun install
 bun run dev
 ```
 UI: http://localhost:8082 (Vite dev server; Playwright uses the same default port; the Docker image serves on **8082**)
-
-### 4. Full Local Docker Stack
-```bash
-export BACKEND_IMAGE=hospital-ai-backend:local
-docker compose -f infra/docker-compose.yml -f infra/docker-compose.local-build.yml up -d
-# Optional local observability:
-docker compose -f infra/docker-compose.yml -f infra/docker-compose.local-build.yml -f infra/docker-compose.observability.yml up -d
-```
-
-Staging uses the GitHub-built immutable GHCR image through Dokploy. Set
-`BACKEND_IMAGE` to the approved `sha-<7-hex>` tag or digest in Dokploy; do not
-build the backend from a VPS source clone.
-
-### Demo Accounts
-
-Synthetic local-only accounts seeded by `scripts/seed_dev.py`. **All roles share the
-password `demo`** — `/auth/token` is a portfolio stub that checks for that literal and
-returns a static dev token; there is no password hashing or credential store. These
-accounts exist only against synthetic data and are refused outside `HOSPITAL_AI_ENVIRONMENT=local`
-(audit finding F-SEC-001).
-
-| Role | Email | Password | Static token |
-|------|-------|----------|--------------|
-| 👨‍⚕️ Doctor | `doctor@example.test` | `demo` | `dev-doctor` |
-| 👩‍⚕️ Nurse | `nurse@example.test` | `demo` | `dev-nurse` |
-| 💊 Pharmacist | `pharmacist@example.test` | `demo` | `dev-pharmacist` |
-| 📁 Records | `records@example.test` | `demo` | `dev-records` |
-| 🔒 Security | `security@example.test` | `demo` | `dev-security` |
-| ⚙️ Admin | `admin@example.test` | `demo` | `dev-admin` |
-
-### Before a live demo
-
-The prompt-injection and PHI-redaction scanners are ONNX models that run on CPU. Measured on
-a dev laptop: **~7.8s** for the first input scan and **~4.4s** for the first output scan,
-settling to **~4s per chat turn** once warm. The app warms the models on startup
-(`warm_up_guardrails`), but the very first chat still pays model-load cost.
-
-Measured end-to-end chat latency: **22.5s cold → 5.7s → 4.0s warm**.
-
-So: **start the backend and send one throwaway question before presenting.** Watch for
-`Guardrail scanners warmed up` in the log, then verify with:
-
-```bash
-curl -s -X POST http://127.0.0.1:8000/api/v1/chat \
-  -H "Authorization: Bearer dev-doctor" -H "Content-Type: application/json" \
-  -d '{"question":"List the current medications","patient_id":"20000000-0000-0000-0000-000000000001","top_k":3}'
-```
-
-A healthy response has `"pipeline":"simple_qa"` and a non-empty `citations` array. If you
-see `"pipeline":"blocked"` with *"security policy violation"*, the guardrail scan exceeded
-`HOSPITAL_AI_GUARDRAIL_TIMEOUT_SECONDS` (default 15s) and failed closed — raise it rather
-than disabling guardrails. Setting `HOSPITAL_AI_DISABLE_GUARDRAILS=true` removes the delay
-but also removes the prompt-injection defence that is worth demonstrating.
-
-Note `HOSPITAL_AI_CHAT_PROVIDER=stub` in `.env` returns canned answers. Point it at
-`ollama` or `openai` if you want the LLM path live.
-
----
-
-## 🧪 Testing & Quality
-
-```bash
-# Backend — 549 Pytest tests (546 pass, 3 skipped)
-cd app/backend && python -m pytest tests/ -v --tb=short
-
-# Backend — deterministic source-backed PR sentinel contract (not product scoring)
-cd app/backend && python scripts/run_ai_evaluation.py --suite smoke --lane deterministic --components corpus --output-dir evaluation-artifacts/deterministic
-
-# Backend — full 300-case deterministic evaluation
-cd app/backend && python scripts/run_ai_evaluation.py --suite release --lane deterministic --components corpus,ocr,retrieval,graph,chat --output-dir evaluation-artifacts/release
-
-# Note: retrieval, Graph RAG, chat, and controlled-scan OCR require real adapters.
-# If an adapter is unavailable, the requested component is a hard failing gate; it is never a pass by skip.
-
-# Backend — API contract verification
-cd app/backend && python scripts/verify_contracts.py
-
-# Frontend — Unit tests (Vitest)
-cd app/frontend && bun run test
-
-# Frontend — E2E tests (Playwright)
-cd app/frontend && bun run test:e2e
-
-# CDSS-specific E2E test
-cd app/frontend && bun run test:e2e e2e/cdss-flow.spec.ts
-```
-
----
-
-## 📈 CI/CD & Observability
-
-| Pipeline | Trigger | Actions |
-|----------|---------|---------|
-| **CI** (`ci.yml`) | Push / PR | CodeQL · Ruff · Pytest · ESLint · Playwright · Docker build+Trivy → GHCR |
-| **CD** (`cd.yml`) | CI success / Manual | SCP configs · SSH deploy · Alembic migrate · Smoke checks · Slack notify |
-| **Rollback** (`rollback.yml`) | Manual | Confirmation gate · Specific tag deploy · Health check |
-| **Security** (`security-scan.yml`) | Weekly / Manual | pip-audit · npm audit · Bandit · TruffleHog · Trivy container scan |
-| **Dependabot** (`dependabot.yml`) | Weekly | Automated PRs for npm, pip, GitHub Actions |
-
-**Observability Stack:** `Nginx → Backend → Prometheus → Grafana + Loki → Tempo`
-
-Configurations in [`infra/observability/`](infra/observability/) — Prometheus metrics, Grafana dashboards, Loki log aggregation, Tempo distributed tracing.
-
----
-
-## 📚 Documentation
-
-| Section | Content | Primary Doc |
-|---------|---------|-------------|
-| **00-overview** | Project foundation, conventions, governance | [`project-foundation.md`](docs/00-overview/project-foundation.md) |
-| **01-business** | Business rules, BR-001–BR-007 + BR-CDSS-001, glossary, scope | [`business-rules.md`](docs/01-business/business-rules.md) |
-| **02-product** | PRD, personas, MVP criteria | [`prd.md`](docs/02-product/prd.md) |
-| **03-requirements** | SRS (25 FRs + 22 NFRs), use cases UC-001–UC-009, permissions | [`srs.md`](docs/03-requirements/srs.md) |
-| **04-architecture** | System design, security architecture, ADR-001–ADR-012, coding standards | [`architecture.md`](docs/04-architecture/architecture.md) |
-| **05-api** | API contract, endpoint specs, error codes | [`api-contract.md`](docs/05-api/api-contract.md) |
-| **06-database** | Schema (14 tables), ERD, data dictionary, migrations | [`db-schema.md`](docs/06-database/db-schema.md) |
-| **07-flows** | Business flows, state machines, user journeys | [`end-to-end-business-flow.md`](docs/07-flows/end-to-end-business-flow.md) |
-| **08-ui-ux** | Design system, Figma specs, UI/API traceability | [`00_product_ui_truth.md`](docs/08-ui-ux/00_product_ui_truth.md) |
-| **09-testing** | Test strategy, plan, RTM, 250+ test cases | [`test-plan.md`](docs/09-testing/test-plan.md) |
-| **10-deployment** | CI/CD (5 workflows), env variables, Docker, rollback | [`deployment-guide.md`](docs/10-deployment/deployment-guide.md) |
-| **11-operations** | Monitoring (Grafana), incident response, troubleshooting | [`monitoring-guide.md`](docs/11-operations/monitoring-guide.md) |
-| **12-handover** | Developer onboarding, repository guide, known issues | [`developer-onboarding.md`](docs/12-handover/developer-onboarding.md) |
-
-> 📄 **[Interactive Documentation Portal →](docs/documentation-portal.html)** | 📂 **[Full Documentation Index →](docs/README.md)**
-
----
-
-## 🛡️ Security & Compliance
-
-- **PHI Protection**: Permission filters applied at SQL JOIN level before LLM context assembly — zero PHI leakage to unauthorized roles
-- **Citation Validation**: Every LLM response verified against source database before streaming to client — hallucination detection blocks fabricated references
-- **Authentication**: JWT bearer validation with pinned algorithm, issuer/audience checks, and expiry enforcement (`services/jwt_auth.py`). ⚠️ The demo login endpoint is a **portfolio stub** — it accepts the literal password `demo` and returns a static token; password hashing, refresh rotation, and httpOnly cookies are documented as future work, not implemented
-- **Authorization**: RBAC with ABAC overlay — 7 roles with scoped patient permissions enforced at API gateway + RAG retrieval layers
-- **Rate Limiting**: Per-endpoint limits via slowapi, enabled by default and fail-closed — login `10/min`, chat `10/min`, streaming `5/min`, search `20/min`, access requests `3/min`, global default `60/min`. Disabled only when `TESTING=true` is set explicitly (test suite and local dev)
-- **Audit Trail**: Patient reads, permission denials, chat queries, document access, and config changes are logged with actor ID, trace ID, and timestamp via `PermissionService.require_read` / `AuditService`. User-authored text is passed through `sanitize_audit_query` so raw clinical free text does not enter audit metadata
-- **Container Scanning**: Trivy scans on every CI push (CRITICAL+HIGH severity) + weekly scheduled full scan (CRITICAL,HIGH,MEDIUM)
-- **Secret Detection**: TruffleHog weekly scan across full git history + Bandit SAST for Python source code
-- **Dependency Monitoring**: Dependabot (npm, pip, GitHub Actions) + pip-audit + npm audit for continuous vulnerability tracking
-- **Transport Security**: Nginx reverse proxy with security headers (X-Frame-Options, X-Content-Type-Options, X-XSS-Protection, Referrer-Policy)
-
----
-
-## 🧠 Knowledge Graph Explainability
-
-The Knowledge Graph (previously "Graph RAG") is a backend-backed explainability feature that shows how clinical reasoning connects patient data, diagnoses, medications, labs, and evidence documents.
-
-```mermaid
-graph LR
-    P[👤 Patient] -->|diagnosed with| D[🩺 Diagnosis]
-    D -->|treated with| M[💊 Medication]
-    P -->|allergic to| A[⚠️ Allergy]
     P -->|lab result| L[🧪 Lab]
     M -->|documented in| DOC[📄 Document]
     M -->|contraindicates| A

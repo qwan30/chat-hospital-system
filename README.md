@@ -36,7 +36,7 @@ The three diagrams below are the shortest way to understand how this system turn
 
 The ingestion path starts with an immutable upload session and ends with page-level evidence, searchable chunks, embeddings, and an optional graph projection. A Redis/RQ worker performs the work asynchronously, retries failed jobs through the indexing dead-letter queue, and protects an existing ready index when a same-source reindex fails. The current source adapters are text, HL7/DOCX normalization, native PDF text extraction through PyMuPDF, and optional PaddleOCR for image-only PDF pages.
 
-![OCR and document indexing architecture](docs/architecture/ocr-architecture.svg)
+![OCR and document indexing architecture](docs/architecture/ocr-architecture.png)
 
 Editable source: [ocr-architecture.excalidraw](docs/architecture/ocr-architecture.excalidraw). Implementation anchors: [`process_document`](app/backend/src/hospital_ai/workers/jobs.py), [`OcrService`](app/backend/src/hospital_ai/services/ocr.py), [upload sessions](app/backend/src/hospital_ai/api/routes/document_uploads.py), and [document revisions](app/backend/src/hospital_ai/api/routes/document_revisions.py). The CDI V2 upload/revision APIs are a mainline foundation; the post-foundation generation/review stack is not claimed as shipped here.
 
@@ -44,7 +44,7 @@ Editable source: [ocr-architecture.excalidraw](docs/architecture/ocr-architectur
 
 The chat stream checks authentication and patient scope before retrieval context is assembled. Input guardrails can terminate unsafe requests early; clinical requests use vector, BM25, or hybrid retrieval, optionally enrich results with GraphRAG, apply attachment/document scope, and refuse safely when evidence is missing or below threshold. Only then does the LLM generate. Output guardrails and citation-ID validation run before the answer is streamed over SSE, persisted, and made abortable by the client.
 
-![Clinical chatbot architecture](docs/architecture/chatbot-architecture.svg)
+![Clinical chatbot architecture](docs/architecture/chatbot-architecture.png)
 
 Editable source: [chatbot-architecture.excalidraw](docs/architecture/chatbot-architecture.excalidraw). Implementation anchors: [`chat_stream`](app/backend/src/hospital_ai/api/routes/chat_stream.py), [retrieval services](app/backend/src/hospital_ai/services/retrieval.py), [guardrails](app/backend/src/hospital_ai/services/guardrails.py), and the [frontend stream client](app/frontend/src/lib/stream-client.ts). Graph enrichment is optional and must re-enter the permission-scoped retrieval boundary.
 
@@ -52,7 +52,7 @@ Editable source: [chatbot-architecture.excalidraw](docs/architecture/chatbot-arc
 
 GraphRAG is implemented as a provenance-preserving projection over the existing relational store, not as a separate Neo4j-style database. Ready document chunks are processed into `GraphEntity` and `GraphRelation` rows with source chunk/document IDs. At query time, normalized terms seed a patient-scoped breadth-first traversal (default maximum two hops); related chunk IDs and a graph summary are returned to the chatbot, while the patient graph route exposes persisted nodes and edges for visualization. Invalid, deleted, or out-of-scope chunks are excluded, and GraphRAG may be skipped if extraction or traversal is unavailable.
 
-![SQL-backed GraphRAG architecture](docs/architecture/graphrag-architecture.svg)
+![SQL-backed GraphRAG architecture](docs/architecture/graphrag-architecture.png)
 
 Editable source: [graphrag-architecture.excalidraw](docs/architecture/graphrag-architecture.excalidraw). Implementation anchors: [`graph_rag` module](app/backend/src/hospital_ai/services/graph_rag.py), [patient graph route](app/backend/src/hospital_ai/api/routes/graph.py), and the [chat-stream enrichment path](app/backend/src/hospital_ai/api/routes/chat_stream.py).
 

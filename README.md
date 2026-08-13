@@ -101,6 +101,22 @@ Editable source: [graphrag-architecture.excalidraw](docs/architecture/graphrag-a
 
 ---
 
+## 🔄 CI/CD Pipeline
+
+> **Current `main` build status (SHA `467dbc3`).** In [CI run `31666780395`](https://github.com/qwan30/chat-hospital-system/actions/runs/31666780395), path detection, observability validation, CodeQL, backend lint/tests/contracts, migrations, and frontend lint/tests/build/E2E passed. The source-backed evaluation failed with repeated NLP extraction errors and no deterministic summary artifact; the Docker image job also failed during the build/Trivy lane. Live-model evaluation was skipped. The release gate therefore remains conditional/NO-GO; this is not release certification.
+>
+> The release lane also enforces `sentinel_independent_review` — *50 sentinel cases approved by two independent reviewers with no unresolved issues*. See [`evaluation/runner.py`](app/backend/src/hospital_ai/evaluation/runner.py) and [`rag_sentinel_v2.jsonl`](app/backend/data/evaluation/rag_sentinel_v2.jsonl).
+
+![CI/CD Pipeline](docs/architecture/cicd-pipeline.png)
+
+---
+
+## 🚢 Deployment Architecture
+
+![Deployment Architecture](docs/architecture/deployment-architecture.png)
+
+---
+
 ## 📸 Application Screenshots
 
 <div align="center">
@@ -197,16 +213,6 @@ sequenceDiagram
 
 ---
 
-## 🔄 CI/CD Pipeline
-
-> **Current `main` build status (SHA `467dbc3`).** In [CI run `31666780395`](https://github.com/qwan30/chat-hospital-system/actions/runs/31666780395), path detection, observability validation, CodeQL, backend lint/tests/contracts, migrations, and frontend lint/tests/build/E2E passed. The source-backed evaluation failed with repeated NLP extraction errors and no deterministic summary artifact; the Docker image job also failed during the build/Trivy lane. Live-model evaluation was skipped. The release gate therefore remains conditional/NO-GO; this is not release certification.
->
-> The release lane also enforces `sentinel_independent_review` — *50 sentinel cases approved by two independent reviewers with no unresolved issues*. See [`evaluation/runner.py`](app/backend/src/hospital_ai/evaluation/runner.py) and [`rag_sentinel_v2.jsonl`](app/backend/data/evaluation/rag_sentinel_v2.jsonl).
-
-![CI/CD Pipeline](docs/architecture/cicd-pipeline.png)
-
----
-
 ## 🗄️ Database Entity Relationship
 
 ```mermaid
@@ -288,12 +294,6 @@ erDiagram
         jsonb evidence_references
     }
 ```
-
----
-
-## 🚢 Deployment Architecture
-
-![Deployment Architecture](docs/architecture/deployment-architecture.png)
 
 ---
 
@@ -466,19 +466,6 @@ bun install
 bun run dev
 ```
 UI: http://localhost:8082 (Vite dev server; Playwright uses the same default port; the Docker image serves on **8082**)
-    P -->|lab result| L[🧪 Lab]
-    M -->|documented in| DOC[📄 Document]
-    M -->|contraindicates| A
-    L -->|evidence for| M
-    DOC -->|supports| D
-
-    style P fill:#1e40af,stroke:#3b82f6,color:#fff
-    style D fill:#059669,stroke:#34d399,color:#fff
-    style M fill:#7c3aed,stroke:#a78bfa,color:#fff
-    style A fill:#dc2626,stroke:#f87171,color:#fff
-    style L fill:#0891b2,stroke:#22d3ee,color:#fff
-    style DOC fill:#4b5563,stroke:#9ca3af,color:#fff
-```
 
 **Key capabilities:**
 - **Backend-backed graph data** — nodes/edges come from the database, not hardcoded frontend data

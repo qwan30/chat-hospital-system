@@ -24,7 +24,7 @@ All routes are mounted in `app/backend/src/hospital_ai/api/router.py`:
 | Prefix | Module | Purpose |
 |--------|--------|---------|
 | `/health` | (inline) | Health check |
-| `/auth` | `routes/auth.py` | Current user info (`GET /me`) |
+| `/auth` | `routes/auth.py` | Real credential login (`POST /token`), backend-issued demo login/status (`POST /demo`, `GET /demo/status`), and current user info (`GET /me`) |
 | `/patients` | `routes/patients.py` | Patient CRUD, overviews, summaries |
 | `/documents` | `routes/documents.py` | Document upload, listing, OCR management |
 | `/chat` | `routes/chat.py` | Chat query (non-streaming, rate limited 10/min) |
@@ -44,6 +44,39 @@ All routes are mounted in `app/backend/src/hospital_ai/api/router.py`:
 ---
 
 ## 3. Key Endpoint Contracts
+
+### Authentication contracts
+
+`POST /api/v1/auth/token` remains the production credential flow. It accepts
+the real username/password form and returns a bearer token for the active
+local account. The frontend must keep this path separate from demo access.
+
+`GET /api/v1/auth/demo/status` is public and returns whether the deployment is
+configured to issue demo tokens:
+
+```json
+{ "enabled": true }
+```
+
+`POST /api/v1/auth/demo` accepts only an allowlisted synthetic persona:
+
+```json
+{ "role": "cardiologist" }
+```
+
+Supported roles are `cardiologist`, `hospitalist`, `rn`, `pharmacist`,
+`front_desk`, `admin`, and `security`. The backend resolves the persona to an
+active synthetic seeded account and signs a short-lived HS256 JWT with
+`demo: true`, issuer, subject, email, role, issued-at, and expiry claims. The
+frontend stores that bearer only in memory. It must not send a password or
+construct a `dev-*` bearer token.
+
+Demo issuance is available only when `HOSPITAL_AI_DEMO_MODE=true` and the
+backend-only `HOSPITAL_AI_DEMO_JWT_SECRET` is non-empty. Missing configuration
+returns `503`; an explicitly disabled deployment returns `403`. Demo tokens
+are accepted by protected APIs only while demo mode remains enabled and are
+resolved against an active local synthetic user. Demo data must remain
+synthetic/de-identified.
 
 ### `POST /api/v1/chat`
 Submit a clinical question with RAG pipeline.

@@ -22,6 +22,7 @@ import {
   getStoredApiUrl,
   resolveApiUrl,
 } from "@/lib/api-client";
+import type { Role } from "@/lib/rbac";
 
 export interface AuthUser {
   id: string;
@@ -40,10 +41,15 @@ export interface AuthState {
   apiUrl: string;
   loading: boolean;
   error: string | null;
+  demoEnabled: boolean;
+  demoStatusLoading: boolean;
+  demoRole: Role | null;
 }
 
 interface AuthContextValue extends AuthState {
   login: (username: string, password: string) => Promise<boolean>;
+  demoLogin: (role: Role) => Promise<boolean>;
+  refreshDemoStatus: () => Promise<boolean>;
   logout: () => void;
   setApiUrl: (url: string) => void;
 }
@@ -57,6 +63,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [apiUrl, setApiUrlState] = useState(getStoredApiUrl());
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [demoEnabled, setDemoEnabled] = useState(false);
+  const [demoStatusLoading, setDemoStatusLoading] = useState(false);
+  const [demoRole, setDemoRole] = useState<Role | null>(null);
 
   useEffect(() => {
     setApiUrlState(getStoredApiUrl());
@@ -72,6 +81,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const resolvedApiUrl = getStoredApiUrl();
     setLoading(true);
     setError(null);
+    setDemoRole(null);
     try {
       const formData = new URLSearchParams();
       formData.append("username", username);
@@ -114,10 +124,77 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
+  const refreshDemoStatus = useCallback(async (): Promise<boolean> => {
+    const resolvedApiUrl = getStoredApiUrl();
+    setDemoStatusLoading(true);
+    try {
+      const res = await fetch(`${resolvedApiUrl.replace(/\/+$/, "")}/auth/demo/status`, {
+        method: "GET",
+      });
+      if (!res.ok) {
+        setDemoEnabled(false);
+        return false;
+      }
+      const data = (await res.json()) as { enabled?: boolean };
+      const enabled = data.enabled === true;
+      setDemoEnabled(enabled);
+      return enabled;
+    } catch {
+      setDemoEnabled(false);
+      return false;
+    } finally {
+      setDemoStatusLoading(false);
+    }
+  }, []);
+
+  const demoLogin = useCallback(async (role: Role): Promise<boolean> => {
+    const resolvedApiUrl = getStoredApiUrl();
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await fetch(`${resolvedApiUrl.replace(/\/+$/, "")}/auth/demo`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ role }),
+      });
+
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        setError(errData.detail || errData.message || "Demo sign-in is unavailable");
+        setLoading(false);
+        return false;
+      }
+
+      const data = await res.json();
+      const newToken = data.access_token;
+      persistToken(newToken);
+      setToken(newToken);
+
+      const user = await verifyToken(resolvedApiUrl, newToken);
+      if (user) {
+        setAuthUser(user);
+        setDemoRole(role);
+        setLoading(false);
+        return true;
+      }
+
+      setError("Failed to verify demo credentials");
+      clearToken();
+      setToken(null);
+      setLoading(false);
+      return false;
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Demo sign-in failed");
+      setLoading(false);
+      return false;
+    }
+  }, []);
+
   const logout = useCallback(() => {
     clearToken();
     setAuthUser(null);
     setToken(null);
+    setDemoRole(null);
     setError(null);
   }, []);
 
@@ -129,11 +206,31 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       apiUrl,
       loading,
       error,
+      demoEnabled,
+      demoStatusLoading,
+      demoRole,
       login,
+      demoLogin,
+      refreshDemoStatus,
       logout,
       setApiUrl,
     }),
-    [hydrated, authUser, token, apiUrl, loading, error, login, logout, setApiUrl],
+    [
+      hydrated,
+      authUser,
+      token,
+      apiUrl,
+      loading,
+      error,
+      demoEnabled,
+      demoStatusLoading,
+      demoRole,
+      login,
+      demoLogin,
+      refreshDemoStatus,
+      logout,
+      setApiUrl,
+    ],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

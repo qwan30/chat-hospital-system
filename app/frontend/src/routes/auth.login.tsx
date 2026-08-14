@@ -6,11 +6,10 @@ import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ShieldCheck, KeySquare, Activity } from "lucide-react";
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { ROLES, type Role, landingFor } from "@/lib/rbac";
 import { mockUsers } from "@/data/mockUsers";
 import { workspaces } from "@/data/workspaces";
-import { useSession } from "@/lib/session";
 import { useAuth } from "@/lib/auth-context";
 import {
   Select,
@@ -33,8 +32,15 @@ export const Route = createFileRoute("/auth/login")({
 
 function LoginPage() {
   const navigate = useNavigate();
-  const { signIn } = useSession();
-  const { login, loading: authLoading, error: authError } = useAuth();
+  const {
+    login,
+    demoLogin,
+    refreshDemoStatus,
+    demoEnabled,
+    demoStatusLoading,
+    loading: authLoading,
+    error: authError,
+  } = useAuth();
 
   // Real login state
   const [username, setUsername] = useState("");
@@ -46,6 +52,10 @@ function LoginPage() {
   const user = mockUsers[role];
   const [workspaceId, setWorkspaceId] = useState<string>(user.defaultWorkspaceId);
   const availableWs = workspaces.filter((w) => user.availableWorkspaceIds.includes(w.id));
+
+  useEffect(() => {
+    void refreshDemoStatus();
+  }, [refreshDemoStatus]);
 
   const effectiveWorkspaceId = user.availableWorkspaceIds.includes(workspaceId)
     ? workspaceId
@@ -64,10 +74,13 @@ function LoginPage() {
     }
   };
 
-  const handleMockSignIn = () => {
-    signIn(role, effectiveWorkspaceId);
+  const handleMockSignIn = async () => {
     setMockLoading(true);
-    setTimeout(() => navigate({ to: landingFor(role) }), 300);
+    const ok = await demoLogin(role);
+    if (ok) {
+      navigate({ to: landingFor(role) });
+    }
+    setMockLoading(false);
   };
 
   const submitMock = (e: FormEvent) => {
@@ -90,9 +103,11 @@ function LoginPage() {
             <TabsTrigger value="real" className="flex-1">
               Real Login
             </TabsTrigger>
-            <TabsTrigger value="mock" className="flex-1">
-              Demo Role
-            </TabsTrigger>
+            {!demoStatusLoading && demoEnabled && (
+              <TabsTrigger value="mock" className="flex-1">
+                Demo Role
+              </TabsTrigger>
+            )}
           </TabsList>
 
           <TabsContent value="real">
@@ -194,11 +209,12 @@ function LoginPage() {
                 <Label htmlFor="mock-password">Password</Label>
                 <Input id="mock-password" type="password" defaultValue="••••••••" required />
               </div>
+              {authError && <p className="text-sm text-destructive">{authError}</p>}
               <label className="flex items-center gap-2 text-sm text-muted-foreground">
                 <Checkbox defaultChecked /> Remember this device for 30 days
               </label>
-              <Button className="w-full" disabled={mockLoading}>
-                {mockLoading ? "Signing in..." : "Sign in"}
+              <Button className="w-full" disabled={mockLoading || authLoading}>
+                {mockLoading || authLoading ? "Signing in..." : "Sign in"}
               </Button>
             </form>
           </TabsContent>

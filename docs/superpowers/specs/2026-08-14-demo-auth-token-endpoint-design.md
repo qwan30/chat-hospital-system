@@ -1,6 +1,6 @@
 # Backend-Issued Demo Authentication Design
 
-**Date:** 2026-08-14  
+**Date:** 2026-08-14
 **Branch:** `feat/demo-auth-token-endpoint`
 
 ## Problem

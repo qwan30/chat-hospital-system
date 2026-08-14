@@ -118,6 +118,12 @@ class Settings(BaseSettings):
             value = "/" + value
         return value.rstrip("/") or "/api/v1"
 
+    @validator("demo_jwt_secret")
+    def validate_demo_jwt_secret(cls, value: str) -> str:
+        if value and len(value) < 32:
+            raise ValueError("demo_jwt_secret must contain at least 32 characters when configured")
+        return value
+
     @property
     def token_user_map(self) -> dict[str, str]:
         # F-SEC-001: refuse the committed default in any non-local

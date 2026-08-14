@@ -95,6 +95,12 @@ def test_demo_token_ttl_is_bounded():
         Settings(demo_token_ttl_minutes=1441, _env_file=None)
 
 
+def test_demo_jwt_secret_requires_a_minimum_length():
+    assert len(Settings(demo_jwt_secret="x" * 32, _env_file=None).demo_jwt_secret) == 32
+    with pytest.raises(ValidationError):
+        Settings(demo_jwt_secret="x" * 31, _env_file=None)
+
+
 # ── F-RAG-002: threshold helper unit tests ───────────────────────────────
 
 

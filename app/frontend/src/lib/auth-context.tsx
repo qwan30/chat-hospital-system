@@ -1,9 +1,11 @@
 /**
  * Auth context — wraps the SessionProvider with JWT-based authentication.
  *
- * Dual-mode:
- * - When a JWT token is present in memory → real backend auth
- * - Otherwise → mock role-based session (dev/demo/screenshots)
+ * Auth modes:
+ * - Real Login exchanges credentials for a backend JWT.
+ * - Demo Role exchanges an allowlisted persona for a short-lived backend JWT.
+ * Legacy local mock-session hydration remains isolated in SessionProvider for
+ * existing synthetic E2E fixtures; it is not used by the login route.
  */
 import {
   createContext,

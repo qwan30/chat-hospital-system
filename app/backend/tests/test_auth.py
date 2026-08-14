@@ -282,7 +282,7 @@ async def test_get_current_user_malformed_header(session_and_settings):
 
 
 def _demo_settings(settings):
-    settings.demo_jwt_secret = "demo-test-secret"
+    settings.demo_jwt_secret = "demo-test-secret-with-at-least-32-bytes"
     settings.demo_jwt_issuer = "test-demo-issuer"
     return settings
 
@@ -296,7 +296,7 @@ async def test_demo_status_requires_demo_mode_and_secret(session_and_settings):
     settings.demo_jwt_secret = ""
     assert (await demo_status(settings=settings)).enabled is False
 
-    settings.demo_jwt_secret = "demo-test-secret"
+    settings.demo_jwt_secret = "demo-test-secret-with-at-least-32-bytes"
     settings.demo_mode = False
     assert (await demo_status(settings=settings)).enabled is False
 

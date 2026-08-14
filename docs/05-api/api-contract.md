@@ -72,8 +72,8 @@ frontend stores that bearer only in memory. It must not send a password or
 construct a `dev-*` bearer token.
 
 Demo issuance is available only when `HOSPITAL_AI_DEMO_MODE=true` and the
-backend-only `HOSPITAL_AI_DEMO_JWT_SECRET` is non-empty. Missing configuration
-returns `503`; an explicitly disabled deployment returns `403`. Demo tokens
+backend-only `HOSPITAL_AI_DEMO_JWT_SECRET` contains at least 32 characters.
+Missing configuration returns `503`; an explicitly disabled deployment returns `403`. Demo tokens
 are accepted by protected APIs only while demo mode remains enabled and are
 resolved against an active local synthetic user. Demo data must remain
 synthetic/de-identified.

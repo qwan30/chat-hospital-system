@@ -14,6 +14,7 @@ from collections.abc import AsyncIterator
 from typing import Optional
 
 import pytest
+from pydantic import ValidationError
 
 from hospital_ai.api.routes.chat_stream import StreamCompletion, _ensure_stream_terminal, _generate_sse_events
 from hospital_ai.core.config import Settings
@@ -82,6 +83,16 @@ def test_token_user_map_accepts_explicit_override_in_production(monkeypatch):
         _env_file=None,
     )
     assert settings.token_user_map == {"ops-token": "ops@example.test"}
+
+
+def test_demo_token_ttl_is_bounded():
+    assert Settings(demo_token_ttl_minutes=5, _env_file=None).demo_token_ttl_minutes == 5
+    assert Settings(demo_token_ttl_minutes=1440, _env_file=None).demo_token_ttl_minutes == 1440
+
+    with pytest.raises(ValidationError):
+        Settings(demo_token_ttl_minutes=4, _env_file=None)
+    with pytest.raises(ValidationError):
+        Settings(demo_token_ttl_minutes=1441, _env_file=None)
 
 
 # ── F-RAG-002: threshold helper unit tests ───────────────────────────────

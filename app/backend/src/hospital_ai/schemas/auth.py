@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Literal, Optional
 from uuid import UUID
 
 from hospital_ai.schemas.common import ApiSchema
@@ -23,3 +23,17 @@ class TokenResponse(ApiSchema):
     access_token: str
     token_type: str = "bearer"
     user: UserRead
+
+
+DemoRole = Literal["cardiologist", "hospitalist", "rn", "pharmacist", "front_desk", "admin", "security"]
+
+
+class DemoLoginRequest(ApiSchema):
+    role: DemoRole
+
+    class Config(ApiSchema.Config):
+        extra = "forbid"
+
+
+class DemoStatusResponse(ApiSchema):
+    enabled: bool

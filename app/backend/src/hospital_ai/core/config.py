@@ -21,6 +21,9 @@ class Settings(BaseSettings):
     dev_auto_grant_access: bool = False
     enable_break_glass: bool = False
     demo_mode: bool = True
+    demo_jwt_secret: str = Field(default="", repr=False)
+    demo_jwt_issuer: str = "hospital-ai-demo"
+    demo_token_ttl_minutes: int = Field(default=30, ge=5, le=1440)
     disable_guardrails: bool = False
     # Seconds allowed for an llm-guard scan before the guardrail fails closed.
     # The prompt-injection model takes ~4s per scan on CPU, so the previous

@@ -125,3 +125,36 @@ class JwtAuthService:
         except Exception:
             logger.exception("Unexpected error during JWT validation")
             return None
+
+    async def validate_demo_token(self, token: str) -> Optional[JwtTokenData]:
+        """Validate a short-lived backend-issued demo token, or return None."""
+        if not self.settings.demo_mode or not self.settings.demo_jwt_secret or not self.settings.demo_jwt_issuer:
+            return None
+
+        try:
+            payload = jwt.decode(
+                token,
+                self.settings.demo_jwt_secret,
+                algorithms=["HS256"],
+                issuer=self.settings.demo_jwt_issuer,
+                options={"verify_exp": True, "verify_aud": False},
+            )
+            if payload.get("demo") is not True:
+                return None
+
+            sub = payload.get("sub")
+            email = payload.get("email")
+            name = payload.get("name")
+            role = payload.get("role")
+            if not all(isinstance(value, str) and value for value in (sub, email, name, role)):
+                return None
+            return JwtTokenData(sub=sub, email=email, name=name, role=role)
+        except jwt.ExpiredSignatureError:
+            logger.warning("Demo JWT token has expired")
+            return None
+        except jwt.InvalidTokenError as exc:
+            logger.warning("Demo JWT validation failed: %s", exc)
+            return None
+        except Exception:
+            logger.exception("Unexpected error during demo JWT validation")
+            return None

@@ -45,6 +45,19 @@ async def get_current_user(
             status_code=status.HTTP_401_UNAUTHORIZED, detail="User validated via JWT but no active local account found."
         )
 
+    # Demo JWTs are accepted only while the backend demo mode is enabled.
+    if settings.demo_mode:
+        demo_data = await jwt_service.validate_demo_token(credentials.credentials)
+        if demo_data is not None:
+            result = await session.execute(select(User).where(User.email == demo_data.email, User.is_active.is_(True)))
+            user = result.scalar_one_or_none()
+            if user is not None:
+                return user
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="User validated via demo JWT but no active local account found.",
+            )
+
     # Static token fallback (local dev and legacy clients)
     email = settings.token_user_map.get(credentials.credentials)
     if email is None:

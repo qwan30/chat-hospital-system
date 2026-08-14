@@ -9,7 +9,6 @@ from typing import Any
 
 import pytest
 
-
 REPOSITORY_ROOT = Path(__file__).resolve().parents[4]
 MANIFEST_PATH = REPOSITORY_ROOT / "docs" / "09-testing" / "evidence" / "cdi-v2-promotion-manifest.json"
 SHA_PATTERN = re.compile(r"^[0-9a-f]{40}$")
@@ -56,9 +55,9 @@ def validation_errors(manifest: dict[str, Any]) -> list[str]:
                 errors.append(f"invalid or missing SHA: {field}")
 
     pull_requests = manifest.get("pull_requests")
-    if not isinstance(pull_requests, list) or {item.get("number") for item in pull_requests if isinstance(item, dict)} != set(
-        range(89, 104)
-    ):
+    if not isinstance(pull_requests, list) or {
+        item.get("number") for item in pull_requests if isinstance(item, dict)
+    } != set(range(89, 104)):
         errors.append("pull_requests must cover PRs 89 through 103")
 
     path_disposition = manifest.get("path_disposition")
@@ -101,9 +100,7 @@ def test_checked_in_promotion_manifest_is_valid() -> None:
         (lambda value: value["shas"].pop("candidate"), "candidate"),
         (lambda value: value.update(branch="main"), "branch"),
         (
-            lambda value: value["path_disposition"].append(
-                {"path": "app/backend/fix.py", "disposition": "include"}
-            ),
+            lambda value: value["path_disposition"].append({"path": "app/backend/fix.py", "disposition": "include"}),
             "banned generated surface",
         ),
     ],

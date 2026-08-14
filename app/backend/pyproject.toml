@@ -35,7 +35,7 @@ dependencies = [
   "prometheus-client>=0.17.0",
   "prometheus-fastapi-instrumentator>=6.0.0",
   "tenacity>=8.0.0",
-  "setuptools<70.0.0",
+  "setuptools<84.0.0",
   "numpy<2.0.0"
 ]
 

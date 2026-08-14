@@ -107,6 +107,12 @@ Editable source: [graphrag-architecture.excalidraw](docs/architecture/graphrag-a
 >
 > The release lane also enforces `sentinel_independent_review` — *50 sentinel cases approved by two independent reviewers with no unresolved issues*. See [`evaluation/runner.py`](app/backend/src/hospital_ai/evaluation/runner.py) and [`rag_sentinel_v2.jsonl`](app/backend/data/evaluation/rag_sentinel_v2.jsonl).
 
+Run the deterministic source-backed corpus gate with:
+
+```bash
+python app/backend/scripts/run_ai_evaluation.py --components corpus --output-dir app/backend/evaluation-artifacts/source-backed
+```
+
 ![CI/CD Pipeline](docs/architecture/cicd-pipeline.png)
 
 ---

@@ -16,6 +16,7 @@ const { authStateRef, logout, persistToken } = vi.hoisted(() => ({
         is_active: boolean;
       } | null,
       token: null as string | null,
+      demoRole: null as string | null,
       hydrated: true,
       logout: () => undefined,
     },
@@ -53,6 +54,7 @@ function renderCapture() {
 function renderCaptureWithAuthState(initialAuthState: {
   authUser: (typeof authStateRef.current)["authUser"];
   token: string | null;
+  demoRole?: string | null;
   hydrated: boolean;
 }) {
   function AuthStateHarness({ children }: { children: React.ReactNode }) {
@@ -60,11 +62,13 @@ function renderCaptureWithAuthState(initialAuthState: {
 
     authStateRef.current = {
       ...authState,
+      demoRole: authState.demoRole ?? null,
       logout: () => {
         logout();
         setAuthState({
           authUser: null,
           token: null,
+          demoRole: null,
           hydrated: true,
         });
       },
@@ -117,6 +121,7 @@ describe("SessionProvider / useSession", () => {
     authStateRef.current = {
       authUser: null,
       token: null,
+      demoRole: null,
       hydrated: true,
       logout,
     };
@@ -141,6 +146,7 @@ describe("SessionProvider / useSession", () => {
         is_active: true,
       },
       token: "real-jwt",
+      demoRole: null,
       hydrated: true,
       logout,
     };
@@ -180,6 +186,7 @@ describe("SessionProvider / useSession", () => {
         is_active: true,
       },
       token: "admin-jwt",
+      demoRole: null,
       hydrated: true,
       logout,
     };
@@ -212,6 +219,7 @@ describe("SessionProvider / useSession", () => {
         is_active: true,
       },
       token: "plato-jwt",
+      demoRole: null,
       hydrated: true,
       logout,
     };
@@ -246,6 +254,7 @@ describe("SessionProvider / useSession", () => {
         is_active: true,
       },
       token: "ilker-jwt",
+      demoRole: null,
       hydrated: true,
       logout,
     };
@@ -271,6 +280,7 @@ describe("SessionProvider / useSession", () => {
         is_active: true,
       },
       token: "dang-jwt",
+      demoRole: null,
       hydrated: true,
       logout,
     };
@@ -300,6 +310,7 @@ describe("SessionProvider / useSession", () => {
         is_active: true,
       },
       token: "blank-jwt",
+      demoRole: null,
       hydrated: true,
       logout,
     };
@@ -332,6 +343,7 @@ describe("SessionProvider / useSession", () => {
         is_active: true,
       },
       token: "non-letter-jwt",
+      demoRole: null,
       hydrated: true,
       logout,
     };
@@ -553,6 +565,27 @@ describe("SessionProvider / useSession", () => {
 
     expect(restoredUseAuth()).toBe(authStateRef.current);
     expect(restoredPersistToken).toBe(persistToken);
+  });
+
+  it("preserves the selected demo persona when backend identity is shared", async () => {
+    authStateRef.current = {
+      authUser: {
+        id: "demo-user",
+        email: "doctor@example.test",
+        full_name: "Demo Doctor",
+        role: "doctor",
+        is_active: true,
+      },
+      token: "demo-jwt",
+      demoRole: "hospitalist",
+      hydrated: true,
+      logout: () => undefined,
+    };
+
+    renderCapture();
+    await waitFor(() => expect(captured?.session?.role).toBe("hospitalist"));
+    expect(captured?.session?.isRealAuth).toBe(true);
+    expect(captured?.session?.token).toBe("demo-jwt");
   });
 });
 

@@ -8,13 +8,14 @@ and malformed Authorization headers.
 import pytest
 from fastapi import HTTPException, Request, status
 from fastapi.security import HTTPAuthorizationCredentials
+from pydantic import ValidationError
 from sqlalchemy import update
 
 from hospital_ai.api.deps import get_current_user
-from hospital_ai.api.routes.auth import login_for_access_token, me
+from hospital_ai.api.routes.auth import demo_login, demo_status, login_for_access_token, me
 from hospital_ai.db.migrations import DOCTOR_ID
 from hospital_ai.db.models import User
-from hospital_ai.schemas.auth import UserRead
+from hospital_ai.schemas.auth import DemoLoginRequest, UserRead
 
 # ---------------------------------------------------------------------------
 # /me handler
@@ -273,3 +274,122 @@ async def test_get_current_user_malformed_header(session_and_settings):
 
     assert exc_info.value.status_code == status.HTTP_401_UNAUTHORIZED
     assert "Missing bearer token" in exc_info.value.detail
+
+
+# ---------------------------------------------------------------------------
+# Backend-issued demo authentication
+# ---------------------------------------------------------------------------
+
+
+def _demo_settings(settings):
+    settings.demo_jwt_secret = "demo-test-secret-with-at-least-32-bytes"
+    settings.demo_jwt_issuer = "test-demo-issuer"
+    return settings
+
+
+@pytest.mark.asyncio
+async def test_demo_status_requires_demo_mode_and_secret(session_and_settings):
+    _, settings = session_and_settings
+    response = await demo_status(settings=_demo_settings(settings))
+    assert response.enabled is True
+
+    settings.demo_jwt_secret = ""
+    assert (await demo_status(settings=settings)).enabled is False
+
+    settings.demo_jwt_secret = "demo-test-secret-with-at-least-32-bytes"
+    settings.demo_mode = False
+    assert (await demo_status(settings=settings)).enabled is False
+
+
+@pytest.mark.asyncio
+async def test_demo_login_issues_allowlisted_cardiologist_jwt(session_and_settings):
+    import jwt
+
+    session, settings = session_and_settings
+    settings = _demo_settings(settings)
+    response = await demo_login(
+        request=_dummy_request(),
+        payload=DemoLoginRequest(role="cardiologist"),
+        session=session,
+        settings=settings,
+    )
+
+    claims = jwt.decode(
+        response.access_token,
+        settings.demo_jwt_secret,
+        algorithms=["HS256"],
+        issuer=settings.demo_jwt_issuer,
+        options={"verify_aud": False},
+    )
+    assert claims["demo"] is True
+    assert claims["iss"] == settings.demo_jwt_issuer
+    assert claims["email"] == "doctor@example.test"
+    assert claims["role"] == "cardiologist"
+    assert claims["exp"] > claims["iat"]
+    assert response.user.email == "doctor@example.test"
+
+
+@pytest.mark.asyncio
+async def test_demo_login_is_disabled_when_demo_mode_is_false(session_and_settings):
+    session, settings = session_and_settings
+    settings = _demo_settings(settings)
+    settings.demo_mode = False
+
+    with pytest.raises(HTTPException) as exc_info:
+        await demo_login(
+            request=_dummy_request(),
+            payload=DemoLoginRequest(role="admin"),
+            session=session,
+            settings=settings,
+        )
+
+    assert exc_info.value.status_code == status.HTTP_403_FORBIDDEN
+    assert exc_info.value.detail == "Demo authentication is disabled."
+
+
+@pytest.mark.asyncio
+async def test_demo_login_requires_backend_secret(session_and_settings):
+    session, settings = session_and_settings
+    settings.demo_mode = True
+    settings.demo_jwt_secret = ""
+
+    with pytest.raises(HTTPException) as exc_info:
+        await demo_login(
+            request=_dummy_request(),
+            payload=DemoLoginRequest(role="admin"),
+            session=session,
+            settings=settings,
+        )
+
+    assert exc_info.value.status_code == status.HTTP_503_SERVICE_UNAVAILABLE
+    assert exc_info.value.detail == "Demo authentication is unavailable."
+
+
+def test_demo_login_rejects_unknown_role_and_identity_fields():
+    with pytest.raises(ValidationError):
+        DemoLoginRequest(role="unknown")
+
+    with pytest.raises(ValidationError):
+        DemoLoginRequest(role="admin", email="admin@example.test")
+
+
+@pytest.mark.asyncio
+async def test_demo_jwt_resolves_through_current_user_and_is_rejected_when_disabled(session_and_settings):
+    session, settings = session_and_settings
+    settings = _demo_settings(settings)
+    response = await demo_login(
+        request=_dummy_request(),
+        payload=DemoLoginRequest(role="cardiologist"),
+        session=session,
+        settings=settings,
+    )
+    credentials = HTTPAuthorizationCredentials(scheme="Bearer", credentials=response.access_token)
+
+    user = await get_current_user(credentials=credentials, session=session, settings=settings)
+    assert user.email == "doctor@example.test"
+
+    settings.demo_mode = False
+    with pytest.raises(HTTPException) as exc_info:
+        await get_current_user(credentials=credentials, session=session, settings=settings)
+
+    assert exc_info.value.status_code == status.HTTP_401_UNAUTHORIZED

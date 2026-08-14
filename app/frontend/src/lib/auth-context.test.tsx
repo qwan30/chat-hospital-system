@@ -323,4 +323,71 @@ describe("AuthProvider / useAuth", () => {
     // Token should be cleared when verifyToken fails
     expect(captured!.token).toBeNull();
   });
+
+  it("loads demo availability from the backend and fails closed", async () => {
+    mockLocalStorage();
+    mockFetch({
+      ok: true,
+      status: 200,
+      json: () => Promise.resolve({ enabled: true }),
+    });
+
+    renderCapture();
+    await waitFor(() => expect(captured).not.toBeNull());
+    expect(captured!.demoEnabled).toBe(false);
+
+    await expect(captured!.refreshDemoStatus()).resolves.toBe(true);
+    await waitFor(() => expect(captured!.demoEnabled).toBe(true));
+    expect(vi.mocked(fetch)).toHaveBeenCalledWith(
+      expect.stringContaining("/auth/demo/status"),
+      expect.objectContaining({ method: "GET" }),
+    );
+  });
+
+  it("exchanges a selected demo role for a backend token and keeps the persona", async () => {
+    mockLocalStorage();
+    let callCount = 0;
+    mockFetchWith((url) => {
+      callCount++;
+      if (url.endsWith("/auth/demo")) {
+        return Promise.resolve({
+          ok: true,
+          status: 200,
+          json: () => Promise.resolve({ access_token: "demo-jwt", token_type: "bearer" }),
+        });
+      }
+      expect(url).toContain("/auth/me");
+      return Promise.resolve({
+        ok: true,
+        status: 200,
+        json: () =>
+          Promise.resolve({
+            id: "u1",
+            email: "doctor@example.test",
+            full_name: "Demo Doctor",
+            role: "doctor",
+            is_active: true,
+          }),
+      });
+    });
+
+    renderCapture();
+    await waitFor(() => expect(captured).not.toBeNull());
+
+    await expect(captured!.demoLogin("hospitalist")).resolves.toBe(true);
+    expect(callCount).toBe(2);
+    await waitFor(() => {
+      expect(captured!.token).toBe("demo-jwt");
+      expect(captured!.demoRole).toBe("hospitalist");
+      expect(captured!.authUser?.email).toBe("doctor@example.test");
+    });
+    expect(vi.mocked(fetch)).toHaveBeenNthCalledWith(
+      1,
+      expect.stringContaining("/auth/demo"),
+      expect.objectContaining({
+        method: "POST",
+        body: JSON.stringify({ role: "hospitalist" }),
+      }),
+    );
+  });
 });

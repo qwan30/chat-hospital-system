@@ -126,7 +126,7 @@ function buildSession(
 }
 
 export function SessionProvider({ children }: { children: ReactNode }) {
-  const { authUser, token, hydrated: authHydrated, logout } = useAuth();
+  const { authUser, token, demoRole, hydrated: authHydrated, logout } = useAuth();
   const [session, setSession] = useState<Session | null>(null);
   const [hydrated, setHydrated] = useState(false);
 
@@ -136,7 +136,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     if (!authHydrated) return;
 
     if (authUser && token) {
-      const role = mapBackendRole(authUser.role);
+      const role = demoRole ?? mapBackendRole(authUser.role);
       const s = buildSession(role, undefined, true, token, authUser);
       persistToken(token);
       setSession(s);
@@ -161,7 +161,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       }
     }
     setHydrated(true);
-  }, [authHydrated, authUser, token]);
+  }, [authHydrated, authUser, token, demoRole]);
 
   const persist = (s: Session | null) => {
     if (typeof window === "undefined") return;

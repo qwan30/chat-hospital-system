@@ -36,7 +36,7 @@ dependencies = [
   "prometheus-fastapi-instrumentator>=6.0.0",
   "tenacity>=8.0.0",
   "setuptools<70.0.0",
-  "numpy<2.0.0"
+  "numpy<3.0.0"
 ]
 
 [project.optional-dependencies]

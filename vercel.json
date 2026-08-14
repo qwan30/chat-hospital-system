@@ -2,5 +2,8 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "buildCommand": "cd app/frontend && npm run build",
   "outputDirectory": "app/frontend/.vercel/output",
-  "framework": null
+  "framework": null,
+  "env": {
+    "VITE_API_URL": "https://api-chat-hospital.quanmariodev.id.vn/api/v1"
+  }
 }

@@ -11,7 +11,7 @@
 [![Redis](https://img.shields.io/badge/Redis-7-DC382D?style=for-the-badge&logo=redis&logoColor=white)](https://redis.io/)
 [![Docker](https://img.shields.io/badge/Docker-✓-2496ED?style=for-the-badge&logo=docker&logoColor=white)](https://www.docker.com/)
 [![CI/CD](https://img.shields.io/badge/CI%2FCD-Active-2088FF?style=for-the-badge&logo=githubactions&logoColor=white)](https://github.com/qwan30/chat-hospital-system/actions)
-[![Tests](https://img.shields.io/badge/Tests-670%2B_Backend_Passing-22C55E?style=for-the-badge)](https://github.com/qwan30/chat-hospital-system/actions)
+[![Tests](https://img.shields.io/badge/Tests-734_Passed_4_Skipped-22C55E?style=for-the-badge)](https://github.com/qwan30/chat-hospital-system/actions)
 [![AI Eval](https://img.shields.io/badge/AI_Eval-Review_Pending-F59E0B?style=for-the-badge)](app/backend/data/evaluation/rag_sentinel_v2.jsonl)
 [![Release Gate](https://img.shields.io/badge/Release_Gate-Conditional-F59E0B?style=for-the-badge)](app/backend/scripts/run_ai_evaluation.py)
 
@@ -86,7 +86,7 @@ Editable source: [graphrag-architecture.excalidraw](docs/architecture/graphrag-a
 
 | Dimension | Demonstrated Skills |
 |-----------|-------------------|
-| **AI/ML Engineering** | RAG pipeline with citation ID validation, permission-aware vector search, multi-provider LLM/embedding abstraction (Ollama/Gemini), source-backed AI evaluation contracts, centralized prompt registry |
+| **AI/ML Engineering** | RAG pipeline with citation ID validation, permission-aware vector search, chat providers (Stub/Ollama/OpenAI-compatible/Gemini), active embedding providers (Deterministic/Ollama/Gemini), source-backed AI evaluation contracts, centralized prompt registry |
 | **Backend Engineering** | FastAPI async, SQLAlchemy 2.0+asyncpg, pgvector HNSW, Redis/RQ workers, Alembic migrations, immutable upload/revision contracts, API verification, structured JSON logging |
 | **Frontend Engineering** | TanStack Start (Vite 8), React 19, shadcn/ui, Tailwind CSS v4, SSE streaming, Playwright E2E, 90+ routes with RBAC-gated navigation |
 | **DevOps / SRE** | 5 GitHub Actions workflows (CI/CD/Security/Rollback/Dependabot), Docker multi-stage, Trivy+CodeQL scanning, Grafana+Prometheus+Loki+Tempo observability |
@@ -103,7 +103,7 @@ Editable source: [graphrag-architecture.excalidraw](docs/architecture/graphrag-a
 
 ## 🔄 CI/CD Pipeline
 
-> **Current `main` build status (SHA `467dbc3`).** In [CI run `31666780395`](https://github.com/qwan30/chat-hospital-system/actions/runs/31666780395), path detection, observability validation, CodeQL, backend lint/tests/contracts, migrations, and frontend lint/tests/build/E2E passed. The source-backed evaluation failed with repeated NLP extraction errors and no deterministic summary artifact; the Docker image job also failed during the build/Trivy lane. Live-model evaluation was skipped. The release gate therefore remains conditional/NO-GO; this is not release certification.
+> **Recorded `main` build status (SHA `467dbc3`).** In [CI run `31666780395`](https://github.com/qwan30/chat-hospital-system/actions/runs/31666780395), path detection, observability validation, CodeQL, backend lint/tests/contracts, migrations, and frontend lint/tests/build passed. The workflow source currently defers Playwright E2E because no backend service is provided in that job. The source-backed evaluation failed with repeated NLP extraction errors and no deterministic summary artifact; the Docker image job also failed during the build/Trivy lane. Live-model evaluation was skipped. The release gate therefore remains conditional/NO-GO; this is not release certification.
 >
 > The release lane also enforces `sentinel_independent_review` — *50 sentinel cases approved by two independent reviewers with no unresolved issues*. See [`evaluation/runner.py`](app/backend/src/hospital_ai/evaluation/runner.py) and [`rag_sentinel_v2.jsonl`](app/backend/data/evaluation/rag_sentinel_v2.jsonl).
 
@@ -322,7 +322,7 @@ xychart-beta
 | **Database schema** | 19 Alembic migration files, including the CDI V2 foundation migration | ℹ️ Repository inventory; migration execution is environment-specific |
 | **Frontend components** | TanStack/React UI with document upload, review, chat, graph, timeline, audit, and RBAC surfaces | ℹ️ Repository inventory |
 | **Backend test suite** | 670 passed, 3 skipped in the PR #104 validation snapshot | ✅ Core backend CI job passes on `main`; see the current run |
-| **E2E test suites** | 15 Playwright specs; PR #104 recorded 150 passed, 1 skipped against isolated synthetic SQLite | ✅ Frontend lint/test/build/E2E job passes on current `main`; broader release certification remains separate |
+| **E2E test suites** | 15 Playwright specs; a historical PR #104 record reported 150 passed, 1 skipped against isolated synthetic SQLite | 🟠 Current CI source defers browser execution until a backend service is available; historical evidence is not current-SHA certification |
 | **CDI V2 delivery** | Immutable upload/revision foundation is on `main`; stacked follow-ons #91–#103 are not in `main` ancestry | 🟠 Reconcile the remote merged-PR state before claiming generation/evidence/release-lane delivery |
 | **CI/CD workflows** | 5 pipelines (CI, CD, Security, Rollback, Dependabot) | ℹ️ Workflow inventory; check the current GitHub run for status |
 | **Backend coverage** | 73.3% statements (6,117 / 8,059), branch coverage on | ✅ CI gate at `--cov-fail-under=60`. Gaps are concentrated in LLM/embedding providers and document loaders (0%) — they need live services to exercise meaningfully |
@@ -503,7 +503,7 @@ This project is a **portfolio demonstration**, not a certified medical device. T
 | **Session-Only Attachments** | All uploaded files go to the knowledge base — session-only temp files are planned | Add ephemeral document scope that expires with the chat thread |
 | **PDF Graph Export** | PNG and JSON export available — PDF clinical report export is planned | Generate formatted PDF reports from graph data |
 | **Multi-Role Users** | One role per account — multi-role mapping documented as future work | Many-to-many user-role table with role-switching workflow |
-| **LLM Provider** | Requires Ollama or OpenAI API key — no built-in LLM bundled | Support additional providers (Anthropic, Azure OpenAI, local models) |
+| **LLM Provider** | Stub, Ollama, OpenAI-compatible, and Gemini adapters are present; live providers still require configured credentials/service | Support additional providers (Anthropic, Azure OpenAI, local models) |
 | **Data Source** | Uses synthetic/de-identified seed data only | Production deployment requires real HMS integration |
 
 ---

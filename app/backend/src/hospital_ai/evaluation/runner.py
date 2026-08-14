@@ -236,6 +236,7 @@ def _evaluate_observation(
     observation: CaseObservation,
     resolver: SourceEvidenceResolver,
     llm_judge_provider: str = "stub",
+    strict_live_judge: bool = False,
 ) -> CaseResult:
     resolver = resolver.for_case(case)
     allowed_ids = {resolver.evidence_id(locator) for locator in case.allowed_evidence}
@@ -281,7 +282,7 @@ def _evaluate_observation(
 
         verification_terms = tuple(term for fact in case.expected_facts for term in fact.verification_terms)
         context_text = " ".join(fact.statement for fact in case.expected_facts) or case.question
-        judge = LLMJudge(provider=llm_judge_provider)
+        judge = LLMJudge(provider=llm_judge_provider, strict=strict_live_judge)
         score = judge.evaluate(case.question, context_text, observation.answer_text, verification_terms)
         faithfulness = score.faithfulness
         relevance = score.relevance
@@ -388,6 +389,7 @@ async def _evaluate_adapter_case(
     resolver: SourceEvidenceResolver,
     isolation: EvaluatorIsolationConfig,
     llm_judge_provider: str = "stub",
+    strict_live_judge: bool = False,
 ) -> CaseResult:
     resolver = resolver.for_case(case)
     context = EvaluationCaseContext(
@@ -400,7 +402,14 @@ async def _evaluate_adapter_case(
         observation = await pending if inspect.isawaitable(pending) else pending
         if not isinstance(observation, CaseObservation):
             raise TypeError("adapter must return CaseObservation")
-        return _evaluate_observation(case, component, observation, resolver, llm_judge_provider=llm_judge_provider)
+        return _evaluate_observation(
+            case,
+            component,
+            observation,
+            resolver,
+            llm_judge_provider=llm_judge_provider,
+            strict_live_judge=strict_live_judge,
+        )
     except Exception as error:  # Adapter failures are evidence, never a passing fallback.
         gate = _gate(
             "evaluation_adapter_execution",
@@ -425,6 +434,7 @@ async def _evaluate_adapter_cases(
     resolver: SourceEvidenceResolver,
     isolation: EvaluatorIsolationConfig,
     llm_judge_provider: str = "stub",
+    strict_live_judge: bool = False,
 ) -> tuple[CaseResult, ...]:
     """Run adapter cases serially on one loop to bound local DB and memory use."""
 
@@ -432,7 +442,13 @@ async def _evaluate_adapter_cases(
     for case in cases:
         results.append(
             await _evaluate_adapter_case(
-                adapter, case, component, resolver, isolation, llm_judge_provider=llm_judge_provider
+                adapter,
+                case,
+                component,
+                resolver,
+                isolation,
+                llm_judge_provider=llm_judge_provider,
+                strict_live_judge=strict_live_judge,
             )
         )
     return tuple(results)
@@ -615,7 +631,13 @@ async def run_evaluation_async(
                 component_cases = tuple(case for case in selected if case.graph is not None)
                 gates.append(_graph_case_coverage_gate(component_cases))
             evaluated = await _evaluate_adapter_cases(
-                adapter, component_cases, component, resolver, isolation, llm_judge_provider=config.llm_judge_provider
+                adapter,
+                component_cases,
+                component,
+                resolver,
+                isolation,
+                llm_judge_provider=config.llm_judge_provider,
+                strict_live_judge=config.lane == "live",
             )
             results.extend(evaluated)
             gates.extend(gate for result in evaluated for gate in result.gates)

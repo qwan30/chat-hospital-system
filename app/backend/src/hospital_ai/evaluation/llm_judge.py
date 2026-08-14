@@ -1,4 +1,4 @@
-"""Gemini and Local LLM Judge engine with API Key Rotation for Chat Evaluation Harness."""
+"""LLM judge engine for deterministic, Gemini, local, and OpenAI-compatible lanes."""
 
 from __future__ import annotations
 
@@ -22,6 +22,11 @@ def _load_env_gemini_keys() -> list[str]:
     return keys
 
 
+def _load_env_openai_key() -> list[str]:
+    key = os.getenv("AI_EVAL_API_KEY") or os.getenv("HOSPITAL_AI_OPENAI_API_KEY")
+    return [key] if key else []
+
+
 class LLMJudgeScore(BaseModel):
     """Evaluation output score from LLM Judge."""
 
@@ -31,7 +36,7 @@ class LLMJudgeScore(BaseModel):
 
 
 class LLMJudge:
-    """LLM Judge evaluator supporting Gemini, Local Ollama, and Stub modes."""
+    """LLM Judge evaluator supporting Gemini, OpenAI-compatible, local, and Stub modes."""
 
     def __init__(
         self,
@@ -39,16 +44,24 @@ class LLMJudge:
         api_keys: Sequence[str] | None = None,
         model: str = "gemini-2.0-flash",
         base_url: str | None = None,
+        strict: bool = False,
     ) -> None:
         self.provider = provider.lower()
         self.model = model
-        self.base_url = base_url or "http://localhost:11434"
+        self.strict = strict
+        if self.provider == "openai" and model == "gemini-2.0-flash":
+            self.model = os.getenv("AI_EVAL_MODEL") or "gpt-4o-mini"
+        self.base_url = base_url or (
+            os.getenv("AI_EVAL_BASE_URL") or os.getenv("HOSPITAL_AI_OPENAI_BASE_URL") or "https://api.openai.com/v1"
+            if self.provider == "openai"
+            else "http://localhost:11434"
+        )
 
         # Assemble API key pool for Gemini
         if api_keys is not None:
             self.api_keys = list(api_keys)
         else:
-            self.api_keys = _load_env_gemini_keys()
+            self.api_keys = _load_env_openai_key() if self.provider == "openai" else _load_env_gemini_keys()
 
         self._key_index = 0
 
@@ -76,12 +89,21 @@ class LLMJudge:
         redacted_question = redact_patient_phi(question)
 
         # 2. Stub or fallback provider
-        if self.provider == "stub" or not self.api_keys:
+        if self.provider == "stub":
+            return self._evaluate_stub(redacted_question, redacted_context, answer, verification_terms)
+
+        if not self.api_keys:
+            if self.provider == "openai" and self.strict:
+                raise RuntimeError("OpenAI-compatible live judge credentials are missing")
             return self._evaluate_stub(redacted_question, redacted_context, answer, verification_terms)
 
         # 3. Gemini provider with key rotation
         if self.provider == "gemini":
             return self._evaluate_gemini(redacted_question, redacted_context, answer, verification_terms)
+
+        # OpenAI-compatible endpoints (including an explicitly selected DeepSeek endpoint).
+        if self.provider == "openai":
+            return self._evaluate_openai(redacted_question, redacted_context, answer, verification_terms)
 
         # 4. Local provider (Ollama or local OpenAI-compatible endpoint)
         if self.provider == "local":
@@ -175,6 +197,51 @@ class LLMJudge:
 
         # Fallback if all Gemini API attempts failed
         return self._evaluate_stub(question, context, answer, verification_terms)
+
+    def _evaluate_openai(
+        self,
+        question: str,
+        context: str,
+        answer: str,
+        verification_terms: tuple[str, ...],
+    ) -> LLMJudgeScore:
+        """Evaluate through an explicitly configured OpenAI-compatible endpoint."""
+        prompt = self._build_judge_prompt(question, context, answer)
+        url = f"{self.base_url.rstrip('/')}/chat/completions"
+        payload = {
+            "model": self.model,
+            "messages": [{"role": "user", "content": prompt}],
+            "temperature": 0.0,
+            "stream": False,
+        }
+
+        try:
+            with httpx.Client(timeout=30) as client:
+                response = client.post(
+                    url,
+                    json=payload,
+                    headers={"Authorization": f"Bearer {self._get_current_key()}"},
+                )
+                response.raise_for_status()
+            content = response.json().get("choices", [{}])[0].get("message", {}).get("content", "")
+            score = self._parse_json_score(content)
+            if score is not None:
+                return score
+        except (httpx.HTTPError, ValueError, KeyError, IndexError, TypeError) as error:
+            if self.strict:
+                raise RuntimeError("OpenAI-compatible live judge request failed") from error
+
+        if self.strict:
+            raise RuntimeError("OpenAI-compatible live judge returned invalid JSON")
+        return self._evaluate_stub(question, context, answer, verification_terms)
+
+    @staticmethod
+    def _build_judge_prompt(question: str, context: str, answer: str) -> str:
+        return (
+            "You are a strict medical AI evaluation judge. Evaluate the answer only against the supplied context.\n\n"
+            f"Question:\n{question}\n\nContext:\n{context}\n\nAnswer:\n{answer}\n\n"
+            "Return ONLY JSON with faithfulness (0.0-1.0), relevance (0.0-1.0), and reasoning."
+        )
 
     def _evaluate_local(
         self,

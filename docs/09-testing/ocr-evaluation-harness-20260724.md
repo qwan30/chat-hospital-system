@@ -1,5 +1,7 @@
 # OCR Evaluation Harness Summary
 
+> **Historical/fixture-only warning:** The zero-error and zero-latency values below are archived harness output and must not be reported as production OCR accuracy. The current evaluator distinguishes native text, mock OCR, and real PaddleOCR execution; image OCR remains `NOT RUN`/`UNAVAILABLE` until a non-mock engine artifact is produced on an exact SHA.
+
 - **Gold Pages Evaluated:** 5
 - **Total Scan Variants:** 10
 - **Overall CER:** 0.0000

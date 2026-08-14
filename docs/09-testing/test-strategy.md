@@ -1,6 +1,8 @@
 # Test Strategy
 
 > Project: HOSP-AI-001 · Version: 1.0 · Owner: QA Lead · Last Updated: 2026-06-14  
+>
+> **Current-source note (2026-08-14):** This is a historical strategy baseline. The repository uses Python venv + `python -m pytest`, Bun/Vitest, and `bunx playwright`; CI enforces backend coverage at 60%, not this document's 80% target. Playwright is currently deferred in CI because no backend service is provided. See [`full-project-automation-plan-2026-08-14.md`](full-project-automation-plan-2026-08-14.md) for current evidence status.
 
 ## 1. Test Pyramid
 
@@ -28,9 +30,9 @@
 
 ```bash
 cd app/backend
-poetry run pytest                    # All tests
-poetry run pytest --cov=src/hospital_ai  # Coverage
-poetry run pytest -m "not slow"      # Skip slow tests
+    python -m pytest tests/                    # All tests
+    python -m pytest tests/ --cov=hospital_ai  # Coverage
+    python -m pytest tests/ -m "not slow"      # Skip slow tests
 ```
 
 Conventions: `test_<module>.py` · `test_<what>_<expected>()` · fixtures in `conftest.py` · async via `pytest-asyncio` · mock external services
@@ -39,8 +41,8 @@ Conventions: `test_<module>.py` · `test_<what>_<expected>()` · fixtures in `co
 
 ```bash
 cd app/frontend
-npm test                    # Unit + component tests
-npm test -- --coverage      # With coverage
+bun run test -- --run                    # Unit + component tests
+bun run test -- --run --coverage         # With coverage
 ```
 
 Conventions: `__tests__/<path>/*.test.tsx` · React Testing Library · user-event for interactions · mock API client
@@ -49,8 +51,8 @@ Conventions: `__tests__/<path>/*.test.tsx` · React Testing Library · user-even
 
 ```bash
 cd app/frontend
-npx playwright test         # All E2E
-npx playwright test --ui    # Interactive mode
+bunx playwright test         # All E2E
+bunx playwright test --ui    # Interactive mode
 ```
 
 5 critical journeys: Login→Dashboard→Patient · Chat→Cited Answer · Document Upload→Index · Access Request→Approval · Audit→Filter→Details
@@ -59,7 +61,7 @@ npx playwright test --ui    # Interactive mode
 
 ```bash
 cd app/backend
-poetry run python scripts/run_rag_eval.py
+python scripts/run_rag_eval.py
 ```
 
 Tracks: citation accuracy, safe refusal rate, evidence threshold, retrieval precision@k
@@ -70,7 +72,7 @@ Tracks: citation accuracy, safe refusal rate, evidence threshold, retrieval prec
 Lint → Typecheck → Unit → Build → Integration → E2E (smoke) → Security Scan
 ```
 
-PR blocked: lint/typecheck fail, unit fail, coverage <80%. Nightly: full E2E + RAG eval. Release gate: all green.
+PR blocked by the checks defined in `.github/workflows/ci.yml`; the current backend coverage gate is `--cov-fail-under=60`. Docs-only changes can be excluded by workflow path filters, frontend E2E is deferred without a backend service, and release evaluation has separate sentinel/review gates. Do not treat this historical strategy as a current full-green guarantee.
 
 ## Change Log
 | Version | Date | Author | Change |

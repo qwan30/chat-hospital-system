@@ -1,5 +1,7 @@
 # Chat Evaluation Harness & 300-Case Clinical Benchmark Report
 
+> **Historical report warning:** This report is bound to the SHA and environment below. It is not current-checkout execution evidence. The checked-in backend currently pins Pydantic `<2`; the privacy redactor masks known patterns only and must not be described as a universal HIPAA guarantee. Current source-backed status is tracked in [`full-project-automation-plan-2026-08-14.md`](full-project-automation-plan-2026-08-14.md).
+
 **Date:** July 24, 2026  
 **Dataset:** `rag_benchmark_v2.jsonl` (300 Clinical Benchmark Cases)  
 **Corpus:** `corpus_manifest_v2.json`  

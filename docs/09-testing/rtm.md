@@ -57,7 +57,7 @@ The following maps each E2E real-user interaction test suite to the business req
 | **error-flow** | 5 | NFR-SEC-003 (Rate Limit), NFR-REL-001 (Reliability) | TC-038, TC-039, TC-040 |
 | **Total** | **56** | **12 functional + 2 non-functional requirements** | **14 test cases** |
 
-> **Status (2026-06-15)**: All 56 E2E tests pass at 100%. Tests run in CI via `npx playwright test e2e/flows/ --workers=1`.
+> **Historical status (2026-06-15)**: The archived report recorded 56 E2E tests passing via `npx playwright test e2e/flows/ --workers=1`. This is not current-SHA CI evidence; the checked-in workflow currently defers Playwright until a backend service is available. Current command is `bun run test:e2e`.
 
 ---
 

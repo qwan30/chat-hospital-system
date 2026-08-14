@@ -21,7 +21,7 @@ python -m pip install -e ".[postgres]"
 Install lint tooling separately on a standard CPython environment:
 
 ```bash
-python -m pip install -e ".[lint]"
+python -m pip install -e ".[dev]"
 ```
 
 ```bash
@@ -50,7 +50,7 @@ docker compose up -d postgres redis
 
 The default `.env.example` uses deterministic embeddings and a stub chat client so unit tests and local smoke checks do not require Ollama. Set `HOSPITAL_AI_EMBEDDING_PROVIDER=ollama` and `HOSPITAL_AI_CHAT_PROVIDER=ollama` to use local Ollama APIs.
 
-The frontend runs on a separate Next.js origin during local UAT. Keep `HOSPITAL_AI_CORS_ORIGINS` limited to explicit development origins such as `http://localhost:3000` and the fallback `http://localhost:3001`; do not replace it with a wildcard for PHI-bearing environments.
+The frontend is a TanStack Start/Vite app served on `http://localhost:8082` during local development. Keep `HOSPITAL_AI_CORS_ORIGINS` limited to explicit development origins such as `http://localhost:8082`, `http://localhost:3000`, and the fallback `http://localhost:3001`; do not replace it with a wildcard for PHI-bearing environments.
 
 ## Development Auth
 

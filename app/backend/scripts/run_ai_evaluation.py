@@ -84,7 +84,11 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--data-root", type=Path, default=DEFAULT_DATA_ROOT)
     parser.add_argument("--benchmark-dir", type=Path, default=DEFAULT_BENCHMARK_DIR)
     parser.add_argument("--retrieval-mode", choices=("vector", "bm25", "hybrid", "graph"), default="vector")
-    parser.add_argument("--llm-judge-provider", choices=("gemini", "local", "stub"), default="stub")
+    parser.add_argument(
+        "--llm-judge-provider",
+        choices=("gemini", "openai", "local", "stub"),
+        default=os.getenv("AI_EVAL_JUDGE_PROVIDER", os.getenv("AI_EVAL_PROVIDER", "stub")),
+    )
     try:
         args = parser.parse_args(argv)
         components = _parse_components(args.components)

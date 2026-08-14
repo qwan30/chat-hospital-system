@@ -48,8 +48,8 @@ Hospitals using EMR/HMS systems face significant time penalties when clinicians 
 | Alembic migrations | 6 |
 | Frontend pages | 14 App Router pages |
 | UI components | 30+ shadcn/ui primitives + 60+ feature components |
-| LLM providers | 3 (Stub, Ollama, OpenAI-compatible) |
-| Embedding providers | 3 (Deterministic, Ollama, OpenAI) |
+| LLM providers | 4 (Stub, Ollama, OpenAI-compatible, Gemini) |
+| Embedding providers | 3 (Deterministic, Ollama, Gemini) |
 | Reasoning pipelines | 3 (Simple QA, Decompose QA, Patient Summary) |
 
 ---

@@ -1,5 +1,7 @@
 # Graph RAG & Chat QA Report
 
+> **Historical report warning:** Verdict and pass counts below are tied to the recorded date/environment. Current CI defers Playwright without a backend service, so this report is not current-SHA browser certification. Use the full-project automation matrix for current status.
+
 **Test date:** 2026-07-16  
 **Environment:** Local isolated worktree, Python 3.12, Bun 1.3.13, synthetic/de-identified seed data only  
 **Scope:** Graph RAG, non-stream chat, SSE chat, and browser chat/graph controls  

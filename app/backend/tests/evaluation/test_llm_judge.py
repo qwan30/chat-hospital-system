@@ -2,6 +2,9 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock, patch
 
+import httpx
+import pytest
+
 from hospital_ai.evaluation.llm_judge import LLMJudge, LLMJudgeScore
 
 
@@ -90,3 +93,63 @@ def test_llm_judge_key_rotation_on_429():
         assert keys[0] in mock_post.call_args_list[0][0][0]
         # Second call used keys[1]
         assert keys[1] in mock_post.call_args_list[1][0][0]
+
+
+def test_llm_judge_openai_compatible_provider_uses_explicit_endpoint():
+    judge = LLMJudge(
+        provider="openai",
+        api_keys=["DUMMY_DEEPSEEK_KEY"],
+        model="deepseek-chat",
+        base_url="https://api.deepseek.com/v1",
+    )
+    response = MagicMock()
+    response.status_code = 200
+    response.json.return_value = {
+        "choices": [{"message": {"content": '{"faithfulness": 0.91, "relevance": 0.88, "reasoning": "Supported"}'}}]
+    }
+
+    with patch("httpx.Client.post", return_value=response) as mock_post:
+        score = judge.evaluate(
+            question="What is documented?",
+            context="The synthetic record documents penicillin allergy.",
+            answer="The record documents penicillin allergy.",
+        )
+
+    assert score.faithfulness == 0.91
+    assert score.relevance == 0.88
+    request_url = mock_post.call_args.args[0]
+    request_headers = mock_post.call_args.kwargs["headers"]
+    assert request_url == "https://api.deepseek.com/v1/chat/completions"
+    assert request_headers == {"Authorization": "Bearer DUMMY_DEEPSEEK_KEY"}
+
+
+def test_llm_judge_openai_without_key_fails_strict_live_lane():
+    judge = LLMJudge(provider="openai", api_keys=[], model="deepseek-chat", strict=True)
+
+    with pytest.raises(RuntimeError, match="credentials are missing"):
+        judge.evaluate(
+            question="What is documented?",
+            context="The synthetic record documents penicillin allergy.",
+            answer="The record documents penicillin allergy.",
+            verification_terms=("penicillin",),
+        )
+
+
+def test_llm_judge_openai_provider_error_does_not_fallback_in_strict_lane():
+    judge = LLMJudge(
+        provider="openai",
+        api_keys=["DUMMY_DEEPSEEK_KEY"],
+        model="deepseek-chat",
+        base_url="https://api.deepseek.com/v1",
+        strict=True,
+    )
+    response = MagicMock()
+    response.raise_for_status.side_effect = httpx.HTTPError("synthetic provider failure")
+
+    with patch("httpx.Client.post", return_value=response):
+        with pytest.raises(RuntimeError, match="request failed"):
+            judge.evaluate(
+                question="What is documented?",
+                context="Synthetic context.",
+                answer="Synthetic answer.",
+            )

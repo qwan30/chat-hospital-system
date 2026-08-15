@@ -47,10 +47,10 @@ export function MarkdownRenderer({
   citations,
   evidenceById,
 }: MarkdownRendererProps) {
-  const sanitized = content
-    .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, "")
-    .replace(/<iframe\b[^<]*(?:(?!<\/iframe>)<[^<]*)*<\/iframe>/gi, "")
-    .replace(/<[^>]+>/g, "");
+  // React renders this value as a text child, so markup is escaped instead of
+  // being interpreted by the browser. Regex-based HTML sanitization is
+  // incomplete for malformed and nested markup and must not be used here.
+  const sanitized = content;
 
   const parts = sanitized.split(/(\[[a-zA-Z0-9_-]+\])/g);
 

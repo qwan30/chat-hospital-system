@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 from typing import TYPE_CHECKING
 from xml.etree import ElementTree
@@ -82,8 +83,12 @@ def _summary(run: EvaluationRun) -> str:
 
 def write_run_artifacts(run: EvaluationRun, output_dir: Path) -> None:
     output_dir.mkdir(parents=True, exist_ok=True)
-    (output_dir / "run.json").write_text(run.manifest.json(indent=2, sort_keys=True) + "\n", encoding="utf-8")
-    cases = "".join(result.json(separators=(",", ":"), sort_keys=True) + "\n" for result in run.cases)
+    (output_dir / "run.json").write_text(
+        json.dumps(run.manifest.model_dump(mode="json"), indent=2, sort_keys=True) + "\n", encoding="utf-8"
+    )
+    cases = "".join(
+        json.dumps(result.model_dump(mode="json"), separators=(",", ":"), sort_keys=True) + "\n" for result in run.cases
+    )
     (output_dir / "cases.jsonl").write_text(cases, encoding="utf-8")
     (output_dir / "junit.xml").write_text(_junit(run), encoding="utf-8")
     (output_dir / "summary.md").write_text(_summary(run), encoding="utf-8")

@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import importlib.util
 from pathlib import Path
 
@@ -78,7 +80,7 @@ def test_locator_serializes_and_contracts_reject_public_patient_identity():
 
 def test_contracts_are_immutable_and_reject_noncanonical_hashes():
     manifest = CorpusManifestV2()
-    with pytest.raises(TypeError):
+    with pytest.raises(ValidationError):
         manifest.corpus_version = "changed"
 
     with pytest.raises(ValidationError):

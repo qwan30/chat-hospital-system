@@ -7,7 +7,7 @@ import re
 import uuid
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, BinaryIO, Protocol
+from typing import Any, BinaryIO, Optional, Protocol
 from urllib.parse import urlsplit
 
 import boto3
@@ -174,6 +174,18 @@ class LocalStorageService:
             required_headers={"Content-Type": content_type, "If-None-Match": "*"},
         )
 
+    def put_object(self, *, key: str, content: bytes) -> None:
+        validated_key = _validated_local_storage_key(key)
+        root = os.path.realpath(os.fspath(self.root))
+        target = os.path.realpath(os.path.join(root, validated_key))
+        if target != root and not target.startswith(root + os.sep):
+            raise ValueError("Storage URI points outside the configured local storage root.")
+
+        target_path = Path(target)
+        target_path.parent.mkdir(parents=True, exist_ok=True)
+        with target_path.open("xb") as output:
+            output.write(content)
+
     def head_object(self, key: str) -> StorageObjectHead:
         validated_key = _validated_local_storage_key(key)
         root = os.path.realpath(os.fspath(self.root))
@@ -202,7 +214,7 @@ class LocalStorageService:
 
 
 class R2StorageService:
-    def __init__(self, settings: Settings, *, client: Any | None = None) -> None:
+    def __init__(self, settings: Settings, *, client: Optional[Any] = None) -> None:
         self.settings = settings
         missing = [
             name
@@ -300,6 +312,7 @@ class R2StorageService:
         return self.read_bytes(_r2_uri(_page_key(patient_id, document_id, page_number)))
 
     def create_presigned_put(self, *, key: str, content_type: str, expires_seconds: int) -> PresignedPut:
+        validate_storage_object_key(key)
         url = self.client.generate_presigned_url(
             "put_object",
             Params={"Bucket": self.bucket, "Key": key, "ContentType": content_type},
@@ -311,6 +324,7 @@ class R2StorageService:
         )
 
     def head_object(self, key: str) -> StorageObjectHead:
+        validate_storage_object_key(key)
         try:
             row = self.client.head_object(Bucket=self.bucket, Key=key)
             return StorageObjectHead(
@@ -323,6 +337,7 @@ class R2StorageService:
             raise
 
     def read_stream(self, key: str) -> BinaryIO:
+        validate_storage_object_key(key)
         try:
             response = self.client.get_object(Bucket=self.bucket, Key=key)
             body = response["Body"]
@@ -334,6 +349,7 @@ class R2StorageService:
             raise
 
     def delete_object(self, key: str) -> None:
+        validate_storage_object_key(key)
         self.client.delete_object(Bucket=self.bucket, Key=key)
 
 
@@ -343,16 +359,7 @@ def parse_r2_uri(storage_uri: str) -> str:
         raise ValueError("Storage URI must be an r2:// URI without query or fragment.")
 
     key = f"{parsed.netloc}{parsed.path}"
-    parts = key.split("/")
-    if (
-        not key
-        or key.startswith(("/", "\\"))
-        or "\\" in key
-        or any(not part or part in {".", ".."} for part in parts)
-        or any(ord(char) < 32 for char in key)
-    ):
-        raise ValueError("R2 storage URI contains an unsafe object key.")
-    return key
+    return validate_storage_object_key(key, allowed_prefixes=("source/", "patients/"))
 
 
 def validate_storage_object_key(key: str, *, allowed_prefixes: tuple[str, ...] = ()) -> str:

@@ -1,4 +1,5 @@
-import { apiFetch, apiFetchBlob } from "../api-client";
+import { apiFetch, apiFetchBlob, getStoredApiUrl, getToken } from "../api-client";
+import { mutationHeaders } from "../idempotency";
 
 export interface DocumentRead {
   id: string;
@@ -56,7 +57,7 @@ export interface EvidenceRead {
   chunk_id: string;
   score: number;
   content: string | null;
-  metadata: Record<string, any>;
+  metadata: Record<string, unknown>;
 }
 
 export interface DocumentSearchResponse {
@@ -94,9 +95,13 @@ export const getDocumentPage = async (
   return apiFetch<DocumentPageRead>(`/documents/${documentId}/pages/${pageNumber}`);
 };
 
-export const retryIndex = async (id: string): Promise<DocumentRead> => {
+export const retryIndex = async (
+  id: string,
+  options: { idempotencyKey: string; lockVersion?: number },
+): Promise<DocumentRead> => {
   return apiFetch<DocumentRead>(`/documents/${id}/retry-index`, {
     method: "POST",
+    headers: mutationHeaders(options),
   });
 };
 
@@ -149,6 +154,7 @@ export interface ClinicalFactRead {
   source_page: number | null;
   bounding_box: { top: number; left: number; width: number; height: number } | null;
   status: string;
+  page_revision_id?: string;
 }
 
 export interface DocumentFactsResponse {
@@ -182,10 +188,11 @@ export const getDocumentReviewItems = async (
 
 export interface ReviewItemPatchRequest {
   action: "approve" | "reject" | "correct";
-  value?: any;
+  value?: unknown;
   reason: string;
-  version: number;
+  version?: number;
   fact_type?: string;
+  page_revision_id: string;
 }
 
 export interface ReviewItemPatchResponse {
@@ -197,12 +204,126 @@ export const patchReviewItem = async (
   documentId: string,
   reviewItemId: string,
   payload: ReviewItemPatchRequest,
+  options: { idempotencyKey: string; lockVersion?: number },
 ): Promise<ReviewItemPatchResponse> => {
   return apiFetch<ReviewItemPatchResponse>(
     `/documents/${documentId}/review-items/${reviewItemId}`,
     {
       method: "PATCH",
+      headers: mutationHeaders(options),
       body: JSON.stringify(payload),
     },
   );
 };
+
+export interface UploadSessionCreate {
+  patient_id: string;
+  title?: string;
+  document_type?: string;
+  filename: string;
+  expected_size: number;
+  expected_sha256: string;
+  claimed_mime_type: string;
+}
+
+export interface UploadSessionRead {
+  document_id: string;
+  upload_id: string;
+  object_key: string;
+  presigned_url: string | null;
+  required_headers: Record<string, string>;
+  state: string;
+}
+
+export interface UploadFinalizeResult {
+  id: string;
+  document_id: string;
+  state: string;
+  reason?: string;
+}
+
+export const createUploadSession = async (
+  payload: UploadSessionCreate,
+  options: { idempotencyKey: string; lockVersion?: number },
+): Promise<UploadSessionRead> => {
+  return apiFetch<UploadSessionRead>("/documents/upload-sessions", {
+    method: "POST",
+    headers: mutationHeaders(options),
+    body: JSON.stringify(payload),
+  });
+};
+
+export const finalizeUpload = async (
+  documentId: string,
+  uploadId: string,
+  options?: { idempotencyKey?: string },
+): Promise<UploadFinalizeResult> => {
+  return apiFetch<UploadFinalizeResult>(`/documents/${documentId}/uploads/${uploadId}/finalize`, {
+    method: "POST",
+    headers: options?.idempotencyKey ? { "Idempotency-Key": options.idempotencyKey } : undefined,
+  });
+};
+
+export class ApiError extends Error {
+  constructor(
+    public status: number,
+    message: string,
+  ) {
+    super(message);
+    this.name = "ApiError";
+  }
+}
+
+function localUploadUrl(objectKey: string): string {
+  const encodedKey = objectKey.split("/").map(encodeURIComponent).join("/");
+  return `${getStoredApiUrl()}/documents/upload-objects/${encodedKey}`;
+}
+
+export function putPresignedObject(
+  upload: UploadSessionRead & { upload_url?: string }, // Handle both presigned_url and upload_url if there's inconsistency
+  file: File,
+  onProgress: (percent: number) => void,
+): Promise<void> {
+  return new Promise((resolve, reject) => {
+    if (upload.required_headers?.["If-None-Match"] !== "*") {
+      reject(new Error("Upload contract must require If-None-Match: *"));
+      return;
+    }
+
+    const xhr = new XMLHttpRequest();
+    const isLocalUpload = upload.presigned_url?.startsWith("local://") === true;
+    const url = isLocalUpload
+      ? localUploadUrl(upload.object_key)
+      : upload.presigned_url || upload.upload_url;
+    if (!url) return reject(new Error("No upload URL provided"));
+
+    xhr.open("PUT", url, true);
+    if (isLocalUpload) {
+      const token = getToken();
+      if (token) xhr.setRequestHeader("Authorization", `Bearer ${token}`);
+    }
+    for (const [name, value] of Object.entries(upload.required_headers || {})) {
+      xhr.setRequestHeader(name, value);
+    }
+
+    xhr.upload.onprogress = ({ loaded, total }) => {
+      if (total > 0) onProgress(Math.round((loaded / total) * 100));
+    };
+
+    xhr.onload = () => {
+      if (xhr.status >= 200 && xhr.status < 300) {
+        resolve();
+      } else {
+        reject(
+          new ApiError(
+            xhr.status,
+            xhr.status === 412 ? "Immutable object key already exists" : "Object upload failed",
+          ),
+        );
+      }
+    };
+
+    xhr.onerror = () => reject(new ApiError(0, "Object upload failed"));
+    xhr.send(file);
+  });
+}

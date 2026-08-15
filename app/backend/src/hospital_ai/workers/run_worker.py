@@ -2,13 +2,14 @@ from __future__ import annotations
 
 import argparse
 from collections.abc import Sequence
+from typing import Optional
 
 from redis import Redis
 from rq import Queue, Worker
 
 from hospital_ai.core.config import Settings, get_settings
 
-WORKER_QUEUE_NAMES = ("document-indexing", "cdss-analysis")
+WORKER_QUEUE_NAMES = ("document-indexing", "cdss-analysis", "document-generation-build")
 
 
 def build_worker(settings: Settings) -> Worker:
@@ -22,7 +23,7 @@ def build_worker(settings: Settings) -> Worker:
     return Worker(queues, connection=connection)
 
 
-def main(argv: Sequence[str] | None = None) -> None:
+def main(argv: Optional[Sequence[str]] = None) -> None:
     parser = argparse.ArgumentParser(description="Run Hospital AI background workers.")
     parser.add_argument(
         "--burst",

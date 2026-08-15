@@ -11,6 +11,8 @@ Architecture principle (Clean Architecture / Dependency Rule):
     (api/) catches them and decides how to present them to clients.
 """
 
+from __future__ import annotations
+
 from typing import Any, Optional
 
 

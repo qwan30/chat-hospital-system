@@ -13,10 +13,16 @@ vi.mock("@/lib/utils", () => ({
   cn: (...args: unknown[]) => args.filter(Boolean).join(" "),
 }));
 
-vi.mock("lucide-react", () => ({
-  Sparkles: () => null,
-  User: () => null,
-}));
+vi.mock("lucide-react", async (importOriginal) => {
+  const actual = (await importOriginal()) as Record<string, unknown>;
+  return {
+    ...actual,
+    Sparkles: () => null,
+    User: () => null,
+    Network: () => null,
+    ArrowRight: () => null,
+  };
+});
 
 vi.mock("./CitationChip", async () => {
   const React = await import("react");
@@ -24,16 +30,19 @@ vi.mock("./CitationChip", async () => {
     CitationChip: ({
       n,
       sourceId,
+      evidence,
       className,
     }: {
-      n: number;
-      sourceId: string;
+      n?: number;
+      sourceId?: string;
+      evidence?: { n?: number; sourceId?: string; id?: string; document_id?: string };
       className?: string;
     }) =>
       React.createElement("span", {
         "data-testid": "citation-chip",
-        "data-n": String(n),
-        "data-sourceid": sourceId,
+        "data-n": String(n ?? evidence?.n ?? 1),
+        "data-sourceid":
+          sourceId ?? evidence?.sourceId ?? evidence?.document_id ?? evidence?.id ?? "",
         className,
       }),
   };
@@ -42,8 +51,9 @@ vi.mock("./CitationChip", async () => {
 // ---------------------------------------------------------------------------
 // SUT
 // ---------------------------------------------------------------------------
-import { ChatMessage } from "./ChatMessage";
+import { ChatMessage, MarkdownRenderer } from "./ChatMessage";
 import type { ChatMessageData } from "./ChatMessage";
+import { GraphExplanationPanel } from "./GraphExplanationPanel";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -123,5 +133,83 @@ describe("ChatMessage", () => {
     const extra: ReactNode = <button type="button">Extra Action</button>;
     render(<ChatMessage msg={msg({ role: "assistant", content: "Result", extra })} />);
     expect(screen.getByRole("button", { name: "Extra Action" })).toBeInTheDocument();
+  });
+});
+
+describe("MarkdownRenderer & GraphExplanationPanel in ChatMessage", () => {
+  it("sanitizes Assistant Markdown and disables executable HTML", () => {
+    const unsafeContent = `Hello <script>alert("XSS")</script><img src="x" onerror="alert('XSS')">**bold text**`;
+    render(
+      <MarkdownRenderer
+        content={unsafeContent}
+        allowHtml={false}
+        allowedProtocols={["http", "https"]}
+      />,
+    );
+
+    expect(screen.getByText(/bold text/)).toBeInTheDocument();
+    expect(document.querySelector("script")).toBeNull();
+    const imgs = document.querySelectorAll("img");
+    imgs.forEach((img) => expect(img.getAttribute("onerror")).toBeNull());
+  });
+
+  it("UI displays 'validated sentence streaming' and never raw token streaming when streaming status or mode is active", () => {
+    render(
+      <ChatMessage
+        msg={msg({
+          role: "assistant",
+          content: "Generating answer...",
+          streamingMode: "validated_sentence_streaming",
+          isStreaming: true,
+        })}
+      />,
+    );
+    expect(screen.getByText(/validated sentence streaming/i)).toBeInTheDocument();
+    expect(screen.queryByText(/token streaming/i)).not.toBeInTheDocument();
+  });
+
+  it("renders safe Markdown and graph explanation separately in ChatMessage", () => {
+    const explanationData = {
+      summary: "Knowledge graph inference path traversed 3 clinical relationships.",
+      paths: [
+        { from: "Aspirin", relation: "contraindicates", to: "Gastric Ulcer", confidence: 0.94 },
+      ],
+    };
+
+    render(
+      <ChatMessage
+        msg={msg({
+          role: "assistant",
+          content: "Based on patient EHR, Aspirin should be avoided.",
+          graphExplanation: explanationData,
+        })}
+      />,
+    );
+
+    expect(
+      screen.getByText("Based on patient EHR, Aspirin should be avoided."),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(/Knowledge graph inference path traversed 3 clinical relationships/i),
+    ).toBeInTheDocument();
+    expect(screen.getByText(/contraindicates/i)).toBeInTheDocument();
+  });
+
+  it("MarkdownRenderer supports renderCitation prop for inline citations", () => {
+    const renderCitation = vi.fn((id, n) => (
+      <span key={id} data-testid="custom-citation">{`[Cit-${n}]`}</span>
+    ));
+    render(
+      <MarkdownRenderer
+        content="Evidence found in [doc-1] and [doc-2]."
+        allowHtml={false}
+        allowedProtocols={["http", "https"]}
+        renderCitation={renderCitation}
+      />,
+    );
+    const chips = screen.getAllByTestId("custom-citation");
+    expect(chips).toHaveLength(2);
+    expect(chips[0]).toHaveTextContent("[Cit-1]");
+    expect(chips[1]).toHaveTextContent("[Cit-2]");
   });
 });

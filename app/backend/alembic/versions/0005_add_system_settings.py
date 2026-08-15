@@ -5,8 +5,9 @@ Revises: 0004_add_hms_sync_logs
 Create Date: 2026-04-29
 """
 
-from alembic import op
 import sqlalchemy as sa
+
+from alembic import op
 
 revision = "0005_add_system_settings"
 down_revision = "0004_add_hms_sync_logs"

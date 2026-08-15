@@ -9,6 +9,8 @@ Import this limiter instance in route modules and apply via decorator:
         ...
 """
 
+from __future__ import annotations
+
 import os
 
 from slowapi import Limiter

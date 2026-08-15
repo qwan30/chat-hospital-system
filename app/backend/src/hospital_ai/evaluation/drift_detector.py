@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Optional
 
 from hospital_ai.evaluation.contracts import (
     DriftGateResult,
@@ -11,7 +11,7 @@ from hospital_ai.evaluation.contracts import (
 )
 
 # (metric_name, higher_is_better, hard_gate_min, hard_gate_max, relative_tolerance)
-_METRIC_RULES: tuple[tuple[str, bool, float | None, float | None, float], ...] = (
+_METRIC_RULES: tuple[tuple[str, bool, Optional[float], Optional[float], float], ...] = (
     ("unauthorized_evidence_count", False, None, 0.0, 0.0),
     ("wrong_patient_citations_count", False, None, 0.0, 0.0),
     ("recall_at_5", True, 0.9000, None, 0.0000),

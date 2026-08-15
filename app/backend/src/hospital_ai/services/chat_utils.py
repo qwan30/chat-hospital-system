@@ -3,6 +3,8 @@
 Extracted to avoid circular imports between chat.py and reasoning.py.
 """
 
+from __future__ import annotations
+
 import re
 from collections.abc import Sequence
 from typing import Optional
@@ -91,7 +93,11 @@ def build_stub_answer(prompt: str) -> str:
             "Age >= 80 years, Body weight <= 60 kg, or Serum creatinine >= 1.5 mg/dL. [E1]"
         )
     if "age is 82" in lower_prompt or "what if" in lower_prompt or "82" in lower_prompt:
-        return "Since the patient's age is 82 (which is >= 80 years), you only need one additional criteria (weight <= 60 kg or creatinine >= 1.5 mg/dL) to reduce the dose to 2.5 mg twice daily. Otherwise, the dose remains 5 mg twice daily. [E2]"  # noqa: E501
+        return (
+            "Since the patient's age is 82 (which is >= 80 years), you only need one additional "
+            "criteria (weight <= 60 kg or creatinine >= 1.5 mg/dL) to reduce the dose to "
+            "2.5 mg twice daily. Otherwise, the dose remains 5 mg twice daily. [E2]"
+        )
 
     evidence = parse_prompt_evidence(prompt)
     if not evidence:
@@ -182,9 +188,11 @@ def meets_evidence_threshold(item: RetrievedChunk, retrieval_mode: str, threshol
             continue
 
     if not underlying_scores:
+        print(f"!!! {item.evidence_id} {item.metadata=}")
         # No score_list_* metadata — fall back to any non-zero RRF score.
         return item.score > 0.0
 
+    print(f"!!! {item.evidence_id} {item.metadata=} max_score={max(underlying_scores)}")
     return max(underlying_scores) >= threshold
 
 

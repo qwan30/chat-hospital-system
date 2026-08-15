@@ -1,13 +1,13 @@
 {
   "schema_version": 1,
-  "branch": "feat/cdi-v2-main-integration",
+  "branch": "feat/cdi-v2-candidate-integration",
   "shas": {
-    "main": "7fdf2b5c281a03f411e44614d925000bdd67a004",
+    "main": "58b806aad568d6c632f1852579665fdb3c41d65a",
     "candidate": "adb6cda62babd429b0dd4ba32dd905605fec4f6b",
     "merge_base": "6794777f48862a4d1278b3bd4e83e93e7514d027"
   },
   "divergence": {
-    "main_only": 41,
+    "main_only": 42,
     "candidate_only": 133
   },
   "pull_requests": [
@@ -20,8 +20,15 @@
       "merge_commit_sha": null,
       "mergeable": "CONFLICTING",
       "merge_state": "DIRTY",
-      "checks": {"success": 20, "skipped": 5},
-      "reviews": {"commented": 4, "resolved_threads": 9, "outdated_threads": 5}
+      "checks": {
+        "success": 20,
+        "skipped": 5
+      },
+      "reviews": {
+        "commented": 4,
+        "resolved_threads": 9,
+        "outdated_threads": 5
+      }
     },
     {
       "number": 90,
@@ -32,8 +39,17 @@
       "merge_commit_sha": "eaf8c9b79855f276d7e02d0f379a3998d47e12e5",
       "mergeable": "UNKNOWN",
       "merge_state": "UNKNOWN",
-      "checks": {"success": 8, "skipped": 5, "neutral": ["CodeQL"]},
-      "reviews": {"commented": 1, "resolved_threads": 3}
+      "checks": {
+        "success": 8,
+        "skipped": 5,
+        "neutral": [
+          "CodeQL"
+        ]
+      },
+      "reviews": {
+        "commented": 1,
+        "resolved_threads": 3
+      }
     },
     {
       "number": 91,
@@ -44,7 +60,10 @@
       "merge_commit_sha": "fa8069ebf8b0f2f6502d570cf724f4b838ab0e87",
       "mergeable": "UNKNOWN",
       "merge_state": "UNKNOWN",
-      "checks": {"success": 11, "skipped": 3},
+      "checks": {
+        "success": 11,
+        "skipped": 3
+      },
       "reviews": {}
     },
     {
@@ -56,7 +75,10 @@
       "merge_commit_sha": "96daa7003f1293af25f5d7b2fccd76fcf877e122",
       "mergeable": "UNKNOWN",
       "merge_state": "UNKNOWN",
-      "checks": {"success": 9, "skipped": 5},
+      "checks": {
+        "success": 9,
+        "skipped": 5
+      },
       "reviews": {}
     },
     {
@@ -68,8 +90,15 @@
       "merge_commit_sha": "4c04e22a8f020a28825b7b19b9e07fcec10fc115",
       "mergeable": "UNKNOWN",
       "merge_state": "UNKNOWN",
-      "checks": {"success": 9, "skipped": 5},
-      "reviews": {"commented": 1, "resolved_threads": 1, "outdated_threads": 1}
+      "checks": {
+        "success": 9,
+        "skipped": 5
+      },
+      "reviews": {
+        "commented": 1,
+        "resolved_threads": 1,
+        "outdated_threads": 1
+      }
     },
     {
       "number": 94,
@@ -80,7 +109,10 @@
       "merge_commit_sha": "384187c081f8fe5fb22c9c336529c21d5f3375c3",
       "mergeable": "UNKNOWN",
       "merge_state": "UNKNOWN",
-      "checks": {"success": 11, "skipped": 3},
+      "checks": {
+        "success": 11,
+        "skipped": 3
+      },
       "reviews": {}
     },
     {
@@ -92,8 +124,15 @@
       "merge_commit_sha": "d96c08a89e8a6f4d3a7a498e119c3f02e7a245d7",
       "mergeable": "UNKNOWN",
       "merge_state": "UNKNOWN",
-      "checks": {"success": 7, "skipped": 7},
-      "reviews": {"commented": 1, "resolved_threads": 4, "outdated_threads": 4}
+      "checks": {
+        "success": 7,
+        "skipped": 7
+      },
+      "reviews": {
+        "commented": 1,
+        "resolved_threads": 4,
+        "outdated_threads": 4
+      }
     },
     {
       "number": 96,
@@ -104,7 +143,10 @@
       "merge_commit_sha": "e3f5a832fc30689475bbeed851407903991ea8db",
       "mergeable": "UNKNOWN",
       "merge_state": "UNKNOWN",
-      "checks": {"success": 12, "skipped": 2},
+      "checks": {
+        "success": 12,
+        "skipped": 2
+      },
       "reviews": {}
     },
     {
@@ -116,7 +158,10 @@
       "merge_commit_sha": "697c6f066b59f316b5f95cc69507b5ef67c00edc",
       "mergeable": "UNKNOWN",
       "merge_state": "UNKNOWN",
-      "checks": {"success": 9, "skipped": 3},
+      "checks": {
+        "success": 9,
+        "skipped": 3
+      },
       "reviews": {}
     },
     {
@@ -128,7 +173,10 @@
       "merge_commit_sha": "0ce7df386967cd00b738768d943c1a313459c18a",
       "mergeable": "UNKNOWN",
       "merge_state": "UNKNOWN",
-      "checks": {"success": 10, "skipped": 5},
+      "checks": {
+        "success": 10,
+        "skipped": 5
+      },
       "reviews": {}
     },
     {
@@ -140,7 +188,10 @@
       "merge_commit_sha": "6ed79e6eb8a64005ea83f7d0deb604dc89eef617",
       "mergeable": "UNKNOWN",
       "merge_state": "UNKNOWN",
-      "checks": {"success": 10, "skipped": 5},
+      "checks": {
+        "success": 10,
+        "skipped": 5
+      },
       "reviews": {}
     },
     {
@@ -152,7 +203,10 @@
       "merge_commit_sha": "fa7ab1b9bc5e1d13909b49c1c3b9cc4af2f5f71c",
       "mergeable": "UNKNOWN",
       "merge_state": "UNKNOWN",
-      "checks": {"success": 10, "skipped": 5},
+      "checks": {
+        "success": 10,
+        "skipped": 5
+      },
       "reviews": {}
     },
     {
@@ -164,7 +218,10 @@
       "merge_commit_sha": "e9d6cae342dbafa7a65c5197759488b38ea91ca1",
       "mergeable": "UNKNOWN",
       "merge_state": "UNKNOWN",
-      "checks": {"success": 12, "skipped": 2},
+      "checks": {
+        "success": 12,
+        "skipped": 2
+      },
       "reviews": {}
     },
     {
@@ -176,7 +233,10 @@
       "merge_commit_sha": "a2c75df8d66d17f5b9707285a9bc70d5e44f40df",
       "mergeable": "UNKNOWN",
       "merge_state": "UNKNOWN",
-      "checks": {"success": 12, "skipped": 2},
+      "checks": {
+        "success": 12,
+        "skipped": 2
+      },
       "reviews": {}
     },
     {
@@ -188,7 +248,10 @@
       "merge_commit_sha": "adb6cda62babd429b0dd4ba32dd905605fec4f6b",
       "mergeable": "UNKNOWN",
       "merge_state": "UNKNOWN",
-      "checks": {"success": 12, "skipped": 2},
+      "checks": {
+        "success": 12,
+        "skipped": 2
+      },
       "reviews": {}
     }
   ],
@@ -210,14 +273,2441 @@
     "docs/09-testing/production-click-through-report-2026-08-14.md",
     "docs/superpowers/plans/2026-08-15-cdi-v2-main-promotion-and-production-certification.md"
   ],
-  "path_disposition": [],
+  "path_disposition": [
+    {
+      "path": ".github/workflows/ci.yml",
+      "disposition": "adapt",
+      "owner": "cdi-v2-integrator",
+      "reason": "Merged candidate behavior with current-main implementation, security, and compatibility contract.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/backend/.env.example",
+      "disposition": "adapt",
+      "owner": "cdi-v2-integrator",
+      "reason": "Merged candidate behavior with current-main implementation, security, and compatibility contract.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/backend/Dockerfile",
+      "disposition": "adapt",
+      "owner": "cdi-v2-integrator",
+      "reason": "Merged candidate behavior with current-main implementation, security, and compatibility contract.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/backend/alembic/env.py",
+      "disposition": "adapt",
+      "owner": "cdi-v2-integrator",
+      "reason": "Reconciled candidate migration with current-main Alembic lineage and model contract.",
+      "verification": "Alembic header/lineage tests and alembic heads"
+    },
+    {
+      "path": "app/backend/alembic/versions/0001_initial_schema.py",
+      "disposition": "adapt",
+      "owner": "cdi-v2-integrator",
+      "reason": "Reconciled candidate migration with current-main Alembic lineage and model contract.",
+      "verification": "Alembic header/lineage tests and alembic heads"
+    },
+    {
+      "path": "app/backend/alembic/versions/0002_add_document_index_generation.py",
+      "disposition": "adapt",
+      "owner": "cdi-v2-integrator",
+      "reason": "Reconciled candidate migration with current-main Alembic lineage and model contract.",
+      "verification": "Alembic header/lineage tests and alembic heads"
+    },
+    {
+      "path": "app/backend/alembic/versions/0003_add_chat_threads.py",
+      "disposition": "adapt",
+      "owner": "cdi-v2-integrator",
+      "reason": "Reconciled candidate migration with current-main Alembic lineage and model contract.",
+      "verification": "Alembic header/lineage tests and alembic heads"
+    },
+    {
+      "path": "app/backend/alembic/versions/0004_add_hms_sync_logs.py",
+      "disposition": "adapt",
+      "owner": "cdi-v2-integrator",
+      "reason": "Reconciled candidate migration with current-main Alembic lineage and model contract.",
+      "verification": "Alembic header/lineage tests and alembic heads"
+    },
+    {
+      "path": "app/backend/alembic/versions/0005_add_system_settings.py",
+      "disposition": "adapt",
+      "owner": "cdi-v2-integrator",
+      "reason": "Reconciled candidate migration with current-main Alembic lineage and model contract.",
+      "verification": "Alembic header/lineage tests and alembic heads"
+    },
+    {
+      "path": "app/backend/alembic/versions/0006_add_phase4_tables.py",
+      "disposition": "adapt",
+      "owner": "cdi-v2-integrator",
+      "reason": "Reconciled candidate migration with current-main Alembic lineage and model contract.",
+      "verification": "Alembic header/lineage tests and alembic heads"
+    },
+    {
+      "path": "app/backend/alembic/versions/0008_add_pending_info_status.py",
+      "disposition": "adapt",
+      "owner": "cdi-v2-integrator",
+      "reason": "Reconciled candidate migration with current-main Alembic lineage and model contract.",
+      "verification": "Alembic header/lineage tests and alembic heads"
+    },
+    {
+      "path": "app/backend/alembic/versions/0009_repair_search_vector_gin.py",
+      "disposition": "adapt",
+      "owner": "cdi-v2-integrator",
+      "reason": "Reconciled candidate migration with current-main Alembic lineage and model contract.",
+      "verification": "Alembic header/lineage tests and alembic heads"
+    },
+    {
+      "path": "app/backend/alembic/versions/0010_add_document_processing_events.py",
+      "disposition": "adapt",
+      "owner": "cdi-v2-integrator",
+      "reason": "Reconciled candidate migration with current-main Alembic lineage and model contract.",
+      "verification": "Alembic header/lineage tests and alembic heads"
+    },
+    {
+      "path": "app/backend/alembic/versions/13ae4eea1439_add_chat_session_memory.py",
+      "disposition": "adapt",
+      "owner": "cdi-v2-integrator",
+      "reason": "Reconciled candidate migration with current-main Alembic lineage and model contract.",
+      "verification": "Alembic header/lineage tests and alembic heads"
+    },
+    {
+      "path": "app/backend/alembic/versions/13dde695c97d_update_ck_documents_status.py",
+      "disposition": "adapt",
+      "owner": "cdi-v2-integrator",
+      "reason": "Reconciled candidate migration with current-main Alembic lineage and model contract.",
+      "verification": "Alembic header/lineage tests and alembic heads"
+    },
+    {
+      "path": "app/backend/alembic/versions/209270610b31_make_aiquery_patient_id_nullable.py",
+      "disposition": "adapt",
+      "owner": "cdi-v2-integrator",
+      "reason": "Reconciled candidate migration with current-main Alembic lineage and model contract.",
+      "verification": "Alembic header/lineage tests and alembic heads"
+    },
+    {
+      "path": "app/backend/alembic/versions/5a950640275c_add_notification_model.py",
+      "disposition": "adapt",
+      "owner": "cdi-v2-integrator",
+      "reason": "Reconciled candidate migration with current-main Alembic lineage and model contract.",
+      "verification": "Alembic header/lineage tests and alembic heads"
+    },
+    {
+      "path": "app/backend/alembic/versions/60e7683f03bd_make_document_patient_id_nullable.py",
+      "disposition": "adapt",
+      "owner": "cdi-v2-integrator",
+      "reason": "Reconciled candidate migration with current-main Alembic lineage and model contract.",
+      "verification": "Alembic header/lineage tests and alembic heads"
+    },
+    {
+      "path": "app/backend/alembic/versions/68666b884f62_add_clinicalalert_model.py",
+      "disposition": "adapt",
+      "owner": "cdi-v2-integrator",
+      "reason": "Reconciled candidate migration with current-main Alembic lineage and model contract.",
+      "verification": "Alembic header/lineage tests and alembic heads"
+    },
+    {
+      "path": "app/backend/alembic/versions/704142b14459_fix_cdi_v2_final_model_alignments.py",
+      "disposition": "adapt",
+      "owner": "cdi-v2-integrator",
+      "reason": "Reconciled candidate migration with current-main Alembic lineage and model contract.",
+      "verification": "Alembic header/lineage tests and alembic heads"
+    },
+    {
+      "path": "app/backend/alembic/versions/8d6cedbd7e08_add_clinical_document_intelligence_.py",
+      "disposition": "adapt",
+      "owner": "cdi-v2-integrator",
+      "reason": "Reconciled candidate migration with current-main Alembic lineage and model contract.",
+      "verification": "Alembic header/lineage tests and alembic heads"
+    },
+    {
+      "path": "app/backend/alembic/versions/ae930a5b7521_add_front_desk_role.py",
+      "disposition": "adapt",
+      "owner": "cdi-v2-integrator",
+      "reason": "Reconciled candidate migration with current-main Alembic lineage and model contract.",
+      "verification": "Alembic header/lineage tests and alembic heads"
+    },
+    {
+      "path": "app/backend/alembic/versions/cdi_v2_0001_add_revision_generation_schema.py",
+      "disposition": "adapt",
+      "owner": "cdi-v2-integrator",
+      "reason": "Reconciled candidate migration with current-main Alembic lineage and model contract.",
+      "verification": "Alembic header/lineage tests and alembic heads"
+    },
+    {
+      "path": "app/backend/alembic/versions/cdi_v2_0002_add_graph_provenance_schema.py",
+      "disposition": "adapt",
+      "owner": "cdi-v2-integrator",
+      "reason": "Reconciled candidate migration with current-main Alembic lineage and model contract.",
+      "verification": "Alembic header/lineage tests and alembic heads"
+    },
+    {
+      "path": "app/backend/alembic/versions/cdi_v2_0003_add_validated_stream_state.py",
+      "disposition": "adapt",
+      "owner": "cdi-v2-integrator",
+      "reason": "Reconciled candidate migration with current-main Alembic lineage and model contract.",
+      "verification": "Alembic header/lineage tests and alembic heads"
+    },
+    {
+      "path": "app/backend/alembic/versions/cdi_v2_0004_cleanup_legacy_search_artifacts.py",
+      "disposition": "adapt",
+      "owner": "cdi-v2-integrator",
+      "reason": "Reconciled candidate migration with current-main Alembic lineage and model contract.",
+      "verification": "Alembic header/lineage tests and alembic heads"
+    },
+    {
+      "path": "app/backend/alembic/versions/cdi_v2_0005_add_build_authorized_revision_state.py",
+      "disposition": "adapt",
+      "owner": "cdi-v2-integrator",
+      "reason": "Reconciled candidate migration with current-main Alembic lineage and model contract.",
+      "verification": "Alembic header/lineage tests and alembic heads"
+    },
+    {
+      "path": "app/backend/alembic/versions/cdi_v2_0006_restore_model_owned_schema.py",
+      "disposition": "adapt",
+      "owner": "cdi-v2-integrator",
+      "reason": "Reconciled candidate migration with current-main Alembic lineage and model contract.",
+      "verification": "Alembic header/lineage tests and alembic heads"
+    },
+    {
+      "path": "app/backend/alembic/versions/cfb28845ca63_merge_heads.py",
+      "disposition": "adapt",
+      "owner": "cdi-v2-integrator",
+      "reason": "Reconciled candidate migration with current-main Alembic lineage and model contract.",
+      "verification": "Alembic header/lineage tests and alembic heads"
+    },
+    {
+      "path": "app/backend/data/evaluation/corpus-v3-smoke-manifest.json",
+      "disposition": "include",
+      "owner": "cdi-v2-integrator",
+      "reason": "Candidate CDI V2 runtime contract, deterministic test, or release evidence surface.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/backend/data/evaluation/corpus-v3.schema.json",
+      "disposition": "include",
+      "owner": "cdi-v2-integrator",
+      "reason": "Candidate CDI V2 runtime contract, deterministic test, or release evidence surface.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/backend/data/evaluation/release-evidence.schema.json",
+      "disposition": "include",
+      "owner": "cdi-v2-integrator",
+      "reason": "Candidate CDI V2 runtime contract, deterministic test, or release evidence surface.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/backend/data/evaluation/thresholds-v3.schema.json",
+      "disposition": "include",
+      "owner": "cdi-v2-integrator",
+      "reason": "Candidate CDI V2 runtime contract, deterministic test, or release evidence surface.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/backend/pyproject.toml",
+      "disposition": "adapt",
+      "owner": "cdi-v2-integrator",
+      "reason": "Merged candidate behavior with current-main implementation, security, and compatibility contract.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/backend/scripts/backfill_cdi_v2.py",
+      "disposition": "include",
+      "owner": "cdi-v2-integrator",
+      "reason": "Candidate CDI V2 runtime contract, deterministic test, or release evidence surface.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/backend/scripts/build_eval_manifest.py",
+      "disposition": "adapt",
+      "owner": "cdi-v2-integrator",
+      "reason": "Merged candidate behavior with current-main implementation, security, and compatibility contract.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/backend/scripts/build_rag_benchmark.py",
+      "disposition": "adapt",
+      "owner": "cdi-v2-integrator",
+      "reason": "Merged candidate behavior with current-main implementation, security, and compatibility contract.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/backend/scripts/demo_setup.py",
+      "disposition": "adapt",
+      "owner": "cdi-v2-integrator",
+      "reason": "Merged candidate behavior with current-main implementation, security, and compatibility contract.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/backend/scripts/evaluate_rag.py",
+      "disposition": "adapt",
+      "owner": "cdi-v2-integrator",
+      "reason": "Merged candidate behavior with current-main implementation, security, and compatibility contract.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/backend/scripts/generate_100_patients.py",
+      "disposition": "adapt",
+      "owner": "cdi-v2-integrator",
+      "reason": "Merged candidate behavior with current-main implementation, security, and compatibility contract.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/backend/scripts/generate_documents.py",
+      "disposition": "adapt",
+      "owner": "cdi-v2-integrator",
+      "reason": "Merged candidate behavior with current-main implementation, security, and compatibility contract.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/backend/scripts/import_patients.py",
+      "disposition": "adapt",
+      "owner": "cdi-v2-integrator",
+      "reason": "Merged candidate behavior with current-main implementation, security, and compatibility contract.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/backend/scripts/import_patients_seed.py",
+      "disposition": "adapt",
+      "owner": "cdi-v2-integrator",
+      "reason": "Merged candidate behavior with current-main implementation, security, and compatibility contract.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/backend/scripts/ingest_synthetic_dataset.py",
+      "disposition": "adapt",
+      "owner": "cdi-v2-integrator",
+      "reason": "Merged candidate behavior with current-main implementation, security, and compatibility contract.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/backend/scripts/inspect_patients.py",
+      "disposition": "adapt",
+      "owner": "cdi-v2-integrator",
+      "reason": "Merged candidate behavior with current-main implementation, security, and compatibility contract.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/backend/scripts/run_ai_evaluation.py",
+      "disposition": "adapt",
+      "owner": "cdi-v2-integrator",
+      "reason": "Merged candidate behavior with current-main implementation, security, and compatibility contract.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/backend/scripts/run_rag_eval.py",
+      "disposition": "adapt",
+      "owner": "cdi-v2-integrator",
+      "reason": "Merged candidate behavior with current-main implementation, security, and compatibility contract.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/backend/scripts/seed_dev.py",
+      "disposition": "adapt",
+      "owner": "cdi-v2-integrator",
+      "reason": "Merged candidate behavior with current-main implementation, security, and compatibility contract.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/backend/scripts/seed_mock_clinical_notes.py",
+      "disposition": "adapt",
+      "owner": "cdi-v2-integrator",
+      "reason": "Merged candidate behavior with current-main implementation, security, and compatibility contract.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/backend/scripts/stats.py",
+      "disposition": "adapt",
+      "owner": "cdi-v2-integrator",
+      "reason": "Merged candidate behavior with current-main implementation, security, and compatibility contract.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/backend/scripts/stats2.py",
+      "disposition": "adapt",
+      "owner": "cdi-v2-integrator",
+      "reason": "Merged candidate behavior with current-main implementation, security, and compatibility contract.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/backend/scripts/uat_product_api_check.py",
+      "disposition": "adapt",
+      "owner": "cdi-v2-integrator",
+      "reason": "Merged candidate behavior with current-main implementation, security, and compatibility contract.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/backend/scripts/verify_cdi_v2_release.py",
+      "disposition": "include",
+      "owner": "cdi-v2-integrator",
+      "reason": "Candidate CDI V2 runtime contract, deterministic test, or release evidence surface.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/backend/scripts/verify_contracts.py",
+      "disposition": "adapt",
+      "owner": "cdi-v2-integrator",
+      "reason": "Merged candidate behavior with current-main implementation, security, and compatibility contract.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/backend/src/hospital_ai/__init__.py",
+      "disposition": "adapt",
+      "owner": "cdi-v2-integrator",
+      "reason": "Merged candidate behavior with current-main implementation, security, and compatibility contract.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/backend/src/hospital_ai/api/__init__.py",
+      "disposition": "adapt",
+      "owner": "cdi-v2-integrator",
+      "reason": "Merged candidate behavior with current-main implementation, security, and compatibility contract.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/backend/src/hospital_ai/api/deps.py",
+      "disposition": "adapt",
+      "owner": "cdi-v2-integrator",
+      "reason": "Merged candidate behavior with current-main implementation, security, and compatibility contract.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/backend/src/hospital_ai/api/limiter.py",
+      "disposition": "adapt",
+      "owner": "cdi-v2-integrator",
+      "reason": "Merged candidate behavior with current-main implementation, security, and compatibility contract.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/backend/src/hospital_ai/api/router.py",
+      "disposition": "adapt",
+      "owner": "cdi-v2-integrator",
+      "reason": "Merged candidate behavior with current-main implementation, security, and compatibility contract.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/backend/src/hospital_ai/api/routes/chat_stream.py",
+      "disposition": "adapt",
+      "owner": "cdi-v2-integrator",
+      "reason": "Merged candidate behavior with current-main implementation, security, and compatibility contract.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/backend/src/hospital_ai/api/routes/document_generations.py",
+      "disposition": "include",
+      "owner": "cdi-v2-integrator",
+      "reason": "Candidate CDI V2 runtime contract, deterministic test, or release evidence surface.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/backend/src/hospital_ai/api/routes/document_graph.py",
+      "disposition": "include",
+      "owner": "cdi-v2-integrator",
+      "reason": "Candidate CDI V2 runtime contract, deterministic test, or release evidence surface.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/backend/src/hospital_ai/api/routes/document_revisions.py",
+      "disposition": "adapt",
+      "owner": "cdi-v2-integrator",
+      "reason": "Merged candidate behavior with current-main implementation, security, and compatibility contract.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/backend/src/hospital_ai/api/routes/document_uploads.py",
+      "disposition": "adapt",
+      "owner": "cdi-v2-integrator",
+      "reason": "Merged candidate behavior with current-main implementation, security, and compatibility contract.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/backend/src/hospital_ai/api/routes/documents.py",
+      "disposition": "adapt",
+      "owner": "cdi-v2-integrator",
+      "reason": "Merged candidate behavior with current-main implementation, security, and compatibility contract.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/backend/src/hospital_ai/api/routes/feedback.py",
+      "disposition": "adapt",
+      "owner": "cdi-v2-integrator",
+      "reason": "Merged candidate behavior with current-main implementation, security, and compatibility contract.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/backend/src/hospital_ai/api/routes/patients.py",
+      "disposition": "adapt",
+      "owner": "cdi-v2-integrator",
+      "reason": "Merged candidate behavior with current-main implementation, security, and compatibility contract.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/backend/src/hospital_ai/api/routes/settings.py",
+      "disposition": "adapt",
+      "owner": "cdi-v2-integrator",
+      "reason": "Merged candidate behavior with current-main implementation, security, and compatibility contract.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/backend/src/hospital_ai/core/__init__.py",
+      "disposition": "adapt",
+      "owner": "cdi-v2-integrator",
+      "reason": "Merged candidate behavior with current-main implementation, security, and compatibility contract.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/backend/src/hospital_ai/core/config.py",
+      "disposition": "adapt",
+      "owner": "cdi-v2-integrator",
+      "reason": "Merged candidate behavior with current-main implementation, security, and compatibility contract.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/backend/src/hospital_ai/core/errors.py",
+      "disposition": "adapt",
+      "owner": "cdi-v2-integrator",
+      "reason": "Merged candidate behavior with current-main implementation, security, and compatibility contract.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/backend/src/hospital_ai/core/exceptions.py",
+      "disposition": "adapt",
+      "owner": "cdi-v2-integrator",
+      "reason": "Merged candidate behavior with current-main implementation, security, and compatibility contract.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/backend/src/hospital_ai/core/interfaces.py",
+      "disposition": "adapt",
+      "owner": "cdi-v2-integrator",
+      "reason": "Merged candidate behavior with current-main implementation, security, and compatibility contract.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/backend/src/hospital_ai/core/logging.py",
+      "disposition": "adapt",
+      "owner": "cdi-v2-integrator",
+      "reason": "Merged candidate behavior with current-main implementation, security, and compatibility contract.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/backend/src/hospital_ai/core/prompts/__init__.py",
+      "disposition": "adapt",
+      "owner": "cdi-v2-integrator",
+      "reason": "Merged candidate behavior with current-main implementation, security, and compatibility contract.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/backend/src/hospital_ai/core/prompts/citation_validation_prompt.py",
+      "disposition": "adapt",
+      "owner": "cdi-v2-integrator",
+      "reason": "Merged candidate behavior with current-main implementation, security, and compatibility contract.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/backend/src/hospital_ai/core/prompts/drug_check_prompt.py",
+      "disposition": "adapt",
+      "owner": "cdi-v2-integrator",
+      "reason": "Merged candidate behavior with current-main implementation, security, and compatibility contract.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/backend/src/hospital_ai/core/prompts/patient_summary_prompt.py",
+      "disposition": "adapt",
+      "owner": "cdi-v2-integrator",
+      "reason": "Merged candidate behavior with current-main implementation, security, and compatibility contract.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/backend/src/hospital_ai/core/prompts/rag_system_prompt.py",
+      "disposition": "adapt",
+      "owner": "cdi-v2-integrator",
+      "reason": "Merged candidate behavior with current-main implementation, security, and compatibility contract.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/backend/src/hospital_ai/core/security.py",
+      "disposition": "adapt",
+      "owner": "cdi-v2-integrator",
+      "reason": "Merged candidate behavior with current-main implementation, security, and compatibility contract.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/backend/src/hospital_ai/data_sources/__init__.py",
+      "disposition": "adapt",
+      "owner": "cdi-v2-integrator",
+      "reason": "Merged candidate behavior with current-main implementation, security, and compatibility contract.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/backend/src/hospital_ai/data_sources/registry.py",
+      "disposition": "adapt",
+      "owner": "cdi-v2-integrator",
+      "reason": "Merged candidate behavior with current-main implementation, security, and compatibility contract.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/backend/src/hospital_ai/db/__init__.py",
+      "disposition": "adapt",
+      "owner": "cdi-v2-integrator",
+      "reason": "Merged candidate behavior with current-main implementation, security, and compatibility contract.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/backend/src/hospital_ai/db/clinical_documents.py",
+      "disposition": "adapt",
+      "owner": "cdi-v2-integrator",
+      "reason": "Merged candidate behavior with current-main implementation, security, and compatibility contract.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/backend/src/hospital_ai/db/clinical_graph.py",
+      "disposition": "include",
+      "owner": "cdi-v2-integrator",
+      "reason": "Candidate CDI V2 runtime contract, deterministic test, or release evidence surface.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/backend/src/hospital_ai/db/migrations.py",
+      "disposition": "adapt",
+      "owner": "cdi-v2-integrator",
+      "reason": "Merged candidate behavior with current-main implementation, security, and compatibility contract.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/backend/src/hospital_ai/db/models.py",
+      "disposition": "adapt",
+      "owner": "cdi-v2-integrator",
+      "reason": "Merged candidate behavior with current-main implementation, security, and compatibility contract.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/backend/src/hospital_ai/db/session.py",
+      "disposition": "adapt",
+      "owner": "cdi-v2-integrator",
+      "reason": "Merged candidate behavior with current-main implementation, security, and compatibility contract.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/backend/src/hospital_ai/db/settings_store.py",
+      "disposition": "adapt",
+      "owner": "cdi-v2-integrator",
+      "reason": "Merged candidate behavior with current-main implementation, security, and compatibility contract.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/backend/src/hospital_ai/evaluation/adapter_foundation.py",
+      "disposition": "adapt",
+      "owner": "cdi-v2-integrator",
+      "reason": "Merged candidate behavior with current-main implementation, security, and compatibility contract.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/backend/src/hospital_ai/evaluation/artifact_generator.py",
+      "disposition": "include",
+      "owner": "cdi-v2-integrator",
+      "reason": "Candidate CDI V2 runtime contract, deterministic test, or release evidence surface.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/backend/src/hospital_ai/evaluation/benchmark.py",
+      "disposition": "adapt",
+      "owner": "cdi-v2-integrator",
+      "reason": "Merged candidate behavior with current-main implementation, security, and compatibility contract.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/backend/src/hospital_ai/evaluation/contracts.py",
+      "disposition": "adapt",
+      "owner": "cdi-v2-integrator",
+      "reason": "Merged candidate behavior with current-main implementation, security, and compatibility contract.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/backend/src/hospital_ai/evaluation/corpus_manifest.py",
+      "disposition": "adapt",
+      "owner": "cdi-v2-integrator",
+      "reason": "Merged candidate behavior with current-main implementation, security, and compatibility contract.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/backend/src/hospital_ai/evaluation/corpus_v3.py",
+      "disposition": "include",
+      "owner": "cdi-v2-integrator",
+      "reason": "Candidate CDI V2 runtime contract, deterministic test, or release evidence surface.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/backend/src/hospital_ai/evaluation/drift_detector.py",
+      "disposition": "adapt",
+      "owner": "cdi-v2-integrator",
+      "reason": "Merged candidate behavior with current-main implementation, security, and compatibility contract.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/backend/src/hospital_ai/evaluation/llm_judge.py",
+      "disposition": "adapt",
+      "owner": "cdi-v2-integrator",
+      "reason": "Merged candidate behavior with current-main implementation, security, and compatibility contract.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/backend/src/hospital_ai/evaluation/metrics.py",
+      "disposition": "adapt",
+      "owner": "cdi-v2-integrator",
+      "reason": "Merged candidate behavior with current-main implementation, security, and compatibility contract.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/backend/src/hospital_ai/evaluation/ocr_evaluation.py",
+      "disposition": "adapt",
+      "owner": "cdi-v2-integrator",
+      "reason": "Merged candidate behavior with current-main implementation, security, and compatibility contract.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/backend/src/hospital_ai/evaluation/product_chat_adapter.py",
+      "disposition": "adapt",
+      "owner": "cdi-v2-integrator",
+      "reason": "Merged candidate behavior with current-main implementation, security, and compatibility contract.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/backend/src/hospital_ai/evaluation/product_graph_adapter.py",
+      "disposition": "adapt",
+      "owner": "cdi-v2-integrator",
+      "reason": "Merged candidate behavior with current-main implementation, security, and compatibility contract.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/backend/src/hospital_ai/evaluation/product_retrieval_adapter.py",
+      "disposition": "adapt",
+      "owner": "cdi-v2-integrator",
+      "reason": "Merged candidate behavior with current-main implementation, security, and compatibility contract.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/backend/src/hospital_ai/evaluation/product_stream_adapter.py",
+      "disposition": "include",
+      "owner": "cdi-v2-integrator",
+      "reason": "Candidate CDI V2 runtime contract, deterministic test, or release evidence surface.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/backend/src/hospital_ai/evaluation/product_timeline_adapter.py",
+      "disposition": "include",
+      "owner": "cdi-v2-integrator",
+      "reason": "Candidate CDI V2 runtime contract, deterministic test, or release evidence surface.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/backend/src/hospital_ai/evaluation/reporting.py",
+      "disposition": "adapt",
+      "owner": "cdi-v2-integrator",
+      "reason": "Merged candidate behavior with current-main implementation, security, and compatibility contract.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/backend/src/hospital_ai/evaluation/runner.py",
+      "disposition": "adapt",
+      "owner": "cdi-v2-integrator",
+      "reason": "Merged candidate behavior with current-main implementation, security, and compatibility contract.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/backend/src/hospital_ai/evaluation/threshold_artifact.py",
+      "disposition": "include",
+      "owner": "cdi-v2-integrator",
+      "reason": "Candidate CDI V2 runtime contract, deterministic test, or release evidence surface.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/backend/src/hospital_ai/evaluation/unified_metrics.py",
+      "disposition": "include",
+      "owner": "cdi-v2-integrator",
+      "reason": "Candidate CDI V2 runtime contract, deterministic test, or release evidence surface.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/backend/src/hospital_ai/main.py",
+      "disposition": "adapt",
+      "owner": "cdi-v2-integrator",
+      "reason": "Merged candidate behavior with current-main implementation, security, and compatibility contract.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/backend/src/hospital_ai/migrations/__init__.py",
+      "disposition": "include",
+      "owner": "cdi-v2-integrator",
+      "reason": "Candidate CDI V2 runtime contract, deterministic test, or release evidence surface.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/backend/src/hospital_ai/migrations/cdi_v2_backfill.py",
+      "disposition": "include",
+      "owner": "cdi-v2-integrator",
+      "reason": "Candidate CDI V2 runtime contract, deterministic test, or release evidence surface.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/backend/src/hospital_ai/schemas/chat_threads.py",
+      "disposition": "adapt",
+      "owner": "cdi-v2-integrator",
+      "reason": "Merged candidate behavior with current-main implementation, security, and compatibility contract.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/backend/src/hospital_ai/schemas/claim_validation.py",
+      "disposition": "include",
+      "owner": "cdi-v2-integrator",
+      "reason": "Candidate CDI V2 runtime contract, deterministic test, or release evidence surface.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/backend/src/hospital_ai/schemas/common.py",
+      "disposition": "adapt",
+      "owner": "cdi-v2-integrator",
+      "reason": "Merged candidate behavior with current-main implementation, security, and compatibility contract.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/backend/src/hospital_ai/schemas/document_generations.py",
+      "disposition": "include",
+      "owner": "cdi-v2-integrator",
+      "reason": "Candidate CDI V2 runtime contract, deterministic test, or release evidence surface.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/backend/src/hospital_ai/schemas/document_graph.py",
+      "disposition": "include",
+      "owner": "cdi-v2-integrator",
+      "reason": "Candidate CDI V2 runtime contract, deterministic test, or release evidence surface.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/backend/src/hospital_ai/schemas/document_revisions.py",
+      "disposition": "adapt",
+      "owner": "cdi-v2-integrator",
+      "reason": "Merged candidate behavior with current-main implementation, security, and compatibility contract.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/backend/src/hospital_ai/schemas/document_uploads.py",
+      "disposition": "adapt",
+      "owner": "cdi-v2-integrator",
+      "reason": "Merged candidate behavior with current-main implementation, security, and compatibility contract.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/backend/src/hospital_ai/schemas/documents.py",
+      "disposition": "adapt",
+      "owner": "cdi-v2-integrator",
+      "reason": "Merged candidate behavior with current-main implementation, security, and compatibility contract.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/backend/src/hospital_ai/schemas/hms.py",
+      "disposition": "adapt",
+      "owner": "cdi-v2-integrator",
+      "reason": "Merged candidate behavior with current-main implementation, security, and compatibility contract.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/backend/src/hospital_ai/services/__init__.py",
+      "disposition": "adapt",
+      "owner": "cdi-v2-integrator",
+      "reason": "Merged candidate behavior with current-main implementation, security, and compatibility contract.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/backend/src/hospital_ai/services/audit.py",
+      "disposition": "adapt",
+      "owner": "cdi-v2-integrator",
+      "reason": "Merged candidate behavior with current-main implementation, security, and compatibility contract.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/backend/src/hospital_ai/services/bm25.py",
+      "disposition": "adapt",
+      "owner": "cdi-v2-integrator",
+      "reason": "Merged candidate behavior with current-main implementation, security, and compatibility contract.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/backend/src/hospital_ai/services/capabilities.py",
+      "disposition": "adapt",
+      "owner": "cdi-v2-integrator",
+      "reason": "Merged candidate behavior with current-main implementation, security, and compatibility contract.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/backend/src/hospital_ai/services/chat.py",
+      "disposition": "adapt",
+      "owner": "cdi-v2-integrator",
+      "reason": "Merged candidate behavior with current-main implementation, security, and compatibility contract.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/backend/src/hospital_ai/services/chat_threads.py",
+      "disposition": "adapt",
+      "owner": "cdi-v2-integrator",
+      "reason": "Merged candidate behavior with current-main implementation, security, and compatibility contract.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/backend/src/hospital_ai/services/chat_utils.py",
+      "disposition": "adapt",
+      "owner": "cdi-v2-integrator",
+      "reason": "Merged candidate behavior with current-main implementation, security, and compatibility contract.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/backend/src/hospital_ai/services/chunking.py",
+      "disposition": "adapt",
+      "owner": "cdi-v2-integrator",
+      "reason": "Merged candidate behavior with current-main implementation, security, and compatibility contract.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/backend/src/hospital_ai/services/claim_validation.py",
+      "disposition": "include",
+      "owner": "cdi-v2-integrator",
+      "reason": "Candidate CDI V2 runtime contract, deterministic test, or release evidence surface.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/backend/src/hospital_ai/services/clinical_timeline.py",
+      "disposition": "include",
+      "owner": "cdi-v2-integrator",
+      "reason": "Candidate CDI V2 runtime contract, deterministic test, or release evidence surface.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/backend/src/hospital_ai/services/drug_check.py",
+      "disposition": "adapt",
+      "owner": "cdi-v2-integrator",
+      "reason": "Merged candidate behavior with current-main implementation, security, and compatibility contract.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/backend/src/hospital_ai/services/embedding/__init__.py",
+      "disposition": "adapt",
+      "owner": "cdi-v2-integrator",
+      "reason": "Merged candidate behavior with current-main implementation, security, and compatibility contract.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/backend/src/hospital_ai/services/embeddings.py",
+      "disposition": "adapt",
+      "owner": "cdi-v2-integrator",
+      "reason": "Merged candidate behavior with current-main implementation, security, and compatibility contract.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/backend/src/hospital_ai/services/evidence_scope.py",
+      "disposition": "include",
+      "owner": "cdi-v2-integrator",
+      "reason": "Candidate CDI V2 runtime contract, deterministic test, or release evidence surface.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/backend/src/hospital_ai/services/general_knowledge.py",
+      "disposition": "adapt",
+      "owner": "cdi-v2-integrator",
+      "reason": "Merged candidate behavior with current-main implementation, security, and compatibility contract.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/backend/src/hospital_ai/services/generations.py",
+      "disposition": "include",
+      "owner": "cdi-v2-integrator",
+      "reason": "Candidate CDI V2 runtime contract, deterministic test, or release evidence surface.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/backend/src/hospital_ai/services/graph_index.py",
+      "disposition": "include",
+      "owner": "cdi-v2-integrator",
+      "reason": "Candidate CDI V2 runtime contract, deterministic test, or release evidence surface.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/backend/src/hospital_ai/services/graph_query.py",
+      "disposition": "include",
+      "owner": "cdi-v2-integrator",
+      "reason": "Candidate CDI V2 runtime contract, deterministic test, or release evidence surface.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/backend/src/hospital_ai/services/graph_rag.py",
+      "disposition": "adapt",
+      "owner": "cdi-v2-integrator",
+      "reason": "Merged candidate behavior with current-main implementation, security, and compatibility contract.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/backend/src/hospital_ai/services/guardrails.py",
+      "disposition": "adapt",
+      "owner": "cdi-v2-integrator",
+      "reason": "Merged candidate behavior with current-main implementation, security, and compatibility contract.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/backend/src/hospital_ai/services/guardrails_patterns.py",
+      "disposition": "adapt",
+      "owner": "cdi-v2-integrator",
+      "reason": "Merged candidate behavior with current-main implementation, security, and compatibility contract.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/backend/src/hospital_ai/services/hms_appointments.py",
+      "disposition": "adapt",
+      "owner": "cdi-v2-integrator",
+      "reason": "Merged candidate behavior with current-main implementation, security, and compatibility contract.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/backend/src/hospital_ai/services/hms_sync.py",
+      "disposition": "adapt",
+      "owner": "cdi-v2-integrator",
+      "reason": "Merged candidate behavior with current-main implementation, security, and compatibility contract.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/backend/src/hospital_ai/services/idempotency.py",
+      "disposition": "adapt",
+      "owner": "cdi-v2-integrator",
+      "reason": "Merged candidate behavior with current-main implementation, security, and compatibility contract.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/backend/src/hospital_ai/services/jwt_auth.py",
+      "disposition": "adapt",
+      "owner": "cdi-v2-integrator",
+      "reason": "Merged candidate behavior with current-main implementation, security, and compatibility contract.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/backend/src/hospital_ai/services/llm/__init__.py",
+      "disposition": "adapt",
+      "owner": "cdi-v2-integrator",
+      "reason": "Merged candidate behavior with current-main implementation, security, and compatibility contract.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/backend/src/hospital_ai/services/llm/instrumentation.py",
+      "disposition": "adapt",
+      "owner": "cdi-v2-integrator",
+      "reason": "Merged candidate behavior with current-main implementation, security, and compatibility contract.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/backend/src/hospital_ai/services/llm/stub_provider.py",
+      "disposition": "adapt",
+      "owner": "cdi-v2-integrator",
+      "reason": "Merged candidate behavior with current-main implementation, security, and compatibility contract.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/backend/src/hospital_ai/services/loaders/__init__.py",
+      "disposition": "adapt",
+      "owner": "cdi-v2-integrator",
+      "reason": "Merged candidate behavior with current-main implementation, security, and compatibility contract.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/backend/src/hospital_ai/services/loaders/composite.py",
+      "disposition": "adapt",
+      "owner": "cdi-v2-integrator",
+      "reason": "Merged candidate behavior with current-main implementation, security, and compatibility contract.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/backend/src/hospital_ai/services/memory.py",
+      "disposition": "adapt",
+      "owner": "cdi-v2-integrator",
+      "reason": "Merged candidate behavior with current-main implementation, security, and compatibility contract.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/backend/src/hospital_ai/services/metrics.py",
+      "disposition": "adapt",
+      "owner": "cdi-v2-integrator",
+      "reason": "Merged candidate behavior with current-main implementation, security, and compatibility contract.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/backend/src/hospital_ai/services/ocr.py",
+      "disposition": "adapt",
+      "owner": "cdi-v2-integrator",
+      "reason": "Merged candidate behavior with current-main implementation, security, and compatibility contract.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/backend/src/hospital_ai/services/ocr_routing.py",
+      "disposition": "include",
+      "owner": "cdi-v2-integrator",
+      "reason": "Candidate CDI V2 runtime contract, deterministic test, or release evidence surface.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/backend/src/hospital_ai/services/permissions.py",
+      "disposition": "adapt",
+      "owner": "cdi-v2-integrator",
+      "reason": "Merged candidate behavior with current-main implementation, security, and compatibility contract.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/backend/src/hospital_ai/services/query_planner.py",
+      "disposition": "include",
+      "owner": "cdi-v2-integrator",
+      "reason": "Candidate CDI V2 runtime contract, deterministic test, or release evidence surface.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/backend/src/hospital_ai/services/reasoning.py",
+      "disposition": "adapt",
+      "owner": "cdi-v2-integrator",
+      "reason": "Merged candidate behavior with current-main implementation, security, and compatibility contract.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/backend/src/hospital_ai/services/reranking.py",
+      "disposition": "adapt",
+      "owner": "cdi-v2-integrator",
+      "reason": "Merged candidate behavior with current-main implementation, security, and compatibility contract.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/backend/src/hospital_ai/services/retrieval.py",
+      "disposition": "adapt",
+      "owner": "cdi-v2-integrator",
+      "reason": "Merged candidate behavior with current-main implementation, security, and compatibility contract.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/backend/src/hospital_ai/services/revisions.py",
+      "disposition": "adapt",
+      "owner": "cdi-v2-integrator",
+      "reason": "Merged candidate behavior with current-main implementation, security, and compatibility contract.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/backend/src/hospital_ai/services/storage.py",
+      "disposition": "adapt",
+      "owner": "cdi-v2-integrator",
+      "reason": "Merged candidate behavior with current-main implementation, security, and compatibility contract.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/backend/src/hospital_ai/services/upload_sessions.py",
+      "disposition": "adapt",
+      "owner": "cdi-v2-integrator",
+      "reason": "Merged candidate behavior with current-main implementation, security, and compatibility contract.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/backend/src/hospital_ai/services/validated_stream.py",
+      "disposition": "include",
+      "owner": "cdi-v2-integrator",
+      "reason": "Candidate CDI V2 runtime contract, deterministic test, or release evidence surface.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/backend/src/hospital_ai/workers/__init__.py",
+      "disposition": "adapt",
+      "owner": "cdi-v2-integrator",
+      "reason": "Merged candidate behavior with current-main implementation, security, and compatibility contract.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/backend/src/hospital_ai/workers/cdss.py",
+      "disposition": "adapt",
+      "owner": "cdi-v2-integrator",
+      "reason": "Merged candidate behavior with current-main implementation, security, and compatibility contract.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/backend/src/hospital_ai/workers/documents.py",
+      "disposition": "adapt",
+      "owner": "cdi-v2-integrator",
+      "reason": "Merged candidate behavior with current-main implementation, security, and compatibility contract.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/backend/src/hospital_ai/workers/extraction_jobs.py",
+      "disposition": "include",
+      "owner": "cdi-v2-integrator",
+      "reason": "Candidate CDI V2 runtime contract, deterministic test, or release evidence surface.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/backend/src/hospital_ai/workers/generation_jobs.py",
+      "disposition": "include",
+      "owner": "cdi-v2-integrator",
+      "reason": "Candidate CDI V2 runtime contract, deterministic test, or release evidence surface.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/backend/src/hospital_ai/workers/jobs.py",
+      "disposition": "adapt",
+      "owner": "cdi-v2-integrator",
+      "reason": "Merged candidate behavior with current-main implementation, security, and compatibility contract.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/backend/src/hospital_ai/workers/ocr_models.py",
+      "disposition": "include",
+      "owner": "cdi-v2-integrator",
+      "reason": "Candidate CDI V2 runtime contract, deterministic test, or release evidence surface.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/backend/src/hospital_ai/workers/pipeline.py",
+      "disposition": "adapt",
+      "owner": "cdi-v2-integrator",
+      "reason": "Merged candidate behavior with current-main implementation, security, and compatibility contract.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/backend/src/hospital_ai/workers/queue.py",
+      "disposition": "adapt",
+      "owner": "cdi-v2-integrator",
+      "reason": "Merged candidate behavior with current-main implementation, security, and compatibility contract.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/backend/src/hospital_ai/workers/run_worker.py",
+      "disposition": "adapt",
+      "owner": "cdi-v2-integrator",
+      "reason": "Merged candidate behavior with current-main implementation, security, and compatibility contract.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/backend/tests/__init__.py",
+      "disposition": "adapt",
+      "owner": "cdi-v2-integrator",
+      "reason": "Merged candidate behavior with current-main implementation, security, and compatibility contract.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/backend/tests/api/test_documents.py",
+      "disposition": "adapt",
+      "owner": "cdi-v2-integrator",
+      "reason": "Merged candidate behavior with current-main implementation, security, and compatibility contract.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/backend/tests/cdi_v2/acceptance/harness.py",
+      "disposition": "include",
+      "owner": "cdi-v2-integrator",
+      "reason": "Candidate CDI V2 runtime contract, deterministic test, or release evidence surface.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/backend/tests/cdi_v2/conftest.py",
+      "disposition": "include",
+      "owner": "cdi-v2-integrator",
+      "reason": "Candidate CDI V2 runtime contract, deterministic test, or release evidence surface.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/backend/tests/cdi_v2/test_backfill.py",
+      "disposition": "include",
+      "owner": "cdi-v2-integrator",
+      "reason": "Candidate CDI V2 runtime contract, deterministic test, or release evidence surface.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/backend/tests/cdi_v2/test_backfill_resume.py",
+      "disposition": "include",
+      "owner": "cdi-v2-integrator",
+      "reason": "Candidate CDI V2 runtime contract, deterministic test, or release evidence surface.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/backend/tests/cdi_v2/test_capabilities.py",
+      "disposition": "adapt",
+      "owner": "cdi-v2-integrator",
+      "reason": "Merged candidate behavior with current-main implementation, security, and compatibility contract.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/backend/tests/cdi_v2/test_claim_validation.py",
+      "disposition": "include",
+      "owner": "cdi-v2-integrator",
+      "reason": "Candidate CDI V2 runtime contract, deterministic test, or release evidence surface.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/backend/tests/cdi_v2/test_clinical_timeline.py",
+      "disposition": "include",
+      "owner": "cdi-v2-integrator",
+      "reason": "Candidate CDI V2 runtime contract, deterministic test, or release evidence surface.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/backend/tests/cdi_v2/test_cross_path_evidence_scope.py",
+      "disposition": "include",
+      "owner": "cdi-v2-integrator",
+      "reason": "Candidate CDI V2 runtime contract, deterministic test, or release evidence surface.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/backend/tests/cdi_v2/test_document_graph_api.py",
+      "disposition": "include",
+      "owner": "cdi-v2-integrator",
+      "reason": "Candidate CDI V2 runtime contract, deterministic test, or release evidence surface.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/backend/tests/cdi_v2/test_evidence_scope.py",
+      "disposition": "include",
+      "owner": "cdi-v2-integrator",
+      "reason": "Candidate CDI V2 runtime contract, deterministic test, or release evidence surface.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/backend/tests/cdi_v2/test_extraction_worker.py",
+      "disposition": "include",
+      "owner": "cdi-v2-integrator",
+      "reason": "Candidate CDI V2 runtime contract, deterministic test, or release evidence surface.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/backend/tests/cdi_v2/test_generation_api.py",
+      "disposition": "include",
+      "owner": "cdi-v2-integrator",
+      "reason": "Candidate CDI V2 runtime contract, deterministic test, or release evidence surface.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/backend/tests/cdi_v2/test_generation_service.py",
+      "disposition": "include",
+      "owner": "cdi-v2-integrator",
+      "reason": "Candidate CDI V2 runtime contract, deterministic test, or release evidence surface.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/backend/tests/cdi_v2/test_generation_worker.py",
+      "disposition": "include",
+      "owner": "cdi-v2-integrator",
+      "reason": "Candidate CDI V2 runtime contract, deterministic test, or release evidence surface.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/backend/tests/cdi_v2/test_geometry_alignment.py",
+      "disposition": "include",
+      "owner": "cdi-v2-integrator",
+      "reason": "Candidate CDI V2 runtime contract, deterministic test, or release evidence surface.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/backend/tests/cdi_v2/test_graph_index.py",
+      "disposition": "include",
+      "owner": "cdi-v2-integrator",
+      "reason": "Candidate CDI V2 runtime contract, deterministic test, or release evidence surface.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/backend/tests/cdi_v2/test_graph_migration.py",
+      "disposition": "include",
+      "owner": "cdi-v2-integrator",
+      "reason": "Candidate CDI V2 runtime contract, deterministic test, or release evidence surface.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/backend/tests/cdi_v2/test_graph_query.py",
+      "disposition": "include",
+      "owner": "cdi-v2-integrator",
+      "reason": "Candidate CDI V2 runtime contract, deterministic test, or release evidence surface.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/backend/tests/cdi_v2/test_idempotency.py",
+      "disposition": "adapt",
+      "owner": "cdi-v2-integrator",
+      "reason": "Merged candidate behavior with current-main implementation, security, and compatibility contract.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/backend/tests/cdi_v2/test_identifier_binding_security.py",
+      "disposition": "include",
+      "owner": "cdi-v2-integrator",
+      "reason": "Candidate CDI V2 runtime contract, deterministic test, or release evidence surface.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/backend/tests/cdi_v2/test_legacy_parity.py",
+      "disposition": "include",
+      "owner": "cdi-v2-integrator",
+      "reason": "Candidate CDI V2 runtime contract, deterministic test, or release evidence surface.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/backend/tests/cdi_v2/test_model_contracts.py",
+      "disposition": "adapt",
+      "owner": "cdi-v2-integrator",
+      "reason": "Merged candidate behavior with current-main implementation, security, and compatibility contract.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/backend/tests/cdi_v2/test_normative_acceptance.py",
+      "disposition": "include",
+      "owner": "cdi-v2-integrator",
+      "reason": "Candidate CDI V2 runtime contract, deterministic test, or release evidence surface.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/backend/tests/cdi_v2/test_ocr_routing.py",
+      "disposition": "include",
+      "owner": "cdi-v2-integrator",
+      "reason": "Candidate CDI V2 runtime contract, deterministic test, or release evidence surface.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/backend/tests/cdi_v2/test_query_planner.py",
+      "disposition": "include",
+      "owner": "cdi-v2-integrator",
+      "reason": "Candidate CDI V2 runtime contract, deterministic test, or release evidence surface.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/backend/tests/cdi_v2/test_release_verifier.py",
+      "disposition": "include",
+      "owner": "cdi-v2-integrator",
+      "reason": "Candidate CDI V2 runtime contract, deterministic test, or release evidence surface.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/backend/tests/cdi_v2/test_revision_api.py",
+      "disposition": "adapt",
+      "owner": "cdi-v2-integrator",
+      "reason": "Merged candidate behavior with current-main implementation, security, and compatibility contract.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/backend/tests/cdi_v2/test_revision_aware_retrieval.py",
+      "disposition": "include",
+      "owner": "cdi-v2-integrator",
+      "reason": "Candidate CDI V2 runtime contract, deterministic test, or release evidence surface.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/backend/tests/cdi_v2/test_revision_generation_migration.py",
+      "disposition": "include",
+      "owner": "cdi-v2-integrator",
+      "reason": "Candidate CDI V2 runtime contract, deterministic test, or release evidence surface.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/backend/tests/cdi_v2/test_revision_service.py",
+      "disposition": "adapt",
+      "owner": "cdi-v2-integrator",
+      "reason": "Merged candidate behavior with current-main implementation, security, and compatibility contract.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/backend/tests/cdi_v2/test_revision_state_machine.py",
+      "disposition": "include",
+      "owner": "cdi-v2-integrator",
+      "reason": "Candidate CDI V2 runtime contract, deterministic test, or release evidence surface.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/backend/tests/cdi_v2/test_upload_api.py",
+      "disposition": "adapt",
+      "owner": "cdi-v2-integrator",
+      "reason": "Merged candidate behavior with current-main implementation, security, and compatibility contract.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/backend/tests/cdi_v2/test_upload_sessions.py",
+      "disposition": "adapt",
+      "owner": "cdi-v2-integrator",
+      "reason": "Merged candidate behavior with current-main implementation, security, and compatibility contract.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/backend/tests/cdi_v2/test_validated_stream.py",
+      "disposition": "include",
+      "owner": "cdi-v2-integrator",
+      "reason": "Candidate CDI V2 runtime contract, deterministic test, or release evidence surface.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/backend/tests/cdi_v2/test_validated_stream_migration.py",
+      "disposition": "include",
+      "owner": "cdi-v2-integrator",
+      "reason": "Candidate CDI V2 runtime contract, deterministic test, or release evidence surface.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/backend/tests/conftest.py",
+      "disposition": "adapt",
+      "owner": "cdi-v2-integrator",
+      "reason": "Merged candidate behavior with current-main implementation, security, and compatibility contract.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/backend/tests/evaluation/test_adapter_foundation.py",
+      "disposition": "adapt",
+      "owner": "cdi-v2-integrator",
+      "reason": "Merged candidate behavior with current-main implementation, security, and compatibility contract.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/backend/tests/evaluation/test_benchmark.py",
+      "disposition": "adapt",
+      "owner": "cdi-v2-integrator",
+      "reason": "Merged candidate behavior with current-main implementation, security, and compatibility contract.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/backend/tests/evaluation/test_citation_parser.py",
+      "disposition": "adapt",
+      "owner": "cdi-v2-integrator",
+      "reason": "Merged candidate behavior with current-main implementation, security, and compatibility contract.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/backend/tests/evaluation/test_corpus_manifest.py",
+      "disposition": "adapt",
+      "owner": "cdi-v2-integrator",
+      "reason": "Merged candidate behavior with current-main implementation, security, and compatibility contract.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/backend/tests/evaluation/test_corpus_v3.py",
+      "disposition": "include",
+      "owner": "cdi-v2-integrator",
+      "reason": "Candidate CDI V2 runtime contract, deterministic test, or release evidence surface.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/backend/tests/evaluation/test_evaluation_runner.py",
+      "disposition": "adapt",
+      "owner": "cdi-v2-integrator",
+      "reason": "Merged candidate behavior with current-main implementation, security, and compatibility contract.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/backend/tests/evaluation/test_ocr_evaluation.py",
+      "disposition": "adapt",
+      "owner": "cdi-v2-integrator",
+      "reason": "Merged candidate behavior with current-main implementation, security, and compatibility contract.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/backend/tests/evaluation/test_phi_redactor.py",
+      "disposition": "adapt",
+      "owner": "cdi-v2-integrator",
+      "reason": "Merged candidate behavior with current-main implementation, security, and compatibility contract.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/backend/tests/evaluation/test_product_retrieval_adapter.py",
+      "disposition": "adapt",
+      "owner": "cdi-v2-integrator",
+      "reason": "Merged candidate behavior with current-main implementation, security, and compatibility contract.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/backend/tests/evaluation/test_product_stream_adapter.py",
+      "disposition": "include",
+      "owner": "cdi-v2-integrator",
+      "reason": "Candidate CDI V2 runtime contract, deterministic test, or release evidence surface.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/backend/tests/evaluation/test_product_timeline_adapter.py",
+      "disposition": "include",
+      "owner": "cdi-v2-integrator",
+      "reason": "Candidate CDI V2 runtime contract, deterministic test, or release evidence surface.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/backend/tests/evaluation/test_threshold_artifact.py",
+      "disposition": "include",
+      "owner": "cdi-v2-integrator",
+      "reason": "Candidate CDI V2 runtime contract, deterministic test, or release evidence surface.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/backend/tests/evaluation/test_unified_metrics.py",
+      "disposition": "include",
+      "owner": "cdi-v2-integrator",
+      "reason": "Candidate CDI V2 runtime contract, deterministic test, or release evidence surface.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/backend/tests/security/test_graph_logging.py",
+      "disposition": "include",
+      "owner": "cdi-v2-integrator",
+      "reason": "Candidate CDI V2 runtime contract, deterministic test, or release evidence surface.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/backend/tests/security/test_storage_object_key_validation.py",
+      "disposition": "include",
+      "owner": "cdi-v2-integrator",
+      "reason": "Candidate CDI V2 runtime contract, deterministic test, or release evidence surface.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/backend/tests/test_access_requests.py",
+      "disposition": "adapt",
+      "owner": "cdi-v2-integrator",
+      "reason": "Merged candidate behavior with current-main implementation, security, and compatibility contract.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/backend/tests/test_audit_2026_05.py",
+      "disposition": "adapt",
+      "owner": "cdi-v2-integrator",
+      "reason": "Merged candidate behavior with current-main implementation, security, and compatibility contract.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/backend/tests/test_auth.py",
+      "disposition": "adapt",
+      "owner": "cdi-v2-integrator",
+      "reason": "Merged candidate behavior with current-main implementation, security, and compatibility contract.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/backend/tests/test_cd_operations_contracts.py",
+      "disposition": "adapt",
+      "owner": "cdi-v2-integrator",
+      "reason": "Merged candidate behavior with current-main implementation, security, and compatibility contract.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/backend/tests/test_cdss_agent.py",
+      "disposition": "adapt",
+      "owner": "cdi-v2-integrator",
+      "reason": "Merged candidate behavior with current-main implementation, security, and compatibility contract.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/backend/tests/test_chat_citations.py",
+      "disposition": "adapt",
+      "owner": "cdi-v2-integrator",
+      "reason": "Merged candidate behavior with current-main implementation, security, and compatibility contract.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/backend/tests/test_chat_endpoint.py",
+      "disposition": "adapt",
+      "owner": "cdi-v2-integrator",
+      "reason": "Merged candidate behavior with current-main implementation, security, and compatibility contract.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/backend/tests/test_chat_stream_endpoint.py",
+      "disposition": "adapt",
+      "owner": "cdi-v2-integrator",
+      "reason": "Merged candidate behavior with current-main implementation, security, and compatibility contract.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/backend/tests/test_chat_thread_contract.py",
+      "disposition": "adapt",
+      "owner": "cdi-v2-integrator",
+      "reason": "Merged candidate behavior with current-main implementation, security, and compatibility contract.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/backend/tests/test_chat_thread_messages_api.py",
+      "disposition": "adapt",
+      "owner": "cdi-v2-integrator",
+      "reason": "Merged candidate behavior with current-main implementation, security, and compatibility contract.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/backend/tests/test_chat_thread_participants_api.py",
+      "disposition": "adapt",
+      "owner": "cdi-v2-integrator",
+      "reason": "Merged candidate behavior with current-main implementation, security, and compatibility contract.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/backend/tests/test_chat_threads_api.py",
+      "disposition": "adapt",
+      "owner": "cdi-v2-integrator",
+      "reason": "Merged candidate behavior with current-main implementation, security, and compatibility contract.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/backend/tests/test_ci_workflow.py",
+      "disposition": "adapt",
+      "owner": "cdi-v2-integrator",
+      "reason": "Merged candidate behavior with current-main implementation, security, and compatibility contract.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/backend/tests/test_cors.py",
+      "disposition": "adapt",
+      "owner": "cdi-v2-integrator",
+      "reason": "Merged candidate behavior with current-main implementation, security, and compatibility contract.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/backend/tests/test_dashboard.py",
+      "disposition": "adapt",
+      "owner": "cdi-v2-integrator",
+      "reason": "Merged candidate behavior with current-main implementation, security, and compatibility contract.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/backend/tests/test_deployment_contracts.py",
+      "disposition": "adapt",
+      "owner": "cdi-v2-integrator",
+      "reason": "Merged candidate behavior with current-main implementation, security, and compatibility contract.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/backend/tests/test_drug_check.py",
+      "disposition": "adapt",
+      "owner": "cdi-v2-integrator",
+      "reason": "Merged candidate behavior with current-main implementation, security, and compatibility contract.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/backend/tests/test_exceptions.py",
+      "disposition": "adapt",
+      "owner": "cdi-v2-integrator",
+      "reason": "Merged candidate behavior with current-main implementation, security, and compatibility contract.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/backend/tests/test_feedback.py",
+      "disposition": "adapt",
+      "owner": "cdi-v2-integrator",
+      "reason": "Merged candidate behavior with current-main implementation, security, and compatibility contract.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/backend/tests/test_golden_dataset.py",
+      "disposition": "adapt",
+      "owner": "cdi-v2-integrator",
+      "reason": "Merged candidate behavior with current-main implementation, security, and compatibility contract.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/backend/tests/test_graph_endpoint.py",
+      "disposition": "adapt",
+      "owner": "cdi-v2-integrator",
+      "reason": "Merged candidate behavior with current-main implementation, security, and compatibility contract.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/backend/tests/test_graph_rag_chat_release_gates.py",
+      "disposition": "adapt",
+      "owner": "cdi-v2-integrator",
+      "reason": "Merged candidate behavior with current-main implementation, security, and compatibility contract.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/backend/tests/test_graph_rag_integration.py",
+      "disposition": "adapt",
+      "owner": "cdi-v2-integrator",
+      "reason": "Merged candidate behavior with current-main implementation, security, and compatibility contract.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/backend/tests/test_guardrails.py",
+      "disposition": "adapt",
+      "owner": "cdi-v2-integrator",
+      "reason": "Merged candidate behavior with current-main implementation, security, and compatibility contract.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/backend/tests/test_hms_appointment_import.py",
+      "disposition": "adapt",
+      "owner": "cdi-v2-integrator",
+      "reason": "Merged candidate behavior with current-main implementation, security, and compatibility contract.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/backend/tests/test_hms_sync.py",
+      "disposition": "adapt",
+      "owner": "cdi-v2-integrator",
+      "reason": "Merged candidate behavior with current-main implementation, security, and compatibility contract.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/backend/tests/test_metrics.py",
+      "disposition": "adapt",
+      "owner": "cdi-v2-integrator",
+      "reason": "Merged candidate behavior with current-main implementation, security, and compatibility contract.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/backend/tests/test_migrations.py",
+      "disposition": "adapt",
+      "owner": "cdi-v2-integrator",
+      "reason": "Merged candidate behavior with current-main implementation, security, and compatibility contract.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/backend/tests/test_notifications.py",
+      "disposition": "adapt",
+      "owner": "cdi-v2-integrator",
+      "reason": "Merged candidate behavior with current-main implementation, security, and compatibility contract.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/backend/tests/test_observability.py",
+      "disposition": "adapt",
+      "owner": "cdi-v2-integrator",
+      "reason": "Merged candidate behavior with current-main implementation, security, and compatibility contract.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/backend/tests/test_ocr_service.py",
+      "disposition": "adapt",
+      "owner": "cdi-v2-integrator",
+      "reason": "Merged candidate behavior with current-main implementation, security, and compatibility contract.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/backend/tests/test_patient_bff.py",
+      "disposition": "adapt",
+      "owner": "cdi-v2-integrator",
+      "reason": "Merged candidate behavior with current-main implementation, security, and compatibility contract.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/backend/tests/test_patients.py",
+      "disposition": "adapt",
+      "owner": "cdi-v2-integrator",
+      "reason": "Merged candidate behavior with current-main implementation, security, and compatibility contract.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/backend/tests/test_performance.py",
+      "disposition": "adapt",
+      "owner": "cdi-v2-integrator",
+      "reason": "Merged candidate behavior with current-main implementation, security, and compatibility contract.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/backend/tests/test_permissions.py",
+      "disposition": "adapt",
+      "owner": "cdi-v2-integrator",
+      "reason": "Merged candidate behavior with current-main implementation, security, and compatibility contract.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/backend/tests/test_portfolio_hardening_api.py",
+      "disposition": "adapt",
+      "owner": "cdi-v2-integrator",
+      "reason": "Merged candidate behavior with current-main implementation, security, and compatibility contract.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/backend/tests/test_r2_worker_integration.py",
+      "disposition": "adapt",
+      "owner": "cdi-v2-integrator",
+      "reason": "Merged candidate behavior with current-main implementation, security, and compatibility contract.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/backend/tests/test_reasoning.py",
+      "disposition": "adapt",
+      "owner": "cdi-v2-integrator",
+      "reason": "Merged candidate behavior with current-main implementation, security, and compatibility contract.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/backend/tests/test_retrieval_postgres_integration.py",
+      "disposition": "adapt",
+      "owner": "cdi-v2-integrator",
+      "reason": "Merged candidate behavior with current-main implementation, security, and compatibility contract.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/backend/tests/test_retrieval_sql.py",
+      "disposition": "adapt",
+      "owner": "cdi-v2-integrator",
+      "reason": "Merged candidate behavior with current-main implementation, security, and compatibility contract.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/backend/tests/test_safe_refusal.py",
+      "disposition": "adapt",
+      "owner": "cdi-v2-integrator",
+      "reason": "Merged candidate behavior with current-main implementation, security, and compatibility contract.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/backend/tests/test_scratch_chat.py",
+      "disposition": "adapt",
+      "owner": "cdi-v2-integrator",
+      "reason": "Merged candidate behavior with current-main implementation, security, and compatibility contract.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/backend/tests/test_search.py",
+      "disposition": "adapt",
+      "owner": "cdi-v2-integrator",
+      "reason": "Merged candidate behavior with current-main implementation, security, and compatibility contract.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/backend/tests/test_settings_api.py",
+      "disposition": "adapt",
+      "owner": "cdi-v2-integrator",
+      "reason": "Merged candidate behavior with current-main implementation, security, and compatibility contract.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/backend/tests/test_storage_contracts.py",
+      "disposition": "adapt",
+      "owner": "cdi-v2-integrator",
+      "reason": "Merged candidate behavior with current-main implementation, security, and compatibility contract.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/backend/tests/test_streaming.py",
+      "disposition": "adapt",
+      "owner": "cdi-v2-integrator",
+      "reason": "Merged candidate behavior with current-main implementation, security, and compatibility contract.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/backend/tests/test_stub_provider.py",
+      "disposition": "include",
+      "owner": "cdi-v2-integrator",
+      "reason": "Candidate CDI V2 runtime contract, deterministic test, or release evidence surface.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/backend/tests/test_telemetry.py",
+      "disposition": "adapt",
+      "owner": "cdi-v2-integrator",
+      "reason": "Merged candidate behavior with current-main implementation, security, and compatibility contract.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/backend/tests/workers/test_documents_pipeline.py",
+      "disposition": "adapt",
+      "owner": "cdi-v2-integrator",
+      "reason": "Merged candidate behavior with current-main implementation, security, and compatibility contract.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/frontend/bun.lock",
+      "disposition": "adapt",
+      "owner": "cdi-v2-integrator",
+      "reason": "Merged candidate behavior with current-main implementation, security, and compatibility contract.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/frontend/e2e/cdi-v2-document-intelligence.spec.ts",
+      "disposition": "include",
+      "owner": "cdi-v2-integrator",
+      "reason": "Candidate CDI V2 runtime contract, deterministic test, or release evidence surface.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/frontend/e2e/fixtures/api-mocks.ts",
+      "disposition": "adapt",
+      "owner": "cdi-v2-integrator",
+      "reason": "Merged candidate behavior with current-main implementation, security, and compatibility contract.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/frontend/package.json",
+      "disposition": "adapt",
+      "owner": "cdi-v2-integrator",
+      "reason": "Merged candidate behavior with current-main implementation, security, and compatibility contract.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/frontend/scripts/verify-public-bundle.mjs",
+      "disposition": "adapt",
+      "owner": "cdi-v2-integrator",
+      "reason": "Merged candidate behavior with current-main implementation, security, and compatibility contract.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/frontend/src/components/hms/ChatMessage.test.tsx",
+      "disposition": "adapt",
+      "owner": "cdi-v2-integrator",
+      "reason": "Merged candidate behavior with current-main implementation, security, and compatibility contract.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/frontend/src/components/hms/ChatMessage.tsx",
+      "disposition": "adapt",
+      "owner": "cdi-v2-integrator",
+      "reason": "Merged candidate behavior with current-main implementation, security, and compatibility contract.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/frontend/src/components/hms/CitationChip.tsx",
+      "disposition": "adapt",
+      "owner": "cdi-v2-integrator",
+      "reason": "Merged candidate behavior with current-main implementation, security, and compatibility contract.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/frontend/src/components/hms/ClinicalTimelinePanel.test.tsx",
+      "disposition": "include",
+      "owner": "cdi-v2-integrator",
+      "reason": "Candidate CDI V2 runtime contract, deterministic test, or release evidence surface.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/frontend/src/components/hms/ClinicalTimelinePanel.tsx",
+      "disposition": "include",
+      "owner": "cdi-v2-integrator",
+      "reason": "Candidate CDI V2 runtime contract, deterministic test, or release evidence surface.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/frontend/src/components/hms/DocumentPreview.tsx",
+      "disposition": "adapt",
+      "owner": "cdi-v2-integrator",
+      "reason": "Merged candidate behavior with current-main implementation, security, and compatibility contract.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/frontend/src/components/hms/EvidenceRail.test.tsx",
+      "disposition": "include",
+      "owner": "cdi-v2-integrator",
+      "reason": "Candidate CDI V2 runtime contract, deterministic test, or release evidence surface.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/frontend/src/components/hms/EvidenceRail.tsx",
+      "disposition": "adapt",
+      "owner": "cdi-v2-integrator",
+      "reason": "Merged candidate behavior with current-main implementation, security, and compatibility contract.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/frontend/src/components/hms/GraphCanvas.test.tsx",
+      "disposition": "include",
+      "owner": "cdi-v2-integrator",
+      "reason": "Candidate CDI V2 runtime contract, deterministic test, or release evidence surface.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/frontend/src/components/hms/GraphCanvas.tsx",
+      "disposition": "adapt",
+      "owner": "cdi-v2-integrator",
+      "reason": "Merged candidate behavior with current-main implementation, security, and compatibility contract.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/frontend/src/components/hms/GraphExplanationPanel.test.tsx",
+      "disposition": "include",
+      "owner": "cdi-v2-integrator",
+      "reason": "Candidate CDI V2 runtime contract, deterministic test, or release evidence surface.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/frontend/src/components/hms/GraphExplanationPanel.tsx",
+      "disposition": "include",
+      "owner": "cdi-v2-integrator",
+      "reason": "Candidate CDI V2 runtime contract, deterministic test, or release evidence surface.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/frontend/src/components/hms/GraphFilters.test.tsx",
+      "disposition": "include",
+      "owner": "cdi-v2-integrator",
+      "reason": "Candidate CDI V2 runtime contract, deterministic test, or release evidence surface.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/frontend/src/components/hms/GraphFilters.tsx",
+      "disposition": "include",
+      "owner": "cdi-v2-integrator",
+      "reason": "Candidate CDI V2 runtime contract, deterministic test, or release evidence surface.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/frontend/src/components/hms/document-upload/DocumentUploadFlow.test.tsx",
+      "disposition": "include",
+      "owner": "cdi-v2-integrator",
+      "reason": "Candidate CDI V2 runtime contract, deterministic test, or release evidence surface.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/frontend/src/components/hms/document-upload/DocumentUploadFlow.tsx",
+      "disposition": "include",
+      "owner": "cdi-v2-integrator",
+      "reason": "Candidate CDI V2 runtime contract, deterministic test, or release evidence surface.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/frontend/src/components/hms/document-upload/UploadStatePanel.test.tsx",
+      "disposition": "include",
+      "owner": "cdi-v2-integrator",
+      "reason": "Candidate CDI V2 runtime contract, deterministic test, or release evidence surface.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/frontend/src/components/hms/document-upload/UploadStatePanel.tsx",
+      "disposition": "include",
+      "owner": "cdi-v2-integrator",
+      "reason": "Candidate CDI V2 runtime contract, deterministic test, or release evidence surface.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/frontend/src/components/hms/document-workspace/DocumentWorkspace.test.tsx",
+      "disposition": "include",
+      "owner": "cdi-v2-integrator",
+      "reason": "Candidate CDI V2 runtime contract, deterministic test, or release evidence surface.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/frontend/src/components/hms/document-workspace/DocumentWorkspace.tsx",
+      "disposition": "include",
+      "owner": "cdi-v2-integrator",
+      "reason": "Candidate CDI V2 runtime contract, deterministic test, or release evidence surface.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/frontend/src/components/hms/document-workspace/GeometryOverlay.tsx",
+      "disposition": "include",
+      "owner": "cdi-v2-integrator",
+      "reason": "Candidate CDI V2 runtime contract, deterministic test, or release evidence surface.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/frontend/src/components/hms/document-workspace/OcrEditor.test.tsx",
+      "disposition": "include",
+      "owner": "cdi-v2-integrator",
+      "reason": "Candidate CDI V2 runtime contract, deterministic test, or release evidence surface.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/frontend/src/components/hms/document-workspace/OcrEditor.tsx",
+      "disposition": "include",
+      "owner": "cdi-v2-integrator",
+      "reason": "Candidate CDI V2 runtime contract, deterministic test, or release evidence surface.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/frontend/src/components/hms/document-workspace/PageNavigator.tsx",
+      "disposition": "include",
+      "owner": "cdi-v2-integrator",
+      "reason": "Candidate CDI V2 runtime contract, deterministic test, or release evidence surface.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/frontend/src/components/hms/document-workspace/RevisionDiff.tsx",
+      "disposition": "include",
+      "owner": "cdi-v2-integrator",
+      "reason": "Candidate CDI V2 runtime contract, deterministic test, or release evidence surface.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/frontend/src/components/hms/document-workspace/RevisionHistoryDrawer.tsx",
+      "disposition": "include",
+      "owner": "cdi-v2-integrator",
+      "reason": "Candidate CDI V2 runtime contract, deterministic test, or release evidence surface.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/frontend/src/components/hms/document-workspace/RevisionSelector.tsx",
+      "disposition": "include",
+      "owner": "cdi-v2-integrator",
+      "reason": "Candidate CDI V2 runtime contract, deterministic test, or release evidence surface.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/frontend/src/components/hms/document-workspace/WorkspaceToolbar.tsx",
+      "disposition": "include",
+      "owner": "cdi-v2-integrator",
+      "reason": "Candidate CDI V2 runtime contract, deterministic test, or release evidence surface.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/frontend/src/lib/api/document-graph.test.ts",
+      "disposition": "include",
+      "owner": "cdi-v2-integrator",
+      "reason": "Candidate CDI V2 runtime contract, deterministic test, or release evidence surface.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/frontend/src/lib/api/document-graph.ts",
+      "disposition": "include",
+      "owner": "cdi-v2-integrator",
+      "reason": "Candidate CDI V2 runtime contract, deterministic test, or release evidence surface.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/frontend/src/lib/api/document-revisions.test.ts",
+      "disposition": "include",
+      "owner": "cdi-v2-integrator",
+      "reason": "Candidate CDI V2 runtime contract, deterministic test, or release evidence surface.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/frontend/src/lib/api/document-revisions.ts",
+      "disposition": "include",
+      "owner": "cdi-v2-integrator",
+      "reason": "Candidate CDI V2 runtime contract, deterministic test, or release evidence surface.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/frontend/src/lib/api/document-timeline.test.ts",
+      "disposition": "include",
+      "owner": "cdi-v2-integrator",
+      "reason": "Candidate CDI V2 runtime contract, deterministic test, or release evidence surface.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/frontend/src/lib/api/document-timeline.ts",
+      "disposition": "include",
+      "owner": "cdi-v2-integrator",
+      "reason": "Candidate CDI V2 runtime contract, deterministic test, or release evidence surface.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/frontend/src/lib/api/documents.test.ts",
+      "disposition": "adapt",
+      "owner": "cdi-v2-integrator",
+      "reason": "Merged candidate behavior with current-main implementation, security, and compatibility contract.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/frontend/src/lib/api/documents.ts",
+      "disposition": "adapt",
+      "owner": "cdi-v2-integrator",
+      "reason": "Merged candidate behavior with current-main implementation, security, and compatibility contract.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/frontend/src/lib/api/graph.ts",
+      "disposition": "adapt",
+      "owner": "cdi-v2-integrator",
+      "reason": "Merged candidate behavior with current-main implementation, security, and compatibility contract.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/frontend/src/lib/idempotency.ts",
+      "disposition": "include",
+      "owner": "cdi-v2-integrator",
+      "reason": "Candidate CDI V2 runtime contract, deterministic test, or release evidence surface.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/frontend/src/lib/stream-client.test.ts",
+      "disposition": "adapt",
+      "owner": "cdi-v2-integrator",
+      "reason": "Merged candidate behavior with current-main implementation, security, and compatibility contract.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/frontend/src/lib/stream-client.ts",
+      "disposition": "adapt",
+      "owner": "cdi-v2-integrator",
+      "reason": "Merged candidate behavior with current-main implementation, security, and compatibility contract.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/frontend/src/routes/_app.chat.index.tsx",
+      "disposition": "adapt",
+      "owner": "cdi-v2-integrator",
+      "reason": "Merged candidate behavior with current-main implementation, security, and compatibility contract.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/frontend/src/routes/_app.documents.$documentId.review.tsx",
+      "disposition": "adapt",
+      "owner": "cdi-v2-integrator",
+      "reason": "Merged candidate behavior with current-main implementation, security, and compatibility contract.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/frontend/src/routes/_app.documents.$documentId.tsx",
+      "disposition": "adapt",
+      "owner": "cdi-v2-integrator",
+      "reason": "Merged candidate behavior with current-main implementation, security, and compatibility contract.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/frontend/src/routes/_app.documents.upload.tsx",
+      "disposition": "adapt",
+      "owner": "cdi-v2-integrator",
+      "reason": "Merged candidate behavior with current-main implementation, security, and compatibility contract.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/frontend/src/routes/_app.graph.patients.$patientId.tsx",
+      "disposition": "adapt",
+      "owner": "cdi-v2-integrator",
+      "reason": "Merged candidate behavior with current-main implementation, security, and compatibility contract.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/frontend/src/routes/_app.patients.$patientId.timeline.tsx",
+      "disposition": "adapt",
+      "owner": "cdi-v2-integrator",
+      "reason": "Merged candidate behavior with current-main implementation, security, and compatibility contract.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "docker-compose.yml",
+      "disposition": "adapt",
+      "owner": "cdi-v2-integrator",
+      "reason": "Merged candidate behavior with current-main implementation, security, and compatibility contract.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "docs/09-testing/cdi-v2-release-evidence.md",
+      "disposition": "include",
+      "owner": "cdi-v2-integrator",
+      "reason": "Candidate CDI V2 runtime contract, deterministic test, or release evidence surface.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "docs/09-testing/cdi-v2-release-gates.md",
+      "disposition": "include",
+      "owner": "cdi-v2-integrator",
+      "reason": "Candidate CDI V2 runtime contract, deterministic test, or release evidence surface.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "docs/09-testing/pr-89-defect-baseline.md",
+      "disposition": "include",
+      "owner": "cdi-v2-integrator",
+      "reason": "Candidate CDI V2 runtime contract, deterministic test, or release evidence surface.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "docs/11-operations/incident-response.md",
+      "disposition": "adapt",
+      "owner": "cdi-v2-integrator",
+      "reason": "Merged candidate behavior with current-main implementation, security, and compatibility contract.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "docs/11-operations/monitoring-guide.md",
+      "disposition": "adapt",
+      "owner": "cdi-v2-integrator",
+      "reason": "Merged candidate behavior with current-main implementation, security, and compatibility contract.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "docs/11-operations/operations-guide.md",
+      "disposition": "adapt",
+      "owner": "cdi-v2-integrator",
+      "reason": "Merged candidate behavior with current-main implementation, security, and compatibility contract.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "docs/11-operations/troubleshooting.md",
+      "disposition": "adapt",
+      "owner": "cdi-v2-integrator",
+      "reason": "Merged candidate behavior with current-main implementation, security, and compatibility contract.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "docs/superpowers/plans/2026-08-04-unified-clinical-document-intelligence-v2-design-plan.md",
+      "disposition": "include",
+      "owner": "cdi-v2-integrator",
+      "reason": "Candidate CDI V2 runtime contract, deterministic test, or release evidence surface.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "docs/superpowers/plans/2026-08-05-unified-clinical-document-intelligence-v2-implementation-plan.md",
+      "disposition": "include",
+      "owner": "cdi-v2-integrator",
+      "reason": "Candidate CDI V2 runtime contract, deterministic test, or release evidence surface.",
+      "verification": "Focused CDI V2 tests and backend/frontend contract checks"
+    },
+    {
+      "path": "app/backend/artifacts/",
+      "disposition": "exclude",
+      "owner": "cdi-v2-integrator",
+      "reason": "Generated or one-off candidate artifact excluded from the reviewed core integration PR.",
+      "verification": "Promotion manifest guard"
+    },
+    {
+      "path": "app/backend/eval_output.txt",
+      "disposition": "exclude",
+      "owner": "cdi-v2-integrator",
+      "reason": "Generated or one-off candidate artifact excluded from the reviewed core integration PR.",
+      "verification": "Promotion manifest guard"
+    },
+    {
+      "path": "app/backend/test_results.txt",
+      "disposition": "exclude",
+      "owner": "cdi-v2-integrator",
+      "reason": "Generated or one-off candidate artifact excluded from the reviewed core integration PR.",
+      "verification": "Promotion manifest guard"
+    },
+    {
+      "path": "app/backend/fix.py",
+      "disposition": "exclude",
+      "owner": "cdi-v2-integrator",
+      "reason": "Generated or one-off candidate artifact excluded from the reviewed core integration PR.",
+      "verification": "Promotion manifest guard"
+    },
+    {
+      "path": "app/backend/patch_new_migration.py",
+      "disposition": "exclude",
+      "owner": "cdi-v2-integrator",
+      "reason": "Generated or one-off candidate artifact excluded from the reviewed core integration PR.",
+      "verification": "Promotion manifest guard"
+    },
+    {
+      "path": "app/backend/test_pypdf.py",
+      "disposition": "exclude",
+      "owner": "cdi-v2-integrator",
+      "reason": "Generated or one-off candidate artifact excluded from the reviewed core integration PR.",
+      "verification": "Promotion manifest guard"
+    },
+    {
+      "path": "app/backend/scripts/generate_v3_schemas.py",
+      "disposition": "exclude",
+      "owner": "cdi-v2-integrator",
+      "reason": "Generated or one-off candidate artifact excluded from the reviewed core integration PR.",
+      "verification": "Promotion manifest guard"
+    },
+    {
+      "path": "app/artifacts/",
+      "disposition": "exclude",
+      "owner": "cdi-v2-integrator",
+      "reason": "Generated or one-off candidate artifact excluded from the reviewed core integration PR.",
+      "verification": "Promotion manifest guard"
+    },
+    {
+      "path": "script.py",
+      "disposition": "exclude",
+      "owner": "cdi-v2-integrator",
+      "reason": "Generated or one-off candidate artifact excluded from the reviewed core integration PR.",
+      "verification": "Promotion manifest guard"
+    },
+    {
+      "path": "docs/superpowers/plans/New Text Document.txt",
+      "disposition": "exclude",
+      "owner": "cdi-v2-integrator",
+      "reason": "Generated or one-off candidate artifact excluded from the reviewed core integration PR.",
+      "verification": "Promotion manifest guard"
+    }
+  ],
   "excluded_candidate_surfaces": [
     "app/backend/artifacts/",
     "app/backend/eval_output.txt",
     "app/backend/test_results.txt",
     "app/backend/fix.py",
     "app/backend/patch_new_migration.py",
-    "app/artifacts/"
+    "app/backend/test_pypdf.py",
+    "app/backend/scripts/generate_v3_schemas.py",
+    "app/artifacts/",
+    "script.py",
+    "docs/superpowers/plans/New Text Document.txt"
   ],
   "test_commands": [
     "python -m pytest tests/cdi_v2/test_promotion_provenance.py -q",

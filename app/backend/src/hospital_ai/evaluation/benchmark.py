@@ -6,10 +6,13 @@ import csv
 from collections import Counter
 from collections.abc import Iterable
 from pathlib import Path
-from typing import Literal
+from typing import Literal, Optional
 from uuid import UUID, uuid5
 
-import fitz
+try:
+    import fitz
+except ImportError:
+    fitz = None
 from pydantic import BaseModel, root_validator, validator
 
 from hospital_ai.evaluation.corpus_manifest import CorpusManifestV2, EvidenceLocator, SourceArtifact
@@ -90,7 +93,7 @@ class GraphExpectation(BaseModel):
     required_edges: tuple[tuple[str, str, str], ...]
     evidence: tuple[EvidenceLocator, ...]
 
-    @root_validator
+    @root_validator(skip_on_failure=True)
     def _graph_has_path_and_evidence(cls, values: dict) -> dict:
         if not values.get("required_nodes") or not values.get("required_edges"):
             raise ValueError("graph expectations require nodes and edges")
@@ -132,10 +135,10 @@ class EvalCaseV2(BaseModel):
     forbidden_evidence: tuple[EvidenceLocator, ...]
     absence_terms: tuple[str, ...] = ()
     absence_checked_evidence: tuple[EvidenceLocator, ...] = ()
-    graph: GraphExpectation | None
+    graph: Optional[GraphExpectation] = None
     review: ReviewRecord
 
-    @root_validator
+    @root_validator(skip_on_failure=True)
     def _enforce_answer_and_refusal_shape(cls, values: dict) -> dict:
         policy = values.get("answer_policy")
         category = values.get("category")
@@ -246,6 +249,10 @@ def _locator_content(data_root: Path, locator: EvidenceLocator) -> str:
         row = _csv_row_at_locator(data_root, locator)
         return "\n".join(f"{key}: {value}" for key, value in row.items())
     if source.suffix.lower() == ".pdf":
+        try:
+            import fitz
+        except ImportError:
+            raise ImportError("PyMuPDF (fitz) is required to read PDF content") from None
         with fitz.open(source) as document:
             if locator.page_number is None:
                 return "\n".join(page.get_text() for page in document)
@@ -306,7 +313,7 @@ def _answer_case(
     facts: tuple[ExpectedFact, ...],
     forbidden: EvidenceLocator,
     question: str,
-    graph: GraphExpectation | None = None,
+    graph: Optional[GraphExpectation] = None,
 ) -> EvalCaseV2:
     case_id = f"rag-v2-{category}-{index:03d}"
     allowed = tuple(locator for fact in facts for locator in fact.evidence)
@@ -565,7 +572,7 @@ def _all_locators(case: EvalCaseV2) -> tuple[EvidenceLocator, ...]:
 
 def _canonical_statement_for_fact(
     fact: ExpectedFact, artifacts: dict[str, SourceArtifact], data_root: Path
-) -> str | None:
+) -> Optional[str]:
     """Reconstruct the only valid fact statement from immutable source fields."""
     if len(fact.evidence) != 1:
         return None
@@ -599,7 +606,7 @@ def validate_benchmark(
             patient_sources.setdefault(artifact.patient_id, set()).add(artifact.canonical_relative_path)
     content_cache: dict[EvidenceLocator, str] = {}
 
-    def resolved_content(case: EvalCaseV2, locator: EvidenceLocator) -> str | None:
+    def resolved_content(case: EvalCaseV2, locator: EvidenceLocator) -> Optional[str]:
         if locator.source_path not in artifacts:
             return None
         try:

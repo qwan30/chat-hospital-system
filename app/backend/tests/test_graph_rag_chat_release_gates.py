@@ -29,8 +29,6 @@ from hospital_ai.services.graph_rag import (
     ExtractedEntity,
     ExtractedRelation,
     GraphContext,
-    GraphEntity,
-    GraphRelation,
     find_related_entities,
     index_chunk_entities,
 )
@@ -123,11 +121,15 @@ async def test_graph_reindex_replaces_prior_rows_for_the_chunk(session_and_setti
     await index_chunk_entities(session, chunk.id, doc.id, chunk.content)
     await index_chunk_entities(session, chunk.id, doc.id, chunk.content)
     await session.commit()
+    from hospital_ai.db.clinical_graph import GraphEntity, GraphRelationAssertion
+
     entities = await session.scalar(
-        select(func.count()).select_from(GraphEntity).where(GraphEntity.source_chunk_id == chunk.id)
+        select(func.count()).select_from(GraphEntity).where(GraphEntity.patient_id == doc.patient_id)
     )
     relations = await session.scalar(
-        select(func.count()).select_from(GraphRelation).where(GraphRelation.source_chunk_id == chunk.id)
+        select(func.count())
+        .select_from(GraphRelationAssertion)
+        .where(GraphRelationAssertion.patient_id == doc.patient_id)
     )
     assert entities == 2
     assert relations == 1

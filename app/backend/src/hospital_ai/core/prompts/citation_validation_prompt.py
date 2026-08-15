@@ -13,6 +13,8 @@ Version: 1.0.0
 Last reviewed: 2026-06-14
 """
 
+from __future__ import annotations
+
 CITATION_VALIDATION_PROMPT = """\
 You are a citation verification system. Your task is to validate that every citation
 in a generated answer accurately references real content from the provided source chunks.

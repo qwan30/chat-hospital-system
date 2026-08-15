@@ -13,9 +13,13 @@ import hashlib
 import io
 from collections.abc import Iterable
 from pathlib import Path
+from typing import Any, Optional
 from uuid import UUID
 
-import fitz
+try:
+    import fitz
+except ImportError:
+    fitz = None
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
@@ -34,7 +38,6 @@ from hospital_ai.evaluation.adapter_foundation import (
     EvidenceResolutionError,
     RuntimeEvidenceChunk,
 )
-from hospital_ai.evaluation.benchmark import EvalCaseV2
 from hospital_ai.evaluation.corpus_manifest import EvidenceLocator, SourceArtifact
 from hospital_ai.evaluation.runner import CaseObservation
 from hospital_ai.services.chat_utils import meets_evidence_threshold
@@ -48,7 +51,7 @@ class ProductRetrievalAdapter:
     def __init__(
         self,
         source_root: Path,
-        evidence_threshold: float | None = None,
+        evidence_threshold: Optional[float] = None,
         retrieval_mode: str = "vector",
     ) -> None:
         if retrieval_mode not in {"vector", "bm25", "hybrid", "graph"}:
@@ -59,10 +62,11 @@ class ProductRetrievalAdapter:
         )
         self.retrieval_mode = retrieval_mode
 
-    async def evaluate(self, case: EvalCaseV2, context: EvaluationCaseContext) -> CaseObservation:
+    async def evaluate(self, case: Any, context: EvaluationCaseContext) -> CaseObservation:
         """Materialize one case and return only evidence actually retrieved."""
 
-        if case.patient_id not in context.actor.allowed_patient_ids:
+        patient_id = context.patient_id or getattr(case, "patient_id", "")
+        if patient_id not in context.actor.allowed_patient_ids:
             return CaseObservation(
                 refused=True,
                 sync_safety_outcome="refused",
@@ -110,14 +114,14 @@ class ProductRetrievalAdapter:
                 if self.retrieval_mode == "vector":
                     results = await retrieval.search(
                         user_id=context.actor.actor_id,
-                        patient_id=case.patient_id,
+                        patient_id=patient_id,
                         query_embedding=query_embedding,
                         top_k=top_k,
                     )
                 elif self.retrieval_mode in ("bm25", "hybrid"):
                     results = await retrieval.hybrid_search(
                         user_id=context.actor.actor_id,
-                        patient_id=case.patient_id,
+                        patient_id=patient_id,
                         query_embedding=query_embedding,
                         query_text=case.question,
                         top_k=top_k,
@@ -126,7 +130,7 @@ class ProductRetrievalAdapter:
                 else:  # graph mode
                     base_results = await retrieval.hybrid_search(
                         user_id=context.actor.actor_id,
-                        patient_id=case.patient_id,
+                        patient_id=patient_id,
                         query_embedding=query_embedding,
                         query_text=case.question,
                         top_k=top_k,
@@ -139,12 +143,12 @@ class ProductRetrievalAdapter:
                         graph_ctx = await find_related_entities(
                             session,
                             graph_nodes,
-                            patient_id=case.patient_id,
+                            patient_id=patient_id,
                         )
                         graph_chunks = await retrieval.get_chunks_by_ids(
                             list(graph_ctx.related_chunk_ids),
                             user_id=context.actor.actor_id,
-                            patient_id=case.patient_id,
+                            patient_id=patient_id,
                         )
                         seen_ids = {r.chunk_id for r in base_results}
                         combined = list(base_results)
@@ -169,7 +173,7 @@ class ProductRetrievalAdapter:
 
     @staticmethod
     def _unique_locators(locators: tuple[EvidenceLocator, ...]) -> tuple[EvidenceLocator, ...]:
-        seen: set[tuple[str, int | None, int | None, str | None]] = set()
+        seen: set[tuple[str, Optional[int], Optional[int], Optional[str]]] = set()
         output = []
         for locator in locators:
             key = (locator.source_path, locator.page_number, locator.row_number, locator.record_id)
@@ -230,6 +234,61 @@ class ProductRetrievalAdapter:
             )
             session.add(page)
             await session.flush()
+
+            import datetime
+            import uuid
+
+            from hospital_ai.db.clinical_documents import (
+                DocumentIndexGeneration,
+                DocumentPageRevision,
+                DocumentRevisionSet,
+            )
+
+            rev_set = DocumentRevisionSet(
+                id=uuid.uuid4(),
+                document_id=document.id,
+                revision_number=1,
+                status="approved",
+                created_by_user_id=actor_id,
+                submitted_at=datetime.datetime.now(datetime.UTC),
+                approved_by_user_id=actor_id,
+                approved_at=datetime.datetime.now(datetime.UTC),
+            )
+            session.add(rev_set)
+
+            page_rev = DocumentPageRevision(
+                id=uuid.uuid4(),
+                document_id=document.id,
+                page_number=locator.page_number or 1,
+                revision_number=1,
+                revision_type="machine_ocr",
+                raw_text_snapshot=content,
+                corrected_text=content,
+                confidence=1.0,
+                status="approved",
+                created_by_user_id=actor_id,
+                content_sha256=artifact.source_sha256,
+                version=1,
+            )
+            session.add(page_rev)
+
+            gen = DocumentIndexGeneration(
+                id=uuid.uuid4(),
+                document_id=document.id,
+                revision_set_id=rev_set.id,
+                state="active",
+                revision_set_sha256=artifact.source_sha256,
+                generation_sha256=artifact.source_sha256,
+                created_at=datetime.datetime.now(datetime.UTC),
+                started_at=datetime.datetime.now(datetime.UTC),
+                activated_at=datetime.datetime.now(datetime.UTC),
+            )
+            session.add(gen)
+            await session.flush()
+
+            document.approved_revision_set_id = rev_set.id
+            document.active_index_generation_id = gen.id
+
             session.add(
                 DocumentChunk(
                     document_id=document.id,
@@ -248,6 +307,13 @@ class ProductRetrievalAdapter:
                         "record_id": locator.record_id,
                         "access_tags": list(artifact.access_tags),
                     },
+                    generation_id=gen.id,
+                    revision_set_id=rev_set.id,
+                    page_revision_id=page_rev.id,
+                    approval_state="approved",
+                    source_text_sha256=artifact.source_sha256,
+                    text_start_offset=0,
+                    text_end_offset=len(content),
                 )
             )
         await session.commit()
@@ -269,16 +335,26 @@ class ProductRetrievalAdapter:
     def _content_for_locator(payload: bytes, artifact: SourceArtifact, locator: EvidenceLocator) -> str:
         if artifact.mime_type == "application/pdf":
             try:
-                document = fitz.open(stream=payload, filetype="pdf")
-                try:
+                if fitz is not None:
+                    document = fitz.open(stream=payload, filetype="pdf")
+                    try:
+                        if locator.page_number is None:
+                            return "\n".join(page.get_text("text").strip() for page in document).strip()
+                        if locator.page_number > document.page_count:
+                            raise EvidenceResolutionError("PDF locator page is outside the canonical source")
+                        return document.load_page(locator.page_number - 1).get_text("text").strip()
+                    finally:
+                        document.close()
+                else:
+                    import pypdf
+
+                    reader = pypdf.PdfReader(io.BytesIO(payload))
                     if locator.page_number is None:
-                        return "\n".join(page.get_text("text").strip() for page in document).strip()
-                    if locator.page_number > document.page_count:
+                        return "\n".join(page.extract_text().strip() for page in reader.pages).strip()
+                    if locator.page_number > len(reader.pages):
                         raise EvidenceResolutionError("PDF locator page is outside the canonical source")
-                    return document.load_page(locator.page_number - 1).get_text("text").strip()
-                finally:
-                    document.close()
-            except fitz.FileDataError as error:
+                    return reader.pages[locator.page_number - 1].extract_text().strip()
+            except Exception as error:
                 raise EvidenceResolutionError("canonical PDF source cannot be read") from error
         if artifact.mime_type == "text/csv":
             decoded = payload.decode("utf-8")

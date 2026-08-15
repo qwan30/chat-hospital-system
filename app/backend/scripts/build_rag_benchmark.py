@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import json
 import sys
 from pathlib import Path
 
@@ -37,7 +38,9 @@ def _load_contracts():
 
 
 def _render_jsonl(cases) -> str:
-    return "".join(case.json(separators=(",", ":"), sort_keys=True) + "\n" for case in cases)
+    return "".join(
+        json.dumps(case.model_dump(mode="json"), separators=(",", ":"), sort_keys=True) + "\n" for case in cases
+    )
 
 
 def _read_jsonl(path: Path, case_type) -> tuple:

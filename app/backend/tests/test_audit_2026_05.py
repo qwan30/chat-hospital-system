@@ -314,6 +314,32 @@ async def test_streaming_emits_only_cited_evidence_when_validated(monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_streaming_tokens_follow_validated_sse_contract(monkeypatch):
+    """The browser may only receive ordered sentence-validated token events."""
+    fake = _FakeLLM(answer="The dose is per protocol [E1].\nContinue monitoring [E1].")
+    monkeypatch.setattr(
+        "hospital_ai.api.routes.chat_stream.LLMManager",
+        lambda settings: type("M", (), {"get": lambda self: fake})(),
+    )
+
+    events = await _collect(
+        _generate_sse_events(
+            settings=_settings(),
+            question="What is the dose?",
+            evidence=_make_evidence(["E1"]),
+            conversation_history=[],
+            query_id=uuid.uuid4(),
+            pipeline_name="simple_qa",
+        )
+    )
+
+    tokens = [event for event in events if event["type"] == "token"]
+    assert tokens
+    assert [event["sequence"] for event in tokens] == list(range(1, len(tokens) + 1))
+    assert {event["validation_mode"] for event in tokens} == {"sentence_buffered"}
+
+
+@pytest.mark.asyncio
 async def test_streaming_output_guardrail_replaces_unsafe_buffer_before_emission(monkeypatch):
     unsafe_answer = "Secret patient detail must not leave the server [E1]."
     fake = _FakeLLM(answer=unsafe_answer)
@@ -807,7 +833,7 @@ async def test_find_related_entities_isolates_results_by_patient(session_and_set
     assert alice_chunk.id in alice_ctx.related_chunk_ids
     assert bob_chunk.id not in alice_ctx.related_chunk_ids
     # Bob's "aspirin" must not show up in Alice's entity list.
-    alice_entity_names = {e.name for e in alice_ctx.entities}
+    alice_entity_names = {e.normalized_label for e in alice_ctx.entities}
     assert "aspirin" not in alice_entity_names
 
     # Bob-scoped query returns Bob's chunks (which include aspirin) and
@@ -815,7 +841,7 @@ async def test_find_related_entities_isolates_results_by_patient(session_and_set
     bob_ctx = await find_related_entities(session, ["metformin"], patient_id=PATIENT_BOB_ID)
     assert bob_chunk.id in bob_ctx.related_chunk_ids
     assert alice_chunk.id not in bob_ctx.related_chunk_ids
-    bob_entity_names = {e.name for e in bob_ctx.entities}
+    bob_entity_names = {e.normalized_label for e in bob_ctx.entities}
     assert "aspirin" in bob_entity_names
 
 

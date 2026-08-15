@@ -1,6 +1,8 @@
+from __future__ import annotations
+
 import uuid
 from datetime import datetime
-from typing import Any
+from typing import Any, Optional
 
 from sqlalchemy import (
     JSON,
@@ -23,7 +25,7 @@ DOCUMENT_UPLOAD_STATES = frozenset(
     {"pending_upload", "uploaded_unverified", "quarantined", "verified", "finalized", "rejected"}
 )
 PAGE_REVISION_STATES = frozenset({"machine_draft", "human_draft", "approved", "rejected", "superseded"})
-REVISION_SET_STATES = frozenset({"submitted", "approved", "rejected", "superseded"})
+REVISION_SET_STATES = frozenset({"submitted", "build_authorized", "approved", "rejected", "superseded"})
 GENERATION_STATES = frozenset({"building", "active", "failed", "superseded"})
 ALIGNMENT_STATES = frozenset({"aligned", "partially_aligned", "stale"})
 
@@ -34,9 +36,10 @@ class DocumentUpload(TimestampMixin, Base):
     document_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("documents.id"), nullable=False, index=True)
     state: Mapped[str] = mapped_column(String(32), nullable=False)
     object_key: Mapped[str] = mapped_column(String(1024), nullable=False, unique=True)
-    expected_sha256: Mapped[str | None] = mapped_column(String(64), nullable=True)
-    byte_size: Mapped[int | None] = mapped_column(Integer, nullable=True)
-    mime_type: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    expected_sha256: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
+    byte_size: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    mime_type: Mapped[Optional[str]] = mapped_column(String(128), nullable=True)
+    quarantine_result: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     actor_user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"), nullable=False)
 
     def apply_verification(self, decision: Any) -> None:
@@ -54,11 +57,11 @@ class DocumentExtractionRun(Base):
     engine_revision: Mapped[str] = mapped_column(String(64), nullable=False)
     engine_config: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False, default=dict)
     started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
-    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    completed_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
     status: Mapped[str] = mapped_column(String(32), nullable=False)
-    peak_rss_mb: Mapped[int | None] = mapped_column(Integer, nullable=True)
-    latency_ms: Mapped[int | None] = mapped_column(Integer, nullable=True)
-    error_code: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    peak_rss_mb: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    latency_ms: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    error_code: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
 
 
 class DocumentPageRevision(Base):
@@ -66,23 +69,23 @@ class DocumentPageRevision(Base):
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
     document_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("documents.id"), nullable=False, index=True)
     page_number: Mapped[int] = mapped_column(Integer, nullable=False)
-    parent_revision_id: Mapped[uuid.UUID | None] = mapped_column(
+    parent_revision_id: Mapped[Optional[uuid.UUID]] = mapped_column(
         ForeignKey("document_page_revisions.id"), nullable=True
     )
-    extraction_run_id: Mapped[uuid.UUID | None] = mapped_column(
+    extraction_run_id: Mapped[Optional[uuid.UUID]] = mapped_column(
         ForeignKey("document_extraction_runs.id"), nullable=True
     )
     revision_number: Mapped[int] = mapped_column(Integer, nullable=False)
     revision_type: Mapped[str] = mapped_column(String(32), nullable=False)
     raw_text_snapshot: Mapped[str] = mapped_column(Text, nullable=False)
     corrected_text: Mapped[str] = mapped_column(Text, nullable=False)
-    confidence: Mapped[float | None] = mapped_column(Numeric, nullable=True)
+    confidence: Mapped[Optional[float]] = mapped_column(Numeric, nullable=True)
     status: Mapped[str] = mapped_column(String(32), nullable=False)
     created_by_user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"), nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
-    approved_by_user_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("users.id"), nullable=True)
-    approved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
-    edit_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
+    approved_by_user_id: Mapped[Optional[uuid.UUID]] = mapped_column(ForeignKey("users.id"), nullable=True)
+    approved_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    edit_reason: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     content_sha256: Mapped[str] = mapped_column(String(64), nullable=False)
     version: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
 
@@ -99,7 +102,7 @@ class DocumentRevisionSet(Base):
     __tablename__ = "document_revision_sets"
     __table_args__ = (
         CheckConstraint(
-            "status in ('submitted','approved','rejected','superseded')",
+            "status in ('submitted','build_authorized','approved','rejected','superseded')",
             name="ck_document_revision_sets_status",
         ),
         UniqueConstraint("document_id", "revision_number", name="uq_document_revision_set_number"),
@@ -111,8 +114,8 @@ class DocumentRevisionSet(Base):
     created_by_user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"), nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     submitted_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
-    approved_by_user_id: Mapped[uuid.UUID | None] = mapped_column(ForeignKey("users.id"), nullable=True)
-    approved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    approved_by_user_id: Mapped[Optional[uuid.UUID]] = mapped_column(ForeignKey("users.id"), nullable=True)
+    approved_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
 
 
 class DocumentRevisionPage(Base):
@@ -131,11 +134,11 @@ class DocumentRevisionEvent(Base):
     actor_user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"), nullable=False)
     action: Mapped[str] = mapped_column(String(64), nullable=False)
     timestamp: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
-    previous_status: Mapped[str | None] = mapped_column(String(32), nullable=True)
-    next_status: Mapped[str | None] = mapped_column(String(32), nullable=True)
-    reason: Mapped[str | None] = mapped_column(Text, nullable=True)
+    previous_status: Mapped[Optional[str]] = mapped_column(String(32), nullable=True)
+    next_status: Mapped[Optional[str]] = mapped_column(String(32), nullable=True)
+    reason: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     trace_id: Mapped[str] = mapped_column(String(64), nullable=False)
-    ip_address: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    ip_address: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
     changed_page_ids: Mapped[list[str]] = mapped_column(JSON, nullable=False, default=list)
 
 
@@ -146,19 +149,19 @@ class DocumentIndexGeneration(Base):
     revision_set_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("document_revision_sets.id"), nullable=False, index=True
     )
-    retry_of_generation_id: Mapped[uuid.UUID | None] = mapped_column(
+    retry_of_generation_id: Mapped[Optional[uuid.UUID]] = mapped_column(
         ForeignKey("document_index_generations.id"), nullable=True
     )
-    state: Mapped[str] = mapped_column(String(16), nullable=False, default="building")
+    state: Mapped[str] = mapped_column(String(16), nullable=False, default="building", server_default="building")
     revision_set_sha256: Mapped[str] = mapped_column(String(64), nullable=False)
-    generation_sha256: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    generation_sha256: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
-    started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
-    activated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
-    failed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
-    superseded_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
-    failure_code: Mapped[str | None] = mapped_column(String(64))
-    failure_detail: Mapped[str | None] = mapped_column(Text)
+    started_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+    activated_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+    failed_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+    superseded_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+    failure_code: Mapped[Optional[str]] = mapped_column(String(64))
+    failure_detail: Mapped[Optional[str]] = mapped_column(Text)
 
 
 class GenerationStageResult(Base):
@@ -171,10 +174,10 @@ class GenerationStageResult(Base):
     stage: Mapped[str] = mapped_column(String(64), nullable=False)
     status: Mapped[str] = mapped_column(String(32), nullable=False)
     started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
-    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
-    error_code: Mapped[str | None] = mapped_column(String(64), nullable=True)
-    error_detail: Mapped[str | None] = mapped_column(Text, nullable=True)
-    output_sha256: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    completed_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    error_code: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
+    error_detail: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    output_sha256: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
 
 
 class OcrBlock(Base):
@@ -185,8 +188,8 @@ class OcrBlock(Base):
     )
     text_start_offset: Mapped[int] = mapped_column(Integer, nullable=False)
     text_end_offset: Mapped[int] = mapped_column(Integer, nullable=False)
-    polygon: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
-    confidence: Mapped[float | None] = mapped_column(Numeric, nullable=True)
+    polygon: Mapped[Optional[dict[str, Any]]] = mapped_column(JSON, nullable=True)
+    confidence: Mapped[Optional[float]] = mapped_column(Numeric, nullable=True)
     reading_order: Mapped[int] = mapped_column(Integer, nullable=False)
     alignment_status: Mapped[str] = mapped_column(String(32), nullable=False)
 
@@ -200,8 +203,8 @@ class OcrLine(Base):
     )
     text_start_offset: Mapped[int] = mapped_column(Integer, nullable=False)
     text_end_offset: Mapped[int] = mapped_column(Integer, nullable=False)
-    polygon: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
-    confidence: Mapped[float | None] = mapped_column(Numeric, nullable=True)
+    polygon: Mapped[Optional[dict[str, Any]]] = mapped_column(JSON, nullable=True)
+    confidence: Mapped[Optional[float]] = mapped_column(Numeric, nullable=True)
     reading_order: Mapped[int] = mapped_column(Integer, nullable=False)
     alignment_status: Mapped[str] = mapped_column(String(32), nullable=False)
 
@@ -215,12 +218,12 @@ class OcrSpan(Base):
     )
     text_start_offset: Mapped[int] = mapped_column(Integer, nullable=False)
     text_end_offset: Mapped[int] = mapped_column(Integer, nullable=False)
-    polygon: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
-    confidence: Mapped[float | None] = mapped_column(Numeric, nullable=True)
+    polygon: Mapped[Optional[dict[str, Any]]] = mapped_column(JSON, nullable=True)
+    confidence: Mapped[Optional[float]] = mapped_column(Numeric, nullable=True)
     reading_order: Mapped[int] = mapped_column(Integer, nullable=False)
     alignment_status: Mapped[str] = mapped_column(String(32), nullable=False)
-    normalized_text: Mapped[str | None] = mapped_column(Text, nullable=True)
-    source_engine_metadata: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
+    normalized_text: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    source_engine_metadata: Mapped[Optional[dict[str, Any]]] = mapped_column(JSON, nullable=True)
 
 
 class IdempotencyRecord(Base):
@@ -232,8 +235,8 @@ class IdempotencyRecord(Base):
     key_hash: Mapped[str] = mapped_column(String(64), nullable=False)
     payload_sha256: Mapped[str] = mapped_column(String(64), nullable=False)
     state: Mapped[str] = mapped_column(String(32), nullable=False)
-    status_code: Mapped[int | None] = mapped_column(Integer, nullable=True)
-    response_body: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
+    status_code: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    response_body: Mapped[Optional[dict[str, Any]]] = mapped_column(JSON, nullable=True)
 
 
 class ClaimValidationResult(Base):
@@ -253,7 +256,7 @@ class ClinicalTimelineEvent(Base):
     clinical_date: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     recorded_date: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     source_evidence: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False, default=dict)
-    confidence: Mapped[float | None] = mapped_column(Numeric, nullable=True)
-    reviewer_state: Mapped[str | None] = mapped_column(String(32), nullable=True)
-    conflict_state: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    confidence: Mapped[Optional[float]] = mapped_column(Numeric, nullable=True)
+    reviewer_state: Mapped[Optional[str]] = mapped_column(String(32), nullable=True)
+    conflict_state: Mapped[Optional[str]] = mapped_column(String(32), nullable=True)
     supersession_lineage: Mapped[list[str]] = mapped_column(JSON, nullable=False, default=list)

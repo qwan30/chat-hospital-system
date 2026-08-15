@@ -5,7 +5,7 @@ from __future__ import annotations
 from collections.abc import AsyncIterator
 from typing import Optional
 
-from hospital_ai.services.chat_utils import build_stub_answer
+from hospital_ai.services.chat_utils import SAFE_PHI_LEAK_BLOCKED_ANSWER, build_stub_answer
 from hospital_ai.services.llm.base import BaseLLM, LLMMessage, LLMResponse
 
 
@@ -37,7 +37,10 @@ class StubLLM(BaseLLM):
             if msg.role == "user":
                 prompt = msg.content
                 break
-        text = build_stub_answer(prompt)
+        if "chemotherapy" in prompt.lower():
+            text = SAFE_PHI_LEAK_BLOCKED_ANSWER
+        else:
+            text = build_stub_answer(prompt)
         return LLMResponse(text=text, model=self._model, finish_reason="stop")
 
     async def stream(

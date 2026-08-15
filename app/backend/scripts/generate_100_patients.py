@@ -3,8 +3,9 @@ Generate 100 realistic Vietnamese hospital patients as XLSX.
 Run: python scripts/generate_100_patients.py
 Output: data/patients_100.xlsx
 """
-import random
+
 import datetime
+import random
 from pathlib import Path
 
 try:
@@ -15,31 +16,113 @@ except ImportError:
 
 # ── English/Unsigned Vietnamese name components ────────────────────────
 SURNAMES = [
-    "Nguyen", "Tran", "Le", "Pham", "Hoang", "Huynh", "Phan", "Vu", "Vo",
-    "Dang", "Bui", "Do", "Ho", "Ngo", "Duong", "Ly", "Trinh", "Dinh",
-    "Mai", "Cao", "To", "Doan", "Truong", "Lam", "Ha", "Thai", "Ta",
+    "Nguyen",
+    "Tran",
+    "Le",
+    "Pham",
+    "Hoang",
+    "Huynh",
+    "Phan",
+    "Vu",
+    "Vo",
+    "Dang",
+    "Bui",
+    "Do",
+    "Ho",
+    "Ngo",
+    "Duong",
+    "Ly",
+    "Trinh",
+    "Dinh",
+    "Mai",
+    "Cao",
+    "To",
+    "Doan",
+    "Truong",
+    "Lam",
+    "Ha",
+    "Thai",
+    "Ta",
 ]
 
 MALE_MIDDLES = ["Van", "Duc", "Minh", "Quang", "Thanh", "Huu", "Xuan", "Dinh", "Quoc", "Tuan"]
 FEMALE_MIDDLES = ["Thi", "Thanh", "Minh", "Ngoc", "My", "Hong", "Thu", "Dieu", "Kim", "Phuong"]
 
 MALE_NAMES = [
-    "An", "Binh", "Cuong", "Dung", "Dat", "Hai", "Hieu", "Hung", "Khang",
-    "Khanh", "Long", "Loi", "Manh", "Nam", "Nghia", "Phong", "Phu",
-    "Quan", "Quy", "Son", "Tai", "Thanh", "Thang", "Thien", "Tho",
-    "Tien", "Toan", "Tri", "Trung", "Tuan", "Vinh",
+    "An",
+    "Binh",
+    "Cuong",
+    "Dung",
+    "Dat",
+    "Hai",
+    "Hieu",
+    "Hung",
+    "Khang",
+    "Khanh",
+    "Long",
+    "Loi",
+    "Manh",
+    "Nam",
+    "Nghia",
+    "Phong",
+    "Phu",
+    "Quan",
+    "Quy",
+    "Son",
+    "Tai",
+    "Thanh",
+    "Thang",
+    "Thien",
+    "Tho",
+    "Tien",
+    "Toan",
+    "Tri",
+    "Trung",
+    "Tuan",
+    "Vinh",
 ]
 
 FEMALE_NAMES = [
-    "Anh", "Bich", "Chi", "Diep", "Dung", "Giang", "Ha", "Hanh", "Hoa",
-    "Huong", "Lan", "Linh", "Loan", "Ly", "Mai", "Nga", "Ngan", "Nhung",
-    "Phuong", "Quynh", "Tam", "Thao", "Thuy", "Thuong", "Trang", "Tuyet",
-    "Uyen", "Van", "Yen", "Xuan",
+    "Anh",
+    "Bich",
+    "Chi",
+    "Diep",
+    "Dung",
+    "Giang",
+    "Ha",
+    "Hanh",
+    "Hoa",
+    "Huong",
+    "Lan",
+    "Linh",
+    "Loan",
+    "Ly",
+    "Mai",
+    "Nga",
+    "Ngan",
+    "Nhung",
+    "Phuong",
+    "Quynh",
+    "Tam",
+    "Thao",
+    "Thuy",
+    "Thuong",
+    "Trang",
+    "Tuyet",
+    "Uyen",
+    "Van",
+    "Yen",
+    "Xuan",
 ]
 
 DEPARTMENTS = [
-    "Cardiology", "Internal Medicine", "Neurology",
-    "Obstetrics & Gynecology", "Pediatrics", "Emergency Medicine", "Oncology",
+    "Cardiology",
+    "Internal Medicine",
+    "Neurology",
+    "Obstetrics & Gynecology",
+    "Pediatrics",
+    "Emergency Medicine",
+    "Oncology",
     "Orthopedics",
 ]
 
@@ -80,13 +163,15 @@ def generate_patients(count=100, start_mrn=6):
             weights=[s[1] for s in STATUS_WEIGHTS],
             k=1,
         )[0]
-        patients.append({
-            "mrn": f"MRN-{mrn_num:04d}",
-            "full_name": generate_name(gender),
-            "dob": random_dob().strftime("%Y-%m-%d"),
-            "department": random.choice(DEPARTMENTS),
-            "status": status,
-        })
+        patients.append(
+            {
+                "mrn": f"MRN-{mrn_num:04d}",
+                "full_name": generate_name(gender),
+                "dob": random_dob().strftime("%Y-%m-%d"),
+                "department": random.choice(DEPARTMENTS),
+                "status": status,
+            }
+        )
     return patients
 
 

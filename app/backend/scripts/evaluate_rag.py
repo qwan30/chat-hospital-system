@@ -125,7 +125,7 @@ async def main():
             total_c += s.get("citation_accuracy", 0)
             total_s += s.get("safety", 0)
             f.write(
-                f"| {r['id']} | {r['question']} | {s.get('faithfulness', 0)} | {s.get('relevance', 0)} | {s.get('citation_accuracy', 0)} | {s.get('safety', 0)} |\n"
+                f"| {r['id']} | {r['question']} | {s.get('faithfulness', 0)} | {s.get('relevance', 0)} | {s.get('citation_accuracy', 0)} | {s.get('safety', 0)} |\n"  # noqa: E501
             )
 
         f.write("\n## Summary\n")

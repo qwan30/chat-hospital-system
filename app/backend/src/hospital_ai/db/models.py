@@ -13,6 +13,7 @@ from sqlalchemy import (
     Date,
     DateTime,
     ForeignKey,
+    Index,
     Integer,
     Numeric,
     String,
@@ -20,7 +21,7 @@ from sqlalchemy import (
     UniqueConstraint,
     func,
 )
-from sqlalchemy.dialects.postgresql import INET
+from sqlalchemy.dialects.postgresql import INET, TSVECTOR
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 from sqlalchemy.types import TypeDecorator
 
@@ -48,6 +49,18 @@ class EmbeddingVector(TypeDecorator):
             except Exception:
                 return dialect.type_descriptor(JSON())
         return dialect.type_descriptor(JSON())
+
+
+class FullTextSearchVector(TypeDecorator):
+    """Use PostgreSQL's ``tsvector`` while remaining SQLite-test compatible."""
+
+    impl = Text
+    cache_ok = True
+
+    def load_dialect_impl(self, dialect: Any) -> Any:
+        if dialect.name == "postgresql":
+            return dialect.type_descriptor(TSVECTOR())
+        return dialect.type_descriptor(Text())
 
 
 class InetAddress(TypeDecorator):
@@ -311,7 +324,16 @@ class DocumentPage(TimestampMixin, SoftDeleteMixin, Base):
 
 class DocumentChunk(TimestampMixin, SoftDeleteMixin, Base):
     __tablename__ = "document_chunks"
-    __table_args__ = (UniqueConstraint("document_id", "chunk_index", name="uq_document_chunk_index"),)
+    __table_args__ = (
+        UniqueConstraint("document_id", "generation_id", "chunk_index", name="uq_document_chunk_index"),
+        Index(
+            "document_chunks_embedding_hnsw",
+            "embedding",
+            postgresql_using="hnsw",
+            postgresql_ops={"embedding": "vector_cosine_ops"},
+        ),
+        Index("ix_document_chunks_search_vector", "search_vector", postgresql_using="gin"),
+    )
 
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
     document_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("documents.id"), nullable=False, index=True)
@@ -321,6 +343,7 @@ class DocumentChunk(TimestampMixin, SoftDeleteMixin, Base):
     content: Mapped[str] = mapped_column(Text, nullable=False)
     token_count: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     embedding: Mapped[Optional[list[float]]] = mapped_column(EmbeddingVector(1024), nullable=True)
+    search_vector: Mapped[Optional[str]] = mapped_column(FullTextSearchVector(), nullable=True)
     meta: Mapped[dict[str, Any]] = mapped_column("metadata", JSON, nullable=False, default=dict)
 
     generation_id: Mapped[Optional[uuid.UUID]] = mapped_column(
@@ -371,6 +394,8 @@ class AiQuery(Base):
     status: Mapped[str] = mapped_column(String(32), nullable=False)
     latency_ms: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     model: Mapped[Optional[str]] = mapped_column(String(128), nullable=True)
+    validation_mode: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
+    last_emitted_sequence: Mapped[Optional[int]] = mapped_column(Integer, nullable=True, server_default="0")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
 
     evidence: Mapped[list[RetrievedEvidence]] = relationship(back_populates="query", cascade="all, delete-orphan")
@@ -575,7 +600,7 @@ class DocumentProcessingRun(TimestampMixin, Base):
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
     document_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("documents.id"), nullable=False, index=True)
     configuration_version: Mapped[str] = mapped_column(String(64), nullable=False)
-    status: Mapped[str] = mapped_column(String(32), nullable=False, default="pending")
+    status: Mapped[str] = mapped_column(String(32), nullable=False, default="pending", server_default="pending")
     started_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
     completed_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
     error_message: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
@@ -607,7 +632,11 @@ class ClinicalFact(TimestampMixin, Base):
     confidence: Mapped[Optional[float]] = mapped_column(Numeric, nullable=True)
     source_page: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     bounding_box: Mapped[Optional[dict[str, Any]]] = mapped_column(JSON, nullable=True)
-    status: Mapped[str] = mapped_column(String(32), nullable=False, default="unverified")
+    status: Mapped[str] = mapped_column(String(32), nullable=False, default="unverified", server_default="unverified")
+
+    generation_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        ForeignKey("document_index_generations.id", use_alter=True), nullable=True, index=True
+    )
 
     generation_id: Mapped[Optional[uuid.UUID]] = mapped_column(
         ForeignKey("document_index_generations.id", use_alter=True), nullable=True, index=True
@@ -639,7 +668,7 @@ class DocumentReviewItem(TimestampMixin, Base):
     original_value: Mapped[Optional[str]] = mapped_column(EncryptedText(), nullable=True)
     suggested_value: Mapped[Optional[str]] = mapped_column(EncryptedText(), nullable=True)
 
-    review_status: Mapped[str] = mapped_column(String(32), nullable=False, default="pending")
+    review_status: Mapped[str] = mapped_column(String(32), nullable=False, default="pending", server_default="pending")
     reviewed_by_user_id: Mapped[Optional[uuid.UUID]] = mapped_column(ForeignKey("users.id"), nullable=True)
     reviewed_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
 

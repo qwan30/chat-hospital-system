@@ -1,5 +1,7 @@
 """Hospital AI backend package."""
 
+from __future__ import annotations
+
 import datetime
 from datetime import timezone
 

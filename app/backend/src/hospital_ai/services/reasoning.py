@@ -6,6 +6,8 @@ Provides multiple strategies for answering questions:
 - PatientSummaryPipeline: generate structured patient summaries
 """
 
+from __future__ import annotations
+
 import re
 import uuid
 from dataclasses import dataclass

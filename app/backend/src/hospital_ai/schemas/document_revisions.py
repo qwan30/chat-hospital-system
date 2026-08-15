@@ -1,9 +1,8 @@
-from __future__ import annotations
-
 import uuid
 from datetime import datetime
+from typing import Optional
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class DraftPageWrite(BaseModel):
@@ -29,15 +28,20 @@ class RevisionSetRead(BaseModel):
     revision_number: int
     status: str
     created_by_user_id: uuid.UUID
-    created_at: datetime | None = None
-    submitted_at: datetime | None = None
-    approved_by_user_id: uuid.UUID | None = None
-    approved_at: datetime | None = None
+    created_at: Optional[datetime] = None
+    submitted_at: Optional[datetime] = None
+    approved_by_user_id: Optional[uuid.UUID] = None
+    approved_at: Optional[datetime] = None
 
 
 class ApproveRevisionRequest(BaseModel):
     model_config = ConfigDict(from_attributes=True)
-    demo_mode: bool = False
+    demo_mode: bool = Field(
+        default=False,
+        description=(
+            "Deprecated compatibility field; self-approval is decided by server settings and document metadata."
+        ),
+    )
 
 
 class RejectRevisionRequest(BaseModel):
@@ -55,3 +59,24 @@ class GenerationAcceptedRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     generation_id: uuid.UUID
     state: str
+
+
+class OcrSpanEvidence(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    span_id: uuid.UUID
+    text_start_offset: int
+    text_end_offset: int
+    polygon: Optional[dict] = None
+    confidence: Optional[float] = None
+    reading_order: int
+    alignment_status: str
+
+
+class ExactEvidenceRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    page_revision_id: uuid.UUID
+    document_id: uuid.UUID
+    page_number: int
+    content_sha256: str
+    alignment_state: str
+    spans: list[OcrSpanEvidence]

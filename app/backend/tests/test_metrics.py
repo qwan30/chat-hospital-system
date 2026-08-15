@@ -9,6 +9,8 @@ Covers:
 - Edge cases: empty metrics, zero latency
 """
 
+from __future__ import annotations
+
 import uuid
 
 import pytest

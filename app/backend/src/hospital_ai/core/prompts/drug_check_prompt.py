@@ -12,6 +12,8 @@ Version: 1.0.0
 Last reviewed: 2026-06-14
 """
 
+from __future__ import annotations
+
 DRUG_ALLERGY_CHECK_PROMPT = """\
 You are a medication safety screening system. Your task is to check whether
 a proposed medication poses a risk to the patient based on their documented

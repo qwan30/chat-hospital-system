@@ -1,17 +1,18 @@
+from __future__ import annotations
+
 import hashlib
 import uuid
 from datetime import UTC, datetime
 from typing import Optional
 
-from sqlalchemy import delete, select
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from hospital_ai.core.config import Settings
 from hospital_ai.core.errors import NotFoundError, ValidationAppError
-from hospital_ai.db.models import Document, DocumentChunk, DocumentPage, Patient, User
+from hospital_ai.db.models import Document, Patient, User
 from hospital_ai.schemas.hms import HmsAppointmentSummaryImport
 from hospital_ai.services.audit import AuditService
-from hospital_ai.services.embeddings import EmbeddingService
 from hospital_ai.services.permissions import PermissionService
 
 HMS_APPOINTMENT_DOCUMENT_TYPE = "hms_appointment_summary"
@@ -74,7 +75,7 @@ class HmsAppointmentEvidenceImporter:
                 status="ready",
                 page_count=1,
                 indexed_source_sha256=indexed_source_sha256,
-                index_generation=1,
+                index_generation=0,
             )
             self.session.add(document)
             await self.session.flush()
@@ -86,32 +87,18 @@ class HmsAppointmentEvidenceImporter:
             document.page_count = 1
             document.ocr_error = None
             document.deleted_at = None
-            document.index_generation += 1
             document.indexed_source_sha256 = indexed_source_sha256
-            await self.session.execute(delete(DocumentChunk).where(DocumentChunk.document_id == document.id))
-            await self.session.execute(delete(DocumentPage).where(DocumentPage.document_id == document.id))
             await self.session.flush()
 
-        page = DocumentPage(
-            document_id=document.id,
-            page_number=1,
-            ocr_text=content,
-            ocr_confidence=1.0,
-        )
-        self.session.add(page)
-        await self.session.flush()
+        from hospital_ai.workers.generation_jobs import import_synthetic_generation
 
-        self.session.add(
-            DocumentChunk(
-                document_id=document.id,
-                page_id=page.id,
-                patient_id=payload.patient_id,
-                chunk_index=0,
-                content=content,
-                token_count=len(content.split()),
-                embedding=await EmbeddingService(self.settings).embed(content),
-                meta=build_appointment_metadata(payload),
-            )
+        await import_synthetic_generation(
+            session=self.session,
+            settings=self.settings,
+            document=document,
+            content=content,
+            user_id=user.id,
+            metadata=build_appointment_metadata(payload),
         )
         await AuditService(self.session).record(
             actor_user_id=user.id,

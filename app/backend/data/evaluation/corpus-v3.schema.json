@@ -1,0 +1,432 @@
+{
+  "title": "UnifiedCorpusV3",
+  "type": "object",
+  "properties": {
+    "schema_version": {
+      "title": "Schema Version",
+      "default": "3.0",
+      "enum": [
+        "3.0"
+      ],
+      "type": "string"
+    },
+    "corpus_id": {
+      "title": "Corpus Id",
+      "default": "hospital-ai-unified-clinical-corpus-v3",
+      "enum": [
+        "hospital-ai-unified-clinical-corpus-v3"
+      ],
+      "type": "string"
+    },
+    "items": {
+      "title": "Items",
+      "default": [],
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/UnifiedCorpusItemV3"
+      }
+    }
+  },
+  "definitions": {
+    "SourceObjectRef": {
+      "title": "SourceObjectRef",
+      "type": "object",
+      "properties": {
+        "source_path": {
+          "title": "Source Path",
+          "type": "string"
+        },
+        "source_sha256": {
+          "title": "Source Sha256",
+          "type": "string"
+        },
+        "rendering_hash": {
+          "title": "Rendering Hash",
+          "type": "string"
+        },
+        "mime_type": {
+          "title": "Mime Type",
+          "default": "application/pdf",
+          "type": "string"
+        }
+      },
+      "required": [
+        "source_path",
+        "source_sha256"
+      ]
+    },
+    "ArtifactRef": {
+      "title": "ArtifactRef",
+      "type": "object",
+      "properties": {
+        "artifact_id": {
+          "title": "Artifact Id",
+          "type": "string"
+        },
+        "sha256": {
+          "title": "Sha256",
+          "type": "string"
+        },
+        "path": {
+          "title": "Path",
+          "type": "string"
+        }
+      },
+      "required": [
+        "artifact_id",
+        "sha256"
+      ]
+    },
+    "EvidenceLocator": {
+      "title": "EvidenceLocator",
+      "type": "object",
+      "properties": {
+        "source_path": {
+          "title": "Source Path",
+          "type": "string"
+        },
+        "page_number": {
+          "title": "Page Number",
+          "type": "integer"
+        },
+        "row_number": {
+          "title": "Row Number",
+          "type": "integer"
+        },
+        "record_id": {
+          "title": "Record Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "source_path"
+      ]
+    },
+    "ExpectedFact": {
+      "title": "ExpectedFact",
+      "type": "object",
+      "properties": {
+        "fact_id": {
+          "title": "Fact Id",
+          "type": "string"
+        },
+        "statement": {
+          "title": "Statement",
+          "type": "string"
+        },
+        "evidence": {
+          "title": "Evidence",
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/EvidenceLocator"
+          }
+        },
+        "verification_terms": {
+          "title": "Verification Terms",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "required": [
+        "fact_id",
+        "statement",
+        "evidence",
+        "verification_terms"
+      ]
+    },
+    "ExpectedGraph": {
+      "title": "ExpectedGraph",
+      "type": "object",
+      "properties": {
+        "required_nodes": {
+          "title": "Required Nodes",
+          "default": [],
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "required_edges": {
+          "title": "Required Edges",
+          "default": [],
+          "type": "array",
+          "items": {
+            "type": "array",
+            "minItems": 3,
+            "maxItems": 3,
+            "items": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "string"
+              },
+              {
+                "type": "string"
+              }
+            ]
+          }
+        },
+        "evidence": {
+          "title": "Evidence",
+          "default": [],
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/EvidenceLocator"
+          }
+        }
+      }
+    },
+    "ExpectedTimelineEvent": {
+      "title": "ExpectedTimelineEvent",
+      "type": "object",
+      "properties": {
+        "event_id": {
+          "title": "Event Id",
+          "type": "string"
+        },
+        "event_type": {
+          "title": "Event Type",
+          "type": "string"
+        },
+        "clinical_date": {
+          "title": "Clinical Date",
+          "type": "string"
+        },
+        "evidence_locators": {
+          "title": "Evidence Locators",
+          "default": [],
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/EvidenceLocator"
+          }
+        },
+        "superseded": {
+          "title": "Superseded",
+          "default": false,
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "event_id",
+        "event_type"
+      ]
+    },
+    "EvalCaseV3": {
+      "title": "EvalCaseV3",
+      "type": "object",
+      "properties": {
+        "case_id": {
+          "title": "Case Id",
+          "type": "string"
+        },
+        "question": {
+          "title": "Question",
+          "type": "string"
+        },
+        "category": {
+          "title": "Category",
+          "type": "string"
+        },
+        "answer_policy": {
+          "title": "Answer Policy",
+          "default": "answer",
+          "type": "string"
+        },
+        "expected_facts": {
+          "title": "Expected Facts",
+          "default": [],
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/ExpectedFact"
+          }
+        },
+        "allowed_evidence": {
+          "title": "Allowed Evidence",
+          "default": [],
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/EvidenceLocator"
+          }
+        },
+        "forbidden_evidence": {
+          "title": "Forbidden Evidence",
+          "default": [],
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/EvidenceLocator"
+          }
+        },
+        "absence_terms": {
+          "title": "Absence Terms",
+          "default": [],
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "absence_checked_evidence": {
+          "title": "Absence Checked Evidence",
+          "default": [],
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/EvidenceLocator"
+          }
+        },
+        "graph": {
+          "$ref": "#/definitions/ExpectedGraph"
+        },
+        "timeline_expectations": {
+          "title": "Timeline Expectations",
+          "default": [],
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/ExpectedTimelineEvent"
+          }
+        }
+      },
+      "required": [
+        "case_id",
+        "question",
+        "category"
+      ]
+    },
+    "PermissionScenario": {
+      "title": "PermissionScenario",
+      "type": "object",
+      "properties": {
+        "scenario_id": {
+          "title": "Scenario Id",
+          "type": "string"
+        },
+        "actor_role": {
+          "title": "Actor Role",
+          "type": "string"
+        },
+        "allowed_patient_ids": {
+          "title": "Allowed Patient Ids",
+          "default": [],
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "expected_outcome": {
+          "title": "Expected Outcome",
+          "default": "allow",
+          "enum": [
+            "allow",
+            "refuse",
+            "unauthorized"
+          ],
+          "type": "string"
+        }
+      },
+      "required": [
+        "scenario_id",
+        "actor_role"
+      ]
+    },
+    "UnifiedCorpusItemV3": {
+      "title": "UnifiedCorpusItemV3",
+      "type": "object",
+      "properties": {
+        "corpus_item_id": {
+          "title": "Corpus Item Id",
+          "type": "string"
+        },
+        "patient_surrogate_id": {
+          "title": "Patient Surrogate Id",
+          "type": "string"
+        },
+        "document_family_id": {
+          "title": "Document Family Id",
+          "type": "string"
+        },
+        "split": {
+          "title": "Split",
+          "enum": [
+            "train",
+            "qualification",
+            "development",
+            "sentinel",
+            "holdout"
+          ],
+          "type": "string"
+        },
+        "source_objects": {
+          "title": "Source Objects",
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/SourceObjectRef"
+          }
+        },
+        "canonical_transcript": {
+          "$ref": "#/definitions/ArtifactRef"
+        },
+        "ocr_outputs": {
+          "title": "Ocr Outputs",
+          "default": [],
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/ArtifactRef"
+          }
+        },
+        "approved_revision_ids": {
+          "title": "Approved Revision Ids",
+          "default": [],
+          "type": "array",
+          "items": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        "structured_facts": {
+          "title": "Structured Facts",
+          "default": [],
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/ExpectedFact"
+          }
+        },
+        "graph": {
+          "$ref": "#/definitions/ExpectedGraph"
+        },
+        "timeline": {
+          "title": "Timeline",
+          "default": [],
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/ExpectedTimelineEvent"
+          }
+        },
+        "questions": {
+          "title": "Questions",
+          "default": [],
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/EvalCaseV3"
+          }
+        },
+        "permissions": {
+          "title": "Permissions",
+          "default": [],
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/PermissionScenario"
+          }
+        }
+      },
+      "required": [
+        "corpus_item_id",
+        "patient_surrogate_id",
+        "document_family_id",
+        "split",
+        "source_objects",
+        "canonical_transcript"
+      ]
+    }
+  }
+}

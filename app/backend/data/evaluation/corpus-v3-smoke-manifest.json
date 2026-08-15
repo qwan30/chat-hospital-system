@@ -1,0 +1,141 @@
+{
+  "schema_version": "3.0",
+  "corpus_id": "hospital-ai-unified-clinical-corpus-v3",
+  "items": [
+    {
+      "corpus_item_id": "smoke-item-1",
+      "patient_surrogate_id": "smoke-patient-1",
+      "document_family_id": "smoke-family-1",
+      "split": "train",
+      "source_objects": [
+        {
+          "source_path": "patients_documents/smoke-1.pdf",
+          "source_sha256": "0000000000000000000000000000000000000000000000000000000000000001",
+          "rendering_hash": "rrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrr1",
+          "mime_type": "application/pdf"
+        }
+      ],
+      "canonical_transcript": {
+        "artifact_id": "trans-1",
+        "sha256": "1111111111111111111111111111111111111111111111111111111111111111"
+      },
+      "ocr_outputs": [],
+      "approved_revision_ids": [
+        "3fc33255-a84f-480b-bb13-7a69f13ad916"
+      ],
+      "structured_facts": [],
+      "graph": null,
+      "timeline": [],
+      "questions": [],
+      "permissions": []
+    },
+    {
+      "corpus_item_id": "smoke-item-2",
+      "patient_surrogate_id": "smoke-patient-2",
+      "document_family_id": "smoke-family-2",
+      "split": "qualification",
+      "source_objects": [
+        {
+          "source_path": "patients_documents/smoke-2.pdf",
+          "source_sha256": "0000000000000000000000000000000000000000000000000000000000000002",
+          "rendering_hash": "rrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrr2",
+          "mime_type": "application/pdf"
+        }
+      ],
+      "canonical_transcript": {
+        "artifact_id": "trans-2",
+        "sha256": "1111111111111111111111111111111111111111111111111111111111111112"
+      },
+      "ocr_outputs": [],
+      "approved_revision_ids": [
+        "12c17f9c-3c18-421a-b434-a713af18085d"
+      ],
+      "structured_facts": [],
+      "graph": null,
+      "timeline": [],
+      "questions": [],
+      "permissions": []
+    },
+    {
+      "corpus_item_id": "smoke-item-3",
+      "patient_surrogate_id": "smoke-patient-3",
+      "document_family_id": "smoke-family-3",
+      "split": "development",
+      "source_objects": [
+        {
+          "source_path": "patients_documents/smoke-3.pdf",
+          "source_sha256": "0000000000000000000000000000000000000000000000000000000000000003",
+          "rendering_hash": "rrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrr3",
+          "mime_type": "application/pdf"
+        }
+      ],
+      "canonical_transcript": {
+        "artifact_id": "trans-3",
+        "sha256": "1111111111111111111111111111111111111111111111111111111111111113"
+      },
+      "ocr_outputs": [],
+      "approved_revision_ids": [
+        "c9b7191b-dd03-4d48-862b-37db060b6b53"
+      ],
+      "structured_facts": [],
+      "graph": null,
+      "timeline": [],
+      "questions": [],
+      "permissions": []
+    },
+    {
+      "corpus_item_id": "smoke-item-4",
+      "patient_surrogate_id": "smoke-patient-4",
+      "document_family_id": "smoke-family-4",
+      "split": "sentinel",
+      "source_objects": [
+        {
+          "source_path": "patients_documents/smoke-4.pdf",
+          "source_sha256": "0000000000000000000000000000000000000000000000000000000000000004",
+          "rendering_hash": "rrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrr4",
+          "mime_type": "application/pdf"
+        }
+      ],
+      "canonical_transcript": {
+        "artifact_id": "trans-4",
+        "sha256": "1111111111111111111111111111111111111111111111111111111111111114"
+      },
+      "ocr_outputs": [],
+      "approved_revision_ids": [
+        "db766d20-710c-4dec-bd3d-b511206ca056"
+      ],
+      "structured_facts": [],
+      "graph": null,
+      "timeline": [],
+      "questions": [],
+      "permissions": []
+    },
+    {
+      "corpus_item_id": "smoke-item-5",
+      "patient_surrogate_id": "smoke-patient-5",
+      "document_family_id": "smoke-family-5",
+      "split": "holdout",
+      "source_objects": [
+        {
+          "source_path": "patients_documents/smoke-5.pdf",
+          "source_sha256": "0000000000000000000000000000000000000000000000000000000000000005",
+          "rendering_hash": "rrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrr5",
+          "mime_type": "application/pdf"
+        }
+      ],
+      "canonical_transcript": {
+        "artifact_id": "trans-5",
+        "sha256": "1111111111111111111111111111111111111111111111111111111111111115"
+      },
+      "ocr_outputs": [],
+      "approved_revision_ids": [
+        "b7690e52-b7a8-4bd2-a4c2-d729defff1ed"
+      ],
+      "structured_facts": [],
+      "graph": null,
+      "timeline": [],
+      "questions": [],
+      "permissions": []
+    }
+  ]
+}

@@ -6,6 +6,7 @@ import json
 import os
 import re
 from collections.abc import Sequence
+from typing import Optional
 
 import httpx
 from pydantic import BaseModel, Field
@@ -41,7 +42,7 @@ class LLMJudge:
     def __init__(
         self,
         provider: str = "stub",
-        api_keys: Sequence[str] | None = None,
+        api_keys: Optional[Sequence[str]] = None,
         model: str = "gemini-2.0-flash",
         base_url: str | None = None,
         strict: bool = False,
@@ -281,7 +282,7 @@ class LLMJudge:
 
         return self._evaluate_stub(question, context, answer, verification_terms)
 
-    def _parse_json_score(self, text: str) -> LLMJudgeScore | None:
+    def _parse_json_score(self, text: str) -> Optional[LLMJudgeScore]:
         """Extract and parse LLMJudgeScore from model response text."""
         try:
             # Strip markdown code fences if present

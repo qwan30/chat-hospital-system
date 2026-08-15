@@ -9,6 +9,8 @@ Version: 1.0.0
 Last reviewed: 2026-06-14
 """
 
+from __future__ import annotations
+
 RAG_SYSTEM_PROMPT = """\
 You are a clinical knowledge assistant for hospital staff. Your purpose is to provide
 accurate, evidence-based answers drawn ONLY from the provided context. You serve

@@ -5,6 +5,8 @@ Verifies that queries with no matching evidence return the standard
 rather than hallucinating an answer.
 """
 
+from __future__ import annotations
+
 import pytest
 
 from hospital_ai.services.reasoning import (

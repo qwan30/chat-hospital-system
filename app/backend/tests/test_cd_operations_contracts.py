@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from pathlib import Path
 
 from hospital_ai.workers.run_worker import WORKER_QUEUE_NAMES
@@ -45,7 +47,7 @@ def test_operations_runbooks_use_active_worker_queues() -> None:
     troubleshooting = _read("docs/11-operations/troubleshooting.md")
     combined = "\n".join((operations, monitoring, troubleshooting))
 
-    assert WORKER_QUEUE_NAMES == ("document-indexing", "cdss-analysis")
+    assert WORKER_QUEUE_NAMES == ("document-indexing", "cdss-analysis", "document-generation-build")
     for queue_name in WORKER_QUEUE_NAMES:
         assert queue_name in combined
     assert "rq:queue:default" not in combined

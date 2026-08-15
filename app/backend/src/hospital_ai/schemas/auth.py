@@ -1,6 +1,8 @@
 from typing import Literal, Optional
 from uuid import UUID
 
+from pydantic import ConfigDict
+
 from hospital_ai.schemas.common import ApiSchema
 
 
@@ -31,8 +33,7 @@ DemoRole = Literal["cardiologist", "hospitalist", "rn", "pharmacist", "front_des
 class DemoLoginRequest(ApiSchema):
     role: DemoRole
 
-    class Config(ApiSchema.Config):
-        extra = "forbid"
+    model_config = ConfigDict(extra="forbid")
 
 
 class DemoStatusResponse(ApiSchema):

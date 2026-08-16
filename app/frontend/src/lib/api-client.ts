@@ -39,7 +39,19 @@ function getBaseUrl(): string {
 let memoryToken: string | null = null;
 
 export function getToken(): string | null {
-  return memoryToken;
+  if (memoryToken) return memoryToken;
+  if (typeof window !== "undefined" && window.sessionStorage) {
+    try {
+      const stored = sessionStorage.getItem("hospital_ai_jwt");
+      if (stored) {
+        memoryToken = stored;
+        return stored;
+      }
+    } catch {
+      // Ignore
+    }
+  }
+  return null;
 }
 
 export interface ApiClientOptions {
@@ -244,10 +256,24 @@ export async function verifyToken(
 
 export function persistToken(token: string): void {
   memoryToken = token;
+  if (typeof window !== "undefined" && window.sessionStorage) {
+    try {
+      sessionStorage.setItem("hospital_ai_jwt", token);
+    } catch {
+      // Ignore
+    }
+  }
 }
 
 export function clearToken(): void {
   memoryToken = null;
+  if (typeof window !== "undefined" && window.sessionStorage) {
+    try {
+      sessionStorage.removeItem("hospital_ai_jwt");
+    } catch {
+      // Ignore
+    }
+  }
 }
 
 export function persistApiUrl(url: string): void {

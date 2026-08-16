@@ -19,6 +19,7 @@ import {
 import {
   persistToken,
   clearToken,
+  getToken,
   verifyToken,
   persistApiUrl,
   getStoredApiUrl,
@@ -70,8 +71,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [demoRole, setDemoRole] = useState<Role | null>(null);
 
   useEffect(() => {
-    setApiUrlState(getStoredApiUrl());
-    setHydrated(true);
+    const currentApiUrl = getStoredApiUrl();
+    setApiUrlState(currentApiUrl);
+
+    const storedToken = getToken();
+    if (storedToken) {
+      setToken(storedToken);
+      verifyToken(currentApiUrl, storedToken)
+        .then((user) => {
+          if (user) {
+            setAuthUser(user);
+          } else {
+            clearToken();
+            setToken(null);
+          }
+        })
+        .catch(() => {
+          // If network fails during initial verification, preserve token
+        })
+        .finally(() => {
+          setHydrated(true);
+        });
+    } else {
+      setHydrated(true);
+    }
   }, []);
 
   const setApiUrl = useCallback((url: string) => {

@@ -68,6 +68,7 @@ export function DocumentWorkspace({
   const [selectedPage, setSelectedPage] = useState(1);
   const [currentLockVersion, setCurrentLockVersion] = useState<number | undefined>();
   const [isDraftSaving, setIsDraftSaving] = useState(false);
+  const [liveDraftText, setLiveDraftText] = useState<string | null>(null);
 
   const pageQuery = useQuery({
     queryKey: ["document-page", documentId, selectedPage],
@@ -93,6 +94,7 @@ export function DocumentWorkspace({
   useEffect(() => {
     setCurrentLockVersion(undefined);
     setIsDraftSaving(false);
+    setLiveDraftText(null);
   }, [selectedPage, selectedRevisionId]);
 
   useEffect(() => {
@@ -195,8 +197,14 @@ export function DocumentWorkspace({
   const staleCount = geometry.length - exactBoxes.length;
 
   const originalText = pageQuery.data?.ocr_text || "";
-  const correctedText = revisionPageQuery.data?.text || originalText;
+  const savedCorrectedText = revisionPageQuery.data?.text || originalText;
+  const correctedText = liveDraftText ?? savedCorrectedText;
+  const hasUnsavedDiffEdits = liveDraftText !== null && liveDraftText !== savedCorrectedText;
   const confidence = pageQuery.data?.ocr_confidence;
+
+  useEffect(() => {
+    setLiveDraftText(null);
+  }, [originalText]);
 
   const handleCompare = () => {
     queryClient.invalidateQueries({ queryKey: ["document-page", documentId, selectedPage] });
@@ -333,6 +341,7 @@ export function DocumentWorkspace({
                   onCompare={handleCompare}
                   onLockVersionChange={setCurrentLockVersion}
                   onSavingChange={setIsDraftSaving}
+                  onTextChange={setLiveDraftText}
                   onSaved={(savedPage) => {
                     queryClient.setQueryData(
                       ["document-revision-page", documentId, selectedRevisionId, selectedPage],
@@ -342,14 +351,24 @@ export function DocumentWorkspace({
                 />
               )}
             </TabsContent>
-            <TabsContent value="raw" className="flex-1 flex flex-col mt-0 h-full min-h-0 overflow-hidden">
+            <TabsContent
+              value="raw"
+              className="flex-1 flex flex-col mt-0 h-full min-h-0 overflow-hidden"
+            >
               <div className="flex-1 p-4 border border-input/80 rounded-xl bg-muted/20 overflow-auto whitespace-pre-wrap font-mono text-xs sm:text-sm leading-relaxed shadow-inner min-h-0">
                 {originalText}
               </div>
             </TabsContent>
-            <TabsContent value="diff" className="flex-1 flex flex-col mt-0 h-full min-h-0 overflow-hidden">
+            <TabsContent
+              value="diff"
+              className="flex-1 flex flex-col mt-0 h-full min-h-0 overflow-hidden"
+            >
               <div className="flex-1 min-h-0 overflow-hidden flex flex-col">
-                <RevisionDiff originalText={originalText} correctedText={correctedText} />
+                <RevisionDiff
+                  originalText={originalText}
+                  correctedText={correctedText}
+                  hasUnsavedEdits={hasUnsavedDiffEdits}
+                />
               </div>
             </TabsContent>
           </Tabs>

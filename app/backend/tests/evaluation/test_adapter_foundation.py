@@ -187,6 +187,7 @@ def test_runner_does_not_accept_unstructured_ids_as_provenance(resolver: SourceE
 
     result = _evaluate_observation(
         case,
+        case.patient_id,
         "retrieval",
         CaseObservation(retrieved_ids=(evidence_id,), provenance_ids=(evidence_id,)),
         resolver,
@@ -211,6 +212,7 @@ def test_runner_preserves_runtime_retrieval_rank_for_metrics() -> None:
 
     result = _evaluate_observation(
         case,
+        case.patient_id,
         "retrieval",
         CaseObservation(
             retrieved_evidence=(

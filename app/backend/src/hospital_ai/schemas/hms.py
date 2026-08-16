@@ -25,7 +25,7 @@ class HmsAppointmentSummaryImport(ApiSchema):
     source_updated_at: Optional[datetime] = None
     metadata: dict[str, object] = Field(default_factory=dict)
 
-    @root_validator
+    @root_validator(skip_on_failure=True)
     def validate_patient_ownership(cls, values: dict[str, object]) -> dict[str, object]:
         if values.get("patient_id") != values.get("source_patient_id"):
             raise ValueError("source_patient_id must match patient_id for HMS appointment import")

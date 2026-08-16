@@ -6,6 +6,7 @@ and propagates access_tags from metadata to document chunks.
 Usage:
   python scripts/ingest_synthetic_dataset.py
 """
+
 import asyncio
 import json
 import shutil
@@ -15,11 +16,12 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 
+from sqlalchemy import select
+
 from hospital_ai.core.config import get_settings
 from hospital_ai.db.models import Document, DocumentChunk, Patient
 from hospital_ai.db.session import get_session
 from hospital_ai.workers.jobs import process_document
-from sqlalchemy import select
 
 
 def find_source_file(original_uri: str) -> Path:
@@ -46,9 +48,7 @@ async def ingest_file(session, row: dict, is_global: bool, settings) -> None:
     doc_id = uuid.uuid5(uuid.NAMESPACE_DNS, row["storage_uri"])
 
     # Check if document already exists
-    existing = await session.execute(
-        select(Document).where(Document.id == doc_id)
-    )
+    existing = await session.execute(select(Document).where(Document.id == doc_id))
     if existing.scalar_one_or_none() is not None:
         print(f"  [SKIP] Document {row['title']} ({doc_id}) already exists.")
         return
@@ -91,17 +91,13 @@ async def ingest_file(session, row: dict, is_global: bool, settings) -> None:
 
     # Refresh document
     await session.commit()
-    existing = await session.execute(
-        select(Document).where(Document.id == doc_id)
-    )
+    existing = await session.execute(select(Document).where(Document.id == doc_id))
     doc = existing.scalar_one()
     if doc.status == "indexed":
         print(f"  [SUCCESS] Indexed {row['title']}")
         # Propagate access tags to chunks
         if "access_tags" in row and row["access_tags"]:
-            chunk_result = await session.execute(
-                select(DocumentChunk).where(DocumentChunk.document_id == doc_id)
-            )
+            chunk_result = await session.execute(select(DocumentChunk).where(DocumentChunk.document_id == doc_id))
             chunks = chunk_result.scalars().all()
             for chunk in chunks:
                 meta = dict(chunk.meta or {})
@@ -129,7 +125,7 @@ async def main():
 
     # 1. Load global guidelines & drug databases
     print("\n--- Ingesting Global Guidelines & Drug Databases ---")
-    with open(global_meta_path, "r", encoding="utf-8") as f:
+    with open(global_meta_path, encoding="utf-8") as f:
         global_rows = [json.loads(line) for line in f if line.strip()]
 
     async for session in get_session():
@@ -139,16 +135,14 @@ async def main():
 
     # 2. Load patient documents and lab sheets
     print("\n--- Ingesting Patient Documents & Lab Sheets ---")
-    with open(patient_meta_path, "r", encoding="utf-8") as f:
+    with open(patient_meta_path, encoding="utf-8") as f:
         patient_rows = [json.loads(line) for line in f if line.strip()]
 
     async for session in get_session():
         # Quick validation: check patients exist
         patient_ids = {uuid.UUID(r["patient_id"]) for r in patient_rows if r.get("patient_id")}
         print(f"Checking {len(patient_ids)} target patients exist in the EMR database...")
-        db_patients_result = await session.execute(
-            select(Patient.id).where(Patient.id.in_(list(patient_ids)))
-        )
+        db_patients_result = await session.execute(select(Patient.id).where(Patient.id.in_(list(patient_ids))))
         existing_patient_ids = {row[0] for row in db_patients_result.all()}
         missing = patient_ids - existing_patient_ids
         if missing:

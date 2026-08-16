@@ -3,14 +3,21 @@ import { ArrowRight, Network, Download, Share2, Sparkles } from "lucide-react";
 import { AppShell } from "@/components/shell/AppShell";
 import { PageHeader } from "@/components/hms/PageHeader";
 import { GraphCanvas } from "@/components/hms/GraphCanvas";
-import { getPatientGraph } from "@/lib/api/graph";
+import {
+  GraphFilters,
+  DEFAULT_GRAPH_FILTERS,
+  type GraphFilterKey,
+} from "@/components/hms/GraphFilters";
+import { getPatientGraph, type GraphPathStep } from "@/lib/api/graph";
+import type { DocumentGraphFilters } from "@/lib/api/document-graph";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { StreamingControls } from "@/components/hms/StreamingControls";
 import { useStreamSteps } from "@/hooks/use-stream-steps";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { useSession } from "@/lib/session";
 
 import { ErrorState } from "@/components/hms/ErrorState";
 import { sanitizeError } from "@/lib/errors";
@@ -38,6 +45,7 @@ export const Route = createFileRoute("/_app/graph/patients/$patientId")({
 
 function Page() {
   const { patientId } = Route.useParams();
+  const [filters, setFilters] = useState<DocumentGraphFilters>(DEFAULT_GRAPH_FILTERS);
 
   const {
     data: patientGraph,
@@ -45,12 +53,27 @@ function Page() {
     error,
     refetch,
   } = useQuery({
-    queryKey: ["graph", patientId],
-    queryFn: () => getPatientGraph(patientId),
+    queryKey: ["graph", patientId, filters],
+    queryFn: () => getPatientGraph(patientId, filters),
   });
 
+  const { session } = useSession();
   const search = useSearch({ strict: false }) as { simulate?: string };
   const force = search?.simulate === "stream-fail";
+  const supportedFilters: readonly GraphFilterKey[] = [
+    "node_limit",
+    "edge_limit",
+    "hop_depth",
+    "entity_types",
+    "relation_types",
+    "min_confidence",
+    "document_scope",
+    "approved_revision_set_id",
+    "date_from",
+    "date_to",
+    "layout",
+    "include_superseded",
+  ];
 
   const path = patientGraph?.reasoning_path?.[0] || { steps: [], rationale: "" };
   const streamLength = path.steps.length || 0;
@@ -107,7 +130,8 @@ function Page() {
               <Sparkles className="h-3 w-3 text-ai" /> RAG-grounded
             </Badge>
             <Badge variant="outline">
-              Updated {new Date(patientGraph.metadata?.updated_at || "").toLocaleDateString()}
+              Updated{" "}
+              {new Date((patientGraph.metadata?.updated_at as string) || "").toLocaleDateString()}
             </Badge>
           </>
         }
@@ -124,10 +148,22 @@ function Page() {
       />
 
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-[1fr_360px]">
-        {/* @ts-ignore */}
-        <GraphCanvas data={patientGraph} />
+        <GraphCanvas data={patientGraph} filters={filters} />
 
         <div className="space-y-4">
+          <GraphFilters
+            filters={filters}
+            onChange={setFilters}
+            supportedFilters={supportedFilters}
+            capabilities={
+              session?.role === "cardiologist" ||
+              session?.role === "hospitalist" ||
+              session?.role === "pharmacist"
+                ? ["superseded_evidence.read"]
+                : []
+            }
+          />
+
           <Card>
             <CardHeader className="pb-3">
               <div className="flex items-center justify-between">
@@ -144,7 +180,7 @@ function Page() {
               <p className="mt-2 text-xs leading-relaxed text-muted-foreground">{path.rationale}</p>
             </CardHeader>
             <CardContent className="space-y-3">
-              {path.steps.slice(0, stream.revealed).map((s: any, i: number) => (
+              {path.steps.slice(0, stream.revealed).map((s: GraphPathStep, i: number) => (
                 <div key={i} className="rounded-lg border bg-muted/30 p-3">
                   <div className="flex items-center gap-2 text-[11px] font-medium text-muted-foreground">
                     <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-primary/10 text-primary text-[10px] font-semibold">
@@ -156,6 +192,44 @@ function Page() {
                   </div>
                   <p className="mt-2 text-xs text-foreground">{s.relation}</p>
                   <p className="mt-1 text-[11px] text-muted-foreground">Evidence: {s.evidence}</p>
+                  {(s.source_document_id ||
+                    s.source_revision_set_id ||
+                    s.source_page_revision_id ||
+                    s.source_page !== undefined) && (
+                    <div className="mt-2 flex flex-wrap gap-x-2 gap-y-1 text-[11px] text-muted-foreground border-t pt-1">
+                      {s.source_document_id && <span>Document: {s.source_document_id}</span>}
+                      {s.source_revision_set_id && (
+                        <span>Revision: {s.source_revision_set_id}</span>
+                      )}
+                      {s.source_page_revision_id && (
+                        <span>Page revision: {s.source_page_revision_id}</span>
+                      )}
+                      {s.source_page !== undefined && s.source_page !== null && (
+                        <span>Page: {s.source_page}</span>
+                      )}
+                      {s.source_chunk_id && <span>Chunk: {s.source_chunk_id}</span>}
+                      {s.source_start_offset !== undefined &&
+                        s.source_end_offset !== undefined &&
+                        s.source_start_offset !== null &&
+                        s.source_end_offset !== null && (
+                          <span>
+                            Offsets: {s.source_start_offset}-{s.source_end_offset}
+                          </span>
+                        )}
+                      {Boolean(s.source_bounding_boxes) && <span>Region: true</span>}
+                      {s.source_alignment_status === "aligned" &&
+                      s.source_page_revision_id &&
+                      s.source_page !== undefined &&
+                      s.source_start_offset !== undefined &&
+                      s.source_end_offset !== undefined ? (
+                        <span className="font-medium text-success">Exact evidence locator</span>
+                      ) : s.source_alignment_status && s.source_alignment_status !== "aligned" ? (
+                        <span className="font-medium text-warning">
+                          Geometry {s.source_alignment_status}
+                        </span>
+                      ) : null}
+                    </div>
+                  )}
                 </div>
               ))}
               {stream.status === "streaming" && stream.revealed < streamLength ? (

@@ -65,7 +65,7 @@ describe("streamChat", () => {
 
   it("parses token SSE event and calls onEvent callback", async () => {
     const sse =
-      'data: {"type":"token","content":"Hello"}\n' +
+      'data: {"type":"token","sequence":1,"validation_mode":"sentence_buffered","content":"Hello"}\n' +
       'data: {"type":"done","query_id":"q1","validation":"passed"}\n';
 
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(mockOkResponse([sse])));
@@ -73,17 +73,20 @@ describe("streamChat", () => {
     const onEvent = vi.fn();
     const result = await streamChat("http://api", "token123", { question: "Hi" }, onEvent);
 
-    expect(onEvent).toHaveBeenCalledWith({
-      type: "token",
-      content: "Hello",
-    });
+    expect(onEvent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: "token",
+        content: "Hello",
+        sequence: 1,
+      }),
+    );
     expect(result.answer).toBe("Hello");
   });
 
   it("accumulates multiple token events into result.answer", async () => {
     const sse =
-      'data: {"type":"token","content":"Hello"}\n' +
-      'data: {"type":"token","content":" world"}\n' +
+      'data: {"type":"token","sequence":1,"validation_mode":"sentence_buffered","content":"Hello"}\n' +
+      'data: {"type":"token","sequence":2,"validation_mode":"sentence_buffered","content":" world"}\n' +
       'data: {"type":"done","query_id":"q1","validation":"passed"}\n';
 
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(mockOkResponse([sse])));
@@ -171,5 +174,55 @@ describe("streamChat", () => {
     await expect(streamChat("http://api", "token123", { question: "Hi" })).rejects.toThrow(
       /Chat stream failed with status: 500/,
     );
+  });
+
+  it("rejects out-of-order validated chunks", async () => {
+    const sse =
+      'data: {"type":"token","sequence":2,"content":"bad","validation_mode":"sentence_buffered"}\n';
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(mockOkResponse([sse])));
+    await expect(streamChat("http://api", null, { question: "test" })).rejects.toThrow(
+      "Invalid SSE token sequence",
+    );
+  });
+
+  it("rejects tokens without sentence_buffered validation mode", async () => {
+    const sse =
+      'data: {"type":"token","sequence":1,"content":"bad","validation_mode":"unvalidated"}\n';
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(mockOkResponse([sse])));
+    await expect(streamChat("http://api", null, { question: "test" })).rejects.toThrow(
+      "Invalid SSE token sequence",
+    );
+  });
+
+  it("captures graph explanation events", async () => {
+    const sse =
+      'data: {"type":"graph_explanation","data":{"rationale":"Path from drug to condition","paths":[]}}\n' +
+      'data: {"type":"done","query_id":"q1","validation":"passed","persistence_status":"completed"}\n';
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(mockOkResponse([sse])));
+    const onEvent = vi.fn();
+    const result = await streamChat("http://api", "token123", { question: "Why?" }, onEvent);
+    expect(result.graphExplanation).toEqual({
+      rationale: "Path from drug to condition",
+      paths: [],
+    });
+    expect(onEvent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: "graph_explanation",
+        graphExplanation: { rationale: "Path from drug to condition", paths: [] },
+      }),
+    );
+  });
+
+  it("distinguishes completed, interrupted, and error states", async () => {
+    const sseCompleted = 'data: {"type":"done","query_id":"q1","persistence_status":"completed"}\n';
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(mockOkResponse([sseCompleted])));
+    let result = await streamChat("http://api", "token", { question: "test" });
+    expect(result.status).toBe("completed");
+
+    const sseInterrupted =
+      'data: {"type":"token","sequence":1,"content":"hello","validation_mode":"sentence_buffered"}\n';
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(mockOkResponse([sseInterrupted])));
+    result = await streamChat("http://api", "token", { question: "test" });
+    expect(result.status).toBe("interrupted");
   });
 });

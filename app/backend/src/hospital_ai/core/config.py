@@ -1,10 +1,22 @@
+from __future__ import annotations
+
 from functools import lru_cache
 from pathlib import Path
+from typing import Optional
 
-from pydantic import BaseSettings, Field, validator
+from pydantic import Field, validator
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
+    model_config = SettingsConfigDict(
+        env_prefix="HOSPITAL_AI_",
+        env_file=".env",
+        env_file_encoding="utf-8",
+        case_sensitive=False,
+        extra="ignore",
+    )
+
     environment: str = "local"
     api_v1_prefix: str = "/api/v1"
     database_url: str = "postgresql+asyncpg://hospital_ai:hospital_ai@localhost:5432/hospital_ai"
@@ -20,11 +32,25 @@ class Settings(BaseSettings):
     cors_origins: str = "http://localhost:3000,http://127.0.0.1:3000,http://localhost:3001,http://127.0.0.1:3001,http://localhost:8082,http://127.0.0.1:8082"
     dev_auto_grant_access: bool = False
     enable_break_glass: bool = False
-    demo_mode: bool = True
+    demo_mode: bool = Field(
+        default=True,
+        description="Server demo mode flag required as part of server-side self-approval eligibility.",
+    )
     demo_jwt_secret: str = Field(default="", repr=False)
     demo_jwt_issuer: str = "hospital-ai-demo"
     demo_token_ttl_minutes: int = Field(default=30, ge=5, le=1440)
+    allow_self_approval_for_synthetic_data: bool = Field(
+        default=False,
+        description="Configured synthetic self-approval flag; requires demo_mode and synthetic document metadata.",
+    )
+    allow_synthetic_malware_scan: bool = Field(
+        default=False,
+        description="Local/CI-only deterministic scanner; production keeps malware verification fail-closed.",
+    )
     disable_guardrails: bool = False
+    cdi_v2_dual_read: bool = Field(default=False)
+    cdi_v2_active_generation_reads: bool = Field(default=False)
+    cdi_v2_authoring_enabled: bool = Field(default=False)
     # Seconds allowed for an llm-guard scan before the guardrail fails closed.
     # The prompt-injection model takes ~4s per scan on CPU, so the previous
     # hardcoded 3.0 timed out on every request and refused safe questions as
@@ -61,6 +87,10 @@ class Settings(BaseSettings):
     retrieval_top_k: int = 5
     evidence_threshold: float = 0.2
     max_upload_bytes: int = Field(default=10 * 1024 * 1024, ge=1)
+    ocr_memory_budget_mb: int = Field(default=4096, ge=512)
+    ocr_idle_unload_seconds: float = Field(default=300.0, ge=0)
+    ocr_models_path: Path = Path(".models")
+    ocr_model_manifest_path: Optional[Path] = None
 
     # OpenAI / OpenAI-compatible provider
     openai_api_key: str = ""
@@ -133,7 +163,7 @@ class Settings(BaseSettings):
         # an explicit acknowledgment and accepted.
         if (
             self.environment != "local"
-            and self.dev_bearer_tokens == self.__class__.__fields__["dev_bearer_tokens"].default
+            and self.dev_bearer_tokens == self.__class__.model_fields["dev_bearer_tokens"].default
         ):
             return {}
 
@@ -150,12 +180,6 @@ class Settings(BaseSettings):
     @property
     def cors_origin_list(self) -> list[str]:
         return [origin.strip().rstrip("/") for origin in self.cors_origins.split(",") if origin.strip()]
-
-    class Config:
-        env_prefix = "HOSPITAL_AI_"
-        env_file = ".env"
-        env_file_encoding = "utf-8"
-        case_sensitive = False
 
 
 @lru_cache(maxsize=1)

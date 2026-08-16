@@ -14,10 +14,16 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from importlib.machinery import ModuleSpec
 from pathlib import Path
-from typing import Literal
+from typing import Literal, Optional
 
-import fitz
-import numpy as np
+try:
+    import fitz
+except ImportError:
+    fitz = None
+try:
+    import numpy as np
+except ImportError:
+    np = None
 
 from hospital_ai.evaluation.contracts import (
     ClinicalField,
@@ -93,12 +99,12 @@ def _terminate_worker_process_tree(
 def run_isolated_paddle_ocr(
     png_bytes: bytes,
     *,
-    isolated_python: Path | None,
-    worker_script: Path | None = None,
+    isolated_python: Optional[Path],
+    worker_script: Optional[Path] = None,
     timeout_seconds: float = 60.0,
     run: Callable[..., subprocess.CompletedProcess[str]] = subprocess.run,
     popen: Callable[..., subprocess.Popen[str]] = subprocess.Popen,
-    is_windows: bool | None = None,
+    is_windows: Optional[bool] = None,
 ) -> IsolatedOcrExecution:
     """Execute PaddleOCR in its isolated interpreter and validate its JSON result.
 
@@ -119,7 +125,7 @@ def run_isolated_paddle_ocr(
 
     script = worker_script or _default_worker_script()
     windows = os.name == "nt" if is_windows is None else is_windows
-    temporary_path: Path | None = None
+    temporary_path: Optional[Path] = None
     try:
         with tempfile.NamedTemporaryFile(prefix="hms-eval-ocr-", suffix=".png", delete=False) as temporary_file:
             temporary_file.write(png_bytes)
@@ -195,7 +201,7 @@ def _clinical_fields(text: str) -> tuple[ClinicalField, ...]:
     return tuple(sorted(fields, key=lambda field: (field.span_start, field.span_end, field.field_type)))
 
 
-def _parse_dose(value_str: str) -> tuple[float, str] | None:
+def _parse_dose(value_str: str) -> tuple[float, Optional[str]]:
     m = re.search(r"(\d+(?:\.\d+)?)\s*([a-zA-Z/]+)", value_str)
     if not m:
         return None
@@ -217,7 +223,7 @@ def match_clinical_fields(
         exact_match = field.value in extracted_text or field.value in extracted_clean
         normalized_match = exact_match
         decimal_misread_risk = False
-        found_extracted_value: str | None = field.value if exact_match else None
+        found_extracted_value: Optional[str] = field.value if exact_match else None
 
         if field.field_type == "dose":
             gold_parsed = _parse_dose(field.value)
@@ -276,7 +282,7 @@ def build_ocr_gold_pages(
     manifest: CorpusManifestV2,
     data_root: Path,
     *,
-    limit: int | None = None,
+    limit: Optional[int] = None,
 ) -> tuple[OcrGoldPage, ...]:
     """Read canonical PDF text layers into page-addressed OCR ground truth."""
     document_artifacts = sorted(
@@ -286,9 +292,27 @@ def build_ocr_gold_pages(
     pages: list[OcrGoldPage] = []
     for artifact in document_artifacts:
         source = data_root / artifact.canonical_relative_path
-        with fitz.open(source) as document:
-            for page_index, page in enumerate(document):
-                text = page.get_text("text")
+        if fitz is not None:
+            with fitz.open(source) as document:
+                for page_index, page in enumerate(document):
+                    text = page.get_text("text")
+                    pages.append(
+                        OcrGoldPage(
+                            source_path=artifact.canonical_relative_path,
+                            source_sha256=artifact.source_sha256,
+                            page_number=page_index + 1,
+                            native_text=text,
+                            clinical_fields=_clinical_fields(text),
+                        )
+                    )
+                    if limit is not None and len(pages) >= limit:
+                        return tuple(pages)
+        else:
+            import pypdf
+
+            reader = pypdf.PdfReader(str(source))
+            for page_index, page in enumerate(reader.pages):
+                text = page.extract_text() or ""
                 pages.append(
                     OcrGoldPage(
                         source_path=artifact.canonical_relative_path,
@@ -429,8 +453,8 @@ def evaluate_ocr_corpus(
     manifest: CorpusManifestV2,
     data_root: Path,
     *,
-    limit_pages: int | None = None,
-    isolated_python: Path | None = None,
+    limit_pages: Optional[int] = None,
+    isolated_python: Optional[Path] = None,
     use_mock_ocr: bool = False,
 ) -> OcrEvaluationSummary:
     """Evaluate OCR engine performance across 10 scan variants for gold pages."""
@@ -546,7 +570,7 @@ def export_ocr_evaluation_markdown(summary: OcrEvaluationSummary, output_path: P
 
 def probe_image_ocr_engine(
     *,
-    find_spec: Callable[[str], ModuleSpec | object | None] = importlib.util.find_spec,
+    find_spec: Callable[[str], ModuleSpec | Optional[object]] = importlib.util.find_spec,
 ) -> OcrEngineStatus:
     missing = []
     if find_spec("paddleocr") is None:

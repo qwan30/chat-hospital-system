@@ -8,6 +8,8 @@ Covers:
 - Edge cases: no drugs in query, no graph data, no patient docs
 """
 
+from __future__ import annotations
+
 import uuid
 
 import pytest

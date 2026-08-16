@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Literal
+from typing import Literal, Optional, Union
 
 from pydantic import BaseModel, ConfigDict, Field, StrictBool, StrictFloat, StrictInt
 
@@ -68,7 +68,7 @@ class ScanVariant(BaseModel):
 class ClinicalFieldMatchResult(BaseModel):
     field_type: str
     gold_value: str
-    extracted_value: str | None = None
+    extracted_value: Optional[str] = None
     exact_match: bool
     normalized_match: bool
     decimal_misread_risk: bool
@@ -103,10 +103,10 @@ class OcrEvaluationSummary(BaseModel):
         frozen = True
 
 
-EvaluationComponent = Literal["corpus", "ocr", "retrieval", "graph", "chat", "harness"]
+EvaluationComponent = Literal["corpus", "ocr", "retrieval", "graph", "chat", "harness", "timeline", "stream"]
 ResultStatus = Literal["passed", "failed", "skipped"]
 RunStatus = Literal["passed", "failed", "skipped", "invalid"]
-ScalarValue = StrictBool | StrictInt | StrictFloat | str
+ScalarValue = Union[StrictBool, StrictInt, StrictFloat, str]
 
 
 class GateResult(BaseModel):
@@ -174,8 +174,8 @@ class MetricDriftComparison(BaseModel):
     delta: float
     tolerance: float
     higher_is_better: bool = True
-    hard_gate_min: float | None = None
-    hard_gate_max: float | None = None
+    hard_gate_min: Optional[float] = None
+    hard_gate_max: Optional[float] = None
     status: Literal["passed", "failed_drift", "failed_hard_gate"]
 
 

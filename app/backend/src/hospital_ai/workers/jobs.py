@@ -1,4 +1,7 @@
+from __future__ import annotations
+
 import asyncio
+import inspect
 import logging
 import uuid
 from pathlib import Path
@@ -18,6 +21,19 @@ from hospital_ai.services.storage import StorageService, get_storage_service
 
 
 async def process_document(session: AsyncSession, document_id: uuid.UUID, settings: Settings) -> None:
+    document = await session.get(Document, document_id)
+    if document is None:
+        return
+
+    # R2-backed uploads use the CDI V2 extraction/review lane.  Keep the
+    # filesystem and virtual-document path on the legacy indexer until the
+    # downstream generation PRs replace that contract end to end.
+    if document.storage_uri.startswith("r2://") or document.finalized_upload_id is not None:
+        from hospital_ai.workers.extraction_jobs import extract_document
+
+        await extract_document(session, document_id, settings)
+        return
+
     document = await _locked_current_document(session, document_id)
     if document is None:
         return
@@ -50,13 +66,14 @@ async def process_document(session: AsyncSession, document_id: uuid.UUID, settin
         elif Path(document.storage_uri.split("?", 1)[0]).suffix.lower() == ".docx":
             pages = _load_docx_pages(document, storage_service)
         else:
-            pages = OcrService().extract_pages(
+            pages_result = OcrService().extract_pages(
                 storage_uri=document.storage_uri,
                 mime_type=document.mime_type,
                 patient_id=str(document.patient_id),
                 document_id=str(document.id),
                 storage_service=storage_service,
             )
+            pages = await pages_result if inspect.isawaitable(pages_result) else pages_result
     except Exception:
         await _mark_failed_if_current(
             session,
@@ -241,7 +258,6 @@ async def _index_graph_entities(session: AsyncSession, document: Document) -> No
 
     Silently skips on failure to avoid blocking the main indexing pipeline.
     """
-    import logging
 
     logger = logging.getLogger(__name__)
     try:
@@ -369,7 +385,6 @@ def process_document_job(document_id: str) -> None:
     On final failure (after all retries exhausted), the document is moved
     to the dead-letter queue for manual inspection.
     """
-    import logging
 
     logger = logging.getLogger(__name__)
     logger.info("Starting document processing job for %s", document_id)
@@ -404,7 +419,6 @@ def dead_letter_handler(document_id: str, error_message: str) -> None:
     Logs the failure for monitoring.  A future admin dashboard or
     alerting hook can subscribe to this queue for notifications.
     """
-    import logging
 
     logger = logging.getLogger(__name__)
     logger.error("DEAD-LETTER: Document %s permanently failed: %s", document_id, error_message)
@@ -412,7 +426,6 @@ def dead_letter_handler(document_id: str, error_message: str) -> None:
 
 def cdss_job_handler(document_id: str) -> None:
     """Entry point called by rq workers for CDSS analysis."""
-    import logging
 
     logger = logging.getLogger(__name__)
     logger.info("Starting CDSS analysis job for %s", document_id)

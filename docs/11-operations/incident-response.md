@@ -35,7 +35,7 @@ For disk exhaustion, identify the consumer first. Remove expired local backups o
 ## 5. P2 Chat, RAG, or Provider Degradation
 
 1. Check Gemini/DeepSeek health and quota.
-2. Check both active queues: `document-indexing` and `cdss-analysis`.
+2. Check both active queues: `document-indexing`, `cdss-analysis`, and `document-generation-build`.
 3. Inspect `FailedJobRegistry` for each queue.
 4. Set `HOSPITAL_AI_CHAT_PROVIDER=stub` only when external LLM calls must be disabled.
 5. Restore an approved provider after validation.

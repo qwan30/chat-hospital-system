@@ -418,6 +418,13 @@ def evidence_to_schema(item) -> EvidenceRead:
         score=item.score,
         content=item.content,
         metadata=item.metadata,
+        generation_id=item.generation_id,
+        revision_set_id=item.revision_set_id,
+        page_revision_id=item.page_revision_id,
+        approval_state=item.approval_state,
+        start_offset=item.start_offset,
+        end_offset=item.end_offset,
+        bounding_boxes=item.bounding_boxes,
     )
 
 
@@ -563,7 +570,24 @@ async def patch_review_item(
     current_user: User = Depends(get_current_user),
 ):
     document = await _get_document_or_404(session, document_id)
+    review_item = await session.get(DocumentReviewItem, review_item_id)
     trace_id = new_trace_id()
+
+    if not review_item or review_item.document_id != document_id:
+        if current_user:
+            await AuditService(session).record(
+                actor_user_id=current_user.id,
+                action="document.review_item.patch",
+                object_type="document_review_item",
+                object_id=review_item_id,
+                patient_id=document.patient_id,
+                outcome="denied",
+                trace_id=trace_id,
+                ip_address=get_request_ip(request),
+                metadata={"reason": "review_item_document_mismatch" if review_item else "not_found"},
+            )
+            await session.commit()
+        raise NotFoundError("Review item not found")
 
     # Must have read access at minimum to view/patch
     await PermissionService(session).require_read(
@@ -575,10 +599,6 @@ async def patch_review_item(
         object_id=document.id,
         ip_address=get_request_ip(request),
     )
-
-    review_item = await session.get(DocumentReviewItem, review_item_id)
-    if not review_item or review_item.document_id != document_id:
-        raise NotFoundError("Review item not found")
 
     fact_type = "general"
     if review_item.fact_id:

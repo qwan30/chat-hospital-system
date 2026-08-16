@@ -5,8 +5,9 @@ Revises: 0001_initial_schema
 Create Date: 2026-04-27
 """
 
-from alembic import op
 import sqlalchemy as sa
+
+from alembic import op
 
 revision = "0002_add_doc_idx_gen"
 down_revision = "0001_initial_schema"

@@ -5,15 +5,10 @@ on:
     branches:
       - main
       - master
-    paths-ignore:
-      - "**.md"
-      - "docs/**"
       - ".gitignore"
       - "LICENSE"
   pull_request:
     paths-ignore:
-      - "**.md"
-      - "docs/**"
       - ".gitignore"
       - "LICENSE"
   schedule:
@@ -41,7 +36,9 @@ on:
           - vector
           - bm25
           - hybrid
-        default: vector
+        # Hybrid is the deterministic quality-gate baseline; vector and bm25
+        # remain explicit ablation modes for diagnostics.
+        default: hybrid
       run_live_ai_evaluation:
         description: "Run the credentialed live-model evaluation after deterministic gates pass"
         required: false
@@ -90,6 +87,7 @@ jobs:
               - 'app/backend/**'
               - '.github/workflows/ci.yml'
               - '.github/workflows/cd.yml'
+              - 'docs/**'
             frontend:
               - 'app/frontend/src/**'
               - 'app/frontend/public/**'
@@ -98,6 +96,7 @@ jobs:
               - 'app/frontend/package.json'
               - '.github/workflows/ci.yml'
               - '.github/workflows/cd.yml'
+              - 'docs/**'
             infra:
               - 'infra/docker-compose.yml'
               - 'infra/docker-compose.local-build.yml'
@@ -232,7 +231,7 @@ jobs:
 
       # ── Quality gates ──
       - name: Ruff lint check
-        run: python -m ruff check src/ tests/
+        run: python -m ruff check src/ tests/ > ruff-output.txt || (cat ruff-output.txt; exit 1)
 
       - name: Ruff format check
         run: python -m ruff format --check src/ tests/
@@ -244,11 +243,19 @@ jobs:
           HOSPITAL_AI_CHAT_PROVIDER: "stub"
           HOSPITAL_AI_EMBEDDING_PROVIDER: "deterministic"
           HOSPITAL_AI_DISABLE_GUARDRAILS: "true"
-        run: python -m pytest tests/ -v --tb=short --cov=hospital_ai --cov-report=term --cov-fail-under=60
+        run: python -m pytest tests/ -v --tb=short --cov=hospital_ai --cov-report=term --cov-fail-under=60 --junitxml=test-results/junit.xml
 
       # ── API Contract Verification ──
       - name: Verify API contracts
         run: python scripts/verify_contracts.py
+
+      - name: Verify CDI V2 release contracts
+        run: |
+          python scripts/verify_cdi_v2_release.py --mode source
+          echo "RELEASE NO-GO: controlled evidence bundle is produced only by the release evaluation lane."
+
+      - name: Run CDI V2 normative acceptance
+        run: python -m pytest tests/cdi_v2/test_normative_acceptance.py -q
 
       # ── Artifacts ──
       - name: Upload test results
@@ -259,6 +266,8 @@ jobs:
           path: |
             app/backend/.pytest_cache/
             app/backend/test-results/
+            app/backend/ruff-output.txt
+            app/backend/cdi-v2-release-evidence/
           if-no-files-found: ignore
           retention-days: 7
 
@@ -321,10 +330,19 @@ jobs:
           HOSPITAL_AI_DATABASE_URL: "postgresql+asyncpg://hospital_ai:hospital_ai@localhost:5432/hospital_ai_test"
         run: alembic upgrade head
 
-      - name: Check migration-model alignment (advisory)
+      - name: Check migration-model alignment
         env:
           HOSPITAL_AI_DATABASE_URL: "postgresql+asyncpg://hospital_ai:hospital_ai@localhost:5432/hospital_ai_test"
-        run: alembic check || true
+        run: alembic check > alembic-check.txt || (cat alembic-check.txt; exit 1)
+
+      - name: Upload migration diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-migration-diagnostics
+          path: app/backend/alembic-check.txt
+          if-no-files-found: ignore
+          retention-days: 7
 
   # ═══════════════════════════════════════════════════════════════════
   # Job 4b: Backend — RAG Evaluation
@@ -343,7 +361,9 @@ jobs:
       # PR validates the source-backed sentinel contract only. Full release/nightly
       # lanes request every component, which fails honestly until real adapters run.
       AI_EVAL_COMPONENTS: ${{ github.event_name == 'pull_request' && 'corpus' || github.event_name == 'workflow_dispatch' && inputs.ai_eval_components || 'corpus,ocr,retrieval,graph,chat' }}
-      AI_EVAL_RETRIEVAL_MODE: ${{ github.event_name == 'workflow_dispatch' && inputs.ai_eval_retrieval_mode || 'vector' }}
+      # Keep PR/push evaluation on the quality-gate baseline. Vector and bm25
+      # remain available through workflow_dispatch for retrieval ablations.
+      AI_EVAL_RETRIEVAL_MODE: ${{ github.event_name == 'workflow_dispatch' && inputs.ai_eval_retrieval_mode || 'hybrid' }}
 
     steps:
       - name: Checkout
@@ -391,6 +411,11 @@ jobs:
           # but is a release gate, not a source-validation failure. Every other
           # evaluation error (and all release-lane failures) remains blocking.
           if [[ "$AI_EVAL_SUITE" != "smoke" || "$evaluation_status" -ne 1 ]]; then
+            exit "$evaluation_status"
+          fi
+
+          if [[ ! -f "evaluation-artifacts/deterministic/run.json" ]]; then
+            echo "Evaluation failed unexpectedly (run.json missing). Exit code: $evaluation_status"
             exit "$evaluation_status"
           fi
 
@@ -553,22 +578,76 @@ jobs:
           TEST_PID=$!
           
           # Wait for background tasks and fail if any exits with error
-          wait $LINT_PID || (echo "ESLint check failed" && exit 1)
-          wait $TYPECHECK_PID || (echo "TypeScript type check failed" && exit 1)
+          wait $LINT_PID || { echo "ESLint check failed"; exit 1; }
+          wait $TYPECHECK_PID || { echo "TypeScript type check failed"; exit 1; }
           # Blocking: the suite passes locally (13 files / 90 tests), so a
           # failure here is a real regression, not environment drift.
-          wait $TEST_PID || (echo "Vitest unit tests failed" && exit 1)
+          wait $TEST_PID || { echo "Vitest unit tests failed"; exit 1; }
 
       - name: Production build
         env:
           VITE_API_URL: http://localhost:8000/api/v1
         run: bun run build
 
-      # E2E tests need a running backend (not yet in CI infra).
-      # Run them as advisory — they don't block merge.
-      # TODO: Add backend service container to this job (gh#123).
-      - name: E2E tests deferred (backend unavailable)
-        run: echo "Playwright E2E is deferred until the CI job provides a backend service (gh#123)."
+      - name: Prepare Compose environment
+        working-directory: ${{ github.workspace }}
+        run: |
+          cp app/backend/.env.example app/backend/.env
+          sed -i 's/^HOSPITAL_AI_GEMINI_API_KEY=.*/HOSPITAL_AI_GEMINI_API_KEY=dummy-key/' app/backend/.env
+          sed -i 's/^HOSPITAL_AI_JWT_HMAC_SECRET=.*/HOSPITAL_AI_JWT_HMAC_SECRET=dummy-secret/' app/backend/.env
+
+      - name: Start backend services
+        working-directory: ${{ github.workspace }}
+        env:
+          HOSPITAL_AI_GEMINI_API_KEY: "dummy-key"
+          HOSPITAL_AI_JWT_HMAC_SECRET: "dummy-secret"
+          HOSPITAL_AI_CHAT_PROVIDER: "stub"
+          HOSPITAL_AI_EMBEDDING_PROVIDER: "deterministic"
+          HOSPITAL_AI_ALLOW_SYNTHETIC_MALWARE_SCAN: "true"
+          HOSPITAL_AI_WORKER_INLINE: "true"
+        run: docker compose up -d --build
+
+      - name: Wait for backend
+        run: |
+          for i in {1..30}; do
+            if curl -s http://localhost:8000/api/v1/health | grep -q "ok"; then
+              echo "Backend is up"
+              break
+            fi
+            sleep 2
+          done
+
+      - name: Initialize synthetic E2E database
+        working-directory: ${{ github.workspace }}
+        run: |
+          docker compose exec -T backend alembic upgrade head
+          docker compose exec -T backend env PYTHONPATH=src python - <<'PY'
+          import asyncio
+
+          from hospital_ai.db.migrations import seed_synthetic_data
+          from hospital_ai.db.session import get_session_factory
+
+          async def seed() -> None:
+              async with get_session_factory()() as session:
+                  await seed_synthetic_data(session)
+
+          asyncio.run(seed())
+          PY
+
+      - name: Run CDI V2 Playwright E2E journey
+        env:
+          E2E_BASE_URL: http://localhost:8082
+        run: |
+          bun run dev --port 8082 &
+          sleep 5
+          bun run test:e2e -- cdi-v2-document-intelligence.spec.ts
+
+      - name: Capture Compose diagnostics
+        if: always()
+        working-directory: ${{ github.workspace }}
+        run: |
+          docker compose ps > compose-ps.txt
+          docker compose logs --no-color backend postgres > compose-logs.txt 2>&1
 
       # ── Artifacts ──
       - name: Upload Playwright reports
@@ -580,6 +659,17 @@ jobs:
             app/frontend/playwright-report/
             app/frontend/test-results/
           if-no-files-found: ignore
+          retention-days: 7
+
+      - name: Upload Compose diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: compose-diagnostics
+          path: |
+            compose-ps.txt
+            compose-logs.txt
+          if-no-files-found: error
           retention-days: 7
 
   # ═══════════════════════════════════════════════════════════════════
@@ -785,17 +875,13 @@ jobs:
             result="${jobs[$job]}"
             icon="✅"
             if [[ "$result" == "failure" ]]; then
-              if [[ "$job" == "frontend-test" ]]; then icon="⚠️"; FRONTEND_FAILED=1; else icon="❌"; FAILED=1; fi
-              fi
-            if [[ "$result" == "cancelled" ]]; then icon="⚠️"; fi
+              icon="❌"; FAILED=1
+            fi
+            if [[ "$result" == "cancelled" ]]; then icon="⚠️"; FAILED=1; fi
             echo "| $job | $icon $result |" >> "$GITHUB_STEP_SUMMARY"
           done
 
           if [[ $FAILED -eq 1 ]]; then
-            if [[ $FRONTEND_FAILED -eq 1 ]]; then
-              echo "" >> "$GITHUB_STEP_SUMMARY"
-              echo "⚠️ Frontend E2E: advisory — does not block merge" >> "$GITHUB_STEP_SUMMARY"
-            fi
 
             # The release lane requests every evaluation component and holds a
             # sentinel gate that needs two independent human reviewers. Until
@@ -814,9 +900,5 @@ jobs:
             echo "" >> "$GITHUB_STEP_SUMMARY"
             echo "❌ **Some jobs failed.** Check the logs above." >> "$GITHUB_STEP_SUMMARY"
             exit 1
-          fi
-          if [[ $FRONTEND_FAILED -eq 1 ]]; then
-            echo "" >> "$GITHUB_STEP_SUMMARY"
-            echo "⚠️ **Frontend E2E advisory step failed — all other checks passed.**" >> "$GITHUB_STEP_SUMMARY"
           fi
           echo "✅ **All CI jobs passed.** Ready for deployment." >> "$GITHUB_STEP_SUMMARY"

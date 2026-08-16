@@ -5,8 +5,6 @@ without restarting the server.  Persists overrides to the ``system_settings``
 database table so they survive restarts.
 """
 
-from __future__ import annotations
-
 from typing import Optional
 
 from fastapi import APIRouter, Depends, Request
@@ -116,14 +114,14 @@ async def get_admin_settings(
         embedding=EmbeddingSettingsResponse(
             embedding_provider=str(_ev("embedding_provider")),
             embedding_model=str(_ev("embedding_model")),
-            embedding_dimensions=int(_ev("embedding_dimensions")),  # type: ignore[arg-type]
+            embedding_dimensions=int(str(_ev("embedding_dimensions"))),
             openai_embedding_model=str(_ev("openai_embedding_model")),
         ),
         rag=RAGSettingsResponse(
-            retrieval_top_k=int(_ev("retrieval_top_k")),  # type: ignore[arg-type]
-            evidence_threshold=float(_ev("evidence_threshold")),  # type: ignore[arg-type]
-            chunk_size=int(_ev("chunk_size")),  # type: ignore[arg-type]
-            chunk_overlap=int(_ev("chunk_overlap")),  # type: ignore[arg-type]
+            retrieval_top_k=int(str(_ev("retrieval_top_k"))),
+            evidence_threshold=float(str(_ev("evidence_threshold"))),
+            chunk_size=int(str(_ev("chunk_size"))),
+            chunk_overlap=int(str(_ev("chunk_overlap"))),
         ),
     )
 

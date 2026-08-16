@@ -7,11 +7,12 @@ Usage:
 
 Encoding: UTF-8 with BOM recommended for CSV files with Vietnamese text.
 """
+
 import argparse
 import csv
 import datetime
-import uuid
 import sys
+import uuid
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
@@ -29,7 +30,7 @@ def parse_args():
 
 def read_csv(path: Path):
     rows = []
-    with open(path, "r", encoding="utf-8-sig") as f:
+    with open(path, encoding="utf-8-sig") as f:
         lines = [line for line in f if not line.startswith("#")]
     reader = csv.DictReader(lines)
     for row in reader:
@@ -48,7 +49,7 @@ def read_xlsx(path: Path):
     headers = [cell.value for cell in next(ws.iter_rows(min_row=1, max_row=1))]
     rows = []
     for row in ws.iter_rows(min_row=2, values_only=True):
-        rows.append(dict(zip(headers, row)))  # noqa: B905
+        rows.append(dict(zip(headers, row, strict=False)))
     wb.close()
     return rows
 
@@ -114,15 +115,16 @@ async def import_patients(file_path: str, dry_run: bool = False):
     if dry_run:
         print("[DRY RUN] No data written. Preview of first 5:")
         for r in valid[:5]:
-            safe_name = r['full_name'].encode('ascii', 'replace').decode()
-            safe_dept = (r.get('department') or '').encode('ascii', 'replace').decode()
-            print(f"  {r['mrn']} | {safe_name} | {r.get('dob','')} | {safe_dept} | {r.get('status','active')}")
+            safe_name = r["full_name"].encode("ascii", "replace").decode()
+            safe_dept = (r.get("department") or "").encode("ascii", "replace").decode()
+            print(f"  {r['mrn']} | {safe_name} | {r.get('dob', '')} | {safe_dept} | {r.get('status', 'active')}")
         return
 
     # Import
-    from hospital_ai.db.session import get_session
-    from hospital_ai.db.models import Patient
     from sqlalchemy import select
+
+    from hospital_ai.db.models import Patient
+    from hospital_ai.db.session import get_session
 
     imported = 0
     skipped = 0
@@ -136,9 +138,7 @@ async def import_patients(file_path: str, dry_run: bool = False):
             department = (row.get("department") or "").strip()
             status = (row.get("status") or "active").strip().lower()
 
-            existing = await session.execute(
-                select(Patient).where(Patient.mrn == mrn)
-            )
+            existing = await session.execute(select(Patient).where(Patient.mrn == mrn))
             if existing.scalar_one_or_none():
                 skipped += 1
                 continue
@@ -157,7 +157,7 @@ async def import_patients(file_path: str, dry_run: bool = False):
                 session.add(patient)
                 imported += 1
             except Exception as exc:
-                print(f"  ERROR row {i+1} (MRN={mrn}): {exc}")
+                print(f"  ERROR row {i + 1} (MRN={mrn}): {exc}")
                 failed += 1
 
         if imported > 0:
@@ -174,4 +174,5 @@ async def import_patients(file_path: str, dry_run: bool = False):
 if __name__ == "__main__":
     args = parse_args()
     import asyncio
+
     asyncio.run(import_patients(args.file, args.dry_run))

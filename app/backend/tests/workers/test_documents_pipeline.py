@@ -1,6 +1,9 @@
+from __future__ import annotations
+
 import pytest
 from sqlalchemy import select
 
+from hospital_ai.db.clinical_documents import DocumentUpload
 from hospital_ai.db.migrations import PATIENT_ALICE_ID, RECORDS_ID
 from hospital_ai.db.models import Document, DocumentProcessingEvent
 
@@ -15,8 +18,30 @@ except ImportError:
         pass
 
 
+async def _finalize_test_source(session, document: Document) -> None:
+    await session.flush()
+    upload = DocumentUpload(
+        document_id=document.id,
+        state="finalized",
+        object_key=f"source/test/{document.id}/upload/original.pdf",
+        expected_sha256="a" * 64,
+        byte_size=1,
+        mime_type="application/pdf",
+        actor_user_id=document.uploaded_by,
+    )
+    session.add(upload)
+    await session.flush()
+    document.finalized_upload_id = upload.id
+    document.indexed_source_sha256 = upload.expected_sha256
+
+
+class _MockFinalizedStorage:
+    def source_sha256(self, storage_uri: str) -> str:
+        return "a" * 64
+
+
 @pytest.mark.asyncio
-async def test_pipeline_happy_path_states(session_and_settings):
+async def test_pipeline_happy_path_states(session_and_settings, monkeypatch):
     session, settings = session_and_settings
     document = Document(
         patient_id=PATIENT_ALICE_ID,
@@ -28,7 +53,10 @@ async def test_pipeline_happy_path_states(session_and_settings):
         status="uploaded",
     )
     session.add(document)
+    await _finalize_test_source(session, document)
     await session.commit()
+
+    monkeypatch.setattr("hospital_ai.workers.jobs.get_storage_service", lambda settings: _MockFinalizedStorage())
 
     # The coder should implement process_document_pipeline to iterate over stages
     await process_document_pipeline(session, document.id, settings)
@@ -68,7 +96,7 @@ async def test_pipeline_happy_path_states(session_and_settings):
 
 
 @pytest.mark.asyncio
-async def test_pipeline_review_required_state(session_and_settings):
+async def test_pipeline_review_required_state(session_and_settings, monkeypatch):
     session, settings = session_and_settings
     document = Document(
         patient_id=PATIENT_ALICE_ID,
@@ -80,7 +108,10 @@ async def test_pipeline_review_required_state(session_and_settings):
         status="uploaded",
     )
     session.add(document)
+    await _finalize_test_source(session, document)
     await session.commit()
+
+    monkeypatch.setattr("hospital_ai.workers.jobs.get_storage_service", lambda settings: _MockFinalizedStorage())
 
     # We can use monkeypatch in a real scenario to force the fact extractor
     # to emit a low confidence fact, but for now we just verify the pipeline can enter 'review_required'
@@ -89,4 +120,4 @@ async def test_pipeline_review_required_state(session_and_settings):
 
     await session.refresh(document)
     # This test will fail until the coder implements the state machine properly.
-    # assert document.status == "review_required"
+    assert document.status == "review_required"

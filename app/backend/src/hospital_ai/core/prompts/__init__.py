@@ -16,6 +16,8 @@ Architecture principle:
     not in environment variables or service-layer string literals.
 """
 
+from __future__ import annotations
+
 from hospital_ai.core.prompts.citation_validation_prompt import CITATION_VALIDATION_PROMPT
 from hospital_ai.core.prompts.drug_check_prompt import DRUG_ALLERGY_CHECK_PROMPT
 from hospital_ai.core.prompts.patient_summary_prompt import PATIENT_SUMMARY_PROMPT, PATIENT_SUMMARY_TEMPLATE

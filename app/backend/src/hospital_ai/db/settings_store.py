@@ -14,7 +14,7 @@ import json
 import uuid
 from typing import Any, Optional
 
-from sqlalchemy import String, Text, select
+from sqlalchemy import Index, String, Text, UniqueConstraint, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -32,9 +32,13 @@ class SystemSetting(TimestampMixin, Base):
     """
 
     __tablename__ = "system_settings"
+    __table_args__ = (
+        UniqueConstraint("key", name="system_settings_key_key"),
+        Index("ix_system_settings_key", "key", unique=True),
+    )
 
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
-    key: Mapped[str] = mapped_column(String(128), unique=True, nullable=False, index=True)
+    key: Mapped[str] = mapped_column(String(128), nullable=False)
     value_json: Mapped[str] = mapped_column(Text, nullable=False)
     updated_by_user_id: Mapped[Optional[uuid.UUID]] = mapped_column(nullable=True)
     description: Mapped[Optional[str]] = mapped_column(String(512), nullable=True)

@@ -24,22 +24,22 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_asyn
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 
-from hospital_ai.core.config import Settings
-from hospital_ai.core.errors import PermissionDeniedError
-from hospital_ai.db.migrations import (
+from hospital_ai.core.config import Settings  # noqa: E402
+from hospital_ai.core.errors import PermissionDeniedError  # noqa: E402
+from hospital_ai.db.migrations import (  # noqa: E402
     DOCTOR_ID,
     PATIENT_ALICE_ID,
     PATIENT_BOB_ID,
     RECORDS_ID,
     seed_synthetic_data,
 )
-from hospital_ai.db.models import AiQuery, Base, Document, DocumentChunk, DocumentPage, User
-from hospital_ai.schemas.hms import HmsAppointmentSummaryImport
-from hospital_ai.services.chat import ChatService
-from hospital_ai.services.embeddings import deterministic_embedding
-from hospital_ai.services.general_knowledge import GeneralKnowledgeService
-from hospital_ai.services.graph_rag import find_related_entities, index_chunk_entities
-from hospital_ai.services.hms_appointments import HmsAppointmentEvidenceImporter
+from hospital_ai.db.models import AiQuery, Base, Document, DocumentChunk, DocumentPage, User  # noqa: E402
+from hospital_ai.schemas.hms import HmsAppointmentSummaryImport  # noqa: E402
+from hospital_ai.services.chat import ChatService  # noqa: E402
+from hospital_ai.services.embeddings import deterministic_embedding  # noqa: E402
+from hospital_ai.services.general_knowledge import GeneralKnowledgeService  # noqa: E402
+from hospital_ai.services.graph_rag import find_related_entities, index_chunk_entities  # noqa: E402
+from hospital_ai.services.hms_appointments import HmsAppointmentEvidenceImporter  # noqa: E402
 
 
 @dataclass
@@ -327,7 +327,7 @@ def write_reports(result: dict[str, Any], output_dir: Path) -> None:
     lines = [
         "# Synthetic RAG Eval Report",
         "",
-        "This report uses synthetic/de-identified local data and deterministic providers. It is portfolio evidence, not clinical validation.",
+        "This report uses synthetic/de-identified local data and deterministic providers. It is portfolio evidence, not clinical validation.",  # noqa: E501
         "",
         "## Summary",
         "",

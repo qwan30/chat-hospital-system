@@ -6,6 +6,7 @@ try:
     import tomllib
 except ImportError:
     import tomli as tomllib
+import math
 from pathlib import Path
 from typing import Any
 
@@ -46,12 +47,44 @@ class _PaddleV3Result:
     }
 
 
-def test_image_only_pdf_without_ocr_engine_fails_explicitly(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+@pytest.mark.asyncio
+async def test_image_only_pdf_without_ocr_engine_fails_explicitly(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    class EmptyMockPage:
+        def get_text(self):
+            return ""
+
+        def get_pixmap(self, dpi):
+            class Pix:
+                def tobytes(self, fmt):
+                    return b"pngdata"
+
+            return Pix()
+
+    class EmptyMockDoc:
+        def __init__(self):
+            self.pages = [EmptyMockPage()]
+
+        def __len__(self):
+            return 1
+
+        def __getitem__(self, i):
+            return self.pages[i]
+
+        def close(self):
+            pass
+
+        def save(self, p):
+            Path(p).write_bytes(b"dummy")
+
+        def new_page(self):
+            return self.pages[0]
+
+    monkeypatch.setattr(fitz, "open", lambda *args, **kwargs: EmptyMockDoc())
+
     pdf_path = tmp_path / "image-only.pdf"
-    document = fitz.open()
-    document.new_page()
-    document.save(pdf_path)
-    document.close()
+    pdf_path.write_bytes(b"dummy")
 
     real_import = builtins.__import__
 
@@ -63,7 +96,7 @@ def test_image_only_pdf_without_ocr_engine_fails_explicitly(tmp_path: Path, monk
     monkeypatch.setattr(builtins, "__import__", import_without_paddle)
 
     with pytest.raises(ExternalServiceError, match="OCR engine is unavailable"):
-        OcrService().extract_pages(
+        await OcrService().extract_pages(
             storage_uri=str(pdf_path),
             mime_type="application/pdf",
             patient_id="patient-1",
@@ -72,7 +105,8 @@ def test_image_only_pdf_without_ocr_engine_fails_explicitly(tmp_path: Path, monk
         )
 
 
-def test_ocr_reads_pdf_from_storage_bytes_and_saves_page_png() -> None:
+@pytest.mark.asyncio
+async def test_ocr_reads_pdf_from_storage_bytes_and_saves_page_png() -> None:
     document = fitz.open()
     page = document.new_page()
     page.insert_text((72, 72), "Native text from R2")
@@ -80,7 +114,7 @@ def test_ocr_reads_pdf_from_storage_bytes_and_saves_page_png() -> None:
     document.close()
     storage = _BytesStorageStub(payload)
 
-    pages = OcrService().extract_pages(
+    pages = await OcrService().extract_pages(
         storage_uri="r2://patients/patient-1/documents/document-1/source.pdf",
         mime_type="application/pdf",
         patient_id="patient-1",
@@ -96,12 +130,29 @@ def test_paddle_v3_result_contract_extracts_text_and_scores() -> None:
     text, confidence = _parse_paddle_v3_results([_PaddleV3Result()])
 
     assert text == "Aspirin 81 mg\ndaily"
-    assert confidence == pytest.approx(0.96)
+    assert math.isclose(confidence, 0.96, rel_tol=1e-5)
 
 
 def test_ocr_extra_pins_supported_paddle_3_cpu_contract() -> None:
     config = tomllib.loads(Path("pyproject.toml").read_text(encoding="utf-8"))
     ocr_dependencies = config["project"]["optional-dependencies"]["ocr"]
+    vietocr_dependencies = config["project"]["optional-dependencies"]["vietocr"]
+    trocr_dependencies = config["project"]["optional-dependencies"]["trocr"]
 
     assert "paddleocr>=3.0.0,<4.0.0" in ocr_dependencies
     assert "paddlepaddle>=3.2.0,<4.0.0" in ocr_dependencies
+    assert "vietocr>=0.3.0,<0.4.0" in vietocr_dependencies
+    assert "transformers>=4.40.0,<5.0.0" in trocr_dependencies
+    assert "torch>=2.2.0,<3.0.0" in trocr_dependencies
+
+
+@pytest.mark.asyncio
+async def test_ocr_service_records_real_latency_and_rss() -> None:
+    service = OcrService()
+    pages = await service.extract_page_results(
+        storage_uri="mock://test-document",
+        mime_type="text/plain",
+    )
+    assert len(pages) == 1
+    assert pages[0].latency_ms >= 0
+    assert pages[0].peak_rss_mb >= 1

@@ -1,0 +1,48 @@
+{
+  "title": "ThresholdArtifact",
+  "type": "object",
+  "properties": {
+    "corpus_version": {
+      "title": "Corpus Version",
+      "type": "string"
+    },
+    "qualification_run_id": {
+      "title": "Qualification Run Id",
+      "type": "string"
+    },
+    "metric_implementation_version": {
+      "title": "Metric Implementation Version",
+      "type": "string"
+    },
+    "values": {
+      "title": "Values",
+      "type": "object"
+    },
+    "calibration_date": {
+      "title": "Calibration Date",
+      "type": "string"
+    },
+    "git_sha": {
+      "title": "Git Sha",
+      "type": "string"
+    },
+    "artifact_hash": {
+      "title": "Artifact Hash",
+      "type": "string"
+    },
+    "frozen": {
+      "title": "Frozen",
+      "default": true,
+      "type": "boolean"
+    }
+  },
+  "required": [
+    "corpus_version",
+    "qualification_run_id",
+    "metric_implementation_version",
+    "values",
+    "calibration_date",
+    "git_sha",
+    "artifact_hash"
+  ]
+}

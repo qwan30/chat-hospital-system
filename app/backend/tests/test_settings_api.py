@@ -7,6 +7,8 @@ Verifies that:
 - Multiple PUT calls merge overrides correctly.
 """
 
+from __future__ import annotations
+
 import pytest
 
 from hospital_ai.db.settings_store import (

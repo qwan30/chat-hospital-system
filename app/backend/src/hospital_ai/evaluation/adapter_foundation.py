@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass
-from typing import Literal
+from typing import Literal, Optional
 from urllib.parse import urlsplit
 from uuid import UUID, uuid5
 
@@ -49,11 +49,11 @@ class RuntimeEvidenceChunk(BaseModel):
 
     runtime_chunk_id: str
     source_path: str
-    source_sha256: str | None
-    patient_id: UUID | None = None
-    page_number: int | None = None
-    row_number: int | None = None
-    record_id: str | None = None
+    source_sha256: Optional[str] = None
+    patient_id: Optional[UUID] = None
+    page_number: Optional[int] = None
+    row_number: Optional[int] = None
+    record_id: Optional[str] = None
 
     @validator("runtime_chunk_id", "source_path")
     def _non_empty(cls, value: str) -> str:
@@ -62,13 +62,13 @@ class RuntimeEvidenceChunk(BaseModel):
         return value
 
     @validator("source_sha256")
-    def _valid_hash(cls, value: str | None) -> str | None:
+    def _valid_hash(cls, value: Optional[str]) -> Optional[str]:
         if value is not None and not _SHA256_RE.fullmatch(value):
             raise ValueError("runtime source hash must be lowercase SHA-256")
         return value
 
     @validator("page_number", "row_number")
-    def _positive_coordinate(cls, value: int | None) -> int | None:
+    def _positive_coordinate(cls, value: Optional[int]) -> Optional[int]:
         if value is not None and value < 1:
             raise ValueError("runtime evidence coordinates must be positive")
         return value
@@ -84,10 +84,10 @@ class ResolvedEvidence(BaseModel):
     runtime_chunk_id: str
     source_path: str
     source_sha256: str
-    patient_id: UUID | None = None
-    page_number: int | None = None
-    row_number: int | None = None
-    record_id: str | None = None
+    patient_id: Optional[UUID] = None
+    page_number: Optional[int] = None
+    row_number: Optional[int] = None
+    record_id: Optional[str] = None
 
     class Config:
         frozen = True
@@ -99,7 +99,7 @@ class SourceEvidenceResolver:
     def __init__(
         self,
         manifest: CorpusManifestV2,
-        candidate_locators: tuple[EvidenceLocator, ...] | None = None,
+        candidate_locators: tuple[EvidenceLocator, Optional[...]] = None,
     ) -> None:
         self._manifest = manifest
         artifacts = manifest.artifacts
@@ -123,7 +123,7 @@ class SourceEvidenceResolver:
         )
 
     @staticmethod
-    def _locator_key(locator: EvidenceLocator) -> tuple[str, int | None, int | None, str | None]:
+    def _locator_key(locator: EvidenceLocator) -> tuple[str, Optional[int], Optional[int], Optional[str]]:
         return (locator.source_path, locator.page_number, locator.row_number, locator.record_id)
 
     def artifact_for(self, locator: EvidenceLocator) -> SourceArtifact:
@@ -239,7 +239,7 @@ class SourceEvidenceResolver:
         return expected_id
 
 
-def _database_identity(raw_url: str) -> tuple[str, str | None, int | None, str]:
+def _database_identity(raw_url: str) -> tuple[str, Optional[str], Optional[int], str]:
     try:
         url = make_url(raw_url)
     except ArgumentError as error:
@@ -274,7 +274,7 @@ class EvaluatorIsolationConfig(BaseModel):
             raise EvaluationIsolationError("run namespace must start with ai-eval/")
         return value
 
-    @root_validator
+    @root_validator(skip_on_failure=True)
     def _database_is_isolated(cls, values: dict) -> dict:
         evaluation_url = values.get("evaluation_database_url")
         approved_url = values.get("approved_evaluation_database_url")
@@ -339,3 +339,4 @@ class EvaluationCaseContext:
     actor: MaterializedEvaluationActor
     evidence_resolver: SourceEvidenceResolver
     isolation: EvaluatorIsolationConfig
+    patient_id: str = ""

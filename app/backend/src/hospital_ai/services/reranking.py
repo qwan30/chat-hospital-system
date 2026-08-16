@@ -146,7 +146,7 @@ class CrossEncoderReranker(BaseReranker):
         # Normalize scores to [0, 1] range using sigmoid if needed
         normalized = _normalize_scores([float(s) for s in scores])
 
-        scored = list(zip(normalized, chunks))  # noqa: B905
+        scored = list(zip(normalized, chunks, strict=True))
         scored.sort(key=lambda item: item[0], reverse=True)
 
         return [

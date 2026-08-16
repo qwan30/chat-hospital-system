@@ -1,9 +1,11 @@
 import uuid
+
 import pytest
-from hospital_ai.api.routes.audit import list_logs, list_events_alias
+
+from hospital_ai.api.routes.audit import list_events_alias, list_logs
 from hospital_ai.core.errors import PermissionDeniedError
+from hospital_ai.db.migrations import ADMIN_ID, DOCTOR_ID, SECURITY_ID
 from hospital_ai.db.models import AuditLog, User
-from hospital_ai.db.migrations import DOCTOR_ID, ADMIN_ID, SECURITY_ID
 
 pytestmark = pytest.mark.asyncio
 
@@ -43,7 +45,12 @@ async def test_audit_logs_authorized_admin(session_and_settings):
         patient_id=patient_id,
         outcome="allowed",
         trace_id="test-trace-1",
-        meta={"access_token": "secret123", "password": "mypassword", "raw_prompt_phi": "patient has diabetes", "safe_key": "safe_value"}
+        meta={
+            "access_token": "secret123",
+            "password": "mypassword",
+            "raw_prompt_phi": "patient has diabetes",
+            "safe_key": "safe_value"
+        }
     )
     session.add(audit_log)
     await session.commit()

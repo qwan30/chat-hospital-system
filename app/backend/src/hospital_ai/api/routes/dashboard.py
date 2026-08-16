@@ -2,7 +2,7 @@ import logging
 
 import httpx
 from fastapi import APIRouter, Depends, Request
-from sqlalchemy import case, func, select, and_
+from sqlalchemy import and_, case, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from hospital_ai.api.deps import get_current_user, get_request_ip, get_session
@@ -60,7 +60,18 @@ async def get_dashboard_summary(
 
     # 2. Document stats
     doc_stmt = select(
-        func.sum(case((and_(Document.status.in_(["ready", "ready_with_warnings"]), Document.active_index_generation_id.is_not(None)), 1), else_=0)).label("indexed"),
+        func.sum(
+            case(
+                (
+                    and_(
+                        Document.status.in_(["ready", "ready_with_warnings"]),
+                        Document.active_index_generation_id.is_not(None),
+                    ),
+                    1,
+                ),
+                else_=0,
+            )
+        ).label("indexed"),
         func.sum(case((Document.status.in_(["uploaded", "processing"]), 1), else_=0)).label("processing"),
         func.sum(case((Document.status.in_(["failed"]), 1), else_=0)).label("failed"),
     ).where(Document.deleted_at.is_(None))

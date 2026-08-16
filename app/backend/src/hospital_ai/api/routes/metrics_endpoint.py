@@ -1,12 +1,13 @@
+from typing import Any
+
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import Response
 from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
+from sqlalchemy import and_, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func, and_
-from typing import Dict, Any, List
 
 from hospital_ai.api.deps import get_current_user, get_session
-from hospital_ai.db.models import User, Document, DocumentChunk
+from hospital_ai.db.models import Document, DocumentChunk, User
 
 router = APIRouter(tags=["Metrics"])
 
@@ -22,7 +23,7 @@ async def get_vector_metrics(
     request: Request,
     session: AsyncSession = Depends(get_session),
     current_user: User = Depends(get_current_user),
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     # 1. Count indexed documents
     # Unified contract: Document must be ready/ready_with_warnings and have an active generation or we just use status.
     # We use status and ensure we count only documents that aren't deleted.

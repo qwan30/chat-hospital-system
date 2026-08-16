@@ -67,7 +67,7 @@ ALLOWED_DOCUMENT_TYPES = {
 }
 
 
-def normalize_upload_mime_type(filename: str | None, content_type: str | None) -> str:
+def normalize_upload_mime_type(filename: Optional[str], content_type: Optional[str]) -> str:
     """Normalize browser HL7 uploads without admitting generic binary files."""
     if not content_type or not content_type.strip():
         return "application/octet-stream"

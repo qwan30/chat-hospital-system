@@ -1,5 +1,5 @@
 import uuid
-from typing import Final
+from typing import Final, Optional
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -61,7 +61,7 @@ class CapabilityService:
         capability: str,
         action: str,
         trace_id: str,
-        object_id: uuid.UUID | None,
+        object_id: Optional[uuid.UUID],
     ) -> None:
         audit_service = AuditService(self.session)
         await audit_service.record(
@@ -84,7 +84,7 @@ class CapabilityService:
         capability: str,
         action: str,
         trace_id: str,
-        object_id: uuid.UUID | None = None,
+        object_id: Optional[uuid.UUID] = None,
     ) -> None:
         if not role_has_capability(user.role, capability):
             await self._deny(user, patient_id, capability, action, trace_id, object_id)

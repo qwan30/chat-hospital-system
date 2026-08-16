@@ -34,6 +34,7 @@ RUN python -m pip uninstall --disable-pip-version-check --no-input --yes \
 COPY src/ src/
 COPY alembic/ alembic/
 COPY alembic.ini .
+COPY scripts/ scripts/
 
 # Run as non-root
 USER appuser

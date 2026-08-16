@@ -93,8 +93,8 @@ async def ingest_file(session, row: dict, is_global: bool, settings) -> None:
     await session.commit()
     existing = await session.execute(select(Document).where(Document.id == doc_id))
     doc = existing.scalar_one()
-    if doc.status == "indexed":
-        print(f"  [SUCCESS] Indexed {row['title']}")
+    if doc.status in ("ready", "ready_with_warnings", "indexed"):
+        print(f"  [SUCCESS] Ready: {row['title']}")
         # Propagate access tags to chunks
         if "access_tags" in row and row["access_tags"]:
             chunk_result = await session.execute(select(DocumentChunk).where(DocumentChunk.document_id == doc_id))

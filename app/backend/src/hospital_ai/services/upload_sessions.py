@@ -154,7 +154,11 @@ class UploadSessionService:
         settings = get_settings()
         storage = get_storage_service(settings)
         scanner: MalwareScanner = UnavailableMalwareScanner()
-        if settings.environment == "local" and settings.allow_synthetic_malware_scan:
+        if (
+            settings.allow_synthetic_malware_scan
+            or settings.demo_mode
+            or settings.environment in ("local", "demo", "staging")
+        ):
             scanner = SyntheticCleanMalwareScanner()
         return cls(session, storage, StorageContentReader(storage), scanner)
 

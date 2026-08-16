@@ -447,7 +447,12 @@ async def get_document_intelligence(
         ip_address=get_request_ip(request),
     )
 
-    facts_result = await session.execute(select(ClinicalFact).where(ClinicalFact.document_id == document_id))
+    facts_result = await session.execute(
+        select(ClinicalFact).where(
+            ClinicalFact.document_id == document_id,
+            ClinicalFact.generation_id.is_not_distinct_from(document.active_index_generation_id)
+        )
+    )
     facts = facts_result.scalars().all()
 
     reviews_result = await session.execute(
@@ -482,7 +487,12 @@ async def get_document_facts(
         ip_address=get_request_ip(request),
     )
 
-    facts_result = await session.execute(select(ClinicalFact).where(ClinicalFact.document_id == document_id))
+    facts_result = await session.execute(
+        select(ClinicalFact).where(
+            ClinicalFact.document_id == document_id,
+            ClinicalFact.generation_id.is_not_distinct_from(document.active_index_generation_id)
+        )
+    )
     facts = facts_result.scalars().all()
 
     return {

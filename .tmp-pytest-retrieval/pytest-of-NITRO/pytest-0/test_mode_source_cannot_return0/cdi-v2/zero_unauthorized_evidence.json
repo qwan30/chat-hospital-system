@@ -1,0 +1,1 @@
+{"gate_name": "zero_unauthorized_evidence", "passed": true, "source_artifact": "s3://bucket/artifacts/zero_unauthorized_evidence.zip", "producer_sha": "abcdef1234567890", "schema_version": "1.0.0", "hash": "b97e968a2678ed46f128865432cd0c3b265998022ac4b9e36661e8d761bfde5e", "details": {}}

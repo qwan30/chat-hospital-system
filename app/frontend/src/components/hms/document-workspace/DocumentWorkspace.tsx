@@ -262,7 +262,11 @@ export function DocumentWorkspace({
       <div className="flex-1 min-h-0 grid grid-cols-1 lg:grid-cols-2 gap-3.5 p-3 bg-muted/10 overflow-hidden">
         <div className="h-full border border-border/70 rounded-xl bg-card p-3 flex flex-col min-h-0 overflow-hidden shadow-sm">
           {documentQuery.data && (
-            <DocumentPreview documentId={documentId} mimeType={documentQuery.data.mime_type}>
+            <DocumentPreview
+              documentId={documentId}
+              mimeType={documentQuery.data.mime_type}
+              documentTitle={documentQuery.data.title}
+            >
               <GeometryOverlay boxes={exactBoxes} staleCount={staleCount} />
             </DocumentPreview>
           )}
@@ -321,7 +325,11 @@ export function DocumentWorkspace({
                   revision={revision}
                   initialText={originalText}
                   lockVersion={currentLockVersion}
-                  parentRevisionId={revisionPageQuery.data?.page_revision_id}
+                  parentRevisionId={
+                    revisionPageQuery.data?.page_revision_id ||
+                    pageQuery.data?.id ||
+                    revisionsQuery.data?.[0]?.revision_set_id
+                  }
                   onCompare={handleCompare}
                   onLockVersionChange={setCurrentLockVersion}
                   onSavingChange={setIsDraftSaving}

@@ -61,14 +61,20 @@ export function OcrEditor({
 
   const saveMutation = useMutation({
     mutationFn: (newText: string) => {
-      if (currentLockVersion === undefined || !parentRevisionId) {
+      const lockVer = currentLockVersion ?? 1;
+      const parentId = parentRevisionId;
+      if (!parentId) {
         return Promise.reject(new Error("The latest page revision is not loaded."));
       }
       return saveDraftPage(
         documentId,
         page,
-        { text: newText, parent_revision_id: parentRevisionId, edit_reason: reason },
-        { idempotencyKey: idempotencyKeyRef.current, lockVersion: currentLockVersion },
+        {
+          text: newText,
+          parent_revision_id: parentId,
+          edit_reason: reason.trim() || "Manual OCR text update",
+        },
+        { idempotencyKey: idempotencyKeyRef.current, lockVersion: lockVer },
       );
     },
     onSuccess: (savedPage) => {
@@ -97,9 +103,7 @@ export function OcrEditor({
   const isSaveDisabled =
     isHistorical ||
     saveMutation.isPending ||
-    reason.trim().length === 0 ||
-    currentLockVersion === undefined ||
-    !parentRevisionId;
+    (!hasUnsavedChanges && !reason.trim());
 
   // Handle Ctrl+S / Cmd+S
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {

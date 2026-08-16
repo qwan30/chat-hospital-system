@@ -1,36 +1,39 @@
 import { useEffect, useState } from "react";
-import { FileText, Loader2, Maximize2 } from "lucide-react";
+import { FileText, Loader2, Maximize2, Download } from "lucide-react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { getDocumentBlob } from "@/lib/api/documents";
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { SpreadsheetPreview } from "./SpreadsheetPreview";
 
 export function DocumentPreview({
   documentId,
   mimeType,
+  documentTitle,
   children,
 }: {
   documentId: string;
   mimeType: string;
+  documentTitle?: string;
   children?: React.ReactNode;
 }) {
   const reduceMotion = useReducedMotion();
+  const [blob, setBlob] = useState<Blob | null>(null);
   const [url, setUrl] = useState<string | null>(null);
   const [failed, setFailed] = useState(false);
 
   useEffect(() => {
     let currentUrl: string | null = null;
     let active = true;
+    setBlob(null);
     setUrl(null);
     setFailed(false);
     getDocumentBlob(documentId)
-      .then((blob) => {
-        currentUrl = URL.createObjectURL(blob);
-        if (active) {
-          setUrl(currentUrl);
-        } else {
-          URL.revokeObjectURL(currentUrl);
-        }
+      .then((fetchedBlob) => {
+        if (!active) return;
+        setBlob(fetchedBlob);
+        currentUrl = URL.createObjectURL(fetchedBlob);
+        setUrl(currentUrl);
       })
       .catch(() => {
         if (active) setFailed(true);
@@ -40,6 +43,18 @@ export function DocumentPreview({
       if (currentUrl) URL.revokeObjectURL(currentUrl);
     };
   }, [documentId]);
+
+  const isSpreadsheet =
+    mimeType.includes("csv") ||
+    mimeType.includes("excel") ||
+    mimeType.includes("spreadsheet") ||
+    mimeType.includes("sheet") ||
+    mimeType === "text/tab-separated-values" ||
+    (documentTitle &&
+      (documentTitle.toLowerCase().endsWith(".csv") ||
+        documentTitle.toLowerCase().endsWith(".xlsx") ||
+        documentTitle.toLowerCase().endsWith(".xls") ||
+        documentTitle.toLowerCase().includes("sheet")));
 
   return (
     <AnimatePresence mode="wait" initial={false}>
@@ -51,13 +66,18 @@ export function DocumentPreview({
         >
           Preview unavailable for this document.
         </motion.p>
-      ) : !url ? (
+      ) : !url || !blob ? (
         <motion.div
           key="loading"
-          className="flex items-center gap-2 text-sm text-muted-foreground"
+          className="flex items-center justify-center gap-2 text-sm text-muted-foreground h-full"
           {...fade(reduceMotion)}
         >
           <Loader2 className="h-4 w-4 animate-spin" /> Loading preview…
+        </motion.div>
+      ) : isSpreadsheet ? (
+        <motion.div key="spreadsheet" className="relative w-full h-full flex-1 flex flex-col min-h-0 overflow-hidden" {...fade(reduceMotion)}>
+          <SpreadsheetPreview blob={blob} downloadUrl={url} filename={documentTitle} />
+          {children}
         </motion.div>
       ) : mimeType.startsWith("image/") ? (
         <motion.div key="image" className="relative group w-full h-full flex-1 flex flex-col min-h-0 overflow-hidden" {...fade(reduceMotion)}>
@@ -103,15 +123,22 @@ export function DocumentPreview({
           </Dialog>
         </motion.div>
       ) : (
-        <motion.a
-          key="download"
-          className="inline-flex items-center gap-2 text-sm text-ai underline"
-          href={url}
-          download
+        <motion.div
+          key="download-card"
+          className="flex flex-col items-center justify-center gap-3 text-sm text-muted-foreground h-full p-8 text-center"
           {...fade(reduceMotion)}
         >
-          <FileText className="h-4 w-4" /> Download document
-        </motion.a>
+          <FileText className="h-10 w-10 text-muted-foreground/60" />
+          <div>
+            <p className="font-semibold text-foreground">{documentTitle || "Clinical Document"}</p>
+            <p className="text-xs text-muted-foreground mt-1">Binary format preview not available.</p>
+          </div>
+          <Button asChild size="sm" variant="outline" className="gap-1.5 h-8 text-xs rounded-lg mt-2">
+            <a href={url} download={documentTitle || "document"}>
+              <Download className="h-3.5 w-3.5" /> Download document
+            </a>
+          </Button>
+        </motion.div>
       )}
     </AnimatePresence>
   );

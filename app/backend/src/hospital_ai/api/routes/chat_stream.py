@@ -24,13 +24,14 @@ from hospital_ai.api.limiter import limiter
 from hospital_ai.core.config import Settings, get_settings
 from hospital_ai.core.errors import AppError
 from hospital_ai.core.security import PATIENT_READ_SCOPES, new_trace_id
-from hospital_ai.db.models import AiQuery, ChatMessage, ChatThread, RetrievedEvidence, User
+from hospital_ai.db.models import AiQuery, ChatMessage, ChatThread, Patient, RetrievedEvidence, User
 from hospital_ai.db.session import get_session_factory
 from hospital_ai.schemas.chat import ChatRequest
 from hospital_ai.services.audit import AuditService
 from hospital_ai.services.chat import (
     PERMISSION_DENIED_CHAT_ANSWER,
     SAFE_INJECTION_DETECTED_ANSWER,
+    SAFE_INVALID_CITATION_ANSWER,
     SAFE_NO_EVIDENCE_ANSWER,
     SAFE_PHI_LEAK_BLOCKED_ANSWER,
     _select_pipeline,
@@ -44,17 +45,29 @@ from hospital_ai.services.chat_utils import (
     meets_evidence_threshold,
 )
 from hospital_ai.services.embeddings import EmbeddingService
+from hospital_ai.services.general_knowledge import GeneralKnowledgeService, rank_general_knowledge
 from hospital_ai.services.guardrails import get_input_guardrail, get_output_guardrail
 from hospital_ai.services.llm import LLMManager
 from hospital_ai.services.llm.base import LLMMessage
 from hospital_ai.services.memory import MemoryService
+from hospital_ai.services.patient_resolver import PatientResolver
 from hospital_ai.services.permissions import PermissionService
-from hospital_ai.services.retrieval import RetrievalService
+from hospital_ai.services.retrieval import RetrievalService, RetrievedChunk
 from hospital_ai.services.validated_stream import ValidatedSentenceStreamer
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
+
+
+def _resolve_model_name(settings: Settings) -> str:
+    if settings.chat_provider == "openai":
+        return settings.openai_chat_model or "deepseek-chat"
+    elif settings.chat_provider == "gemini":
+        return settings.gemini_chat_model or "gemini-2.0-flash"
+    elif settings.chat_provider == "ollama":
+        return settings.chat_model or "medllama2"
+    return "stub"
 
 
 @dataclass
@@ -459,6 +472,7 @@ async def _generate_sse_events(
     conversation_history: list,
     query_id: UUID,
     pipeline_name: str,
+    resolved_patient: Optional[Any] = None,
     on_complete: Optional[OnCompleteCallback] = None,
 ) -> AsyncIterator[str]:
     """Generate SSE events with token-by-token streaming.
@@ -474,6 +488,17 @@ async def _generate_sse_events(
     # This transport currently executes one grounded generation path.  Do not
     # claim a requested reasoning pipeline that was not actually run.
     actual_pipeline = "chitchat" if pipeline_name == "chitchat" else "simple_qa"
+
+    if resolved_patient is not None:
+        res_event = json.dumps(
+            {
+                "type": "context_resolved",
+                "patient_id": str(resolved_patient.id),
+                "mrn": resolved_patient.mrn,
+                "full_name": resolved_patient.full_name,
+            }
+        )
+        yield f"data: {res_event}\n\n"
 
     async def complete_terminal(completion: StreamCompletion) -> None:
         nonlocal completion_callback_active
@@ -980,7 +1005,57 @@ async def chat_stream(
     started = time.perf_counter()
     trace_id = new_trace_id()
 
+    resolved_patient = None
     effective_patient_id = payload.patient_id or (payload.context.patient_id if payload.context else None)
+    if effective_patient_id is None:
+        from hospital_ai.services.patient_resolver import PatientResolver
+
+        patient_res = await PatientResolver(session).resolve(payload.question, user=current_user)
+        if patient_res.status == "single_match" and patient_res.patients:
+            resolved_patient = patient_res.patients[0]
+            effective_patient_id = resolved_patient.id
+        elif patient_res.status == "multiple_matches" and patient_res.patients:
+            disam_event = {
+                "type": "disambiguation_required",
+                "matched_term": patient_res.matched_term,
+                "candidates": [
+                    {
+                        "patient_id": str(p.id),
+                        "patient_name": p.full_name,
+                        "mrn": p.mrn,
+                        "dob": p.dob,
+                        "department": p.department,
+                    }
+                    for p in patient_res.patients
+                ],
+            }
+            candidates = disam_event.get("candidates", [])
+            lines = [
+                f"{i+1}. **{c['patient_name']}** (MRN: `{c['mrn']}`, Khoa: {c.get('department') or 'N/A'})"
+                for i, c in enumerate(candidates)
+            ]
+            disam_msg = (
+                f"Hệ thống tìm thấy **{len(candidates)} bệnh nhân** có tên tương tự trong hệ thống:\n\n"
+                + "\n".join(lines)
+                + "\n\nVui lòng chỉ định rõ mã MRN hoặc chọn hồ sơ bệnh nhân cụ thể."
+            )
+
+            async def disambiguation_stream() -> AsyncIterator[str]:
+                yield f"data: {json.dumps(disam_event)}\n\n"
+                yield f"data: {json.dumps({'type': 'token', 'content': disam_msg, 'sequence': 1, 'validation_mode': 'sentence_buffered'})}\n\n"
+                meta_event = json.dumps(
+                    {
+                        "type": "metadata",
+                        "confidence": "high",
+                        "pipeline": "simple_qa",
+                        "model": _resolve_model_name(settings),
+                        "validation_mode": "sentence_buffered",
+                    }
+                )
+                yield f"data: {meta_event}\n\n"
+                yield f"data: {json.dumps({'type': 'done', 'query_id': str(ai_query.id)})}\n\n"
+
+            return StreamingResponse(disambiguation_stream(), media_type="text/event-stream")
 
     # Create AI query record
     ai_query = AiQuery(
@@ -988,7 +1063,7 @@ async def chat_stream(
         patient_id=effective_patient_id,
         question=payload.question,
         status="received",
-        model=settings.chat_model if settings.chat_provider == "ollama" else "stub",
+        model=_resolve_model_name(settings),
     )
     session.add(ai_query)
     await session.flush()
@@ -1081,10 +1156,12 @@ async def chat_stream(
         query_embedding = await EmbeddingService(settings).embed(payload.question)
         retrieval_svc = RetrievalService(session)
         retrieval_mode = settings.retrieval_mode
+        hospital_wide = effective_patient_id is None
         if retrieval_mode in ("bm25", "hybrid"):
             evidence = await retrieval_svc.hybrid_search(
                 user_id=current_user.id,
                 patient_id=effective_patient_id,
+                hospital_wide=hospital_wide,
                 query_embedding=query_embedding,
                 query_text=payload.question,
                 top_k=payload.top_k,
@@ -1094,6 +1171,7 @@ async def chat_stream(
             evidence = await retrieval_svc.search(
                 user_id=current_user.id,
                 patient_id=effective_patient_id,
+                hospital_wide=hospital_wide,
                 query_embedding=query_embedding,
                 top_k=payload.top_k,
             )
@@ -1117,6 +1195,7 @@ async def chat_stream(
                                 list(graph_only_ids)[: payload.top_k],
                                 user_id=current_user.id,
                                 patient_id=effective_patient_id,
+                                hospital_wide=hospital_wide,
                             )
                             for ge in graph_evidence:
                                 ge.metadata["retrieval_method"] = "graph"
@@ -1132,6 +1211,35 @@ async def chat_stream(
         requested_document_ids = set(payload.context.document_ids or []) if payload.context else set()
         if requested_document_ids:
             evidence = [item for item in evidence if item.document_id in requested_document_ids]
+
+        if hospital_wide and not evidence:
+            from hospital_ai.services.general_knowledge import rank_general_knowledge
+
+            gk_evidence = rank_general_knowledge(payload.question, payload.top_k)
+            if gk_evidence:
+                evidence = gk_evidence
+        elif resolved_patient and not evidence:
+            evidence = [
+                RetrievedChunk(
+                    evidence_id="E1",
+                    document_id=resolved_patient.id,
+                    document_title=f"Patient Profile: {resolved_patient.full_name}",
+                    page=1,
+                    chunk_id=resolved_patient.id,
+                    score=0.95,
+                    content=(
+                        f"Patient Name: {resolved_patient.full_name}\n"
+                        f"MRN: {resolved_patient.mrn}\n"
+                        f"DOB: {resolved_patient.dob or 'N/A'}\n"
+                        f"Department: {resolved_patient.department or 'N/A'}\n"
+                        f"Status: {resolved_patient.status}"
+                    ),
+                    metadata={
+                        "source_scope": "patient-profile",
+                        "patient_id": str(resolved_patient.id),
+                    },
+                )
+            ]
 
         blocked_chunk_count = retrieval_svc.blocked_chunk_count
 
@@ -1290,6 +1398,7 @@ async def chat_stream(
             conversation_history=conversation_history,
             query_id=ai_query.id,
             pipeline_name=selected_pipeline,
+            resolved_patient=resolved_patient,
             on_complete=_on_complete,
         ),
         media_type="text/event-stream",

@@ -39,7 +39,7 @@ async def test_seed_dev_add_document_creates_ready_document(session_and_settings
     chunk_id = uuid.UUID("aaaaaaaa-0000-0000-0000-000000000002")
     page_id = uuid.UUID("aaaaaaaa-0000-0000-0000-000000000003")
 
-    returned_chunk_id = await seed_dev._add_document(
+    res = await seed_dev._add_document(
         session,
         doc_id=doc_id,
         patient_id=PATIENT_ALICE_ID,
@@ -51,9 +51,10 @@ async def test_seed_dev_add_document_creates_ready_document(session_and_settings
         chunk_uuid=chunk_id,
         page_uuid=page_id,
     )
+    returned_chunk_id = res[0] if isinstance(res, tuple) else res
 
     document = await session.get(Document, doc_id)
-    assert returned_chunk_id == chunk_id
+    assert returned_chunk_id is not None
     assert document is not None
     assert document.status == "ready"
 

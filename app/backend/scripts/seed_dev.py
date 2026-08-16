@@ -15,6 +15,7 @@ Each patient gets:
 import asyncio
 import uuid
 from datetime import UTC, date, datetime, timedelta
+from typing import Optional
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -66,7 +67,8 @@ async def _doc_exists(session: AsyncSession, doc_id: uuid.UUID) -> bool:
 
 async def _add_document(
     session: AsyncSession,
-    settings: Settings,
+    settings: Optional[Settings] = None,
+    *,
     doc_id: uuid.UUID,
     patient_id: uuid.UUID,
     uploader_id: uuid.UUID,
@@ -79,7 +81,11 @@ async def _add_document(
 ) -> tuple[uuid.UUID, uuid.UUID]:
     """Create or update Document with CDI generation, embeddings, and return (chunk_id, doc_id)."""
     from sqlalchemy import select
+    from hospital_ai.core.config import get_settings
     from hospital_ai.workers.generation_jobs import import_synthetic_generation
+
+    if settings is None:
+        settings = get_settings()
 
     r = await session.execute(select(Document).where(Document.id == doc_id))
     doc = r.scalar_one_or_none()

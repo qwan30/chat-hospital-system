@@ -122,7 +122,7 @@ class PatientResolver:
             if user is None:
                 authorized_patients.append(p)
             else:
-                has_access = await perm_service.can_access_patient(
+                has_access = await perm_service.has_patient_scope(
                     user_id=user.id,
                     patient_id=p.id,
                     accepted_scopes=PATIENT_READ_SCOPES,

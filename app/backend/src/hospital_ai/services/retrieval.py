@@ -266,18 +266,20 @@ class RetrievalService:
         *,
         user_id: uuid.UUID,
         patient_id: Optional[uuid.UUID],
+        hospital_wide: bool = False,
     ) -> list[RetrievedChunk]:
         """Fetch specific chunks by ID, applying permission checks.
 
         Used by graph RAG to retrieve evidence discovered through
         entity relationship traversal.
         """
-        if not chunk_ids or patient_id is None:
+        if not chunk_ids or (patient_id is None and not hospital_wide):
             return []
 
         allowed = ActiveEvidenceScope(self.session).authorized_chunk_ids(
             user_id=user_id,
             patient_id=patient_id,
+            hospital_wide=hospital_wide,
         )
 
         result = await self.session.execute(
@@ -385,11 +387,17 @@ class RetrievalService:
         if patient_id is None and not hospital_wide:
             return []
 
-        allowed = ActiveEvidenceScope(self.session).authorized_chunk_ids(
-            user_id=user_id,
-            patient_id=patient_id,
-            hospital_wide=hospital_wide,
-        )
+        if hospital_wide:
+            allowed = ActiveEvidenceScope(self.session).authorized_chunk_ids(
+                user_id=user_id,
+                patient_id=patient_id,
+                hospital_wide=True,
+            )
+        else:
+            allowed = ActiveEvidenceScope(self.session).authorized_chunk_ids(
+                user_id=user_id,
+                patient_id=patient_id,
+            )
 
         rank_expr = func.ts_rank_cd(
             text("document_chunks.search_vector"), func.plainto_tsquery("english", query_text)
@@ -485,11 +493,17 @@ class RetrievalService:
         if patient_id is None and not hospital_wide:
             return []
 
-        allowed = ActiveEvidenceScope(self.session).authorized_chunk_ids(
-            user_id=user_id,
-            patient_id=patient_id,
-            hospital_wide=hospital_wide,
-        )
+        if hospital_wide:
+            allowed = ActiveEvidenceScope(self.session).authorized_chunk_ids(
+                user_id=user_id,
+                patient_id=patient_id,
+                hospital_wide=True,
+            )
+        else:
+            allowed = ActiveEvidenceScope(self.session).authorized_chunk_ids(
+                user_id=user_id,
+                patient_id=patient_id,
+            )
 
         stmt = (
             select(DocumentChunk, Document, DocumentPage)
@@ -561,11 +575,17 @@ class RetrievalService:
         if patient_id is None and not hospital_wide:
             return []
 
-        allowed = ActiveEvidenceScope(self.session).authorized_chunk_ids(
-            user_id=user_id,
-            patient_id=patient_id,
-            hospital_wide=hospital_wide,
-        )
+        if hospital_wide:
+            allowed = ActiveEvidenceScope(self.session).authorized_chunk_ids(
+                user_id=user_id,
+                patient_id=patient_id,
+                hospital_wide=True,
+            )
+        else:
+            allowed = ActiveEvidenceScope(self.session).authorized_chunk_ids(
+                user_id=user_id,
+                patient_id=patient_id,
+            )
 
         query_embedding_param = bindparam("query_embedding", type_=String())
         distance_expr = type_coerce(
@@ -647,11 +667,17 @@ class RetrievalService:
         if patient_id is None and not hospital_wide:
             return []
 
-        allowed = ActiveEvidenceScope(self.session).authorized_chunk_ids(
-            user_id=user_id,
-            patient_id=patient_id,
-            hospital_wide=hospital_wide,
-        )
+        if hospital_wide:
+            allowed = ActiveEvidenceScope(self.session).authorized_chunk_ids(
+                user_id=user_id,
+                patient_id=patient_id,
+                hospital_wide=True,
+            )
+        else:
+            allowed = ActiveEvidenceScope(self.session).authorized_chunk_ids(
+                user_id=user_id,
+                patient_id=patient_id,
+            )
         stmt = (
             select(DocumentChunk, Document, DocumentPage)
             .join(Document, Document.id == DocumentChunk.document_id)

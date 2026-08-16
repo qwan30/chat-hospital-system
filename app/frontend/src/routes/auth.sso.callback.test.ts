@@ -11,7 +11,7 @@ vi.mock("@tanstack/react-router", async () => {
   return {
     ...actual,
     useNavigate: () => mockNavigate,
-    Link: ({ children }: any) => children,
+    Link: ({ children }: { children: React.ReactNode }) => children,
     useRouter: () => ({ state: { location: { pathname: "/" } } }),
   };
 });

@@ -47,7 +47,16 @@ function Page() {
   } = useQuery({
     queryKey: ["access-request", requestId],
     queryFn: () => getAccessRequest(requestId),
-    retry: false,
+    retry: (failureCount: number, error: unknown) => {
+      if (failureCount >= 3) return false;
+      if (error && typeof error === "object" && "status" in error) {
+        const status = (error as { status: unknown }).status;
+        if (typeof status === "number" && status >= 400 && status < 500) {
+          return false;
+        }
+      }
+      return true;
+    },
   });
 
   const { session } = useSession();

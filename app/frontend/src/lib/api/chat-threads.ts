@@ -80,3 +80,10 @@ export async function updateChatThread(
     body: JSON.stringify(payload),
   });
 }
+
+export async function deleteChatThread(threadId: string): Promise<ChatThreadRead> {
+  return apiFetch<ChatThreadRead>(`/chat-threads/${threadId}`, {
+    method: "DELETE",
+  });
+}
+

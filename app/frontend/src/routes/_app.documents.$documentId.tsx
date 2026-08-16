@@ -111,47 +111,50 @@ function DocumentDetail({ documentId }: { documentId: string }) {
   }
 
   return (
-    <AppShell>
-      <PageHeader
-        title={d.title}
-        description={`${d.document_type} · ${d.page_count || 0} pages`}
-        backLink={{ to: "/documents", label: "Back to Documents" }}
-        chips={
-          <Badge variant="secondary" className="capitalize">
-            {d.status}
-          </Badge>
-        }
-        actions={
-          <div className="flex items-center gap-2">
-            <RevisionHistoryDrawer
-              revisions={revisions || []}
-              selectedId={selectedRevisionId}
-              onSelect={(id) => setSelectedRevisionId(id)}
-            />
-            {intelligence?.review_items_count ? (
-              <Button asChild variant="default" className="rounded-lg">
-                <Link to="/documents/$documentId/review" params={{ documentId }}>
-                  Review {intelligence.review_items_count} items
-                </Link>
+    <AppShell fixedHeight maxWidth="max-w-[1720px] w-full">
+      <div className="flex flex-col h-full min-h-0 overflow-hidden">
+        <PageHeader
+          title={d.title}
+          description={`${d.document_type} · ${d.page_count || 0} pages`}
+          backLink={{ to: "/documents", label: "Back to Documents" }}
+          chips={
+            <Badge variant="secondary" className="capitalize text-xs font-medium">
+              {d.status}
+            </Badge>
+          }
+          actions={
+            <div className="flex items-center gap-2">
+              <RevisionHistoryDrawer
+                revisions={revisions || []}
+                selectedId={selectedRevisionId}
+                onSelect={(id) => setSelectedRevisionId(id)}
+              />
+              {intelligence?.review_items_count ? (
+                <Button asChild variant="default" size="sm" className="rounded-lg h-8 text-xs font-medium shadow-sm">
+                  <Link to="/documents/$documentId/review" params={{ documentId }}>
+                    Review {intelligence.review_items_count} items
+                  </Link>
+                </Button>
+              ) : null}
+              <Button
+                variant="outline"
+                size="sm"
+                className="rounded-lg h-8 text-xs font-medium"
+                onClick={() => retryMutation.mutate()}
+                disabled={retryMutation.isPending}
+              >
+                {retryMutation.isPending ? "Retrying..." : "Retry Indexing"}
               </Button>
-            ) : null}
-            <Button
-              variant="outline"
-              className="rounded-lg"
-              onClick={() => retryMutation.mutate()}
-              disabled={retryMutation.isPending}
-            >
-              {retryMutation.isPending ? "Retrying..." : "Retry Indexing"}
-            </Button>
-          </div>
-        }
-      />
-      <div className="flex-1 overflow-hidden">
-        <DocumentWorkspace
-          documentId={documentId}
-          selectedRevisionId={selectedRevisionId}
-          onSelectRevision={setSelectedRevisionId}
+            </div>
+          }
         />
+        <div className="flex-1 min-h-0 mt-3 border rounded-2xl bg-card shadow-sm overflow-hidden flex flex-col">
+          <DocumentWorkspace
+            documentId={documentId}
+            selectedRevisionId={selectedRevisionId}
+            onSelectRevision={setSelectedRevisionId}
+          />
+        </div>
       </div>
     </AppShell>
   );

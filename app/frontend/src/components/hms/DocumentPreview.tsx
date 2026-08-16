@@ -60,11 +60,11 @@ export function DocumentPreview({
           <Loader2 className="h-4 w-4 animate-spin" /> Loading preview…
         </motion.div>
       ) : mimeType.startsWith("image/") ? (
-        <motion.div key="image" className="relative group w-full h-full min-h-[650px] lg:min-h-[780px] flex-1 flex flex-col" {...fade(reduceMotion)}>
+        <motion.div key="image" className="relative group w-full h-full flex-1 flex flex-col min-h-0 overflow-hidden" {...fade(reduceMotion)}>
           <img
             src={url}
             alt="Document preview"
-            className="w-full flex-1 min-h-[650px] lg:min-h-[780px] rounded-xl border object-contain bg-muted/10"
+            className="w-full h-full flex-1 min-h-0 rounded-xl border object-contain bg-muted/10"
           />
           {children}
           <Dialog>
@@ -72,9 +72,10 @@ export function DocumentPreview({
               <Button
                 variant="outline"
                 size="icon"
-                className="absolute -top-[42px] right-0 h-8 w-8 text-muted-foreground hover:text-foreground shadow-none z-10"
+                className="absolute top-2.5 right-2.5 h-7 w-7 rounded-lg bg-background/90 backdrop-blur-sm border shadow-sm z-10 text-muted-foreground hover:text-foreground"
+                title="View fullscreen"
               >
-                <Maximize2 className="h-4 w-4" />
+                <Maximize2 className="h-3.5 w-3.5" />
               </Button>
             </DialogTrigger>
             <DialogContent className="max-w-[95vw] w-full max-h-[95vh] h-full p-2 flex flex-col border-none bg-background/95 backdrop-blur">
@@ -83,16 +84,17 @@ export function DocumentPreview({
           </Dialog>
         </motion.div>
       ) : mimeType === "application/pdf" ? (
-        <motion.div key="pdf" className="relative group w-full h-full min-h-[650px] lg:min-h-[780px] flex-1 flex flex-col" {...fade(reduceMotion)}>
-          <iframe title="Document preview" src={url} className="h-full w-full flex-1 min-h-[650px] lg:min-h-[780px] rounded-xl border" />
+        <motion.div key="pdf" className="relative group w-full h-full flex-1 flex flex-col min-h-0 overflow-hidden" {...fade(reduceMotion)}>
+          <iframe title="Document preview" src={url} className="h-full w-full flex-1 min-h-0 rounded-xl border bg-background" />
           <Dialog>
             <DialogTrigger asChild>
               <Button
                 variant="outline"
                 size="icon"
-                className="absolute -top-[42px] right-0 h-8 w-8 text-muted-foreground hover:text-foreground shadow-none z-10"
+                className="absolute top-2.5 right-2.5 h-7 w-7 rounded-lg bg-background/90 backdrop-blur-sm border shadow-sm z-10 text-muted-foreground hover:text-foreground"
+                title="View fullscreen"
               >
-                <Maximize2 className="h-4 w-4" />
+                <Maximize2 className="h-3.5 w-3.5" />
               </Button>
             </DialogTrigger>
             <DialogContent className="max-w-[95vw] w-full max-h-[95vh] h-[95vh] p-0 overflow-hidden border-none">

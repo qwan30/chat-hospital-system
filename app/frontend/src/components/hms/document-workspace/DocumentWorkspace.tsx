@@ -259,8 +259,8 @@ export function DocumentWorkspace({
         </div>
       </WorkspaceToolbar>
 
-      <div className="flex-1 grid grid-cols-1 lg:grid-cols-2 gap-4 p-4 bg-muted/10 min-h-0 overflow-auto">
-        <div className="min-h-[700px] xl:min-h-[820px] border rounded-2xl bg-card p-4 flex flex-col overflow-hidden shadow-sm">
+      <div className="flex-1 min-h-0 grid grid-cols-1 lg:grid-cols-2 gap-3.5 p-3 bg-muted/10 overflow-hidden">
+        <div className="h-full border border-border/70 rounded-xl bg-card p-3 flex flex-col min-h-0 overflow-hidden shadow-sm">
           {documentQuery.data && (
             <DocumentPreview documentId={documentId} mimeType={documentQuery.data.mime_type}>
               <GeometryOverlay boxes={exactBoxes} staleCount={staleCount} />
@@ -268,19 +268,21 @@ export function DocumentWorkspace({
           )}
         </div>
 
-        <div className="min-h-[700px] xl:min-h-[820px] border rounded-2xl bg-card p-4 flex flex-col overflow-hidden shadow-sm">
+        <div className="h-full border border-border/70 rounded-xl bg-card p-3 flex flex-col min-h-0 overflow-hidden shadow-sm">
           <Tabs defaultValue="corrected" className="flex-1 flex flex-col h-full min-h-0">
-            <TabsList className="mb-3 rounded-xl p-1 bg-muted/40 w-fit">
-              <TabsTrigger value="corrected" className="rounded-lg text-xs font-medium px-3.5">
-                Corrected
-              </TabsTrigger>
-              <TabsTrigger value="raw" className="rounded-lg text-xs font-medium px-3.5">
-                Raw OCR
-              </TabsTrigger>
-              <TabsTrigger value="diff" className="rounded-lg text-xs font-medium px-3.5">
-                Diff
-              </TabsTrigger>
-            </TabsList>
+            <div className="flex items-center justify-between mb-2">
+              <TabsList className="rounded-lg p-1 bg-muted/40 w-fit h-8">
+                <TabsTrigger value="corrected" className="rounded-md text-xs font-medium px-3 h-6">
+                  Corrected
+                </TabsTrigger>
+                <TabsTrigger value="raw" className="rounded-md text-xs font-medium px-3 h-6">
+                  Raw OCR
+                </TabsTrigger>
+                <TabsTrigger value="diff" className="rounded-md text-xs font-medium px-3 h-6">
+                  Diff
+                </TabsTrigger>
+              </TabsList>
+            </div>
 
             <TabsContent
               value="corrected"
@@ -288,9 +290,9 @@ export function DocumentWorkspace({
             >
               {isHistorical ? (
                 <div className="flex-1 flex flex-col gap-3 min-h-0">
-                  <div className="flex items-center justify-between p-3 rounded-xl bg-muted/30 border text-xs">
+                  <div className="flex items-center justify-between p-2.5 rounded-xl bg-muted/30 border text-xs">
                     <div>
-                      <span className="font-medium text-foreground">
+                      <span className="font-semibold text-foreground">
                         Revision #{revision?.revision_number || 1}
                       </span>
                       <span className="text-muted-foreground ml-2 capitalize">
@@ -308,7 +310,7 @@ export function DocumentWorkspace({
                       {restoreMutation.isPending ? "Restoring..." : "Edit as New Draft"}
                     </Button>
                   </div>
-                  <div className="flex-1 p-4 border rounded-xl bg-muted/20 overflow-auto whitespace-pre-wrap font-mono text-xs sm:text-sm leading-relaxed shadow-inner min-h-[500px] lg:min-h-[640px]">
+                  <div className="flex-1 p-4 border border-input/80 rounded-xl bg-muted/20 overflow-auto whitespace-pre-wrap font-mono text-xs sm:text-sm leading-relaxed shadow-inner min-h-0">
                     {correctedText}
                   </div>
                 </div>
@@ -333,12 +335,12 @@ export function DocumentWorkspace({
               )}
             </TabsContent>
             <TabsContent value="raw" className="flex-1 flex flex-col mt-0 h-full min-h-0 overflow-hidden">
-              <div className="flex-1 p-4 border rounded-xl bg-muted/20 overflow-auto whitespace-pre-wrap font-mono text-xs sm:text-sm leading-relaxed shadow-inner min-h-[500px] lg:min-h-[640px]">
+              <div className="flex-1 p-4 border border-input/80 rounded-xl bg-muted/20 overflow-auto whitespace-pre-wrap font-mono text-xs sm:text-sm leading-relaxed shadow-inner min-h-0">
                 {originalText}
               </div>
             </TabsContent>
             <TabsContent value="diff" className="flex-1 flex flex-col mt-0 h-full min-h-0 overflow-hidden">
-              <div className="flex-1 border rounded-xl overflow-auto bg-muted/10 shadow-inner min-h-[500px] lg:min-h-[640px]">
+              <div className="flex-1 min-h-0 overflow-hidden flex flex-col">
                 <RevisionDiff originalText={originalText} correctedText={correctedText} />
               </div>
             </TabsContent>

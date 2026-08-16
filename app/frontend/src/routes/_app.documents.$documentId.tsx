@@ -18,9 +18,27 @@ import { DocumentProcessingTimeline } from "@/components/hms/DocumentProcessingT
 import { TypewriterText } from "@/components/ui/typewriter";
 import { isDocumentReadyForRetrieval } from "@/lib/document-status";
 
+import { sanitizeError } from "@/lib/errors";
+
 export const Route = createFileRoute("/_app/documents/$documentId")({
   head: () => ({ meta: [{ title: "Document — HMS AI Copilot" }] }),
   component: Page,
+  errorComponent: ({ error, reset }) => (
+    <AppShell fixedHeight>
+      <div className="flex h-full items-center justify-center p-8">
+        <ErrorState
+          title="Failed to load document"
+          description={sanitizeError(error)}
+          code="API_ERROR"
+          extra={
+            <Button onClick={reset} variant="outline">
+              Retry
+            </Button>
+          }
+        />
+      </div>
+    </AppShell>
+  ),
 });
 
 function Page() {
@@ -97,7 +115,7 @@ function DocumentDetail({ documentId }: { documentId: string }) {
         <div className="p-8">
           <ErrorState
             title="Failed to load document"
-            description={error instanceof Error ? error.message : "Document not found"}
+            description={sanitizeError(error, "Document not found")}
             code="DOC_ERR"
           />
         </div>

@@ -12,9 +12,28 @@ import { useStreamSteps } from "@/hooks/use-stream-steps";
 import { useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 
+import { ErrorState } from "@/components/hms/ErrorState";
+import { sanitizeError } from "@/lib/errors";
+
 export const Route = createFileRoute("/_app/graph/patients/$patientId")({
   head: () => ({ meta: [{ title: "Patient graph — HMS AI Copilot" }] }),
   component: Page,
+  errorComponent: ({ error, reset }) => (
+    <AppShell fixedHeight>
+      <div className="flex h-full items-center justify-center p-8">
+        <ErrorState
+          title="Failed to load patient graph"
+          description={sanitizeError(error)}
+          code="API_ERROR"
+          extra={
+            <Button onClick={reset} variant="outline">
+              Retry
+            </Button>
+          }
+        />
+      </div>
+    </AppShell>
+  ),
 });
 
 function Page() {
@@ -24,6 +43,7 @@ function Page() {
     data: patientGraph,
     isLoading,
     error,
+    refetch,
   } = useQuery({
     queryKey: ["graph", patientId],
     queryFn: () => getPatientGraph(patientId),
@@ -56,7 +76,18 @@ function Page() {
   if (error)
     return (
       <AppShell>
-        <div className="p-8 text-destructive">Error loading graph.</div>
+        <div className="flex h-[50vh] items-center justify-center p-8">
+          <ErrorState
+            title="Failed to load graph"
+            description={sanitizeError(error)}
+            code="API_ERROR"
+            extra={
+              <Button onClick={() => refetch()} variant="outline">
+                Retry
+              </Button>
+            }
+          />
+        </div>
       </AppShell>
     );
   if (!patientGraph) return null;

@@ -136,8 +136,9 @@ export async function streamChat(
     });
 
     if (!response.ok) {
-      const errText = await response.text().catch(() => "Unknown error");
-      throw new Error(`Chat stream failed: ${response.status} ${errText}`);
+      // Consume the body but do not leak raw text into the Error (prevents JSON/trace leakage)
+      await response.text().catch(() => "");
+      throw new Error(`Chat stream failed with status: ${response.status}`);
     }
 
     const reader = response.body?.getReader();

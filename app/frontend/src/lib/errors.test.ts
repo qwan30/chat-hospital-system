@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { ERRORS, getError, isChunkLoadError, type AppErrorCode } from "./errors";
+import { ERRORS, getError, isChunkLoadError, sanitizeError, type AppErrorCode } from "./errors";
 
 // ---------------------------------------------------------------------------
 // getError
@@ -44,6 +44,44 @@ describe("isChunkLoadError", () => {
     expect(isChunkLoadError("random string")).toBe(false);
     expect(isChunkLoadError(null)).toBe(false);
     expect(isChunkLoadError(undefined)).toBe(false);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// sanitizeError
+// ---------------------------------------------------------------------------
+describe("sanitizeError", () => {
+  it("returns human readable error for simple strings and Errors", () => {
+    expect(sanitizeError(new Error("Network offline"))).toBe("Network offline");
+    expect(sanitizeError("Something bad happened")).toBe("Something bad happened");
+  });
+
+  it("returns fallback for raw JSON strings", () => {
+    expect(sanitizeError('{"error": "bad request"}')).toBe("An unexpected error occurred.");
+    expect(sanitizeError(new Error('{"error": "bad request"}'))).toBe(
+      "An unexpected error occurred.",
+    );
+  });
+
+  it("returns fallback for stack traces and HTML", () => {
+    expect(sanitizeError("<html><body>Error</body></html>")).toBe("An unexpected error occurred.");
+    expect(
+      sanitizeError(
+        "TypeError: Cannot read properties of null\n    at Object.<anonymous> (/app/index.js:10:15)",
+      ),
+    ).toBe("An unexpected error occurred.");
+    expect(
+      sanitizeError(
+        new Error("Error at processTicksAndRejections (node:internal/process/task_queues:95:5)"),
+      ),
+    ).toBe("An unexpected error occurred.");
+  });
+
+  it("returns fallback for falsy or unexpected types", () => {
+    expect(sanitizeError(null)).toBe("An unexpected error occurred.");
+    expect(sanitizeError(undefined)).toBe("An unexpected error occurred.");
+    expect(sanitizeError(123)).toBe("An unexpected error occurred.");
+    expect(sanitizeError({ code: 500 })).toBe("An unexpected error occurred.");
   });
 });
 

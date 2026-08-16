@@ -21,6 +21,8 @@ import { EvidenceRail, type EvidenceItem } from "@/components/hms/EvidenceRail";
 import { SafeRefusalCard } from "@/components/hms/SafeRefusalCard";
 import { Badge, badgeVariants } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
+import { ErrorState } from "@/components/hms/ErrorState";
+import { sanitizeError } from "@/lib/errors";
 import { searchPatients, getPatient } from "@/lib/api/patients";
 import { useSession } from "@/lib/session";
 import { streamChat, type StreamStatusStage } from "@/lib/stream-client";
@@ -83,6 +85,22 @@ export const Route = createFileRoute("/_app/chat/")({
     ],
   }),
   component: GlobalChat,
+  errorComponent: ({ error, reset }) => (
+    <AppShell fixedHeight>
+      <div className="flex h-full items-center justify-center p-8">
+        <ErrorState
+          title="Failed to load chat"
+          description={sanitizeError(error)}
+          code="API_ERROR"
+          extra={
+            <Button onClick={reset} variant="outline">
+              Retry
+            </Button>
+          }
+        />
+      </div>
+    </AppShell>
+  ),
 });
 
 const suggestions = [

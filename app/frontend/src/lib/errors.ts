@@ -282,3 +282,41 @@ export function isChunkLoadError(err: unknown): boolean {
   const msg = (err as Error)?.message ?? String(err);
   return /chunk|Loading\s+(?:chunk|CSS)|dynamically imported module/i.test(msg);
 }
+
+/**
+ * Safely extracts a human-readable message from an unknown error object.
+ * Prevents raw JSON, HTML, or backend stack traces from leaking to the UI.
+ */
+export function sanitizeError(error: unknown, fallback = "An unexpected error occurred."): string {
+  if (!error) return fallback;
+
+  let rawMessage = "";
+  if (error instanceof Error) {
+    rawMessage = error.message;
+  } else if (typeof error === "string") {
+    rawMessage = error;
+  } else {
+    return fallback;
+  }
+
+  // Check for JSON
+  try {
+    JSON.parse(rawMessage);
+    return fallback;
+  } catch {
+    // Not valid JSON, which is good
+  }
+
+  // Check for HTML tags or stack trace hints
+  if (
+    rawMessage.includes("<html") ||
+    rawMessage.includes("</") ||
+    rawMessage.includes("at Object.") ||
+    rawMessage.includes("    at ") ||
+    rawMessage.includes("processTicksAndRejections")
+  ) {
+    return fallback;
+  }
+
+  return rawMessage;
+}

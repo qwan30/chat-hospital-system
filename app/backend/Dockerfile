@@ -35,6 +35,7 @@ COPY src/ src/
 COPY alembic/ alembic/
 COPY alembic.ini .
 COPY scripts/ scripts/
+COPY data/ data/
 
 # Run as non-root
 USER appuser

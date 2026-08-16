@@ -125,8 +125,9 @@ class RetrievalService:
         patient_id: Optional[uuid.UUID],
         query_embedding: Sequence[float],
         top_k: int,
+        hospital_wide: bool = False,
     ) -> list[RetrievedChunk]:
-        if patient_id is None:
+        if patient_id is None and not hospital_wide:
             return []
 
         start_time = time.perf_counter()
@@ -137,6 +138,7 @@ class RetrievalService:
                 patient_id=patient_id,
                 query_embedding=query_embedding,
                 top_k=top_k,
+                hospital_wide=hospital_wide,
             )
         else:
             chunks = await self._search_portable(
@@ -144,6 +146,7 @@ class RetrievalService:
                 patient_id=patient_id,
                 query_embedding=query_embedding,
                 top_k=top_k,
+                hospital_wide=hospital_wide,
             )
         if self.evaluation_observer is not None:
             self.evaluation_observer.record_candidates(chunks)
@@ -168,6 +171,7 @@ class RetrievalService:
         top_k: int,
         retrieval_mode: str = "hybrid",
         mode: str = "",
+        hospital_wide: bool = False,
     ) -> list[RetrievedChunk]:
         """Execute hybrid search combining vector and BM25 retrieval.
 
@@ -180,13 +184,14 @@ class RetrievalService:
             top_k: Maximum results to return.
             retrieval_mode: "vector", "bm25", or "hybrid".
             mode: Alias for retrieval_mode.
+            hospital_wide: When True and patient_id is None, search hospital-wide.
 
         Returns:
             Merged and de-duplicated chunks sorted by relevance.
         """
         actual_query = query_text or query
         actual_mode = mode or retrieval_mode
-        if patient_id is None:
+        if patient_id is None and not hospital_wide:
             return []
 
         start_time = time.perf_counter()
@@ -197,8 +202,11 @@ class RetrievalService:
                 patient_id=patient_id,
                 query_embedding=query_embedding,
                 top_k=top_k,
+                hospital_wide=hospital_wide,
             )
-            # metrics already recorded in search()
+            duration = time.perf_counter() - start_time
+            RAG_RETRIEVAL_DURATION.labels(mode="vector").observe(duration)
+            RAG_EVIDENCE_COUNT.labels(scope="patient-linked" if patient_id else "general").observe(len(results))
             return results
 
         if actual_mode == "bm25":
@@ -207,30 +215,25 @@ class RetrievalService:
                 patient_id=patient_id,
                 query_text=actual_query,
                 top_k=top_k,
+                hospital_wide=hospital_wide,
             )
-            if self.evaluation_observer is not None:
-                self.evaluation_observer.record_candidates(results)
-            results = await self._apply_role_filters(results, user_id)
-            if self.evaluation_observer is not None:
-                self.evaluation_observer.record_authorized_candidates(results)
-
             duration = time.perf_counter() - start_time
             RAG_RETRIEVAL_DURATION.labels(mode="bm25").observe(duration)
             RAG_EVIDENCE_COUNT.labels(scope="patient-linked" if patient_id else "general").observe(len(results))
-
             return results
 
         # Hybrid mode: run both and fuse with RRF
         from hospital_ai.services.bm25 import reciprocal_rank_fusion
 
         # Fetch more candidates than top_k for each method, then fuse
-        fetch_k = min(top_k * 2, 20)
+        fetch_k = min(top_k * 2, 50)
 
         vector_results = await self.search(
             user_id=user_id,
             patient_id=patient_id,
             query_embedding=query_embedding,
             top_k=fetch_k,
+            hospital_wide=hospital_wide,
         )
 
         bm25_results = await self._bm25_search(
@@ -238,6 +241,7 @@ class RetrievalService:
             patient_id=patient_id,
             query_text=actual_query,
             top_k=fetch_k,
+            hospital_wide=hospital_wide,
         )
 
         fused = reciprocal_rank_fusion(
@@ -341,9 +345,10 @@ class RetrievalService:
         patient_id: Optional[uuid.UUID],
         query_text: str,
         top_k: int,
+        hospital_wide: bool = False,
     ) -> list[RetrievedChunk]:
         """BM25 full-text search using tsvector (PostgreSQL) or Python fallback."""
-        if patient_id is None:
+        if patient_id is None and not hospital_wide:
             return []
 
         bind = self.session.get_bind()
@@ -353,6 +358,7 @@ class RetrievalService:
                 patient_id=patient_id,
                 query_text=query_text,
                 top_k=top_k,
+                hospital_wide=hospital_wide,
             )
         else:
             chunks = await self._bm25_search_portable(
@@ -360,6 +366,7 @@ class RetrievalService:
                 patient_id=patient_id,
                 query_text=query_text,
                 top_k=top_k,
+                hospital_wide=hospital_wide,
             )
         return await self._apply_role_filters(chunks, user_id)
 
@@ -370,16 +377,18 @@ class RetrievalService:
         patient_id: Optional[uuid.UUID],
         query_text: str,
         top_k: int,
+        hospital_wide: bool = False,
     ) -> list[RetrievedChunk]:
         """PostgreSQL BM25 search using tsvector + GIN index."""
         import logging
 
-        if patient_id is None:
+        if patient_id is None and not hospital_wide:
             return []
 
         allowed = ActiveEvidenceScope(self.session).authorized_chunk_ids(
             user_id=user_id,
             patient_id=patient_id,
+            hospital_wide=hospital_wide,
         )
 
         rank_expr = func.ts_rank_cd(
@@ -468,16 +477,18 @@ class RetrievalService:
         patient_id: Optional[uuid.UUID],
         query_text: str,
         top_k: int,
+        hospital_wide: bool = False,
     ) -> list[RetrievedChunk]:
         """Portable BM25 search using Python-side scoring for SQLite tests."""
         from hospital_ai.services.bm25 import BM25Scorer
 
-        if patient_id is None:
+        if patient_id is None and not hospital_wide:
             return []
 
         allowed = ActiveEvidenceScope(self.session).authorized_chunk_ids(
             user_id=user_id,
             patient_id=patient_id,
+            hospital_wide=hospital_wide,
         )
 
         stmt = (
@@ -545,13 +556,15 @@ class RetrievalService:
         patient_id: Optional[uuid.UUID],
         query_embedding: Sequence[float],
         top_k: int,
+        hospital_wide: bool = False,
     ) -> list[RetrievedChunk]:
-        if patient_id is None:
+        if patient_id is None and not hospital_wide:
             return []
 
         allowed = ActiveEvidenceScope(self.session).authorized_chunk_ids(
             user_id=user_id,
             patient_id=patient_id,
+            hospital_wide=hospital_wide,
         )
 
         query_embedding_param = bindparam("query_embedding", type_=String())
@@ -629,13 +642,15 @@ class RetrievalService:
         patient_id: Optional[uuid.UUID],
         query_embedding: Sequence[float],
         top_k: int,
+        hospital_wide: bool = False,
     ) -> list[RetrievedChunk]:
-        if patient_id is None:
+        if patient_id is None and not hospital_wide:
             return []
 
         allowed = ActiveEvidenceScope(self.session).authorized_chunk_ids(
             user_id=user_id,
             patient_id=patient_id,
+            hospital_wide=hospital_wide,
         )
         stmt = (
             select(DocumentChunk, Document, DocumentPage)

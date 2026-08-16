@@ -114,6 +114,86 @@ APPROVED_GENERAL_KNOWLEDGE: Sequence[ApprovedGeneralKnowledgeSource] = (
             }
         ),
     ),
+    ApprovedGeneralKnowledgeSource(
+        document_id=uuid.UUID("90000000-0000-0000-0000-000000000004"),
+        chunk_id=uuid.UUID("91000000-0000-0000-0000-000000000004"),
+        title="Clinical Guideline: STEMI Emergency Management Protocol",
+        page=1,
+        content=(
+            "For suspected acute ST-Elevation Myocardial Infarction (STEMI), immediately obtain 12-lead ECG "
+            "within 10 minutes. Activate the emergency cardiac catheterization lab team (Cathlab), administer "
+            "aspirin 300mg chewable, high-potency P2Y12 inhibitor, sublingual nitroglycerin if systolic BP > 90, "
+            "and prepare for immediate Primary PCI with target door-to-balloon time under 90 minutes."
+        ),
+        keywords=frozenset(
+            {
+                "stemi",
+                "myocardial",
+                "infarction",
+                "ecg",
+                "cathlab",
+                "cardiac",
+                "aspirin",
+                "pci",
+                "chest",
+                "pain",
+                "protocol",
+                "emergency",
+            }
+        ),
+    ),
+    ApprovedGeneralKnowledgeSource(
+        document_id=uuid.UUID("90000000-0000-0000-0000-000000000005"),
+        chunk_id=uuid.UUID("91000000-0000-0000-0000-000000000005"),
+        title="Clinical Protocol: SBAR Shift Handoff Standard",
+        page=2,
+        content=(
+            "Clinical shift handoff follows the structured SBAR model: Situation (patient identity, current status), "
+            "Background (admission diagnosis, relevant history, allergies), Assessment (vital signs, clinical trends, "
+            "abnormal labs), and Recommendation (pending investigations, escalation plan, critical follow-up tasks)."
+        ),
+        keywords=frozenset(
+            {
+                "sbar",
+                "handoff",
+                "shift",
+                "handover",
+                "situation",
+                "background",
+                "assessment",
+                "recommendation",
+                "nursing",
+                "communication",
+            }
+        ),
+    ),
+    ApprovedGeneralKnowledgeSource(
+        document_id=uuid.UUID("90000000-0000-0000-0000-000000000006"),
+        chunk_id=uuid.UUID("91000000-0000-0000-0000-000000000006"),
+        title="Clinical Guideline: NEWS2 Deterioration & Escalation Criteria",
+        page=3,
+        content=(
+            "The National Early Warning Score 2 (NEWS2) monitors respiration rate, oxygen saturation, systolic BP, "
+            "pulse, consciousness level, and temperature. An aggregate score of 5-6 or an individual red score of 3 "
+            "requires urgent clinical review within 30 minutes; a score of 7 or higher triggers immediate Medical "
+            "Emergency Team (MET) / Rapid Response Team escalation and continuous vital monitoring."
+        ),
+        keywords=frozenset(
+            {
+                "news2",
+                "escalation",
+                "deterioration",
+                "vital",
+                "warning",
+                "met",
+                "rapid",
+                "response",
+                "score",
+                "triggers",
+                "emergency",
+            }
+        ),
+    ),
 )
 
 
@@ -121,7 +201,7 @@ class GeneralKnowledgeService:
     def __init__(self, settings: Settings) -> None:
         self.settings = settings
 
-    async def answer(self, *, question: str, top_k: int) -> GeneralKnowledgeAnswer:
+    async def answer(self, question: str, top_k: int = 5) -> GeneralKnowledgeAnswer:
         evidence = rank_general_knowledge(question, top_k)
         if not evidence:
             return GeneralKnowledgeAnswer(

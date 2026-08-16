@@ -18,7 +18,7 @@ from datetime import UTC, date, datetime, timedelta
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from hospital_ai.core.config import get_settings
+from hospital_ai.core.config import Settings, get_settings
 from hospital_ai.core.security import new_trace_id
 from hospital_ai.db.migrations import (
     ADMIN_ID,
@@ -66,6 +66,7 @@ async def _doc_exists(session: AsyncSession, doc_id: uuid.UUID) -> bool:
 
 async def _add_document(
     session: AsyncSession,
+    settings: Settings,
     doc_id: uuid.UUID,
     patient_id: uuid.UUID,
     uploader_id: uuid.UUID,
@@ -75,52 +76,56 @@ async def _add_document(
     chunk_meta: dict,
     chunk_uuid: uuid.UUID,
     page_uuid: uuid.UUID,
-) -> uuid.UUID:
-    """Create a Document + DocumentPage + DocumentChunk and return chunk_id."""
-    if await _doc_exists(session, doc_id):
-        # Return existing chunk id
-        from sqlalchemy import select
+) -> tuple[uuid.UUID, uuid.UUID]:
+    """Create or update Document with CDI generation, embeddings, and return (chunk_id, doc_id)."""
+    from sqlalchemy import select
+    from hospital_ai.workers.generation_jobs import import_synthetic_generation
 
-        r = await session.execute(select(DocumentChunk).where(DocumentChunk.document_id == doc_id))
-        existing = r.scalar_one_or_none()
-        return existing.id if existing else chunk_uuid
+    r = await session.execute(select(Document).where(Document.id == doc_id))
+    doc = r.scalar_one_or_none()
 
-    doc = Document(
-        id=doc_id,
-        patient_id=patient_id,
-        uploaded_by=uploader_id,
-        title=title,
-        document_type=document_type,
-        storage_uri=f"memory://synthetic/{doc_id}",
-        mime_type="text/plain",
-        status="ready",
-        page_count=1,
-    )
-    session.add(doc)
+    if doc is None:
+        doc = Document(
+            id=doc_id,
+            patient_id=patient_id,
+            uploaded_by=uploader_id,
+            title=title,
+            document_type=document_type,
+            storage_uri=f"memory://synthetic/{doc_id}",
+            mime_type="text/plain",
+            status="ready",
+            page_count=1,
+            index_generation=0,
+        )
+        session.add(doc)
+        await session.flush()
+    else:
+        doc.uploaded_by = uploader_id
+        doc.title = title
+        doc.status = "ready"
+        doc.page_count = 1
+        await session.flush()
 
-    page = DocumentPage(
-        id=page_uuid,
-        document_id=doc_id,
-        page_number=1,
-        ocr_text=content,
-        ocr_confidence=1.0,
-    )
-    session.add(page)
-
-    chunk = DocumentChunk(
-        id=chunk_uuid,
-        document_id=doc_id,
-        page_id=page_uuid,
-        patient_id=patient_id,
-        chunk_index=0,
+    await import_synthetic_generation(
+        session=session,
+        settings=settings,
+        document=doc,
         content=content,
-        token_count=len(content.split()),
-        embedding=None,
-        meta=chunk_meta,
+        user_id=uploader_id,
+        metadata=chunk_meta,
     )
-    session.add(chunk)
-    await session.flush()
-    return chunk_uuid
+    await session.commit()
+    await session.refresh(doc)
+
+    res = await session.execute(
+        select(DocumentChunk).where(
+            DocumentChunk.document_id == doc_id,
+            DocumentChunk.generation_id == doc.active_index_generation_id,
+        )
+    )
+    chunk = res.scalars().first()
+    actual_chunk_id = chunk.id if chunk else chunk_uuid
+    return actual_chunk_id, doc.id
 
 
 async def _add_graph_entity(
@@ -272,8 +277,6 @@ async def main() -> None:
                 department="Cardiology",
                 doctor_name="Dr. Dev Doctor",
                 start_time="14:00",
-                end_time="14:30",
-                reason="Post-CABG follow up",
                 symptoms=(
                     "Bob reports mild dyspnea on exertion. No active chest pain. "
                     "History of CAD, CABG 2023. Hypertension."
@@ -292,8 +295,9 @@ async def main() -> None:
         # 3. Alice — Prescription & Labs ──────────────────────────────────────
         ALICE_CHUNK_PRESC = uuid.UUID("50000000-0000-0000-0000-000000000001")
         ALICE_PAGE_PRESC = uuid.UUID("50000000-0000-0000-0000-000000000011")
-        await _add_document(
+        c_alice_presc, d_alice_presc = await _add_document(
             session,
+            settings,
             doc_id=DOC_ALICE_PRESCRIPTION_ID,
             patient_id=PATIENT_ALICE_ID,
             uploader_id=admin.id,
@@ -341,8 +345,9 @@ async def main() -> None:
 
         ALICE_CHUNK_LAB = uuid.UUID("50000000-0000-0000-0000-000000000002")
         ALICE_PAGE_LAB = uuid.UUID("50000000-0000-0000-0000-000000000012")
-        await _add_document(
+        c_alice_lab, d_alice_lab = await _add_document(
             session,
+            settings,
             doc_id=DOC_ALICE_LAB_ID,
             patient_id=PATIENT_ALICE_ID,
             uploader_id=admin.id,
@@ -363,7 +368,7 @@ async def main() -> None:
             ),
             chunk_meta={
                 "labs": [
-                    {"analyte": "Glucose (fasting)", "value": "6.2", "reference_range": "3.9-6.1 mmol/L"},
+                    {"analyte": "Glucose", "value": "6.2", "reference_range": "3.9-6.1 mmol/L"},
                     {"analyte": "HbA1c", "value": "7.4", "reference_range": "4.0-5.6 %"},
                     {"analyte": "Creatinine", "value": "85", "reference_range": "60-110 umol/L"},
                     {"analyte": "eGFR", "value": "72", "reference_range": ">60 mL/min"},
@@ -377,25 +382,27 @@ async def main() -> None:
             page_uuid=ALICE_PAGE_LAB,
         )
 
-        # 4. Bob — Prescription, Labs, Discharge ──────────────────────────────
+        # 4. Bob — Prescription, Labs & Discharge ─────────────────────────────
         BOB_CHUNK_PRESC = uuid.UUID("50000000-0000-0000-0000-000000000003")
         BOB_PAGE_PRESC = uuid.UUID("50000000-0000-0000-0000-000000000013")
-        await _add_document(
+        c_bob_presc, d_bob_presc = await _add_document(
             session,
+            settings,
             doc_id=DOC_BOB_PRESCRIPTION_ID,
             patient_id=PATIENT_BOB_ID,
             uploader_id=admin.id,
-            title="Bob Synthetic — Post-CABG Prescription 2026-05",
+            title="Bob Synthetic — Cardiology Prescription 2026-05",
             document_type="prescription",
             content=(
-                "BỆNH VIỆN TIM MẠCH\n"
-                "ĐƠN THUỐC SAU PHẪU THUẬT\n"
+                "BỆNH VIỆN TIM MẠCH TRUNG ƯƠNG\n"
+                "ĐƠN THUỐC TIM MẠCH\n"
                 "Bệnh nhân: Bob Synthetic | MRN: MRN-0002\n"
                 "Ngày kê đơn: 15/05/2026 | BS. Dev Doctor\n\n"
+                "Chẩn đoán: Bệnh động mạch vành (CAD), Tăng huyết áp, Sau mổ CABG\n\n"
                 "Danh sách thuốc:\n"
-                "- Aspirin 81 mg, 1 viên/ngày, uống buổi sáng (sau ăn)\n"
-                "- Atorvastatin 40 mg, 1 viên/ngày, uống buổi tối\n"
-                "- Carvedilol 6.25 mg, 2 lần/ngày (sáng-tối)\n"
+                "- Aspirin 81 mg, 1 viên/ngày, uống buổi sáng sau ăn\n"
+                "- Atorvastatin 40 mg, 1 viên/ngày, uống buổi tối trước khi ngủ\n"
+                "- Carvedilol 6.25 mg, 2 lần/ngày (sáng-tối), uống sau ăn\n"
                 "- Ramipril 5 mg, 1 viên/ngày, uống buổi sáng\n\n"
                 "Chú ý: Theo dõi huyết áp hàng ngày. Hẹn siêu âm tim sau 4 tuần."
             ),
@@ -437,8 +444,9 @@ async def main() -> None:
 
         BOB_CHUNK_LAB = uuid.UUID("50000000-0000-0000-0000-000000000004")
         BOB_PAGE_LAB = uuid.UUID("50000000-0000-0000-0000-000000000014")
-        await _add_document(
+        c_bob_lab, d_bob_lab = await _add_document(
             session,
+            settings,
             doc_id=DOC_BOB_LAB_ID,
             patient_id=PATIENT_BOB_ID,
             uploader_id=admin.id,
@@ -477,8 +485,9 @@ async def main() -> None:
 
         BOB_CHUNK_DISCHARGE = uuid.UUID("50000000-0000-0000-0000-000000000005")
         BOB_PAGE_DISCHARGE = uuid.UUID("50000000-0000-0000-0000-000000000015")
-        await _add_document(
+        c_bob_discharge, d_bob_discharge = await _add_document(
             session,
+            settings,
             doc_id=DOC_BOB_DISCHARGE_ID,
             patient_id=PATIENT_BOB_ID,
             uploader_id=admin.id,
@@ -530,8 +539,9 @@ async def main() -> None:
         # 5. Eleanor — Prescription & Labs ───────────────────────────────────
         ELEANOR_CHUNK_PRESC = uuid.UUID("50000000-0000-0000-0000-000000000006")
         ELEANOR_PAGE_PRESC = uuid.UUID("50000000-0000-0000-0000-000000000016")
-        await _add_document(
+        c_eleanor_presc, d_eleanor_presc = await _add_document(
             session,
+            settings,
             doc_id=DOC_ELEANOR_PRESCRIPTION_ID,
             patient_id=PATIENT_ELEANOR_ID,
             uploader_id=admin.id,
@@ -582,8 +592,9 @@ async def main() -> None:
 
         ELEANOR_CHUNK_LAB = uuid.UUID("50000000-0000-0000-0000-000000000007")
         ELEANOR_PAGE_LAB = uuid.UUID("50000000-0000-0000-0000-000000000017")
-        await _add_document(
+        c_eleanor_lab, d_eleanor_lab = await _add_document(
             session,
+            settings,
             doc_id=DOC_ELEANOR_LAB_ID,
             patient_id=PATIENT_ELEANOR_ID,
             uploader_id=admin.id,
@@ -639,7 +650,7 @@ async def main() -> None:
             (E_ALICE_HYPERTENSION, "Hypertension", "condition"),
             (E_ALICE_HBA1C, "HbA1c 7.4%", "lab"),
         ]:
-            await _add_graph_entity(session, eid, name, etype, ALICE_CHUNK_PRESC, DOC_ALICE_PRESCRIPTION_ID)
+            await _add_graph_entity(session, eid, name, etype, c_alice_presc, d_alice_presc)
 
         for rid, src, tgt, rel in [
             (uuid.UUID("70000000-0000-0000-0000-000000000001"), E_ALICE_LISINOPRIL, E_ALICE_HYPERTENSION, "treats"),
@@ -647,7 +658,7 @@ async def main() -> None:
             (uuid.UUID("70000000-0000-0000-0000-000000000003"), E_ALICE_AMLODIPINE, E_ALICE_HYPERTENSION, "treats"),
             (uuid.UUID("70000000-0000-0000-0000-000000000004"), E_ALICE_DIABETES, E_ALICE_HBA1C, "indicated_by"),
         ]:
-            await _add_graph_relation(session, rid, src, tgt, rel, ALICE_CHUNK_PRESC)
+            await _add_graph_relation(session, rid, src, tgt, rel, c_alice_presc)
 
         # Bob entities
         E_BOB_ASPIRIN = uuid.UUID("60000000-0000-0000-0000-000000000011")
@@ -669,7 +680,7 @@ async def main() -> None:
             (E_BOB_BNP, "BNP 180 pg/mL", "lab"),
             (E_BOB_LDL, "LDL 72 mg/dL", "lab"),
         ]:
-            await _add_graph_entity(session, eid, name, etype, BOB_CHUNK_PRESC, DOC_BOB_PRESCRIPTION_ID)
+            await _add_graph_entity(session, eid, name, etype, c_bob_presc, d_bob_presc)
 
         for rid, src, tgt, rel in [
             (uuid.UUID("70000000-0000-0000-0000-000000000011"), E_BOB_ASPIRIN, E_BOB_CAD, "treats"),
@@ -680,7 +691,7 @@ async def main() -> None:
             (uuid.UUID("70000000-0000-0000-0000-000000000016"), E_BOB_CAD, E_BOB_BNP, "indicated_by"),
             (uuid.UUID("70000000-0000-0000-0000-000000000017"), E_BOB_ATORVASTATIN, E_BOB_LDL, "reduces"),
         ]:
-            await _add_graph_relation(session, rid, src, tgt, rel, BOB_CHUNK_PRESC)
+            await _add_graph_relation(session, rid, src, tgt, rel, c_bob_presc)
 
         # Eleanor entities
         E_ELEANOR_APIXABAN = uuid.UUID("60000000-0000-0000-0000-000000000021")
@@ -704,7 +715,7 @@ async def main() -> None:
             (E_ELEANOR_SULFA_ALLERGY, "Sulfa allergy (hives)", "condition"),
             (E_ELEANOR_EFGR, "eGFR 42 mL/min", "lab"),
         ]:
-            await _add_graph_entity(session, eid, name, etype, ELEANOR_CHUNK_PRESC, DOC_ELEANOR_PRESCRIPTION_ID)
+            await _add_graph_entity(session, eid, name, etype, c_eleanor_presc, d_eleanor_presc)
 
         for rid, src, tgt, rel in [
             (uuid.UUID("70000000-0000-0000-0000-000000000021"), E_ELEANOR_APIXABAN, E_ELEANOR_AFIB, "treats"),
@@ -716,7 +727,7 @@ async def main() -> None:
             (uuid.UUID("70000000-0000-0000-0000-000000000027"), E_ELEANOR_APIXABAN, E_ELEANOR_CKD, "dose_adjusted_for"),
             (uuid.UUID("70000000-0000-0000-0000-000000000028"), E_ELEANOR_SULFA_ALLERGY, E_ELEANOR_AFIB, "complicates"),
         ]:
-            await _add_graph_relation(session, rid, src, tgt, rel, ELEANOR_CHUNK_PRESC)
+            await _add_graph_relation(session, rid, src, tgt, rel, c_eleanor_presc)
 
         # 7. Seed access requests for development
         #   - ar-001 (approved request for Alice MRN-0001 from Pharmacist Riya Patel)

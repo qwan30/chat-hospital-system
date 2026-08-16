@@ -271,13 +271,22 @@ async def get_patient_overview(
     ai_summary = None
     last_updated = None
     if chunks:
-        pipeline = PatientSummaryPipeline(settings)
-        summary_res = await pipeline.run(
-            patient_name=patient.full_name,
-            evidence=chunks,
-        )
-        ai_summary = summary_res.answer
-        last_updated = datetime.now(UTC)
+        try:
+            pipeline = PatientSummaryPipeline(settings)
+            summary_res = await pipeline.run(
+                patient_name=patient.full_name,
+                evidence=chunks,
+            )
+            ai_summary = summary_res.answer
+            last_updated = datetime.now(UTC)
+        except Exception:
+            logger.warning(
+                "Patient summary generation failed for patient %s; returning overview without AI summary",
+                patient_id,
+                exc_info=True,
+            )
+            ai_summary = None
+            last_updated = None
 
     await AuditService(session).record(
         actor_user_id=current_user.id,

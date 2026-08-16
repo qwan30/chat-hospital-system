@@ -19,6 +19,22 @@ export interface StreamCitation {
   content?: string;
 }
 
+export interface DisambiguationCandidate {
+  patient_id: string;
+  patient_name: string;
+  mrn: string;
+  dob?: string;
+  department?: string;
+}
+
+export interface ResolvedPatientContext {
+  patient_id: string;
+  patient_name?: string;
+  full_name?: string;
+  mrn?: string;
+  department?: string;
+}
+
 export interface StreamResult {
   answer: string;
   citations: StreamCitation[];
@@ -28,6 +44,8 @@ export interface StreamResult {
   model?: string;
   error?: string;
   graphExplanation?: unknown;
+  resolvedPatient?: ResolvedPatientContext;
+  candidates?: DisambiguationCandidate[];
   status: "completed" | "interrupted" | "error";
 }
 
@@ -38,7 +56,16 @@ export type StreamStatusStage =
   | "complete";
 
 export type StreamCallback = (event: {
-  type: "token" | "citations" | "metadata" | "status" | "done" | "error" | "graph_explanation";
+  type:
+    | "token"
+    | "citations"
+    | "metadata"
+    | "status"
+    | "done"
+    | "error"
+    | "graph_explanation"
+    | "context_resolved"
+    | "disambiguation_required";
   sequence?: number;
   content?: string;
   citations?: StreamCitation[];
@@ -50,6 +77,8 @@ export type StreamCallback = (event: {
   stage?: StreamStatusStage;
   graphExplanation?: unknown;
   status?: "completed" | "interrupted" | "error";
+  resolvedPatient?: ResolvedPatientContext;
+  candidates?: DisambiguationCandidate[];
 }) => void;
 
 /**
@@ -237,6 +266,26 @@ export async function streamChat(
               validation: result.validation,
               status: result.status,
             });
+            break;
+          }
+          case "context_resolved": {
+            const resolvedPatient: ResolvedPatientContext = {
+              patient_id: String(data.patient_id || ""),
+              patient_name: String(data.patient_name || data.full_name || ""),
+              full_name: String(data.full_name || data.patient_name || ""),
+              mrn: String(data.mrn || ""),
+              department: data.department ? String(data.department) : undefined,
+            };
+            result.resolvedPatient = resolvedPatient;
+            onEvent?.({ type: "context_resolved", resolvedPatient });
+            break;
+          }
+          case "disambiguation_required": {
+            const candidates = Array.isArray(data.candidates)
+              ? (data.candidates as DisambiguationCandidate[])
+              : [];
+            result.candidates = candidates;
+            onEvent?.({ type: "disambiguation_required", candidates });
             break;
           }
           case "error": {

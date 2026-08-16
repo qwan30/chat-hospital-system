@@ -220,5 +220,6 @@ async def test_chat_global_query_without_patient_context(session_and_settings):
     )
 
     assert isinstance(response, ChatResponse)
-    assert response.answer == SAFE_NO_EVIDENCE_ANSWER
-    assert response.citations == []
+    assert response.answer != SAFE_NO_EVIDENCE_ANSWER
+    assert len(response.citations) > 0
+    assert "[E1]" in response.answer

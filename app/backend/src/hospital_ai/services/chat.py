@@ -68,6 +68,11 @@ SAFE_NO_EVIDENCE_ANSWER = (
     "Please review the patient record directly or ask a records user to index the relevant document."
 )
 
+SAFE_INVALID_CITATION_ANSWER = (
+    "I found relevant hospital evidence, but the generated answer did not meet citation verification standards. "
+    "Please review the referenced sources directly or rephrase your question."
+)
+
 SAFE_INJECTION_DETECTED_ANSWER = "Your request was blocked due to a detected security policy violation."
 
 SAFE_PHI_LEAK_BLOCKED_ANSWER = (
@@ -110,10 +115,19 @@ class ChatService:
         self.session.add(ai_query)
         await self.session.flush()
 
-        if patient_id:
+        effective_patient_id = patient_id
+        if effective_patient_id is None:
+            from hospital_ai.services.patient_resolver import PatientResolver
+
+            patient_res = await PatientResolver(self.session).resolve(question, user=user)
+            if patient_res.status == "single_match" and patient_res.patients:
+                effective_patient_id = patient_res.patients[0].id
+                ai_query.patient_id = effective_patient_id
+
+        if effective_patient_id:
             has_scope = await PermissionService(self.session).has_patient_scope(
                 user_id=user.id,
-                patient_id=patient_id,
+                patient_id=effective_patient_id,
                 accepted_scopes=PATIENT_READ_SCOPES,
             )
             if not has_scope:
@@ -123,7 +137,7 @@ class ChatService:
                     action="chat.ask",
                     object_type="ai_query",
                     object_id=ai_query.id,
-                    patient_id=patient_id,
+                    patient_id=effective_patient_id,
                     outcome="denied",
                     trace_id=trace_id,
                     ip_address=ip_address,
@@ -335,11 +349,13 @@ class ChatService:
             retrieval_mode = "hybrid" if random.random() > 0.5 else "vector"
 
         evidence = []
+        hospital_wide = effective_patient_id is None
         rag_enabled = evaluation_controls is None or evaluation_controls.mode != "rag_off"
         if rag_enabled and retrieval_mode in ("bm25", "hybrid"):
             evidence = await retrieval_svc.hybrid_search(
                 user_id=user.id,
-                patient_id=patient_id,
+                patient_id=effective_patient_id,
+                hospital_wide=hospital_wide,
                 query_embedding=query_embedding,
                 query_text=question,
                 top_k=top_k,
@@ -348,7 +364,8 @@ class ChatService:
         elif rag_enabled:
             evidence = await retrieval_svc.search(
                 user_id=user.id,
-                patient_id=patient_id,
+                patient_id=effective_patient_id,
+                hospital_wide=hospital_wide,
                 query_embedding=query_embedding,
                 top_k=top_k,
             )
@@ -356,14 +373,14 @@ class ChatService:
         # ── Graph RAG: boost evidence with entity relationships ──────
         graph_enabled = evaluation_controls is None or evaluation_controls.mode == "hybrid_graph_on"
         try:
-            if graph_enabled and patient_id:
+            if graph_enabled and effective_patient_id:
                 if evaluation_observer is not None:
                     evaluation_observer.record_graph_execution()
                 query_entities, _ = await extract_entities_and_relations_nlp(question)
                 if query_entities:
                     entity_names = [e.normalized_label for e in query_entities]
                     graph_ctx = await find_related_entities(
-                        self.session, entity_names, max_hops=2, patient_id=patient_id
+                        self.session, entity_names, max_hops=2, patient_id=effective_patient_id
                     )
                     if graph_ctx.related_chunk_ids:
                         existing_ids = {e.chunk_id for e in evidence}
@@ -373,7 +390,8 @@ class ChatService:
                             graph_evidence = await retrieval_svc.get_chunks_by_ids(
                                 list(graph_only_ids)[:top_k],
                                 user_id=user.id,
-                                patient_id=patient_id,
+                                patient_id=effective_patient_id,
+                                hospital_wide=hospital_wide,
                             )
                             graph_evidence = [
                                 RetrievedChunk(

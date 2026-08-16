@@ -37,10 +37,16 @@ class ActiveEvidenceScope:
         self,
         *,
         user_id: uuid.UUID,
-        patient_id: uuid.UUID,
+        patient_id: Optional[uuid.UUID] = None,
+        hospital_wide: bool = False,
         document_ids: Optional[Collection[uuid.UUID]] = None,
         include_superseded: bool = False,
     ):
+        from sqlalchemy import or_, and_
+
+        if patient_id is None and not hospital_wide:
+            return select(DocumentChunk.id).where(DocumentChunk.id == None).scalar_subquery()
+
         stmt = (
             select(DocumentChunk.id)
             .join(Document, Document.id == DocumentChunk.document_id)
@@ -48,20 +54,39 @@ class ActiveEvidenceScope:
             .join(DocumentRevisionSet, DocumentRevisionSet.id == DocumentChunk.revision_set_id)
             .join(DocumentPageRevision, DocumentPageRevision.id == DocumentChunk.page_revision_id)
             .where(
-                Document.patient_id == patient_id,
-                DocumentChunk.patient_id == patient_id,
                 DocumentIndexGeneration.state.in_(("active", "superseded") if include_superseded else ("active",)),
                 DocumentIndexGeneration.revision_set_id == DocumentChunk.revision_set_id,
                 DocumentRevisionSet.status == "approved",
                 Document.deleted_at.is_(None),
                 DocumentChunk.deleted_at.is_(None),
+            )
+        )
+
+        if patient_id is not None:
+            stmt = stmt.where(
+                Document.patient_id == patient_id,
+                DocumentChunk.patient_id == patient_id,
                 active_patient_permission_exists(
                     user_id=user_id,
                     patient_id=Document.patient_id,
                     accepted_scopes=PATIENT_READ_SCOPES,
                 ),
             )
-        )
+        elif hospital_wide:
+            stmt = stmt.where(
+                or_(
+                    Document.patient_id.is_(None),
+                    and_(
+                        Document.patient_id.is_not(None),
+                        active_patient_permission_exists(
+                            user_id=user_id,
+                            patient_id=Document.patient_id,
+                            accepted_scopes=PATIENT_READ_SCOPES,
+                        ),
+                    ),
+                )
+            )
+
         if not include_superseded:
             stmt = stmt.where(
                 Document.active_index_generation_id == DocumentChunk.generation_id,

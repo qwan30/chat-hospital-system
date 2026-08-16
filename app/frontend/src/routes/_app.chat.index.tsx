@@ -25,7 +25,11 @@ import { ErrorState } from "@/components/hms/ErrorState";
 import { sanitizeError } from "@/lib/errors";
 import { searchPatients, getPatient } from "@/lib/api/patients";
 import { useSession } from "@/lib/session";
-import { streamChat, type StreamStatusStage } from "@/lib/stream-client";
+import {
+  streamChat,
+  type StreamStatusStage,
+  type DisambiguationCandidate,
+} from "@/lib/stream-client";
 import {
   hasStreamScopeChanged,
   isCurrentStreamRequest,
@@ -288,7 +292,7 @@ function GlobalChat() {
   const activeThreadTitle = useMemo(() => {
     if (activeThread) return activeThread.title;
     if (currentPatient) return `Patient Context: ${currentPatient.full_name}`;
-    return "General hospital knowledge";
+    return "Hospital-wide Context";
   }, [activeThread, currentPatient]);
 
   const renderThreadItem = (t: any, isPinned: boolean) => {
@@ -451,7 +455,7 @@ function GlobalChat() {
             <Sparkles className="mr-1 h-3 w-3" />
             {currentPatient
               ? `Context: Patient — ${currentPatient.full_name}`
-              : "Context: General hospital knowledge"}
+              : "Context: Hospital-wide Context"}
             <ChevronDown className="ml-1 h-3 w-3" />
           </button>
         </DropdownMenuTrigger>
@@ -485,7 +489,7 @@ function GlobalChat() {
                 setPatientSearchQuery("");
               }}
             >
-              General hospital knowledge
+              Hospital-wide Context
             </DropdownMenuItem>
             {filteredPatients.length === 0 ? (
               <div className="p-4 text-center text-xs text-muted-foreground">No patients found</div>
@@ -653,6 +657,8 @@ function GlobalChat() {
 
       if (!isActiveRequest()) return;
 
+      let disambiguationCandidates: DisambiguationCandidate[] = [];
+
       const streamResult = await streamChat(
         apiUrl,
         token,
@@ -667,6 +673,17 @@ function GlobalChat() {
           if (event.type === "status" && event.stage) {
             setStreamStage(event.stage);
             return;
+          }
+          if (event.type === "context_resolved" && event.resolvedPatient?.patient_id) {
+            const pId = event.resolvedPatient.patient_id;
+            navigate({
+              search: (prev) => ({ ...prev, patient: pId }),
+              replace: true,
+            });
+            queryClient.invalidateQueries({ queryKey: ["patients"] });
+          }
+          if (event.type === "disambiguation_required" && event.candidates) {
+            disambiguationCandidates = event.candidates;
           }
           if (event.type === "token") {
             fullText += event.content || "";
@@ -688,6 +705,11 @@ function GlobalChat() {
         return;
       }
 
+      const candidateList =
+        streamResult.candidates && streamResult.candidates.length > 0
+          ? streamResult.candidates
+          : disambiguationCandidates;
+
       // The backend `streamResult.citations` is ordered 1 to N for the current response.
       // We will assign `c.n = index + 1` so that the inline citations `[1]` match the rawCitations array order.
       const reply: ChatMessageData = {
@@ -700,6 +722,29 @@ function GlobalChat() {
           n: idx + 1, // matches backend's inline [1], [2] format
           sourceId: c.evidence_id,
         })),
+        extra:
+          candidateList.length > 0 ? (
+            <div className="mt-3 pt-2 border-t border-border/40 flex flex-col gap-2">
+              <span className="text-xs font-semibold text-foreground/80">
+                Chọn bệnh nhân để xem chi tiết:
+              </span>
+              <div className="flex flex-wrap gap-2">
+                {candidateList.map((c) => (
+                  <button
+                    key={c.patient_id}
+                    type="button"
+                    onClick={() => {
+                      navigate({ search: (prev) => ({ ...prev, patient: c.patient_id }) });
+                    }}
+                    className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium bg-secondary text-secondary-foreground hover:bg-primary/10 hover:text-primary transition-colors border border-border/60"
+                  >
+                    <span className="font-semibold">{c.patient_name}</span>
+                    <span className="text-[10px] text-muted-foreground">({c.mrn})</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          ) : undefined,
       };
       setMessages((m) => [...m, reply]);
       setStreamingId(null);

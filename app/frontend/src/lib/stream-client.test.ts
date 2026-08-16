@@ -169,7 +169,7 @@ describe("streamChat", () => {
     );
 
     await expect(streamChat("http://api", "token123", { question: "Hi" })).rejects.toThrow(
-      /Chat stream failed: 500/,
+      /Chat stream failed with status: 500/,
     );
   });
 });

@@ -9,9 +9,27 @@ import { getAccessRequest } from "@/lib/api/access-requests";
 import { formatDateTime } from "@/lib/format";
 import { ErrorState } from "@/components/hms/ErrorState";
 
+import { sanitizeError } from "@/lib/errors";
+
 export const Route = createFileRoute("/_app/access-requests/$requestId")({
   head: () => ({ meta: [{ title: "Access request — HMS AI Copilot" }] }),
   component: Page,
+  errorComponent: ({ error, reset }) => (
+    <AppShell fixedHeight>
+      <div className="flex h-full items-center justify-center p-8">
+        <ErrorState
+          title="Failed to load access request"
+          description={sanitizeError(error)}
+          code="API_ERROR"
+          extra={
+            <Button onClick={reset} variant="outline">
+              Retry
+            </Button>
+          }
+        />
+      </div>
+    </AppShell>
+  ),
 });
 
 const tone: Record<string, string> = {
@@ -42,26 +60,7 @@ function Page() {
   }
 
   if (error || !r) {
-    // Extract a human-readable message from whatever shape the API error takes
-    const errMsg = (() => {
-      if (!error) return "The requested access record could not be found.";
-      if (typeof error === "string") return error;
-      if (error instanceof Error && error.message) return error.message;
-
-      // FastAPI/API return shapes
-      const e = error as unknown as Record<string, unknown>;
-      if (e.message && typeof e.message === "string") return e.message;
-      if (e.detail && typeof e.detail === "string") return e.detail;
-      if (e.error && typeof e.error === "string") return e.error;
-
-      try {
-        const str = JSON.stringify(error);
-        if (str && str !== "{}") return str;
-      } catch {
-        // ignore
-      }
-      return String(error);
-    })();
+    const errMsg = error ? sanitizeError(error) : "The requested access record could not be found.";
     return (
       <AppShell>
         <PageHeader title="Request not found" />

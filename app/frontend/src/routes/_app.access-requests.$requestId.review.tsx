@@ -10,9 +10,29 @@ import { Textarea } from "@/components/ui/textarea";
 import { ErrorState } from "@/components/hms/ErrorState";
 import { toast } from "sonner";
 
+import { sanitizeError } from "@/lib/errors";
+import { useSession } from "@/lib/session";
+import { Navigate } from "@tanstack/react-router";
+
 export const Route = createFileRoute("/_app/access-requests/$requestId/review")({
   head: () => ({ meta: [{ title: "Review request — HMS AI Copilot" }] }),
   component: Page,
+  errorComponent: ({ error, reset }) => (
+    <AppShell fixedHeight>
+      <div className="flex h-full items-center justify-center p-8">
+        <ErrorState
+          title="Failed to load access request"
+          description={sanitizeError(error)}
+          code="API_ERROR"
+          extra={
+            <Button onClick={reset} variant="outline">
+              Retry
+            </Button>
+          }
+        />
+      </div>
+    </AppShell>
+  ),
 });
 
 function Page() {
@@ -27,7 +47,19 @@ function Page() {
   } = useQuery({
     queryKey: ["access-request", requestId],
     queryFn: () => getAccessRequest(requestId),
+    retry: (failureCount: number, error: unknown) => {
+      if (failureCount >= 3) return false;
+      if (error && typeof error === "object" && "status" in error) {
+        const status = (error as { status: unknown }).status;
+        if (typeof status === "number" && status >= 400 && status < 500) {
+          return false;
+        }
+      }
+      return true;
+    },
   });
+
+  const { session } = useSession();
 
   const mutation = useMutation({
     mutationFn: (status: "approved" | "denied" | "pending_info") =>
@@ -40,6 +72,10 @@ function Page() {
       toast.error("Failed to submit review", { description: err.message });
     },
   });
+
+  if (session && session.role !== "admin" && session.role !== "security") {
+    return <Navigate to="/dashboard" replace />;
+  }
 
   if (isLoading) {
     return (
@@ -56,7 +92,7 @@ function Page() {
         <ErrorState
           code="API_ERROR"
           title="Failed to load access request"
-          description={(error as Error)?.message}
+          description={sanitizeError(error)}
         />
       </AppShell>
     );

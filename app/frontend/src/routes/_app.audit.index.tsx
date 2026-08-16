@@ -39,11 +39,30 @@ import {
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 
+import { ErrorState } from "@/components/hms/ErrorState";
+import { sanitizeError } from "@/lib/errors";
+
 export const Route = createFileRoute("/_app/audit/")({
   head: () => ({
     meta: [{ title: "Audit logs — HMS AI Copilot" }],
   }),
   component: AuditPage,
+  errorComponent: ({ error, reset }) => (
+    <AppShell fixedHeight>
+      <div className="p-8 flex h-full items-center justify-center">
+        <ErrorState
+          title="Failed to load audit logs"
+          description={sanitizeError(error)}
+          code="API_ERROR"
+          extra={
+            <Button onClick={reset} variant="outline">
+              Retry
+            </Button>
+          }
+        />
+      </div>
+    </AppShell>
+  ),
 });
 
 const categoryColor: Record<string, string> = {
@@ -169,7 +188,7 @@ function AuditPage() {
               <Filter className="h-6 w-6" />
             </div>
             <p className="mt-3 text-sm font-semibold text-destructive">
-              {error instanceof Error ? error.message : "Failed to load audit logs"}
+              {sanitizeError(error, "Failed to load audit logs")}
             </p>
             <p className="mt-1 text-xs text-muted-foreground">
               Audit logs require <strong>Security</strong> or <strong>Admin</strong> role. Switch

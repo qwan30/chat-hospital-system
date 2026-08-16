@@ -1,0 +1,1 @@
+{"gate_name": "graph_provenance_coverage", "passed": true, "source_artifact": "s3://bucket/artifacts/graph_provenance_coverage.zip", "producer_sha": "abcdef1234567890", "schema_version": "1.0.0", "hash": "758a4a8f934a06b8371164b8e1c26f03e049eaf818e4798a24716f832bc474f8", "details": {}}

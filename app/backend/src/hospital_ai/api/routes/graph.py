@@ -157,6 +157,7 @@ async def get_patient_graph(
             DocumentChunk.deleted_at.is_(None),
             DocumentPage.deleted_at.is_(None),
             Document.deleted_at.is_(None),
+            DocumentChunk.generation_id.is_not_distinct_from(Document.active_index_generation_id),
         )
         .subquery()
     )

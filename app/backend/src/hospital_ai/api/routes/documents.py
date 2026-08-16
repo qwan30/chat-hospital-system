@@ -67,7 +67,7 @@ ALLOWED_DOCUMENT_TYPES = {
 }
 
 
-def normalize_upload_mime_type(filename: str | None, content_type: str | None) -> str:
+def normalize_upload_mime_type(filename: Optional[str], content_type: Optional[str]) -> str:
     """Normalize browser HL7 uploads without admitting generic binary files."""
     if not content_type or not content_type.strip():
         return "application/octet-stream"
@@ -447,7 +447,12 @@ async def get_document_intelligence(
         ip_address=get_request_ip(request),
     )
 
-    facts_result = await session.execute(select(ClinicalFact).where(ClinicalFact.document_id == document_id))
+    facts_result = await session.execute(
+        select(ClinicalFact).where(
+            ClinicalFact.document_id == document_id,
+            ClinicalFact.generation_id.is_not_distinct_from(document.active_index_generation_id)
+        )
+    )
     facts = facts_result.scalars().all()
 
     reviews_result = await session.execute(
@@ -482,7 +487,12 @@ async def get_document_facts(
         ip_address=get_request_ip(request),
     )
 
-    facts_result = await session.execute(select(ClinicalFact).where(ClinicalFact.document_id == document_id))
+    facts_result = await session.execute(
+        select(ClinicalFact).where(
+            ClinicalFact.document_id == document_id,
+            ClinicalFact.generation_id.is_not_distinct_from(document.active_index_generation_id)
+        )
+    )
     facts = facts_result.scalars().all()
 
     return {

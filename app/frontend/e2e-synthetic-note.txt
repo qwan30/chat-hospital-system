@@ -1,0 +1,2 @@
+Synthetic E2E clinical note for Eleanor Vance.
+No real patient data. Observation: stable follow-up.

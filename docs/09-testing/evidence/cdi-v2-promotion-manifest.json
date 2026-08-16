@@ -1,0 +1,227 @@
+{
+  "schema_version": 1,
+  "branch": "feat/cdi-v2-main-integration",
+  "shas": {
+    "main": "7fdf2b5c281a03f411e44614d925000bdd67a004",
+    "candidate": "adb6cda62babd429b0dd4ba32dd905605fec4f6b",
+    "merge_base": "6794777f48862a4d1278b3bd4e83e93e7514d027"
+  },
+  "divergence": {
+    "main_only": 41,
+    "candidate_only": 133
+  },
+  "pull_requests": [
+    {
+      "number": 89,
+      "state": "CLOSED",
+      "base_ref": "main",
+      "head_ref": "feat/unified-cdi-v2",
+      "head_sha": "7127bbada897f3aa5cf7174b645d98c2fef0f5ce",
+      "merge_commit_sha": null,
+      "mergeable": "CONFLICTING",
+      "merge_state": "DIRTY",
+      "checks": {"success": 20, "skipped": 5},
+      "reviews": {"commented": 4, "resolved_threads": 9, "outdated_threads": 5}
+    },
+    {
+      "number": 90,
+      "state": "MERGED",
+      "base_ref": "main",
+      "head_ref": "feat/cdi-v2-foundation",
+      "head_sha": "d5e56d02c613464e092ef0684827256348f855a6",
+      "merge_commit_sha": "eaf8c9b79855f276d7e02d0f379a3998d47e12e5",
+      "mergeable": "UNKNOWN",
+      "merge_state": "UNKNOWN",
+      "checks": {"success": 8, "skipped": 5, "neutral": ["CodeQL"]},
+      "reviews": {"commented": 1, "resolved_threads": 3}
+    },
+    {
+      "number": 91,
+      "state": "MERGED",
+      "base_ref": "feat/cdi-v2-foundation",
+      "head_ref": "feat/cdi-v2-ocr-generation",
+      "head_sha": "b73762f36408af111345c95c8004e834a057845c",
+      "merge_commit_sha": "fa8069ebf8b0f2f6502d570cf724f4b838ab0e87",
+      "mergeable": "UNKNOWN",
+      "merge_state": "UNKNOWN",
+      "checks": {"success": 11, "skipped": 3},
+      "reviews": {}
+    },
+    {
+      "number": 92,
+      "state": "MERGED",
+      "base_ref": "feat/cdi-v2-ocr-generation",
+      "head_ref": "feat/cdi-v2-retrieval-contracts",
+      "head_sha": "b9ddab00eb1dab043cfb14e582fb90eab21b8c58",
+      "merge_commit_sha": "96daa7003f1293af25f5d7b2fccd76fcf877e122",
+      "mergeable": "UNKNOWN",
+      "merge_state": "UNKNOWN",
+      "checks": {"success": 9, "skipped": 5},
+      "reviews": {}
+    },
+    {
+      "number": 93,
+      "state": "MERGED",
+      "base_ref": "feat/cdi-v2-retrieval-contracts",
+      "head_ref": "feat/cdi-v2-validated-stream",
+      "head_sha": "86f07ba4ecee68304569dc8afe936ea1be7de41d",
+      "merge_commit_sha": "4c04e22a8f020a28825b7b19b9e07fcec10fc115",
+      "mergeable": "UNKNOWN",
+      "merge_state": "UNKNOWN",
+      "checks": {"success": 9, "skipped": 5},
+      "reviews": {"commented": 1, "resolved_threads": 1, "outdated_threads": 1}
+    },
+    {
+      "number": 94,
+      "state": "MERGED",
+      "base_ref": "feat/cdi-v2-validated-stream",
+      "head_ref": "feat/cdi-v2-upload-workspace",
+      "head_sha": "5407963d9351971c29916528def9b82907ef5b7b",
+      "merge_commit_sha": "384187c081f8fe5fb22c9c336529c21d5f3375c3",
+      "mergeable": "UNKNOWN",
+      "merge_state": "UNKNOWN",
+      "checks": {"success": 11, "skipped": 3},
+      "reviews": {}
+    },
+    {
+      "number": 95,
+      "state": "MERGED",
+      "base_ref": "feat/cdi-v2-upload-workspace",
+      "head_ref": "feat/cdi-v2-evidence-ui",
+      "head_sha": "c4830cd7c946bef7c91aa4d365978f47654584c0",
+      "merge_commit_sha": "d96c08a89e8a6f4d3a7a498e119c3f02e7a245d7",
+      "mergeable": "UNKNOWN",
+      "merge_state": "UNKNOWN",
+      "checks": {"success": 7, "skipped": 7},
+      "reviews": {"commented": 1, "resolved_threads": 4, "outdated_threads": 4}
+    },
+    {
+      "number": 96,
+      "state": "MERGED",
+      "base_ref": "feat/cdi-v2-evidence-ui",
+      "head_ref": "test/cdi-v2-evaluation-gates",
+      "head_sha": "fa1a4033c8e741ffe233dfcb47c6306de77763ab",
+      "merge_commit_sha": "e3f5a832fc30689475bbeed851407903991ea8db",
+      "mergeable": "UNKNOWN",
+      "merge_state": "UNKNOWN",
+      "checks": {"success": 12, "skipped": 2},
+      "reviews": {}
+    },
+    {
+      "number": 97,
+      "state": "MERGED",
+      "base_ref": "test/cdi-v2-evaluation-gates",
+      "head_ref": "chore/cdi-v2-quality-security",
+      "head_sha": "cc2be61a1d20e66c8d763cf6f36c6514504ef0a2",
+      "merge_commit_sha": "697c6f066b59f316b5f95cc69507b5ef67c00edc",
+      "mergeable": "UNKNOWN",
+      "merge_state": "UNKNOWN",
+      "checks": {"success": 9, "skipped": 3},
+      "reviews": {}
+    },
+    {
+      "number": 98,
+      "state": "MERGED",
+      "base_ref": "chore/cdi-v2-quality-security",
+      "head_ref": "fix/cdi-v2-generation-stream-hardening",
+      "head_sha": "29191683fa64c38acb8d6fc3125b5f49400cfb5d",
+      "merge_commit_sha": "0ce7df386967cd00b738768d943c1a313459c18a",
+      "mergeable": "UNKNOWN",
+      "merge_state": "UNKNOWN",
+      "checks": {"success": 10, "skipped": 5},
+      "reviews": {}
+    },
+    {
+      "number": 99,
+      "state": "MERGED",
+      "base_ref": "fix/cdi-v2-generation-stream-hardening",
+      "head_ref": "fix/cdi-v2-migration-test-hardening",
+      "head_sha": "a314a52d790986035f7e9095e990f4a4661eff5e",
+      "merge_commit_sha": "6ed79e6eb8a64005ea83f7d0deb604dc89eef617",
+      "mergeable": "UNKNOWN",
+      "merge_state": "UNKNOWN",
+      "checks": {"success": 10, "skipped": 5},
+      "reviews": {}
+    },
+    {
+      "number": 100,
+      "state": "MERGED",
+      "base_ref": "fix/cdi-v2-migration-test-hardening",
+      "head_ref": "fix/cdi-v2-active-evidence-scope",
+      "head_sha": "34df06c36ea5c5415604e1d0735af6027e30eb85",
+      "merge_commit_sha": "fa7ab1b9bc5e1d13909b49c1c3b9cc4af2f5f71c",
+      "mergeable": "UNKNOWN",
+      "merge_state": "UNKNOWN",
+      "checks": {"success": 10, "skipped": 5},
+      "reviews": {}
+    },
+    {
+      "number": 101,
+      "state": "MERGED",
+      "base_ref": "fix/cdi-v2-active-evidence-scope",
+      "head_ref": "test/cdi-v2-release-artifacts",
+      "head_sha": "952a89465a12d4d86e53d50c4d8d071e3f6ebbf4",
+      "merge_commit_sha": "e9d6cae342dbafa7a65c5197759488b38ea91ca1",
+      "mergeable": "UNKNOWN",
+      "merge_state": "UNKNOWN",
+      "checks": {"success": 12, "skipped": 2},
+      "reviews": {}
+    },
+    {
+      "number": 102,
+      "state": "MERGED",
+      "base_ref": "test/cdi-v2-release-artifacts",
+      "head_ref": "ci/cdi-v2-e2e-integration",
+      "head_sha": "40a6ea48dbfa8162948ae55c9fc076e346e0644d",
+      "merge_commit_sha": "a2c75df8d66d17f5b9707285a9bc70d5e44f40df",
+      "mergeable": "UNKNOWN",
+      "merge_state": "UNKNOWN",
+      "checks": {"success": 12, "skipped": 2},
+      "reviews": {}
+    },
+    {
+      "number": 103,
+      "state": "MERGED",
+      "base_ref": "ci/cdi-v2-e2e-integration",
+      "head_ref": "test/cdi-v2-final-browser-contracts",
+      "head_sha": "292329b52d6581005ed01f94d85113144726b734",
+      "merge_commit_sha": "adb6cda62babd429b0dd4ba32dd905605fec4f6b",
+      "mergeable": "UNKNOWN",
+      "merge_state": "UNKNOWN",
+      "checks": {"success": 12, "skipped": 2},
+      "reviews": {}
+    }
+  ],
+  "preserved_dirty_paths": [
+    "AGENTS.md",
+    "CLAUDE.md",
+    ".tmp-ci-31251735569/",
+    ".tmp-ci-31252148875/",
+    ".tmp-ci-31252511662/",
+    ".tmp-ci-31252788673/",
+    ".tmp-ci-31253093437/",
+    ".tmp-ci-31253382504/",
+    ".tmp-ci-31254053370/",
+    ".tmp-ci-31254363025/",
+    ".tmp-ci-31254815590/",
+    ".tmp-pytest-retrieval/",
+    "app/frontend/e2e-synthetic-message.hl7",
+    "app/frontend/e2e-synthetic-note.txt",
+    "docs/09-testing/production-click-through-report-2026-08-14.md",
+    "docs/superpowers/plans/2026-08-15-cdi-v2-main-promotion-and-production-certification.md"
+  ],
+  "path_disposition": [],
+  "excluded_candidate_surfaces": [
+    "app/backend/artifacts/",
+    "app/backend/eval_output.txt",
+    "app/backend/test_results.txt",
+    "app/backend/fix.py",
+    "app/backend/patch_new_migration.py",
+    "app/artifacts/"
+  ],
+  "test_commands": [
+    "python -m pytest tests/cdi_v2/test_promotion_provenance.py -q",
+    "git diff --check",
+    "gitnexus.detect_changes(scope=compare, base_ref=origin/main)"
+  ]
+}

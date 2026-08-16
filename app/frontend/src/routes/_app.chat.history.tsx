@@ -4,6 +4,7 @@ import { PageHeader } from "@/components/hms/PageHeader";
 import { Card } from "@/components/ui/card";
 import { useQuery } from "@tanstack/react-query";
 import { listChatThreads } from "@/lib/api/chat-threads";
+import type { ChatThreadRead } from "@/lib/api/chat-threads";
 import { Loader2 } from "lucide-react";
 
 export const Route = createFileRoute("/_app/chat/history")({
@@ -34,7 +35,7 @@ function Page() {
                 No chat history found.
               </li>
             )}
-            {threads.map((t) => (
+            {threads.map((t: ChatThreadRead) => (
               <li key={t.id} className="flex items-center justify-between p-4">
                 <div>
                   <p className="text-sm font-medium">{t.title}</p>

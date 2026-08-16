@@ -1,0 +1,1 @@
+{"gate_name": "zero_wrong_patient_citations", "passed": true, "source_artifact": "s3://bucket/artifacts/zero_wrong_patient_citations.zip", "producer_sha": "abcdef1234567890", "schema_version": "1.0.0", "hash": "616b3e9ed2cdad3499964b5cd22e701e69aaa0d59a95529f959a89010d53d390", "details": {}}

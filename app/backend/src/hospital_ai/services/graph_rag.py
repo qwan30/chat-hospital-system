@@ -24,7 +24,12 @@ import re
 import uuid
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
-from typing import Optional, TypeAlias
+from typing import Optional
+
+try:
+    from typing import TypeAlias
+except ImportError:
+    from typing_extensions import TypeAlias
 
 from sqlalchemy import Float, ForeignKey, String, delete, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession

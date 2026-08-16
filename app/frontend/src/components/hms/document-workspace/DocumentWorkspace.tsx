@@ -8,13 +8,12 @@ import {
   getDraftPage,
   getRevisionPage,
 } from "@/lib/api/document-revisions";
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState } from "react";
 import { WorkspaceToolbar } from "./WorkspaceToolbar";
 import { RevisionSelector } from "./RevisionSelector";
 import { PageNavigator } from "./PageNavigator";
 import { OcrEditor } from "./OcrEditor";
 import { Button } from "@/components/ui/button";
-import { RevisionHistoryDrawer } from "./RevisionHistoryDrawer";
 import { DocumentPreview } from "../DocumentPreview";
 import { GeometryOverlay, BoundingBox } from "./GeometryOverlay";
 import { RevisionDiff } from "./RevisionDiff";
@@ -22,8 +21,19 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import { OcrConfidenceBadge } from "../OcrConfidenceBadge";
 import { Badge } from "@/components/ui/badge";
+import { Edit3 } from "lucide-react";
 
-export function DocumentWorkspace({ documentId }: { documentId: string }) {
+interface DocumentWorkspaceProps {
+  documentId: string;
+  selectedRevisionId?: string | null;
+  onSelectRevision?: (id: string | null) => void;
+}
+
+export function DocumentWorkspace({
+  documentId,
+  selectedRevisionId: externalSelectedRevisionId,
+  onSelectRevision: externalOnSelectRevision,
+}: DocumentWorkspaceProps) {
   const queryClient = useQueryClient();
   const documentQuery = useQuery({
     queryKey: ["document", documentId],
@@ -34,10 +44,16 @@ export function DocumentWorkspace({ documentId }: { documentId: string }) {
     queryFn: () => listRevisionSets(documentId),
   });
 
-  const [selectedRevisionId, setSelectedRevisionId] = useState<string | null>(null);
-  const [selectedPage, setSelectedPage] = useState(1);
-  const [currentLockVersion, setCurrentLockVersion] = useState<number | undefined>();
-  const [isDraftSaving, setIsDraftSaving] = useState(false);
+  const [internalSelectedRevisionId, setInternalSelectedRevisionId] = useState<string | null>(null);
+  const selectedRevisionId =
+    externalSelectedRevisionId !== undefined
+      ? externalSelectedRevisionId
+      : internalSelectedRevisionId;
+
+  const setSelectedRevisionId = (id: string | null) => {
+    setInternalSelectedRevisionId(id);
+    externalOnSelectRevision?.(id);
+  };
 
   useEffect(() => {
     if (selectedRevisionId) return;
@@ -48,6 +64,10 @@ export function DocumentWorkspace({ documentId }: { documentId: string }) {
       setSelectedRevisionId(submittedRevision.revision_set_id);
     }
   }, [revisionsQuery.data, selectedRevisionId]);
+
+  const [selectedPage, setSelectedPage] = useState(1);
+  const [currentLockVersion, setCurrentLockVersion] = useState<number | undefined>();
+  const [isDraftSaving, setIsDraftSaving] = useState(false);
 
   const pageQuery = useQuery({
     queryKey: ["document-page", documentId, selectedPage],
@@ -83,18 +103,26 @@ export function DocumentWorkspace({ documentId }: { documentId: string }) {
 
   const restoreMutation = useMutation({
     mutationFn: () => {
-      if (!selectedRevisionId) return Promise.reject(new Error("No revision"));
+      const revId = selectedRevisionId || revisionsQuery.data?.[0]?.revision_set_id;
+      if (!revId) return Promise.reject(new Error("No revision available to restore"));
       return restoreRevision(
         documentId,
-        selectedRevisionId,
-        { revision_id: selectedRevisionId },
+        revId,
+        { revision_id: revId },
         { idempotencyKey: crypto.randomUUID() },
       );
     },
     onSuccess: () => {
-      toast.success("Revision restored");
+      toast.success("New draft created. You can now edit and submit again.");
       queryClient.invalidateQueries({ queryKey: ["document-revision-sets", documentId] });
+      queryClient.invalidateQueries({ queryKey: ["document-page", documentId, selectedPage] });
+      queryClient.invalidateQueries({
+        queryKey: ["document-revision-page", documentId, null, selectedPage],
+      });
       setSelectedRevisionId(null);
+    },
+    onError: (err) => {
+      toast.error(err instanceof Error ? err.message : "Failed to create new draft");
     },
   });
 
@@ -109,9 +137,13 @@ export function DocumentWorkspace({ documentId }: { documentId: string }) {
       });
     },
     onSuccess: (res) => {
-      toast.success("Draft submitted successfully");
+      toast.success("Draft submitted successfully! You can approve it or continue editing.");
       queryClient.invalidateQueries({ queryKey: ["document-revision-sets", documentId] });
+      queryClient.invalidateQueries({ queryKey: ["document", documentId] });
       setSelectedRevisionId(res.revision_set_id);
+    },
+    onError: (err) => {
+      toast.error(err instanceof Error ? err.message : "Failed to submit draft");
     },
   });
 
@@ -126,9 +158,12 @@ export function DocumentWorkspace({ documentId }: { documentId: string }) {
       );
     },
     onSuccess: () => {
-      toast.success("Revision approved. Generation started.");
+      toast.success("Revision approved. Indexing generation started.");
       queryClient.invalidateQueries({ queryKey: ["document-revision-sets", documentId] });
       queryClient.invalidateQueries({ queryKey: ["document", documentId] });
+    },
+    onError: (err) => {
+      toast.error(err instanceof Error ? err.message : "Failed to approve revision");
     },
   });
 
@@ -140,7 +175,8 @@ export function DocumentWorkspace({ documentId }: { documentId: string }) {
     );
 
   const revision = revisionsQuery.data?.find((r) => r.revision_set_id === selectedRevisionId) || {
-    id: selectedRevisionId,
+    revision_set_id: selectedRevisionId || "draft",
+    revision_number: 1,
     status: "draft",
   };
 
@@ -168,48 +204,62 @@ export function DocumentWorkspace({ documentId }: { documentId: string }) {
   return (
     <div className="flex flex-col h-full overflow-hidden">
       <WorkspaceToolbar>
-        <RevisionHistoryDrawer
-          revisions={revisionsQuery.data || []}
-          selectedId={selectedRevisionId}
-          onSelect={setSelectedRevisionId}
-        />
-        <div className="ml-auto flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           {confidence !== undefined && confidence !== null && (
             <OcrConfidenceBadge confidence={confidence} />
           )}
-          <Badge variant="outline">Engine: Default</Badge>
+          <Badge variant="outline" className="rounded-lg text-xs font-normal">
+            Engine: Default
+          </Badge>
           <RevisionSelector
             revisions={revisionsQuery.data || []}
             selected={selectedRevisionId}
-            onSelect={setSelectedRevisionId}
+            onSelect={(id) => setSelectedRevisionId(id || null)}
           />
           <PageNavigator page={selectedPage} onPageChange={setSelectedPage} />
+        </div>
 
-          {!isHistorical && (
+        <div className="flex items-center gap-2">
+          {isHistorical ? (
             <Button
               size="sm"
+              variant="default"
+              className="rounded-lg h-8 gap-1.5 shadow-sm font-medium"
+              onClick={() => restoreMutation.mutate()}
+              disabled={restoreMutation.isPending}
+            >
+              <Edit3 className="h-3.5 w-3.5" />
+              {restoreMutation.isPending ? "Restoring..." : "Restore as new revision"}
+            </Button>
+          ) : (
+            <Button
+              size="sm"
+              className="rounded-lg h-8 px-3.5 shadow-sm font-medium"
               onClick={() => submitMutation.mutate()}
               disabled={
                 submitMutation.isPending || isDraftSaving || currentLockVersion === undefined
               }
             >
-              Submit Draft
+              {submitMutation.isPending ? "Submitting..." : "Submit Draft"}
             </Button>
           )}
+
           {revision?.status === "submitted" && (
             <Button
               size="sm"
+              variant="outline"
+              className="rounded-lg h-8 text-emerald-600 border-emerald-500/30 hover:bg-emerald-500/10 font-medium"
               onClick={() => approveMutation.mutate()}
               disabled={approveMutation.isPending}
             >
-              Approve
+              {approveMutation.isPending ? "Approving..." : "Approve"}
             </Button>
           )}
         </div>
       </WorkspaceToolbar>
 
-      <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-4 overflow-hidden p-4 bg-muted/10">
-        <div className="h-full border rounded-lg bg-background p-4 flex flex-col overflow-hidden">
+      <div className="flex-1 grid grid-cols-1 lg:grid-cols-2 gap-4 p-4 bg-muted/10 min-h-0 overflow-auto">
+        <div className="min-h-[500px] h-[calc(100vh-230px)] border rounded-2xl bg-card p-4 flex flex-col overflow-hidden shadow-sm">
           {documentQuery.data && (
             <DocumentPreview documentId={documentId} mimeType={documentQuery.data.mime_type}>
               <GeometryOverlay boxes={exactBoxes} staleCount={staleCount} />
@@ -217,21 +267,49 @@ export function DocumentWorkspace({ documentId }: { documentId: string }) {
           )}
         </div>
 
-        <div className="h-full border rounded-lg bg-background p-4 flex flex-col overflow-auto">
-          <Tabs defaultValue="corrected" className="flex-1 flex flex-col h-full">
-            <TabsList className="mb-4">
-              <TabsTrigger value="corrected">Corrected</TabsTrigger>
-              <TabsTrigger value="raw">Raw OCR</TabsTrigger>
-              <TabsTrigger value="diff">Diff</TabsTrigger>
+        <div className="min-h-[500px] h-[calc(100vh-230px)] border rounded-2xl bg-card p-4 flex flex-col overflow-hidden shadow-sm">
+          <Tabs defaultValue="corrected" className="flex-1 flex flex-col h-full min-h-0">
+            <TabsList className="mb-3 rounded-xl p-1 bg-muted/40 w-fit">
+              <TabsTrigger value="corrected" className="rounded-lg text-xs font-medium px-3.5">
+                Corrected
+              </TabsTrigger>
+              <TabsTrigger value="raw" className="rounded-lg text-xs font-medium px-3.5">
+                Raw OCR
+              </TabsTrigger>
+              <TabsTrigger value="diff" className="rounded-lg text-xs font-medium px-3.5">
+                Diff
+              </TabsTrigger>
             </TabsList>
 
             <TabsContent
               value="corrected"
-              className="flex-1 flex flex-col mt-0 h-full overflow-hidden"
+              className="flex-1 flex flex-col mt-0 h-full min-h-0 overflow-hidden"
             >
               {isHistorical ? (
-                <div className="flex-1 p-4 border rounded overflow-auto whitespace-pre-wrap font-mono text-sm">
-                  {correctedText}
+                <div className="flex-1 flex flex-col gap-3 min-h-0">
+                  <div className="flex items-center justify-between p-3 rounded-xl bg-muted/30 border text-xs">
+                    <div>
+                      <span className="font-medium text-foreground">
+                        Revision #{revision?.revision_number || 1}
+                      </span>
+                      <span className="text-muted-foreground ml-2 capitalize">
+                        ({revision?.status || "historical"}) · Read-only snapshot
+                      </span>
+                    </div>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="h-7 text-xs rounded-lg gap-1.5"
+                      onClick={() => restoreMutation.mutate()}
+                      disabled={restoreMutation.isPending}
+                    >
+                      <Edit3 className="h-3 w-3" />
+                      {restoreMutation.isPending ? "Creating draft..." : "Edit as New Draft"}
+                    </Button>
+                  </div>
+                  <div className="flex-1 p-4 border rounded-xl bg-muted/20 overflow-auto whitespace-pre-wrap font-mono text-xs sm:text-sm leading-relaxed shadow-inner">
+                    {correctedText}
+                  </div>
                 </div>
               ) : (
                 <OcrEditor
@@ -253,25 +331,17 @@ export function DocumentWorkspace({ documentId }: { documentId: string }) {
                 />
               )}
             </TabsContent>
-            <TabsContent value="raw" className="flex-1 flex flex-col mt-0 h-full overflow-hidden">
-              <div className="flex-1 p-4 border rounded overflow-auto whitespace-pre-wrap font-mono text-sm">
+            <TabsContent value="raw" className="flex-1 flex flex-col mt-0 h-full min-h-0 overflow-hidden">
+              <div className="flex-1 p-4 border rounded-xl bg-muted/20 overflow-auto whitespace-pre-wrap font-mono text-xs sm:text-sm leading-relaxed shadow-inner">
                 {originalText}
               </div>
             </TabsContent>
-            <TabsContent value="diff" className="flex-1 flex flex-col mt-0 h-full overflow-hidden">
-              <div className="flex-1 border rounded overflow-auto">
+            <TabsContent value="diff" className="flex-1 flex flex-col mt-0 h-full min-h-0 overflow-hidden">
+              <div className="flex-1 border rounded-xl overflow-auto bg-muted/10 shadow-inner">
                 <RevisionDiff originalText={originalText} correctedText={correctedText} />
               </div>
             </TabsContent>
           </Tabs>
-
-          {isHistorical && (
-            <div className="mt-4 pt-4 border-t">
-              <Button onClick={() => restoreMutation.mutate()} disabled={restoreMutation.isPending}>
-                {restoreMutation.isPending ? "Restoring..." : "Restore as new revision"}
-              </Button>
-            </div>
-          )}
         </div>
       </div>
     </div>

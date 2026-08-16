@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { createFileRoute, Link, Outlet, useRouterState } from "@tanstack/react-router";
 import { AppShell } from "@/components/shell/AppShell";
 import { PageHeader } from "@/components/hms/PageHeader";
@@ -5,12 +6,13 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { getDocument, retryIndex, getDocumentIntelligence } from "@/lib/api/documents";
+import { listRevisionSets } from "@/lib/api/document-revisions";
 import { Loader2 } from "lucide-react";
 import { DocumentWorkspace } from "@/components/hms/document-workspace/DocumentWorkspace";
+import { RevisionHistoryDrawer } from "@/components/hms/document-workspace/RevisionHistoryDrawer";
 import { ErrorState } from "@/components/hms/ErrorState";
 import { isDocumentReadyForRetrieval } from "@/lib/document-status";
 import { newIdempotencyKey } from "@/lib/idempotency";
-
 import { sanitizeError } from "@/lib/errors";
 
 export const Route = createFileRoute("/_app/documents/$documentId")({
@@ -47,6 +49,7 @@ function Page() {
 
 function DocumentDetail({ documentId }: { documentId: string }) {
   const queryClient = useQueryClient();
+  const [selectedRevisionId, setSelectedRevisionId] = useState<string | null>(null);
 
   const {
     data: d,
@@ -62,6 +65,11 @@ function DocumentDetail({ documentId }: { documentId: string }) {
       }
       return false;
     },
+  });
+
+  const { data: revisions } = useQuery({
+    queryKey: ["document-revision-sets", documentId],
+    queryFn: () => listRevisionSets(documentId),
   });
 
   const { data: intelligence } = useQuery({
@@ -114,9 +122,14 @@ function DocumentDetail({ documentId }: { documentId: string }) {
           </Badge>
         }
         actions={
-          <div className="flex gap-2">
+          <div className="flex items-center gap-2">
+            <RevisionHistoryDrawer
+              revisions={revisions || []}
+              selectedId={selectedRevisionId}
+              onSelect={(id) => setSelectedRevisionId(id)}
+            />
             {intelligence?.review_items_count ? (
-              <Button asChild variant="default">
+              <Button asChild variant="default" className="rounded-lg">
                 <Link to="/documents/$documentId/review" params={{ documentId }}>
                   Review {intelligence.review_items_count} items
                 </Link>
@@ -124,6 +137,7 @@ function DocumentDetail({ documentId }: { documentId: string }) {
             ) : null}
             <Button
               variant="outline"
+              className="rounded-lg"
               onClick={() => retryMutation.mutate()}
               disabled={retryMutation.isPending}
             >
@@ -133,7 +147,11 @@ function DocumentDetail({ documentId }: { documentId: string }) {
         }
       />
       <div className="flex-1 overflow-hidden">
-        <DocumentWorkspace documentId={documentId} />
+        <DocumentWorkspace
+          documentId={documentId}
+          selectedRevisionId={selectedRevisionId}
+          onSelectRevision={setSelectedRevisionId}
+        />
       </div>
     </AppShell>
   );

@@ -11,6 +11,8 @@ from hospital_ai.core.errors import ConflictError
 from hospital_ai.core.security import new_trace_id
 from hospital_ai.db.clinical_documents import (
     DocumentDraftHead,
+    DocumentPageRevision,
+    DocumentRevisionPage,
     DocumentRevisionSet,
 )
 from hospital_ai.db.models import User
@@ -341,11 +343,22 @@ async def restore_revision(
     current_user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
 ) -> DraftPageRead:
+    target_page_rev_id = payload.revision_id
+    page_rev = await session.get(DocumentPageRevision, target_page_rev_id)
+    if not page_rev:
+        first_page = await session.scalar(
+            select(DocumentRevisionPage)
+            .where(DocumentRevisionPage.revision_set_id == revision_set_id)
+            .order_by(DocumentRevisionPage.page_number)
+        )
+        if first_page:
+            target_page_rev_id = first_page.page_revision_id
+
     aggregate = await load_document_revision_aggregate(
         session,
         document_id=document_id,
         revision_set_id=revision_set_id,
-        page_revision_id=payload.revision_id,
+        page_revision_id=target_page_rev_id,
         actor=current_user,
         action="document_revision.restore",
         trace_id=new_trace_id(),
@@ -380,7 +393,7 @@ async def restore_revision(
         res = await RevisionService(session).restore(
             document_id=document_id,
             page_number=aggregate.page_revision.page_number,
-            command=RestoreCommand(revision_id=payload.revision_id, actor_id=current_user.id, reason=payload.reason),
+            command=RestoreCommand(revision_id=target_page_rev_id, actor_id=current_user.id, reason=payload.reason),
             commit=False,
         )
     except Exception:

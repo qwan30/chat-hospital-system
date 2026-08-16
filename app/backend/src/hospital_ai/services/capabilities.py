@@ -20,7 +20,7 @@ from hospital_ai.services.audit import AuditService
 from hospital_ai.services.permissions import PATIENT_READ_SCOPES, PATIENT_UPLOAD_SCOPES, PermissionService
 
 ROLE_CAPABILITIES: Final[dict[str, frozenset[str]]] = {
-    "doctor": frozenset({"document_revision.view_raw", "document_revision.edit"}),
+    "doctor": frozenset({"document_revision.view_raw", "document_revision.edit", "document_revision.restore"}),
     "records_staff": frozenset(
         {
             "document_revision.view_raw",

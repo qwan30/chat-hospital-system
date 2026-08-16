@@ -60,11 +60,11 @@ export function DocumentPreview({
           <Loader2 className="h-4 w-4 animate-spin" /> Loading preview…
         </motion.div>
       ) : mimeType.startsWith("image/") ? (
-        <motion.div key="image" className="relative group" {...fade(reduceMotion)}>
+        <motion.div key="image" className="relative group w-full h-full min-h-[650px] lg:min-h-[780px] flex-1 flex flex-col" {...fade(reduceMotion)}>
           <img
             src={url}
             alt="Document preview"
-            className="max-h-[520px] w-full rounded border object-contain bg-muted/20"
+            className="w-full flex-1 min-h-[650px] lg:min-h-[780px] rounded-xl border object-contain bg-muted/10"
           />
           {children}
           <Dialog>
@@ -83,8 +83,8 @@ export function DocumentPreview({
           </Dialog>
         </motion.div>
       ) : mimeType === "application/pdf" ? (
-        <motion.div key="pdf" className="relative group h-[520px]" {...fade(reduceMotion)}>
-          <iframe title="Document preview" src={url} className="h-full w-full rounded border" />
+        <motion.div key="pdf" className="relative group w-full h-full min-h-[650px] lg:min-h-[780px] flex-1 flex flex-col" {...fade(reduceMotion)}>
+          <iframe title="Document preview" src={url} className="h-full w-full flex-1 min-h-[650px] lg:min-h-[780px] rounded-xl border" />
           <Dialog>
             <DialogTrigger asChild>
               <Button

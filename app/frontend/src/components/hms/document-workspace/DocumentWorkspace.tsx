@@ -103,12 +103,13 @@ export function DocumentWorkspace({
 
   const restoreMutation = useMutation({
     mutationFn: () => {
-      const revId = selectedRevisionId || revisionsQuery.data?.[0]?.revision_set_id;
-      if (!revId) return Promise.reject(new Error("No revision available to restore"));
+      const revSetId = selectedRevisionId || revisionsQuery.data?.[0]?.revision_set_id;
+      if (!revSetId) return Promise.reject(new Error("No revision available to restore"));
+      const pageRevId = revisionPageQuery.data?.page_revision_id || revSetId;
       return restoreRevision(
         documentId,
-        revId,
-        { revision_id: revId },
+        revSetId,
+        { revision_id: pageRevId },
         { idempotencyKey: crypto.randomUUID() },
       );
     },
@@ -259,7 +260,7 @@ export function DocumentWorkspace({
       </WorkspaceToolbar>
 
       <div className="flex-1 grid grid-cols-1 lg:grid-cols-2 gap-4 p-4 bg-muted/10 min-h-0 overflow-auto">
-        <div className="min-h-[500px] h-[calc(100vh-230px)] border rounded-2xl bg-card p-4 flex flex-col overflow-hidden shadow-sm">
+        <div className="min-h-[700px] xl:min-h-[820px] border rounded-2xl bg-card p-4 flex flex-col overflow-hidden shadow-sm">
           {documentQuery.data && (
             <DocumentPreview documentId={documentId} mimeType={documentQuery.data.mime_type}>
               <GeometryOverlay boxes={exactBoxes} staleCount={staleCount} />
@@ -267,7 +268,7 @@ export function DocumentWorkspace({
           )}
         </div>
 
-        <div className="min-h-[500px] h-[calc(100vh-230px)] border rounded-2xl bg-card p-4 flex flex-col overflow-hidden shadow-sm">
+        <div className="min-h-[700px] xl:min-h-[820px] border rounded-2xl bg-card p-4 flex flex-col overflow-hidden shadow-sm">
           <Tabs defaultValue="corrected" className="flex-1 flex flex-col h-full min-h-0">
             <TabsList className="mb-3 rounded-xl p-1 bg-muted/40 w-fit">
               <TabsTrigger value="corrected" className="rounded-lg text-xs font-medium px-3.5">
@@ -304,10 +305,10 @@ export function DocumentWorkspace({
                       disabled={restoreMutation.isPending}
                     >
                       <Edit3 className="h-3 w-3" />
-                      {restoreMutation.isPending ? "Creating draft..." : "Edit as New Draft"}
+                      {restoreMutation.isPending ? "Restoring..." : "Edit as New Draft"}
                     </Button>
                   </div>
-                  <div className="flex-1 p-4 border rounded-xl bg-muted/20 overflow-auto whitespace-pre-wrap font-mono text-xs sm:text-sm leading-relaxed shadow-inner">
+                  <div className="flex-1 p-4 border rounded-xl bg-muted/20 overflow-auto whitespace-pre-wrap font-mono text-xs sm:text-sm leading-relaxed shadow-inner min-h-[500px] lg:min-h-[640px]">
                     {correctedText}
                   </div>
                 </div>
@@ -332,12 +333,12 @@ export function DocumentWorkspace({
               )}
             </TabsContent>
             <TabsContent value="raw" className="flex-1 flex flex-col mt-0 h-full min-h-0 overflow-hidden">
-              <div className="flex-1 p-4 border rounded-xl bg-muted/20 overflow-auto whitespace-pre-wrap font-mono text-xs sm:text-sm leading-relaxed shadow-inner">
+              <div className="flex-1 p-4 border rounded-xl bg-muted/20 overflow-auto whitespace-pre-wrap font-mono text-xs sm:text-sm leading-relaxed shadow-inner min-h-[500px] lg:min-h-[640px]">
                 {originalText}
               </div>
             </TabsContent>
             <TabsContent value="diff" className="flex-1 flex flex-col mt-0 h-full min-h-0 overflow-hidden">
-              <div className="flex-1 border rounded-xl overflow-auto bg-muted/10 shadow-inner">
+              <div className="flex-1 border rounded-xl overflow-auto bg-muted/10 shadow-inner min-h-[500px] lg:min-h-[640px]">
                 <RevisionDiff originalText={originalText} correctedText={correctedText} />
               </div>
             </TabsContent>

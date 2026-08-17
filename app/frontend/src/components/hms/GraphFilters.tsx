@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
+import { GraphLegend, RELATION_STYLES } from "./GraphLegend";
 
 export const DEFAULT_GRAPH_FILTERS: DocumentGraphFilters = {
   node_limit: 50,
@@ -211,6 +212,38 @@ export function GraphFilters({
           </div>
         )}
 
+        {supports("relation_types") && (
+          <div className="space-y-2">
+            <Label>Clinical Relations</Label>
+            <div className="flex flex-wrap gap-1.5">
+              {Object.entries(RELATION_STYLES).map(([key, style]) => {
+                const isSelected = filters.relation_types?.includes(key);
+                return (
+                  <button
+                    key={key}
+                    type="button"
+                    aria-label={`Filter relation ${style.label}`}
+                    onClick={() => {
+                      const current = filters.relation_types || [];
+                      const updated = isSelected
+                        ? current.filter((r) => r !== key)
+                        : [...current, key];
+                      onChange({ ...filters, relation_types: updated });
+                    }}
+                    className={`px-2 py-0.5 text-xs rounded-md border transition-all ${
+                      isSelected
+                        ? "bg-primary text-primary-foreground border-primary font-medium"
+                        : "bg-muted/30 text-muted-foreground hover:text-foreground border-border/50"
+                    }`}
+                  >
+                    {style.label}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
         {supports("include_superseded") && canReadSuperseded && (
           <div className="flex items-center justify-between pt-2 border-t">
             <Label htmlFor="include-superseded" className="cursor-pointer">
@@ -225,6 +258,8 @@ export function GraphFilters({
           </div>
         )}
       </Card>
+
+      <GraphLegend />
 
       {canReadSuperseded && filters.include_superseded && supersededEvidenceList.length > 0 && (
         <Card className="p-4 border-warning/40 bg-warning/5 space-y-3">

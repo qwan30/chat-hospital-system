@@ -46,9 +46,7 @@ class PatientResolver:
     def __init__(self, session: AsyncSession):
         self.session = session
 
-    async def resolve(
-        self, query: str, user: Optional[User] = None
-    ) -> PatientResolutionResult:
+    async def resolve(self, query: str, user: Optional[User] = None) -> PatientResolutionResult:
         if not query or not query.strip():
             return PatientResolutionResult(status="no_match", raw_query=query or "")
 
@@ -86,11 +84,7 @@ class PatientResolver:
             p_norm_mrn = remove_accents(p.mrn)
 
             # Check if patient's name is mentioned in the query
-            if (
-                len(p_norm_name) >= 3 and p_norm_name in norm_query
-            ) or (
-                p_norm_mrn in norm_query
-            ):
+            if (len(p_norm_name) >= 3 and p_norm_name in norm_query) or (p_norm_mrn in norm_query):
                 matched_patients.append(p)
                 matched_name = p.full_name
 

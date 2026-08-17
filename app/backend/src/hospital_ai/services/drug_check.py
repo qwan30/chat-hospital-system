@@ -33,6 +33,7 @@ class DrugWarning:
 
 
 SEVERITY_MAP = {
+    "allergic_to": "critical",
     "contraindicates": "critical",
     "interacts_with": "high",
     "causes": "medium",
@@ -59,6 +60,7 @@ def _severity_for(relation_type: str) -> str:
 
 def _build_message(drug: str, entity: str, relation_type: str) -> str:
     templates = {
+        "allergic_to": f"🚨 ALLERGY ALERT: Patient has documented allergy to {drug.title()} / {entity.title()}.",
         "contraindicates": f"⚠️ CRITICAL: {drug.title()} is contraindicated with {entity.title()}.",
         "interacts_with": f"⚠️ WARNING: {drug.title()} has a known interaction with {entity.title()}.",
         "causes": f"⚠️ CAUTION: {drug.title()} may cause or worsen {entity.title()}.",

@@ -24,14 +24,13 @@ from hospital_ai.api.limiter import limiter
 from hospital_ai.core.config import Settings, get_settings
 from hospital_ai.core.errors import AppError
 from hospital_ai.core.security import PATIENT_READ_SCOPES, new_trace_id
-from hospital_ai.db.models import AiQuery, ChatMessage, ChatThread, Patient, RetrievedEvidence, User
+from hospital_ai.db.models import AiQuery, ChatMessage, ChatThread, RetrievedEvidence, User
 from hospital_ai.db.session import get_session_factory
 from hospital_ai.schemas.chat import ChatRequest
 from hospital_ai.services.audit import AuditService
 from hospital_ai.services.chat import (
     PERMISSION_DENIED_CHAT_ANSWER,
     SAFE_INJECTION_DETECTED_ANSWER,
-    SAFE_INVALID_CITATION_ANSWER,
     SAFE_NO_EVIDENCE_ANSWER,
     SAFE_PHI_LEAK_BLOCKED_ANSWER,
     _select_pipeline,
@@ -45,7 +44,6 @@ from hospital_ai.services.chat_utils import (
     meets_evidence_threshold,
 )
 from hospital_ai.services.embeddings import EmbeddingService
-from hospital_ai.services.general_knowledge import GeneralKnowledgeService, rank_general_knowledge
 from hospital_ai.services.guardrails import get_input_guardrail, get_output_guardrail
 from hospital_ai.services.llm import LLMManager
 from hospital_ai.services.llm.base import LLMMessage
@@ -1007,14 +1005,28 @@ async def chat_stream(
 
     resolved_patient = None
     effective_patient_id = payload.patient_id or (payload.context.patient_id if payload.context else None)
-    if effective_patient_id is None:
-        from hospital_ai.services.patient_resolver import PatientResolver
 
+    # Create AI query record early
+    ai_query = AiQuery(
+        user_id=current_user.id,
+        patient_id=effective_patient_id,
+        question=payload.question,
+        status="received",
+        model=_resolve_model_name(settings),
+    )
+    session.add(ai_query)
+    await session.flush()
+
+    if effective_patient_id is None:
         patient_res = await PatientResolver(session).resolve(payload.question, user=current_user)
         if patient_res.status == "single_match" and patient_res.patients:
             resolved_patient = patient_res.patients[0]
             effective_patient_id = resolved_patient.id
+            ai_query.patient_id = effective_patient_id
+            await session.flush()
         elif patient_res.status == "multiple_matches" and patient_res.patients:
+            ai_query.status = "disambiguation_required"
+            await session.flush()
             disam_event = {
                 "type": "disambiguation_required",
                 "matched_term": patient_res.matched_term,
@@ -1031,7 +1043,7 @@ async def chat_stream(
             }
             candidates = disam_event.get("candidates", [])
             lines = [
-                f"{i+1}. **{c['patient_name']}** (MRN: `{c['mrn']}`, Khoa: {c.get('department') or 'N/A'})"
+                f"{i + 1}. **{c['patient_name']}** (MRN: `{c['mrn']}`, Khoa: {c.get('department') or 'N/A'})"
                 for i, c in enumerate(candidates)
             ]
             disam_msg = (
@@ -1042,7 +1054,13 @@ async def chat_stream(
 
             async def disambiguation_stream() -> AsyncIterator[str]:
                 yield f"data: {json.dumps(disam_event)}\n\n"
-                yield f"data: {json.dumps({'type': 'token', 'content': disam_msg, 'sequence': 1, 'validation_mode': 'sentence_buffered'})}\n\n"
+                token_event = {
+                    "type": "token",
+                    "content": disam_msg,
+                    "sequence": 1,
+                    "validation_mode": "sentence_buffered",
+                }
+                yield f"data: {json.dumps(token_event)}\n\n"
                 meta_event = json.dumps(
                     {
                         "type": "metadata",
@@ -1056,17 +1074,6 @@ async def chat_stream(
                 yield f"data: {json.dumps({'type': 'done', 'query_id': str(ai_query.id)})}\n\n"
 
             return StreamingResponse(disambiguation_stream(), media_type="text/event-stream")
-
-    # Create AI query record
-    ai_query = AiQuery(
-        user_id=current_user.id,
-        patient_id=effective_patient_id,
-        question=payload.question,
-        status="received",
-        model=_resolve_model_name(settings),
-    )
-    session.add(ai_query)
-    await session.flush()
 
     # Permission check
     if effective_patient_id:

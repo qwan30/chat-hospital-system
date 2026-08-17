@@ -457,7 +457,7 @@ async def get_document_intelligence(
     facts_result = await session.execute(
         select(ClinicalFact).where(
             ClinicalFact.document_id == document_id,
-            ClinicalFact.generation_id.is_not_distinct_from(document.active_index_generation_id)
+            ClinicalFact.generation_id.is_not_distinct_from(document.active_index_generation_id),
         )
     )
     facts = facts_result.scalars().all()
@@ -497,7 +497,7 @@ async def get_document_facts(
     facts_result = await session.execute(
         select(ClinicalFact).where(
             ClinicalFact.document_id == document_id,
-            ClinicalFact.generation_id.is_not_distinct_from(document.active_index_generation_id)
+            ClinicalFact.generation_id.is_not_distinct_from(document.active_index_generation_id),
         )
     )
     facts = facts_result.scalars().all()

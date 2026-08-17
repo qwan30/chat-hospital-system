@@ -1,11 +1,14 @@
+from __future__ import annotations
+
 import json
-import pytest
 import uuid
 from datetime import date
+
+import pytest
 from starlette.requests import Request
 
 from hospital_ai.api.routes.chat_stream import chat_stream
-from hospital_ai.db.models import Patient, User, PatientPermission
+from hospital_ai.db.models import Patient, PatientPermission, User
 from hospital_ai.schemas.chat import ChatRequest
 
 
@@ -62,9 +65,7 @@ async def sample_chat_patient(session_and_settings):
 
 
 @pytest.mark.asyncio
-async def test_chat_stream_resolves_patient_in_general_mode(
-    session_and_settings, sample_chat_patient
-):
+async def test_chat_stream_resolves_patient_in_general_mode(session_and_settings, sample_chat_patient):
     session, settings = session_and_settings
     doctor = sample_chat_patient["doctor"]
     patient = sample_chat_patient["patient"]
@@ -97,9 +98,7 @@ async def test_chat_stream_resolves_patient_in_general_mode(
 
 
 @pytest.mark.asyncio
-async def test_chat_stream_answers_hospital_protocols_in_general_mode(
-    session_and_settings, sample_chat_patient
-):
+async def test_chat_stream_answers_hospital_protocols_in_general_mode(session_and_settings, sample_chat_patient):
     session, settings = session_and_settings
     doctor = sample_chat_patient["doctor"]
 
@@ -126,3 +125,56 @@ async def test_chat_stream_answers_hospital_protocols_in_general_mode(
     token_texts = [e.get("content", "") for e in events if e.get("type") == "token"]
     full_answer = "".join(token_texts)
     assert "STEMI" in full_answer or "infarction" in full_answer.lower() or "ecg" in full_answer.lower()
+
+
+@pytest.mark.asyncio
+async def test_chat_stream_disambiguation_multi_match(session_and_settings):
+    session, settings = session_and_settings
+    doctor = User(
+        id=uuid.uuid4(),
+        email="doctor_disam@example.test",
+        full_name="Dr. Disam",
+        department="Cardiology",
+        role="doctor",
+    )
+    p1 = Patient(
+        id=uuid.uuid4(),
+        mrn="MRN-9001",
+        full_name="Bùi Đức Hùng",
+        dob=date(1978, 5, 20),
+        department="Cardiology 4N",
+        status="active",
+    )
+    p2 = Patient(
+        id=uuid.uuid4(),
+        mrn="MRN-9002",
+        full_name="Bùi Đức Hùng",
+        dob=date(1980, 1, 1),
+        department="ICU",
+        status="active",
+    )
+    session.add_all(
+        [
+            doctor,
+            p1,
+            p2,
+            PatientPermission(user_id=doctor.id, patient_id=p1.id, scope="read"),
+            PatientPermission(user_id=doctor.id, patient_id=p2.id, scope="read"),
+        ]
+    )
+    await session.commit()
+
+    payload = ChatRequest(question="bui duc hung di ung thuoc gi?", patient_id=None, top_k=5)
+    response = await chat_stream(
+        payload=payload,
+        request=_request(),
+        session=session,
+        current_user=doctor,
+        settings=settings,
+    )
+    assert response.status_code == 200
+    events = []
+    async for chunk in response.body_iterator:
+        events.append(chunk)
+    assert any("disambiguation_required" in c for c in events)
+    assert any('"type": "done"' in c or '"type":"done"' in c for c in events)

@@ -1,0 +1,43 @@
+[config]
+model = "deepseek/deepseek-chat"
+fallback_models = ["deepseek/deepseek-chat"]
+repo_context_files = [
+    "AGENTS.md",
+    "PRODUCT.md"
+]
+repo_context_from_default_branch = false
+allow_dynamic_context = true
+output_run_details = true
+
+[pr_reviewer]
+num_max_findings = 6
+enable_review_labels_effort = true
+enable_review_labels_security = true
+extra_instructions = """
+You are reviewing code for an AI-Powered Hospital Knowledge Assistant (FastAPI backend + TanStack Start frontend).
+
+Critical Focus Areas:
+1. Patient Privacy & Security (PHI): Ensure zero unauthorized patient data leaks, strict RBAC/authorization filter before retrieval or LLM context, and no hardcoded credentials.
+2. Clinical AI Safety: Check for safe refusals, clear citation requirements, hallucination prevention, and defensive data contract validation.
+3. Backend Reliability: Look for concurrency race conditions, database transaction boundaries, proper async/await hygiene in FastAPI, schema validation (Pydantic v2), and error logging without sensitive data leaks.
+4. Frontend Quality: Verify immutability, proper React hook dependencies, resilient loading/error states, and accessibility.
+5. Testing: Ensure all new features, bug fixes, or changed behaviors include corresponding unit or integration tests.
+
+Avoid subjective stylistic nitpicks unless they violate repository guidelines in AGENTS.md. Focus on real correctness, safety, and performance bugs.
+"""
+
+[pr_description]
+publish_labels = true
+extra_instructions = """
+Highlight any changes that affect:
+- Security or PHI data access
+- API contracts between frontend and backend
+- Database migrations or schema definitions
+- Evaluation benchmarks or retrieval pipeline
+"""
+
+[pr_code_suggestions]
+num_code_suggestions = 4
+extra_instructions = """
+Provide concrete, drop-in replacement suggestions for any identified bugs, race conditions, or security issues.
+"""

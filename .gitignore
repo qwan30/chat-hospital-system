@@ -72,3 +72,7 @@ evaluation-artifacts/
 # Local review scratch (repo snapshots + archives)
 .review-*
 *.tar
+
+# Git Worktrees
+.worktrees/
+worktrees/

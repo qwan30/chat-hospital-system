@@ -1,6 +1,5 @@
 [config]
 model = "deepseek/deepseek-chat"
-fallback_models = ["deepseek/deepseek-chat"]
 repo_context_files = [
     "AGENTS.md",
     "PRODUCT.md"

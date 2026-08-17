@@ -24,11 +24,18 @@ export function RevisionHistoryDrawer({
   return (
     <Sheet>
       <SheetTrigger asChild>
-        <Button variant="outline" size="sm" className="h-8 gap-1.5 rounded-lg border-input bg-background/80 hover:bg-muted font-medium text-xs shadow-sm">
+        <Button
+          variant="outline"
+          size="sm"
+          className="h-8 gap-1.5 rounded-lg border-input bg-background/80 hover:bg-muted font-medium text-xs shadow-sm"
+        >
           <History className="h-3.5 w-3.5 text-muted-foreground" />
           History
           {revisions.length > 0 && (
-            <Badge variant="secondary" className="h-5 px-1.5 text-[10px] rounded-full font-semibold">
+            <Badge
+              variant="secondary"
+              className="h-5 px-1.5 text-[10px] rounded-full font-semibold"
+            >
               {revisions.length}
             </Badge>
           )}

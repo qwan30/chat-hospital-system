@@ -130,7 +130,12 @@ function DocumentDetail({ documentId }: { documentId: string }) {
                 onSelect={(id) => setSelectedRevisionId(id)}
               />
               {intelligence?.review_items_count ? (
-                <Button asChild variant="default" size="sm" className="rounded-lg h-8 text-xs font-medium shadow-sm">
+                <Button
+                  asChild
+                  variant="default"
+                  size="sm"
+                  className="rounded-lg h-8 text-xs font-medium shadow-sm"
+                >
                   <Link to="/documents/$documentId/review" params={{ documentId }}>
                     Review {intelligence.review_items_count} items
                   </Link>

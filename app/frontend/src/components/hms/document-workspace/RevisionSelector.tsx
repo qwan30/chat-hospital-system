@@ -9,7 +9,10 @@ export function RevisionSelector({
 }) {
   return (
     <div className="flex items-center gap-1.5">
-      <label htmlFor="revision-select" className="text-xs font-medium text-muted-foreground whitespace-nowrap">
+      <label
+        htmlFor="revision-select"
+        className="text-xs font-medium text-muted-foreground whitespace-nowrap"
+      >
         Revision
       </label>
       <select

@@ -1,7 +1,15 @@
 import React from "react";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
-import { Heart, Activity, Pill, AlertTriangle, FlaskConical, Stethoscope, Link2 } from "lucide-react";
+import {
+  Heart,
+  Activity,
+  Pill,
+  AlertTriangle,
+  FlaskConical,
+  Stethoscope,
+  Link2,
+} from "lucide-react";
 
 export interface RelationBadgeStyle {
   label: string;
@@ -73,12 +81,37 @@ export const RELATION_STYLES: Record<string, RelationBadgeStyle> = {
 };
 
 export const NODE_LEGEND_ITEMS = [
-  { type: "patient", label: "Patient", Icon: Heart, color: "text-primary bg-primary/10 border-primary/20" },
-  { type: "encounter", label: "Encounter", Icon: Stethoscope, color: "text-info bg-info/10 border-info/20" },
+  {
+    type: "patient",
+    label: "Patient",
+    Icon: Heart,
+    color: "text-primary bg-primary/10 border-primary/20",
+  },
+  {
+    type: "encounter",
+    label: "Encounter",
+    Icon: Stethoscope,
+    color: "text-info bg-info/10 border-info/20",
+  },
   { type: "diagnosis", label: "Diagnosis", Icon: Activity, color: "text-ai bg-ai/10 border-ai/20" },
-  { type: "medication", label: "Medication", Icon: Pill, color: "text-citation bg-citation/10 border-citation/20" },
-  { type: "allergy", label: "Allergy", Icon: AlertTriangle, color: "text-destructive bg-destructive/10 border-destructive/20" },
-  { type: "lab", label: "Lab Observation", Icon: FlaskConical, color: "text-warning bg-warning/10 border-warning/20" },
+  {
+    type: "medication",
+    label: "Medication",
+    Icon: Pill,
+    color: "text-citation bg-citation/10 border-citation/20",
+  },
+  {
+    type: "allergy",
+    label: "Allergy",
+    Icon: AlertTriangle,
+    color: "text-destructive bg-destructive/10 border-destructive/20",
+  },
+  {
+    type: "lab",
+    label: "Lab Observation",
+    Icon: FlaskConical,
+    color: "text-warning bg-warning/10 border-warning/20",
+  },
 ];
 
 export function GraphLegend() {
@@ -106,7 +139,12 @@ export function GraphLegend() {
         </h4>
         <div className="flex flex-wrap gap-1.5">
           {Object.entries(RELATION_STYLES).map(([key, style]) => (
-            <Badge key={key} variant="outline" className={`${style.className} text-[11px] py-0.5`} title={style.description}>
+            <Badge
+              key={key}
+              variant="outline"
+              className={`${style.className} text-[11px] py-0.5`}
+              title={style.description}
+            >
               {style.label}
             </Badge>
           ))}

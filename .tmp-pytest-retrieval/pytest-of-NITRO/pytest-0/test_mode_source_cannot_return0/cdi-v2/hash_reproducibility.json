@@ -1,1 +1,0 @@
-{"gate_name": "hash_reproducibility", "passed": true, "source_artifact": "s3://bucket/artifacts/hash_reproducibility.zip", "producer_sha": "abcdef1234567890", "schema_version": "1.0.0", "hash": "863364ebb4c32fd26686fc0aa93bdcd0192f2c4516573bfe60d3d6a4fe488900", "details": {}}

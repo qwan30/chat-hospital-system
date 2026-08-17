@@ -1,1 +1,0 @@
-{"gate_name": "legacy_parity", "passed": true, "source_artifact": "s3://bucket/artifacts/legacy_parity.zip", "producer_sha": "abcdef1234567890", "schema_version": "1.0.0", "hash": "dummyhash", "details": {}}

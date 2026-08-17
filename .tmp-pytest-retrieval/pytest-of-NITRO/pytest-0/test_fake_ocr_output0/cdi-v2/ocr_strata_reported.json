@@ -1,1 +1,0 @@
-{"gate_name": "ocr_strata_reported", "passed": true, "source_artifact": "s3://bucket/artifacts/ocr_strata_reported.zip", "producer_sha": "abcdef1234567890", "schema_version": "1.0.0", "hash": "dummyhash", "details": {"ocr_engine": "fake"}}

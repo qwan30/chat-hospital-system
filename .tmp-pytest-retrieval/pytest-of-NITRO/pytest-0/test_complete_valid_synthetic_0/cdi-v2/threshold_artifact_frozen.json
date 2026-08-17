@@ -1,1 +1,0 @@
-{"gate_name": "threshold_artifact_frozen", "passed": true, "source_artifact": "s3://bucket/artifacts/threshold_artifact_frozen.zip", "producer_sha": "abcdef1234567890", "schema_version": "1.0.0", "hash": "2f3638bbdcb5696257ac58168eaf5eb15a94cccdde7eefcf7797b6764bd0ecdd", "details": {"status": "frozen", "signature": "valid"}}

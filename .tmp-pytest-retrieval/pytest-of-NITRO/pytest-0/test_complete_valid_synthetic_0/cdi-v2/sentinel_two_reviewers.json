@@ -1,1 +1,0 @@
-{"gate_name": "sentinel_two_reviewers", "passed": true, "source_artifact": "s3://bucket/artifacts/sentinel_two_reviewers.zip", "producer_sha": "abcdef1234567890", "schema_version": "1.0.0", "hash": "6b43895107a889c32910cbf3b0b74110f30e6f89349fd3d570251b045b220c4d", "details": {"reviewers": ["alice", "bob"]}}

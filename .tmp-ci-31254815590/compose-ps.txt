@@ -1,4 +1,0 @@
-NAME                              IMAGE                                     COMMAND                  SERVICE    CREATED              STATUS                        PORTS
-chat-hospital-system-backend-1    ghcr.io/qwan30/hospital-ai-backend:main   "sh -c 'exec uvicorn…"   backend    About a minute ago   Up About a minute (healthy)   0.0.0.0:8000->8000/tcp, [::]:8000->8000/tcp
-chat-hospital-system-postgres-1   pgvector/pgvector:pg16                    "docker-entrypoint.s…"   postgres   About a minute ago   Up About a minute (healthy)   0.0.0.0:5433->5432/tcp, [::]:5433->5432/tcp
-chat-hospital-system-redis-1      redis:7-alpine                            "docker-entrypoint.s…"   redis      About a minute ago   Up About a minute (healthy)   0.0.0.0:6379->6379/tcp, [::]:6379->6379/tcp

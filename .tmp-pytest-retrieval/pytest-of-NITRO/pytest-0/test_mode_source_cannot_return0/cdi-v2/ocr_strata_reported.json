@@ -1,1 +1,0 @@
-{"gate_name": "ocr_strata_reported", "passed": true, "source_artifact": "s3://bucket/artifacts/ocr_strata_reported.zip", "producer_sha": "abcdef1234567890", "schema_version": "1.0.0", "hash": "fe94ab19121b95297a613c973aeec0794d934ceb9bd333c828e73fbbd33f0b9b", "details": {"ocr_engine": "paddle_v2"}}

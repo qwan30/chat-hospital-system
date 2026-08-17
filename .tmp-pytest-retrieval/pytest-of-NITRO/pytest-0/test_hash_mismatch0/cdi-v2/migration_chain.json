@@ -1,1 +1,0 @@
-{"gate_name": "migration_chain", "passed": true, "source_artifact": "s3://bucket/artifacts/migration_chain.zip", "producer_sha": "abcdef1234567890", "schema_version": "1.0.0", "hash": "tampered_hash", "details": {}}

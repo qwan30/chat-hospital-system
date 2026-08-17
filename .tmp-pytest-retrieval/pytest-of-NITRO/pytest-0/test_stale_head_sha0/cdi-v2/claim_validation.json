@@ -1,1 +1,0 @@
-{"gate_name": "claim_validation", "passed": true, "source_artifact": "s3://bucket/artifacts/claim_validation.zip", "producer_sha": "stalesha000", "schema_version": "1.0.0", "hash": "dummyhash", "details": {}}

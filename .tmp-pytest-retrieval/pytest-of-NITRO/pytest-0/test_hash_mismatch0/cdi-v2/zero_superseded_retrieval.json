@@ -1,1 +1,0 @@
-{"gate_name": "zero_superseded_retrieval", "passed": true, "source_artifact": "s3://bucket/artifacts/zero_superseded_retrieval.zip", "producer_sha": "abcdef1234567890", "schema_version": "1.0.0", "hash": "9d202cfd90d3c1ceebdbb7ac86333c7b9afed0dc912a4553db9a3a8d1d297ad3", "details": {}}

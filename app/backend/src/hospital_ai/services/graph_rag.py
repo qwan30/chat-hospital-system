@@ -140,7 +140,8 @@ _EXPLICIT_RELATION_PATTERN = re.compile(
 )
 
 _PATIENT_DIAGNOSIS_PATTERN = re.compile(
-    r"(?:patient\s+(?:is\s+)?(?:diagnosed|admitted)\s+with|diagnosis\s+of)\s+(?P<target>[A-Za-z0-9 _-]{2,60}?)(?=[.,;]|$)",
+    r"(?:patient\s+(?:is\s+)?(?:diagnosed|admitted)\s+with|diagnosis\s+of)\s+"
+    r"(?P<target>[A-Za-z0-9 _-]{2,60}?)(?=[.,;]|$)",
     re.IGNORECASE,
 )
 
@@ -256,12 +257,12 @@ def _extract_explicit_relations_fallback(content: str) -> tuple[list[ExtractedEn
             relation_key = (CANONICAL_PATIENT_ANCHOR, target, "diagnosed_with")
             if relation_key not in seen_relations:
                 seen_relations.add(relation_key)
-                entities.setdefault(CANONICAL_PATIENT_ANCHOR, ExtractedEntity(CANONICAL_PATIENT_ANCHOR, "patient_anchor"))
+                entities.setdefault(
+                    CANONICAL_PATIENT_ANCHOR, ExtractedEntity(CANONICAL_PATIENT_ANCHOR, "patient_anchor")
+                )
                 entities.setdefault(target, ExtractedEntity(target, "condition"))
                 relations.append(
-                    ExtractedRelation(
-                        CANONICAL_PATIENT_ANCHOR, target, "diagnosed_with", source_layer="grammar"
-                    )
+                    ExtractedRelation(CANONICAL_PATIENT_ANCHOR, target, "diagnosed_with", source_layer="grammar")
                 )
 
         # 3. Patient-anchored history (history_of)
@@ -274,12 +275,12 @@ def _extract_explicit_relations_fallback(content: str) -> tuple[list[ExtractedEn
             relation_key = (CANONICAL_PATIENT_ANCHOR, target, "history_of")
             if relation_key not in seen_relations:
                 seen_relations.add(relation_key)
-                entities.setdefault(CANONICAL_PATIENT_ANCHOR, ExtractedEntity(CANONICAL_PATIENT_ANCHOR, "patient_anchor"))
+                entities.setdefault(
+                    CANONICAL_PATIENT_ANCHOR, ExtractedEntity(CANONICAL_PATIENT_ANCHOR, "patient_anchor")
+                )
                 entities.setdefault(target, ExtractedEntity(target, "condition"))
                 relations.append(
-                    ExtractedRelation(
-                        CANONICAL_PATIENT_ANCHOR, target, "history_of", source_layer="grammar"
-                    )
+                    ExtractedRelation(CANONICAL_PATIENT_ANCHOR, target, "history_of", source_layer="grammar")
                 )
 
         # 4. Patient-anchored allergies (allergic_to)
@@ -292,12 +293,12 @@ def _extract_explicit_relations_fallback(content: str) -> tuple[list[ExtractedEn
             relation_key = (CANONICAL_PATIENT_ANCHOR, target, "allergic_to")
             if relation_key not in seen_relations:
                 seen_relations.add(relation_key)
-                entities.setdefault(CANONICAL_PATIENT_ANCHOR, ExtractedEntity(CANONICAL_PATIENT_ANCHOR, "patient_anchor"))
+                entities.setdefault(
+                    CANONICAL_PATIENT_ANCHOR, ExtractedEntity(CANONICAL_PATIENT_ANCHOR, "patient_anchor")
+                )
                 entities.setdefault(target, ExtractedEntity(target, "drug"))
                 relations.append(
-                    ExtractedRelation(
-                        CANONICAL_PATIENT_ANCHOR, target, "allergic_to", source_layer="grammar"
-                    )
+                    ExtractedRelation(CANONICAL_PATIENT_ANCHOR, target, "allergic_to", source_layer="grammar")
                 )
 
     return list(entities.values()), relations

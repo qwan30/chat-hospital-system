@@ -1,10 +1,8 @@
 """Tests for Graph RAG 10-relation ontology, canonical patient anchor, and schema validation."""
 
-import pytest
 from hospital_ai.services.graph_rag import (
     CANONICAL_PATIENT_ANCHOR,
     VALID_RELATION_TYPES,
-    ExtractedEntity,
     ExtractedRelation,
     validate_relation_type,
 )

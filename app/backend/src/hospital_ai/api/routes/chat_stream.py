@@ -285,8 +285,8 @@ async def _generate_validated_sse_events(
             LLMMessage(
                 role="system",
                 content=(
-                    "You are a hospital knowledge assistant. Answer only from the evidence. "
-                    "Cite every factual claim using evidence IDs like [E1]."
+                    "You are a clinical knowledge assistant. Answer accurately and concisely "
+                    "based on the authorized evidence. Cite each factual claim with [E1] or [E2]."
                 ),
             ),
             LLMMessage(role="user", content=prompt),
@@ -617,8 +617,8 @@ async def _generate_sse_events(
             LLMMessage(
                 role="system",
                 content=(
-                    "You are a hospital knowledge assistant. Answer only from the evidence. "
-                    "Cite every factual claim using evidence IDs like [E1]."
+                    "You are a clinical knowledge assistant. Answer accurately and concisely "
+                    "based on the authorized evidence. Cite each factual claim with [E1] or [E2]."
                 ),
             ),
             LLMMessage(role="user", content=prompt),
@@ -1186,6 +1186,7 @@ async def chat_stream(
         # ── Graph RAG Enrichment ─────────────────────────────────────────────
         try:
             if effective_patient_id:
+                from hospital_ai.services.bm25 import reciprocal_rank_fusion
                 from hospital_ai.services.chat import extract_entities_and_relations_nlp, find_related_entities
 
                 query_entities, _ = await extract_entities_and_relations_nlp(payload.question)
@@ -1195,19 +1196,40 @@ async def chat_stream(
                         session, entity_names, max_hops=2, patient_id=effective_patient_id
                     )
                     if graph_ctx.related_chunk_ids:
-                        existing_ids = {e.chunk_id for e in evidence}
-                        graph_only_ids = graph_ctx.related_chunk_ids - existing_ids
-                        if graph_only_ids:
-                            graph_evidence = await retrieval_svc.get_chunks_by_ids(
-                                list(graph_only_ids)[: payload.top_k],
-                                user_id=current_user.id,
-                                patient_id=effective_patient_id,
-                                hospital_wide=hospital_wide,
+                        graph_chunks = await retrieval_svc.get_chunks_by_ids(
+                            list(graph_ctx.related_chunk_ids),
+                            user_id=current_user.id,
+                            patient_id=effective_patient_id,
+                            hospital_wide=hospital_wide,
+                        )
+                        graph_evidence = [
+                            RetrievedChunk(
+                                evidence_id=ge.evidence_id,
+                                document_id=ge.document_id,
+                                document_title=ge.document_title,
+                                page=ge.page,
+                                chunk_id=ge.chunk_id,
+                                score=ge.score,
+                                content=ge.content,
+                                metadata={**ge.metadata, "retrieval_method": "graph"},
+                                patient_id=ge.patient_id,
+                                generation_id=ge.generation_id,
+                                revision_set_id=ge.revision_set_id,
+                                page_revision_id=ge.page_revision_id,
+                                active_index_generation_id=ge.active_index_generation_id,
+                                approval_state=ge.approval_state,
+                                retrieval_method="graph",
+                                source_hash=ge.source_hash,
+                                start_offset=ge.start_offset,
+                                end_offset=ge.end_offset,
+                                bounding_boxes=ge.bounding_boxes,
                             )
-                            for ge in graph_evidence:
-                                ge.metadata["retrieval_method"] = "graph"
-                            evidence.extend(graph_evidence)
-                            evidence = evidence[: payload.top_k]
+                            for ge in graph_chunks
+                        ]
+                        if evidence and graph_evidence:
+                            evidence = reciprocal_rank_fusion(evidence, graph_evidence, top_k=payload.top_k)
+                        elif graph_evidence:
+                            evidence = graph_evidence[: payload.top_k]
         except Exception:
             logger.warning("Graph RAG enrichment skipped", exc_info=True)
 

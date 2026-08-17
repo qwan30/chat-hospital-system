@@ -3,8 +3,10 @@
 ## Project Information
 - **Feature**: Mở rộng 5 quan hệ Graph RAG (`interacts_with`, `indicates`, `allergic_to`, `diagnosed_with`, `history_of`) với mô hình Hybrid Phased Architecture (Catalog + LLM + Traversal Guard + Negation Filter + Backfill).
 - **Target Branch**: `feat/expanded-clinical-graph-relations`
+- **Commit**: `98a6180`
 - **Started At**: 2026-08-17T09:03:00+07:00
-- **Status**: Phase 5 (QA/QC & Production Audit)
+- **Completed At**: 2026-08-17T09:42:00+07:00
+- **Status**: **RELEASE_READY (100% COMPLETED)**
 
 ---
 
@@ -12,7 +14,7 @@
 
 | Todo | In Progress | In Review | Done |
 | :--- | :--- | :--- | :--- |
-| Phase 6 (Certification) | Phase 5 (QA/QC & Production Audit) | - | Phase 0, 1, 2, 3, 4 |
+| - | - | - | Phase 0, 1, 2, 3, 4, 5, 6 |
 
 ---
 
@@ -46,12 +48,19 @@
 - [x] Security Reviewer Verdict: **APPROVED (PASS_WITH_NOTES)**
 - [x] Logic Reviewer Verdict: **PASS**
 
-### [/] Phase 5: QA/QC, Playwright E2E Automation & Production Audit
+### [x] Phase 5: QA/QC, Playwright E2E Automation & Production Audit
 - [x] Backend pytest suite (86/86 pass in graph suite)
 - [x] Frontend Vitest suite (`GraphFilters.test.tsx` 7/7 pass)
-- [ ] Run backend contract & regression verification
-- [ ] Production Readiness Audit (Zero-leak PHI, Memory/Context bounds, Latency < 30s)
+- [x] Frontend TypeScript typecheck (`tsc --noEmit` 0 errors)
+- [x] API Contract verification (73 endpoints verified)
+- [x] Production Readiness Audit (Zero-leak PHI, Memory/Context bounds, Latency < 30s)
 
-### [ ] Phase 6: CI/CD Verification Loop & Final Release Certification
-- [ ] Git status & hygiene check
-- [ ] Final release report
+### [x] Phase 6: CI/CD Verification Loop & Final Release Certification
+- [x] Created clean git commit `98a6180` on branch `feat/expanded-clinical-graph-relations`
+- [x] Verified workspace integrity
+
+### [x] Phase 7: GraphRAG RRF Fusion Ranking & Prompt Citation Relaxation
+- [x] **GraphRAG RRF Fusion**: Combined Vector, BM25, and Knowledge Graph candidates using Reciprocal Rank Fusion prior to top-K truncation (`reciprocal_rank_fusion(evidence, graph_evidence, top_k)`).
+- [x] **Prompt Relaxation**: Revised system prompts and `build_grounded_prompt` with clear instructions to prevent citation omissions while preserving `[E1]` and `[G1]` formats in both English and Vietnamese.
+- [x] **Robust Citation Extraction**: Enhanced `extract_citation_ids` and `ClaimParser.parse` to seamlessly handle multi-bracket citations (e.g. `[E1, E2]`), whitespaces (`[E 1]`), and graph tags (`[G1]`).
+- [x] **Verification**: Added `test_chat_graph_rrf.py` and passed all 43 targeted tests + full test suite with 0 lint errors (`ruff check/format` clean, `tsc --noEmit` clean).

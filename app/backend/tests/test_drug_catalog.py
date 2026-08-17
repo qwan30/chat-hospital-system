@@ -1,9 +1,6 @@
 """Tests for deterministic drug interaction catalog service with symmetric matching."""
 
-import pytest
 from hospital_ai.services.drug_catalog import (
-    CatalogInteraction,
-    DrugCatalogService,
     get_drug_catalog_service,
 )
 
@@ -17,11 +14,11 @@ def test_drug_catalog_loads_interactions():
 def test_drug_catalog_symmetric_lookup():
     """Verify drug catalog matches drug pairs bidirectionally."""
     catalog = get_drug_catalog_service()
-    
+
     # Warfarin and Aspirin interaction
     interaction_ab = catalog.get_interaction("warfarin", "aspirin")
     interaction_ba = catalog.get_interaction("aspirin", "warfarin")
-    
+
     assert interaction_ab is not None
     assert interaction_ba is not None
     assert interaction_ab.severity in ("critical", "high", "medium", "low")
@@ -38,11 +35,15 @@ def test_drug_catalog_find_interactions_in_text():
     )
     relations = catalog.find_interactions_in_text(sample_text)
     assert len(relations) >= 1
-    
+
     warfarin_aspirin_rel = next(
-        (r for r in relations if (r.subject_label == "warfarin" and r.object_label == "aspirin")
-         or (r.subject_label == "aspirin" and r.object_label == "warfarin")),
-        None
+        (
+            r
+            for r in relations
+            if (r.subject_label == "warfarin" and r.object_label == "aspirin")
+            or (r.subject_label == "aspirin" and r.object_label == "warfarin")
+        ),
+        None,
     )
     assert warfarin_aspirin_rel is not None
     assert warfarin_aspirin_rel.relation_type == "interacts_with"

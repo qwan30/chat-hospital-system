@@ -1,14 +1,14 @@
 """Tests for BFS Traversal Guard (Anti-Hub Explosion) and Enhanced DrugCheckService."""
 
 import uuid
-from typing import Any
+
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from hospital_ai.core.config import Settings
 from hospital_ai.db.clinical_graph import GraphEntity, GraphRelationAssertion
 from hospital_ai.db.models import Patient
-from hospital_ai.services.drug_check import DrugCheckService, SEVERITY_MAP
+from hospital_ai.services.drug_check import SEVERITY_MAP
 from hospital_ai.services.graph_rag import (
     CANONICAL_PATIENT_ANCHOR,
     find_related_entities,
@@ -32,9 +32,13 @@ async def test_traversal_guard_prevents_patient_hub_expansion(session_and_settin
 
     # Create entities
     metformin = GraphEntity(patient_id=patient_id, entity_type="drug", normalized_label="metformin")
-    patient_anchor = GraphEntity(patient_id=patient_id, entity_type="patient_anchor", normalized_label=CANONICAL_PATIENT_ANCHOR)
+    patient_anchor = GraphEntity(
+        patient_id=patient_id, entity_type="patient_anchor", normalized_label=CANONICAL_PATIENT_ANCHOR
+    )
     unrelated_asthma = GraphEntity(patient_id=patient_id, entity_type="condition", normalized_label="asthma")
-    unrelated_hypertension = GraphEntity(patient_id=patient_id, entity_type="condition", normalized_label="hypertension")
+    unrelated_hypertension = GraphEntity(
+        patient_id=patient_id, entity_type="condition", normalized_label="hypertension"
+    )
 
     db_session.add_all([metformin, patient_anchor, unrelated_asthma, unrelated_hypertension])
     await db_session.flush()
@@ -80,4 +84,6 @@ async def test_traversal_guard_prevents_patient_hub_expansion(session_and_settin
     assert CANONICAL_PATIENT_ANCHOR in extracted_labels
     # With Traversal Guard enabled, unrelated conditions connected via patient:self must NOT be expanded!
     assert "asthma" not in extracted_labels, "Traversal guard failed: asthma leaked via patient hub expansion"
-    assert "hypertension" not in extracted_labels, "Traversal guard failed: hypertension leaked via patient hub expansion"
+    assert "hypertension" not in extracted_labels, (
+        "Traversal guard failed: hypertension leaked via patient hub expansion"
+    )

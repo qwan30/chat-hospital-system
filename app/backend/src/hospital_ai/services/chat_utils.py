@@ -13,7 +13,7 @@ from hospital_ai.core.config import Settings
 from hospital_ai.schemas.documents import EvidenceRead
 from hospital_ai.services.retrieval import RetrievedChunk
 
-CITATION_PATTERN = re.compile(r"\[([EG]\d+)\]")
+CITATION_PATTERN = re.compile(r"\[([EG]\s*\d+)\]", re.IGNORECASE)
 MAX_HISTORY_MESSAGES = 10
 
 
@@ -29,17 +29,20 @@ class ChatGenerator:
         manager = LLMManager(settings=self.settings)
         llm = manager.get()
 
-        messages = [
-            LLMMessage(
-                role="system",
-                content=self.settings.system_prompt,
-            ),
-            LLMMessage(role="user", content=prompt),
-        ]
-
         try:
-            response = await llm.generate(messages)
-            return response.text
+            response = await llm.generate(
+                [
+                    LLMMessage(
+                        role="system",
+                        content=(
+                            "You are a clinical knowledge assistant. Answer accurately and concisely "
+                            "based on the authorized evidence. Cite each factual claim with [E1] or [E2]."
+                        ),
+                    ),
+                    LLMMessage(role="user", content=prompt),
+                ]
+            )
+            return response.content
         except Exception:
             # Fall back to stub answer if provider is unavailable
             if self.settings.chat_provider == "stub":
@@ -68,7 +71,13 @@ def build_grounded_prompt(
     parts.append("Authorized evidence:")
     parts.append("\n\n".join(blocks))
     parts.append("")
-    parts.append("Answer using only the evidence. Include citations like [E1].")
+    parts.append(
+        "Instructions:\n"
+        "- Answer the question clearly and accurately using the authorized evidence provided above.\n"
+        "- Cite every factual claim using square-bracketed evidence IDs (e.g. [E1] or [E1][E2]).\n"
+        "- Only cite evidence IDs that are listed in the Authorized evidence section.\n"
+        "- If answering in Vietnamese, keep the citation tags like [E1] exactly intact."
+    )
     return "\n".join(parts)
 
 
@@ -121,7 +130,7 @@ def build_stub_answer(prompt: str) -> str:
 def parse_prompt_evidence(prompt: str) -> list[tuple]:
     pattern = re.compile(
         r"\[([EG]\d+)\] Document:.*?\n(?P<content>.*?)(?=\n\n\[[EG]\d+\] Document:"
-        r"|\n\nAnswer using only the evidence\.|$)",
+        r"|\n\nAnswer using only the evidence\.|\n\nInstructions:|$)",
         re.DOTALL,
     )
     return [(match.group(1), match.group("content").strip()) for match in pattern.finditer(prompt)]
@@ -148,7 +157,17 @@ def trim_sentence(value: str) -> str:
 
 
 def extract_citation_ids(answer: str) -> set[str]:
-    return set(CITATION_PATTERN.findall(answer))
+    citations: set[str] = set()
+    # Match standard citations and multiple citations in bracket groups: [E1], [E2], [E1, E2], [E1; E2], [E 1], [G1]
+    bracket_contents = re.findall(r"\[([^\]]+)\]", answer)
+    for content in bracket_contents:
+        found = re.findall(r"\b([EG])\s*(\d+)\b", content, re.IGNORECASE)
+        for prefix, num in found:
+            citations.add(f"{prefix.upper()}{num}")
+    for m in CITATION_PATTERN.finditer(answer):
+        cleaned = m.group(1).replace(" ", "").upper()
+        citations.add(cleaned)
+    return citations
 
 
 def citations_are_valid(answer: str, allowed_evidence_ids: set[str]) -> bool:

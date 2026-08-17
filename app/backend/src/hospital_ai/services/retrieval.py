@@ -62,6 +62,29 @@ class RetrievedChunk:
             bounding_boxes=self.bounding_boxes,
         )
 
+    def with_evidence_id(self, evidence_id: str) -> RetrievedChunk:
+        return RetrievedChunk(
+            evidence_id=evidence_id,
+            document_id=self.document_id,
+            document_title=self.document_title,
+            page=self.page,
+            chunk_id=self.chunk_id,
+            score=self.score,
+            content=self.content,
+            metadata=dict(self.metadata),
+            patient_id=self.patient_id,
+            generation_id=self.generation_id,
+            revision_set_id=self.revision_set_id,
+            page_revision_id=self.page_revision_id,
+            active_index_generation_id=self.active_index_generation_id,
+            approval_state=self.approval_state,
+            retrieval_method=self.retrieval_method,
+            source_hash=self.source_hash,
+            start_offset=self.start_offset,
+            end_offset=self.end_offset,
+            bounding_boxes=self.bounding_boxes,
+        )
+
 
 def aligned_boxes_only(boxes: Any) -> Any:
     if isinstance(boxes, dict) and "aligned" in boxes:

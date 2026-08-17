@@ -63,7 +63,7 @@ class DrugCatalogService:
             return
 
         try:
-            with open(self.csv_path, mode="r", encoding="utf-8") as f:
+            with open(self.csv_path, encoding="utf-8") as f:
                 reader = csv.DictReader(f)
                 for row in reader:
                     drug_a = row.get("drug_a", "").strip().casefold()

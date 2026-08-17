@@ -175,7 +175,19 @@ def _deterministic_failure(claim: Claim, reason: str) -> ClaimResult:
 
 class ClaimParser:
     def parse(self, sentence: str) -> list[Claim]:
-        evidence_ids = list(dict.fromkeys(_CITATION_PATTERN.findall(sentence)))
+        raw_matches = _CITATION_PATTERN.findall(sentence)
+        evidence_ids: list[str] = []
+        for match in raw_matches:
+            found = re.findall(r"\b([EG]\s*\d+)\b", match, re.IGNORECASE)
+            if found:
+                for tag in found:
+                    cleaned = tag.replace(" ", "").upper()
+                    if cleaned not in evidence_ids:
+                        evidence_ids.append(cleaned)
+            else:
+                cleaned = match.strip()
+                if cleaned and cleaned not in evidence_ids:
+                    evidence_ids.append(cleaned)
         return [Claim(text=sentence, evidence_ids=evidence_ids)]
 
 

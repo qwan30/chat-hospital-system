@@ -1,9 +1,9 @@
 """Tests for Negation-Aware Clinical Extraction and Fallback Grammar."""
 
 import pytest
+
 from hospital_ai.services.graph_rag import (
     CANONICAL_PATIENT_ANCHOR,
-    _extract_explicit_relations_fallback,
     extract_entities_and_relations_offline,
 )
 
@@ -33,9 +33,7 @@ async def test_negation_denies_history_no_false_history_edge():
     ]
     for text in texts:
         entities, relations = await extract_entities_and_relations_offline(text)
-        invalid_relations = [
-            r for r in relations if r.relation_type in ("history_of", "diagnosed_with")
-        ]
+        invalid_relations = [r for r in relations if r.relation_type in ("history_of", "diagnosed_with")]
         assert len(invalid_relations) == 0, f"False condition edge extracted from: {text}"
 
 
@@ -44,14 +42,14 @@ async def test_affirmative_diagnosis_and_allergy_extraction():
     """Ensure explicitly stated diagnoses and allergies are extracted with canonical patient anchor."""
     text = "Patient is diagnosed with type 2 diabetes and has confirmed allergy to penicillin."
     entities, relations = await extract_entities_and_relations_offline(text)
-    
+
     diag_rel = next((r for r in relations if r.relation_type == "diagnosed_with"), None)
     allergy_rel = next((r for r in relations if r.relation_type == "allergic_to"), None)
-    
+
     assert diag_rel is not None
     assert diag_rel.subject_label == CANONICAL_PATIENT_ANCHOR
     assert "diabetes" in diag_rel.object_label
-    
+
     assert allergy_rel is not None
     assert allergy_rel.subject_label == CANONICAL_PATIENT_ANCHOR
     assert "penicillin" in allergy_rel.object_label
@@ -62,10 +60,10 @@ async def test_compound_sentence_selective_negation():
     """Ensure compound sentences extract positive conditions while filtering negated symptoms."""
     text = "Patient diagnosed with COPD; denies chest pain."
     entities, relations = await extract_entities_and_relations_offline(text)
-    
+
     diag_rel = next((r for r in relations if r.relation_type == "diagnosed_with"), None)
     symptom_rel = next((r for r in relations if r.relation_type == "has_symptom"), None)
-    
+
     assert diag_rel is not None
     assert "copd" in diag_rel.object_label
     assert symptom_rel is None, "Negated symptom 'chest pain' should not be extracted"
@@ -76,7 +74,7 @@ async def test_indicates_relation_extraction():
     """Ensure 'indicates' diagnostic relation is extracted between findings and conditions."""
     text = "Elevated troponin indicates acute myocardial infarction."
     entities, relations = await extract_entities_and_relations_offline(text)
-    
+
     ind_rel = next((r for r in relations if r.relation_type == "indicates"), None)
     assert ind_rel is not None
     assert "troponin" in ind_rel.subject_label

@@ -65,7 +65,6 @@ TASK_7_DOCKERIGNORE_ENTRIES = (
     ".ruff_cache/",
     ".mypy_cache/",
     "tests/",
-    "data/",
     "local_storage/",
     "uploads/",
     "*.log",

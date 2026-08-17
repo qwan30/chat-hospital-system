@@ -19,6 +19,7 @@ interface OcrEditorProps {
   onLockVersionChange?: (lockVersion: number) => void;
   onSavingChange?: (isSaving: boolean) => void;
   onSaved?: (savedPage: DraftPageRead) => void;
+  onTextChange?: (text: string) => void;
 }
 
 export function OcrEditor({
@@ -32,6 +33,7 @@ export function OcrEditor({
   onLockVersionChange,
   onSavingChange,
   onSaved,
+  onTextChange,
 }: OcrEditorProps) {
   const [text, setText] = useState(initialText);
   const [reason, setReason] = useState("");
@@ -48,6 +50,10 @@ export function OcrEditor({
   useEffect(() => {
     setCurrentLockVersion(initialLockVersion);
   }, [initialLockVersion]);
+
+  useEffect(() => {
+    onTextChange?.(text);
+  }, [text, onTextChange]);
 
   const hasUnsavedChanges = text !== initialText;
 
@@ -101,9 +107,7 @@ export function OcrEditor({
   };
 
   const isSaveDisabled =
-    isHistorical ||
-    saveMutation.isPending ||
-    (!hasUnsavedChanges && !reason.trim());
+    isHistorical || saveMutation.isPending || (!hasUnsavedChanges && !reason.trim());
 
   // Handle Ctrl+S / Cmd+S
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -154,9 +158,16 @@ export function OcrEditor({
         <div className="flex items-center justify-between p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-900 dark:text-amber-200 text-xs">
           <div className="flex items-center gap-2">
             <AlertCircle className="h-4 w-4 text-amber-600 shrink-0" />
-            <span>This page was modified by another session. Please compare with the latest version.</span>
+            <span>
+              This page was modified by another session. Please compare with the latest version.
+            </span>
           </div>
-          <Button size="sm" variant="outline" onClick={() => onCompare?.()} className="rounded-lg h-7 text-xs">
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => onCompare?.()}
+            className="rounded-lg h-7 text-xs"
+          >
             Compare with latest
           </Button>
         </div>

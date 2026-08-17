@@ -80,7 +80,11 @@ export function SpreadsheetPreview({ blob, downloadUrl, filename }: SpreadsheetP
     return currentData.filter((row, idx) => {
       // Always keep first header row
       if (idx === 0) return true;
-      return row.some((cell) => String(cell ?? "").toLowerCase().includes(q));
+      return row.some((cell) =>
+        String(cell ?? "")
+          .toLowerCase()
+          .includes(q),
+      );
     });
   }, [currentData, searchQuery]);
 
@@ -121,7 +125,12 @@ export function SpreadsheetPreview({ blob, downloadUrl, filename }: SpreadsheetP
           <p className="text-muted-foreground mt-1">{error || "The sheet is empty"}</p>
         </div>
         {downloadUrl && (
-          <Button asChild size="sm" variant="outline" className="gap-1.5 h-8 text-xs rounded-lg mt-2">
+          <Button
+            asChild
+            size="sm"
+            variant="outline"
+            className="gap-1.5 h-8 text-xs rounded-lg mt-2"
+          >
             <a href={downloadUrl} download={filename || "document.csv"}>
               <Download className="h-3.5 w-3.5" /> Download file
             </a>
@@ -159,7 +168,13 @@ export function SpreadsheetPreview({ blob, downloadUrl, filename }: SpreadsheetP
             />
           </div>
           {downloadUrl && (
-            <Button asChild size="icon" variant="ghost" className="h-7 w-7 rounded-lg text-muted-foreground hover:text-foreground" title="Download raw file">
+            <Button
+              asChild
+              size="icon"
+              variant="ghost"
+              className="h-7 w-7 rounded-lg text-muted-foreground hover:text-foreground"
+              title="Download raw file"
+            >
               <a href={downloadUrl} download={filename || "document.csv"}>
                 <Download className="h-3.5 w-3.5" />
               </a>
@@ -206,10 +221,7 @@ export function SpreadsheetPreview({ blob, downloadUrl, filename }: SpreadsheetP
             {bodyRows.map((row, rowIdx) => {
               const actualRowNumber = rowIdx + 2;
               return (
-                <tr
-                  key={rowIdx}
-                  className="hover:bg-primary/5 transition-colors even:bg-muted/15"
-                >
+                <tr key={rowIdx} className="hover:bg-primary/5 transition-colors even:bg-muted/15">
                   <td className="p-1 text-center bg-muted/30 border-r border-border/60 text-[10px] font-mono text-muted-foreground select-none font-medium">
                     {actualRowNumber}
                   </td>
@@ -224,8 +236,8 @@ export function SpreadsheetPreview({ blob, downloadUrl, filename }: SpreadsheetP
                           isHigh
                             ? "text-rose-600 font-semibold bg-rose-500/10"
                             : isLow
-                            ? "text-amber-600 font-semibold bg-amber-500/10"
-                            : "text-foreground"
+                              ? "text-amber-600 font-semibold bg-amber-500/10"
+                              : "text-foreground"
                         }`}
                         title={cellVal}
                       >

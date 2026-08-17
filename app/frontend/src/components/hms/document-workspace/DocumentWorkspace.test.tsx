@@ -199,6 +199,28 @@ describe("DocumentWorkspace", () => {
       });
     });
   });
+
+  it("updates the diff tab live while typing in the corrected tab", async () => {
+    vi.mocked(listRevisionSets).mockResolvedValueOnce([]);
+
+    render(
+      <QueryClientProvider client={new QueryClient()}>
+        <DocumentWorkspace documentId="doc-1" />
+      </QueryClientProvider>,
+    );
+
+    const editor = await screen.findByRole("textbox", { name: "Corrected page text" });
+    // Wait until the OCR text has loaded so the initialText reset cannot wipe the edit.
+    await waitFor(() => expect(editor).toHaveValue("test text"));
+    fireEvent.change(editor, { target: { value: "test text edited" } });
+
+    // Radix Tabs activates on mousedown, not click.
+    fireEvent.mouseDown(screen.getByRole("tab", { name: "Diff" }));
+
+    expect(await screen.findByText("\u00b11 modification")).toBeInTheDocument();
+    expect(document.querySelector('[data-diff="added-word"]')?.textContent).toBe("edited");
+    expect(screen.getByText("Unsaved edits included")).toBeInTheDocument();
+  });
 });
 
 describe("GeometryOverlay", () => {

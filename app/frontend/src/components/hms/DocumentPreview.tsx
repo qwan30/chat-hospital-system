@@ -75,12 +75,20 @@ export function DocumentPreview({
           <Loader2 className="h-4 w-4 animate-spin" /> Loading preview…
         </motion.div>
       ) : isSpreadsheet ? (
-        <motion.div key="spreadsheet" className="relative w-full h-full flex-1 flex flex-col min-h-0 overflow-hidden" {...fade(reduceMotion)}>
+        <motion.div
+          key="spreadsheet"
+          className="relative w-full h-full flex-1 flex flex-col min-h-0 overflow-hidden"
+          {...fade(reduceMotion)}
+        >
           <SpreadsheetPreview blob={blob} downloadUrl={url} filename={documentTitle} />
           {children}
         </motion.div>
       ) : mimeType.startsWith("image/") ? (
-        <motion.div key="image" className="relative group w-full h-full flex-1 flex flex-col min-h-0 overflow-hidden" {...fade(reduceMotion)}>
+        <motion.div
+          key="image"
+          className="relative group w-full h-full flex-1 flex flex-col min-h-0 overflow-hidden"
+          {...fade(reduceMotion)}
+        >
           <img
             src={url}
             alt="Document preview"
@@ -104,8 +112,16 @@ export function DocumentPreview({
           </Dialog>
         </motion.div>
       ) : mimeType === "application/pdf" ? (
-        <motion.div key="pdf" className="relative group w-full h-full flex-1 flex flex-col min-h-0 overflow-hidden" {...fade(reduceMotion)}>
-          <iframe title="Document preview" src={url} className="h-full w-full flex-1 min-h-0 rounded-xl border bg-background" />
+        <motion.div
+          key="pdf"
+          className="relative group w-full h-full flex-1 flex flex-col min-h-0 overflow-hidden"
+          {...fade(reduceMotion)}
+        >
+          <iframe
+            title="Document preview"
+            src={url}
+            className="h-full w-full flex-1 min-h-0 rounded-xl border bg-background"
+          />
           <Dialog>
             <DialogTrigger asChild>
               <Button
@@ -131,9 +147,16 @@ export function DocumentPreview({
           <FileText className="h-10 w-10 text-muted-foreground/60" />
           <div>
             <p className="font-semibold text-foreground">{documentTitle || "Clinical Document"}</p>
-            <p className="text-xs text-muted-foreground mt-1">Binary format preview not available.</p>
+            <p className="text-xs text-muted-foreground mt-1">
+              Binary format preview not available.
+            </p>
           </div>
-          <Button asChild size="sm" variant="outline" className="gap-1.5 h-8 text-xs rounded-lg mt-2">
+          <Button
+            asChild
+            size="sm"
+            variant="outline"
+            className="gap-1.5 h-8 text-xs rounded-lg mt-2"
+          >
             <a href={url} download={documentTitle || "document"}>
               <Download className="h-3.5 w-3.5" /> Download document
             </a>

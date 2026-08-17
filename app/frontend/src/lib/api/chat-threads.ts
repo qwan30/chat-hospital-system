@@ -86,4 +86,3 @@ export async function deleteChatThread(threadId: string): Promise<ChatThreadRead
     method: "DELETE",
   });
 }
-

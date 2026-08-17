@@ -206,12 +206,19 @@ function Dashboard() {
       />
 
       {/* ── Degraded banner ───────────────────────────────────────────── */}
-      {(!loading && !error && summary && (summary.systems_health.hms_api !== "healthy" || summary.systems_health.ollama_inference !== "healthy" || metricCards.indexed === 0)) && (
-        <div className="mb-4 flex items-center gap-2 rounded-lg border border-amber-500/30 bg-amber-500/5 p-3 text-sm text-amber-600">
-          <AlertTriangle className="h-4 w-4 shrink-0" />
-          <span>System is operating in a degraded state. Document search and indexing may be limited.</span>
-        </div>
-      )}
+      {!loading &&
+        !error &&
+        summary &&
+        (summary.systems_health.hms_api !== "healthy" ||
+          summary.systems_health.ollama_inference !== "healthy" ||
+          metricCards.indexed === 0) && (
+          <div className="mb-4 flex items-center gap-2 rounded-lg border border-amber-500/30 bg-amber-500/5 p-3 text-sm text-amber-600">
+            <AlertTriangle className="h-4 w-4 shrink-0" />
+            <span>
+              System is operating in a degraded state. Document search and indexing may be limited.
+            </span>
+          </div>
+        )}
 
       {/* ── Error banner ───────────────────────────────────────────── */}
       {error && (

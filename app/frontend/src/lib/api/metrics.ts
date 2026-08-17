@@ -7,5 +7,5 @@ export interface VectorMetricsResponse {
 }
 
 export async function getVectorMetrics(): Promise<VectorMetricsResponse> {
-  return await apiFetch<VectorMetricsResponse>('/api/v1/metrics/vector');
+  return await apiFetch<VectorMetricsResponse>("/api/v1/metrics/vector");
 }

@@ -24,14 +24,13 @@ from hospital_ai.api.limiter import limiter
 from hospital_ai.core.config import Settings, get_settings
 from hospital_ai.core.errors import AppError
 from hospital_ai.core.security import PATIENT_READ_SCOPES, new_trace_id
-from hospital_ai.db.models import AiQuery, ChatMessage, ChatThread, Patient, RetrievedEvidence, User
+from hospital_ai.db.models import AiQuery, ChatMessage, ChatThread, RetrievedEvidence, User
 from hospital_ai.db.session import get_session_factory
 from hospital_ai.schemas.chat import ChatRequest
 from hospital_ai.services.audit import AuditService
 from hospital_ai.services.chat import (
     PERMISSION_DENIED_CHAT_ANSWER,
     SAFE_INJECTION_DETECTED_ANSWER,
-    SAFE_INVALID_CITATION_ANSWER,
     SAFE_NO_EVIDENCE_ANSWER,
     SAFE_PHI_LEAK_BLOCKED_ANSWER,
     _select_pipeline,
@@ -45,7 +44,6 @@ from hospital_ai.services.chat_utils import (
     meets_evidence_threshold,
 )
 from hospital_ai.services.embeddings import EmbeddingService
-from hospital_ai.services.general_knowledge import GeneralKnowledgeService, rank_general_knowledge
 from hospital_ai.services.guardrails import get_input_guardrail, get_output_guardrail
 from hospital_ai.services.llm import LLMManager
 from hospital_ai.services.llm.base import LLMMessage
@@ -287,8 +285,8 @@ async def _generate_validated_sse_events(
             LLMMessage(
                 role="system",
                 content=(
-                    "You are a hospital knowledge assistant. Answer only from the evidence. "
-                    "Cite every factual claim using evidence IDs like [E1]."
+                    "You are a clinical knowledge assistant. Answer accurately and concisely "
+                    "based on the authorized evidence. Cite each factual claim with [E1] or [E2]."
                 ),
             ),
             LLMMessage(role="user", content=prompt),
@@ -619,8 +617,8 @@ async def _generate_sse_events(
             LLMMessage(
                 role="system",
                 content=(
-                    "You are a hospital knowledge assistant. Answer only from the evidence. "
-                    "Cite every factual claim using evidence IDs like [E1]."
+                    "You are a clinical knowledge assistant. Answer accurately and concisely "
+                    "based on the authorized evidence. Cite each factual claim with [E1] or [E2]."
                 ),
             ),
             LLMMessage(role="user", content=prompt),
@@ -1007,14 +1005,28 @@ async def chat_stream(
 
     resolved_patient = None
     effective_patient_id = payload.patient_id or (payload.context.patient_id if payload.context else None)
-    if effective_patient_id is None:
-        from hospital_ai.services.patient_resolver import PatientResolver
 
+    # Create AI query record early
+    ai_query = AiQuery(
+        user_id=current_user.id,
+        patient_id=effective_patient_id,
+        question=payload.question,
+        status="received",
+        model=_resolve_model_name(settings),
+    )
+    session.add(ai_query)
+    await session.flush()
+
+    if effective_patient_id is None:
         patient_res = await PatientResolver(session).resolve(payload.question, user=current_user)
         if patient_res.status == "single_match" and patient_res.patients:
             resolved_patient = patient_res.patients[0]
             effective_patient_id = resolved_patient.id
+            ai_query.patient_id = effective_patient_id
+            await session.flush()
         elif patient_res.status == "multiple_matches" and patient_res.patients:
+            ai_query.status = "disambiguation_required"
+            await session.flush()
             disam_event = {
                 "type": "disambiguation_required",
                 "matched_term": patient_res.matched_term,
@@ -1031,7 +1043,7 @@ async def chat_stream(
             }
             candidates = disam_event.get("candidates", [])
             lines = [
-                f"{i+1}. **{c['patient_name']}** (MRN: `{c['mrn']}`, Khoa: {c.get('department') or 'N/A'})"
+                f"{i + 1}. **{c['patient_name']}** (MRN: `{c['mrn']}`, Khoa: {c.get('department') or 'N/A'})"
                 for i, c in enumerate(candidates)
             ]
             disam_msg = (
@@ -1042,7 +1054,13 @@ async def chat_stream(
 
             async def disambiguation_stream() -> AsyncIterator[str]:
                 yield f"data: {json.dumps(disam_event)}\n\n"
-                yield f"data: {json.dumps({'type': 'token', 'content': disam_msg, 'sequence': 1, 'validation_mode': 'sentence_buffered'})}\n\n"
+                token_event = {
+                    "type": "token",
+                    "content": disam_msg,
+                    "sequence": 1,
+                    "validation_mode": "sentence_buffered",
+                }
+                yield f"data: {json.dumps(token_event)}\n\n"
                 meta_event = json.dumps(
                     {
                         "type": "metadata",
@@ -1056,17 +1074,6 @@ async def chat_stream(
                 yield f"data: {json.dumps({'type': 'done', 'query_id': str(ai_query.id)})}\n\n"
 
             return StreamingResponse(disambiguation_stream(), media_type="text/event-stream")
-
-    # Create AI query record
-    ai_query = AiQuery(
-        user_id=current_user.id,
-        patient_id=effective_patient_id,
-        question=payload.question,
-        status="received",
-        model=_resolve_model_name(settings),
-    )
-    session.add(ai_query)
-    await session.flush()
 
     # Permission check
     if effective_patient_id:
@@ -1179,6 +1186,7 @@ async def chat_stream(
         # ── Graph RAG Enrichment ─────────────────────────────────────────────
         try:
             if effective_patient_id:
+                from hospital_ai.services.bm25 import reciprocal_rank_fusion
                 from hospital_ai.services.chat import extract_entities_and_relations_nlp, find_related_entities
 
                 query_entities, _ = await extract_entities_and_relations_nlp(payload.question)
@@ -1188,19 +1196,40 @@ async def chat_stream(
                         session, entity_names, max_hops=2, patient_id=effective_patient_id
                     )
                     if graph_ctx.related_chunk_ids:
-                        existing_ids = {e.chunk_id for e in evidence}
-                        graph_only_ids = graph_ctx.related_chunk_ids - existing_ids
-                        if graph_only_ids:
-                            graph_evidence = await retrieval_svc.get_chunks_by_ids(
-                                list(graph_only_ids)[: payload.top_k],
-                                user_id=current_user.id,
-                                patient_id=effective_patient_id,
-                                hospital_wide=hospital_wide,
+                        graph_chunks = await retrieval_svc.get_chunks_by_ids(
+                            list(graph_ctx.related_chunk_ids),
+                            user_id=current_user.id,
+                            patient_id=effective_patient_id,
+                            hospital_wide=hospital_wide,
+                        )
+                        graph_evidence = [
+                            RetrievedChunk(
+                                evidence_id=ge.evidence_id,
+                                document_id=ge.document_id,
+                                document_title=ge.document_title,
+                                page=ge.page,
+                                chunk_id=ge.chunk_id,
+                                score=ge.score,
+                                content=ge.content,
+                                metadata={**ge.metadata, "retrieval_method": "graph"},
+                                patient_id=ge.patient_id,
+                                generation_id=ge.generation_id,
+                                revision_set_id=ge.revision_set_id,
+                                page_revision_id=ge.page_revision_id,
+                                active_index_generation_id=ge.active_index_generation_id,
+                                approval_state=ge.approval_state,
+                                retrieval_method="graph",
+                                source_hash=ge.source_hash,
+                                start_offset=ge.start_offset,
+                                end_offset=ge.end_offset,
+                                bounding_boxes=ge.bounding_boxes,
                             )
-                            for ge in graph_evidence:
-                                ge.metadata["retrieval_method"] = "graph"
-                            evidence.extend(graph_evidence)
-                            evidence = evidence[: payload.top_k]
+                            for ge in graph_chunks
+                        ]
+                        if evidence and graph_evidence:
+                            evidence = reciprocal_rank_fusion(evidence, graph_evidence, top_k=payload.top_k)
+                        elif graph_evidence:
+                            evidence = graph_evidence[: payload.top_k]
         except Exception:
             logger.warning("Graph RAG enrichment skipped", exc_info=True)
 

@@ -167,7 +167,7 @@ def reciprocal_rank_fusion(
     sorted_keys = sorted(rrf_scores.keys(), key=lambda k: rrf_scores[k], reverse=True)
 
     result: list[RetrievedChunk] = []
-    for key in sorted_keys[:top_k]:
+    for idx, key in enumerate(sorted_keys[:top_k]):
         chunk = chunk_map[key]
         new_metadata = {
             **chunk.metadata,
@@ -179,7 +179,7 @@ def reciprocal_rank_fusion(
             chunk.with_score_and_metadata(
                 score=round(rrf_scores[key], 6),
                 metadata=new_metadata,
-            )
+            ).with_evidence_id(f"E{idx + 1}")
         )
 
     return result

@@ -30,43 +30,44 @@ async def get_vector_metrics(
     doc_stmt = select(func.count(Document.id)).where(
         Document.deleted_at.is_(None),
         Document.status.in_(["ready", "ready_with_warnings"]),
-        Document.active_index_generation_id.is_not(None)
+        Document.active_index_generation_id.is_not(None),
     )
     indexed_document_count = await session.scalar(doc_stmt) or 0
 
     # 2. Count active chunks matching the active generation
-    chunk_stmt = select(func.count(DocumentChunk.id)).join(
-        Document, Document.id == DocumentChunk.document_id
-    ).where(
-        DocumentChunk.deleted_at.is_(None),
-        Document.deleted_at.is_(None),
-        Document.status.in_(["ready", "ready_with_warnings"]),
-        DocumentChunk.generation_id.is_not_distinct_from(Document.active_index_generation_id)
+    chunk_stmt = (
+        select(func.count(DocumentChunk.id))
+        .join(Document, Document.id == DocumentChunk.document_id)
+        .where(
+            DocumentChunk.deleted_at.is_(None),
+            Document.deleted_at.is_(None),
+            Document.status.in_(["ready", "ready_with_warnings"]),
+            DocumentChunk.generation_id.is_not_distinct_from(Document.active_index_generation_id),
+        )
     )
     active_chunk_count = await session.scalar(chunk_stmt) or 0
 
     # 3. Sources breakdown
-    sources_stmt = select(
-        Document.id,
-        func.count(DocumentChunk.id).label("chunk_count")
-    ).join(
-        DocumentChunk,
-        and_(
-            DocumentChunk.document_id == Document.id,
-            DocumentChunk.deleted_at.is_(None),
-            DocumentChunk.generation_id.is_not_distinct_from(Document.active_index_generation_id)
-        ),
-        isouter=True
-    ).where(
-        Document.deleted_at.is_(None),
-        Document.status.in_(["ready", "ready_with_warnings"])
-    ).group_by(Document.id)
-    
+    sources_stmt = (
+        select(Document.id, func.count(DocumentChunk.id).label("chunk_count"))
+        .join(
+            DocumentChunk,
+            and_(
+                DocumentChunk.document_id == Document.id,
+                DocumentChunk.deleted_at.is_(None),
+                DocumentChunk.generation_id.is_not_distinct_from(Document.active_index_generation_id),
+            ),
+            isouter=True,
+        )
+        .where(Document.deleted_at.is_(None), Document.status.in_(["ready", "ready_with_warnings"]))
+        .group_by(Document.id)
+    )
+
     result = await session.execute(sources_stmt)
     sources = [{"document_id": str(row.id), "chunk_count": row.chunk_count} for row in result.all()]
 
     return {
         "indexed_document_count": indexed_document_count,
         "active_chunk_count": active_chunk_count,
-        "sources": sources
+        "sources": sources,
     }

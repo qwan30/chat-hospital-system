@@ -121,4 +121,25 @@ describe("GraphFilters", () => {
     expect(screen.queryByLabelText("Hop Depth")).not.toBeInTheDocument();
     expect(screen.queryByLabelText("Minimum Confidence")).not.toBeInTheDocument();
   });
+
+  it("toggles clinical relation filters and renders legend", () => {
+    const onChange = vi.fn();
+    render(
+      <GraphFilters
+        filters={DEFAULT_GRAPH_FILTERS}
+        onChange={onChange}
+        supportedFilters={["relation_types"]}
+      />,
+    );
+
+    expect(screen.getByText("Clinical Relations (10 Standard Types)")).toBeInTheDocument();
+    const interactsWithBtn = screen.getByLabelText("Filter relation Interacts With");
+    expect(interactsWithBtn).toBeInTheDocument();
+
+    fireEvent.click(interactsWithBtn);
+    expect(onChange).toHaveBeenCalledWith({
+      ...DEFAULT_GRAPH_FILTERS,
+      relation_types: ["interacts_with"],
+    });
+  });
 });

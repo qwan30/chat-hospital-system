@@ -48,6 +48,42 @@ async def run_backfill(args: argparse.Namespace) -> int:
             )
             return 0 if report["status"] == "passed" else 1
 
+        if args.mode == "enrich-relations":
+            from hospital_ai.db.models import DocumentChunk
+            from hospital_ai.services.graph_rag import index_chunk_entities
+            
+            chunk_stmt = (
+                select(DocumentChunk)
+                .join(Document, Document.id == DocumentChunk.document_id)
+                .where(
+                    DocumentChunk.document_id.in_(doc_ids),
+                    DocumentChunk.deleted_at.is_(None),
+                    DocumentChunk.generation_id == Document.active_index_generation_id,
+                )
+            )
+            chunks_res = await session.execute(chunk_stmt)
+            active_chunks = list(chunks_res.scalars().all())
+            enriched_count = 0
+            for chunk in active_chunks:
+                try:
+                    await index_chunk_entities(
+                        session,
+                        chunk.id,
+                        chunk.document_id,
+                        chunk.content or "",
+                    )
+                    enriched_count += 1
+                except Exception as e:
+                    logger.warning("Failed to enrich chunk %s: %s", chunk.id, e)
+            
+            await session.commit()
+            logger.info("Enrich relations completed: %d chunks processed", enriched_count)
+            if args.output:
+                args.output.parent.mkdir(parents=True, exist_ok=True)
+                with args.output.open("w", encoding="utf-8") as f:
+                    json.dump({"mode": "enrich-relations", "chunks_enriched": enriched_count}, f, indent=2)
+            return 0
+
         results = []
         for doc_id in doc_ids:
             try:
@@ -73,18 +109,19 @@ async def run_backfill(args: argparse.Namespace) -> int:
             await session.commit()
             logger.info("Apply complete (committed)")
 
-        args.output.parent.mkdir(parents=True, exist_ok=True)
-        with args.output.open("w", encoding="utf-8") as f:
-            json.dump({"mode": args.mode, "count": len(results), "results": results}, f, indent=2)
+        if args.output:
+            args.output.parent.mkdir(parents=True, exist_ok=True)
+            with args.output.open("w", encoding="utf-8") as f:
+                json.dump({"mode": args.mode, "count": len(results), "results": results}, f, indent=2)
 
         return 0 if all(r["status"] in ("success", "blocked") for r in results) else 1
 
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="CDI v2 Legacy Document Backfill and Parity CLI")
-    parser.add_argument("--mode", choices=("dry-run", "apply", "parity"), required=True)
+    parser.add_argument("--mode", choices=("dry-run", "apply", "parity", "enrich-relations"), required=True)
     parser.add_argument("--document-id", action="append", default=[])
-    parser.add_argument("--output", type=Path, required=True)
+    parser.add_argument("--output", type=Path, default=None)
     args = parser.parse_args()
     exit_code = asyncio.run(run_backfill(args))
     raise SystemExit(exit_code)

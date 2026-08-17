@@ -25,10 +25,7 @@ class AuditLogRead(ApiSchema):
         if not isinstance(v, dict):
             return v
         sensitive_keys = {"access_token", "password", "raw_prompt_phi"}
-        return {
-            k: ("***REDACTED***" if k in sensitive_keys else val)
-            for k, val in v.items()
-        }
+        return {k: ("***REDACTED***" if k in sensitive_keys else val) for k, val in v.items()}
 
 
 class AuditLogList(ApiSchema):

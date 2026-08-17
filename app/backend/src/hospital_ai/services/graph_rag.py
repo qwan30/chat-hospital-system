@@ -25,10 +25,6 @@ import uuid
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from typing import Optional
-try:
-    from typing import TypeAlias
-except ImportError:
-    from typing_extensions import TypeAlias
 
 from sqlalchemy import delete, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -41,6 +37,36 @@ from hospital_ai.services.llm.manager import get_llm_manager
 logger = logging.getLogger(__name__)
 
 # ── ORM Models ──────────────────────────────────────────────────────────
+
+
+# ── Ontology & Allowlist ──────────────────────────────────────────────────
+
+CANONICAL_PATIENT_ANCHOR = "patient:self"
+
+VALID_RELATION_TYPES = frozenset(
+    [
+        "treats",
+        "causes",
+        "contraindicates",
+        "prescribed_for",
+        "has_symptom",
+        "indicates",
+        "interacts_with",
+        "diagnosed_with",
+        "history_of",
+        "allergic_to",
+        "has_observation",
+        "has_status",
+    ]
+)
+
+
+def validate_relation_type(relation: str) -> Optional[str]:
+    """Validate and normalize a relation type against the allowed clinical vocabulary."""
+    normalized = relation.strip().casefold().replace(" ", "_")
+    if normalized in VALID_RELATION_TYPES:
+        return normalized
+    return None
 
 
 # ── Data classes ─────────────────────────────────────────────────────────
@@ -65,6 +91,8 @@ class ExtractedRelation:
     relation_type: str
     normalized_value: str = ""
     weight: float = 1.0
+    severity: Optional[str] = None
+    source_layer: str = "nlp"
 
     def __post_init__(self):
         if not self.normalized_value:
@@ -100,18 +128,51 @@ class GraphContext:
 EntityRelationExtractor = Callable[[str], Awaitable[tuple[list[ExtractedEntity], list[ExtractedRelation]]]]
 
 
-# ── Entity extraction (NLP) ──────────────────────────────────────────────
+# ── Entity extraction (NLP & Grammar) ───────────────────────────────────
 
 
 _EXPLICIT_RELATION_PATTERN = re.compile(
     r"(?P<source>[A-Za-z][A-Za-z0-9 _-]{0,79}?)\s+"
-    r"(?:(?:also|directly)\s+)?"
-    r"(?P<relation>treats|causes|contraindicates|prescribed[_ ]for|has[_ ]symptom)\s+"
+    r"(?:(?:also|directly|clearly)\s+)?"
+    r"(?P<relation>treats|causes|contraindicates|prescribed[_ ]for|has[_ ]symptom|indicates|interacts[_ ]with)\s+"
     r"(?P<target>[A-Za-z][A-Za-z0-9 _-]{0,79}?)(?=[.,;]|$)",
     re.IGNORECASE,
 )
 
+_PATIENT_DIAGNOSIS_PATTERN = re.compile(
+    r"(?:patient\s+(?:is\s+)?(?:diagnosed|admitted)\s+with|diagnosis\s+of)\s+"
+    r"(?P<target>[A-Za-z0-9 _-]{2,60}?)(?=[.,;]|$)",
+    re.IGNORECASE,
+)
+
+_PATIENT_HISTORY_PATTERN = re.compile(
+    r"(?:(?:past\s+medical\s+)?history\s+of|prior\s+history\s+of)\s+(?P<target>[A-Za-z0-9 _-]{2,60}?)(?=[.,;]|$)",
+    re.IGNORECASE,
+)
+
+_PATIENT_ALLERGY_PATTERN = re.compile(
+    r"(?:(?:confirmed\s+)?allerg(?:y|ic)\s+to)\s+(?P<target>[A-Za-z0-9 _-]{2,60}?)(?=[.,;]|$)",
+    re.IGNORECASE,
+)
+
+_NEGATION_CUE_PATTERN = re.compile(
+    r"\b(no\s+known|no\s+history|no\s+prior|nkda|nka|denies|denied|ruled\s+out|without|none\s+reported|negative\s+for|no\s+allerg)\b",
+    re.IGNORECASE,
+)
+
 _LAB_OBSERVATION_FIELDS = ("mrn", "analyte", "status")
+
+
+def _is_clause_negated(clause: str) -> bool:
+    """Check if a specific clinical sentence or clause contains a negation cue."""
+    return bool(_NEGATION_CUE_PATTERN.search(clause))
+
+
+def _split_clinical_clauses(content: str) -> list[str]:
+    """Split clinical text into clauses by punctuation to localize negation scope."""
+    # Split by periods, semicolons, and newlines
+    clauses = re.split(r"[.;\n]+", content)
+    return [c.strip() for c in clauses if c.strip()]
 
 
 def _extract_labeled_lab_observation(content: str) -> tuple[list[ExtractedEntity], list[ExtractedRelation]]:
@@ -144,8 +205,8 @@ def _extract_labeled_lab_observation(content: str) -> tuple[list[ExtractedEntity
         ExtractedEntity(status_node, "lab_status"),
     ]
     relations = [
-        ExtractedRelation(patient_node, analyte_node, "has_observation"),
-        ExtractedRelation(analyte_node, status_node, "has_status"),
+        ExtractedRelation(patient_node, analyte_node, "has_observation", source_layer="grammar"),
+        ExtractedRelation(analyte_node, status_node, "has_status", source_layer="grammar"),
     ]
     return entities, relations
 
@@ -164,18 +225,81 @@ def _extract_explicit_relations_fallback(content: str) -> tuple[list[ExtractedEn
         (relation.subject_label, relation.object_label, relation.relation_type) for relation in relations
     }
 
-    for match in _EXPLICIT_RELATION_PATTERN.finditer(content):
-        source = match.group("source").strip().casefold()
-        target = match.group("target").strip().casefold()
-        relation_type = match.group("relation").casefold().replace(" ", "_")
-        relation_key = (source, target, relation_type)
-        if relation_key in seen_relations:
-            continue
+    clauses = _split_clinical_clauses(content)
+    for clause in clauses:
+        is_negated = _is_clause_negated(clause)
 
-        seen_relations.add(relation_key)
-        entities.setdefault(source, ExtractedEntity(source, "concept"))
-        entities.setdefault(target, ExtractedEntity(target, "concept"))
-        relations.append(ExtractedRelation(source, target, relation_type))
+        # 1. Concept-to-concept explicit relations (treats, causes, contraindicates, indicates, etc.)
+        for match in _EXPLICIT_RELATION_PATTERN.finditer(clause):
+            if is_negated:
+                continue
+            source = match.group("source").strip().casefold()
+            target = match.group("target").strip().casefold()
+            raw_relation = match.group("relation").casefold().replace(" ", "_")
+            valid_rel = validate_relation_type(raw_relation)
+            if not valid_rel or not source or not target:
+                continue
+
+            relation_key = (source, target, valid_rel)
+            if relation_key not in seen_relations:
+                seen_relations.add(relation_key)
+                entities.setdefault(source, ExtractedEntity(source, "concept"))
+                entities.setdefault(target, ExtractedEntity(target, "concept"))
+                relations.append(ExtractedRelation(source, target, valid_rel, source_layer="grammar"))
+
+        # 2. Patient-anchored diagnoses (diagnosed_with)
+        for match in _PATIENT_DIAGNOSIS_PATTERN.finditer(clause):
+            if is_negated:
+                continue
+            target = match.group("target").strip().casefold()
+            if not target:
+                continue
+            relation_key = (CANONICAL_PATIENT_ANCHOR, target, "diagnosed_with")
+            if relation_key not in seen_relations:
+                seen_relations.add(relation_key)
+                entities.setdefault(
+                    CANONICAL_PATIENT_ANCHOR, ExtractedEntity(CANONICAL_PATIENT_ANCHOR, "patient_anchor")
+                )
+                entities.setdefault(target, ExtractedEntity(target, "condition"))
+                relations.append(
+                    ExtractedRelation(CANONICAL_PATIENT_ANCHOR, target, "diagnosed_with", source_layer="grammar")
+                )
+
+        # 3. Patient-anchored history (history_of)
+        for match in _PATIENT_HISTORY_PATTERN.finditer(clause):
+            if is_negated:
+                continue
+            target = match.group("target").strip().casefold()
+            if not target:
+                continue
+            relation_key = (CANONICAL_PATIENT_ANCHOR, target, "history_of")
+            if relation_key not in seen_relations:
+                seen_relations.add(relation_key)
+                entities.setdefault(
+                    CANONICAL_PATIENT_ANCHOR, ExtractedEntity(CANONICAL_PATIENT_ANCHOR, "patient_anchor")
+                )
+                entities.setdefault(target, ExtractedEntity(target, "condition"))
+                relations.append(
+                    ExtractedRelation(CANONICAL_PATIENT_ANCHOR, target, "history_of", source_layer="grammar")
+                )
+
+        # 4. Patient-anchored allergies (allergic_to)
+        for match in _PATIENT_ALLERGY_PATTERN.finditer(clause):
+            if is_negated:
+                continue
+            target = match.group("target").strip().casefold()
+            if not target:
+                continue
+            relation_key = (CANONICAL_PATIENT_ANCHOR, target, "allergic_to")
+            if relation_key not in seen_relations:
+                seen_relations.add(relation_key)
+                entities.setdefault(
+                    CANONICAL_PATIENT_ANCHOR, ExtractedEntity(CANONICAL_PATIENT_ANCHOR, "patient_anchor")
+                )
+                entities.setdefault(target, ExtractedEntity(target, "drug"))
+                relations.append(
+                    ExtractedRelation(CANONICAL_PATIENT_ANCHOR, target, "allergic_to", source_layer="grammar")
+                )
 
     return list(entities.values()), relations
 
@@ -193,12 +317,19 @@ async def extract_entities_and_relations_nlp(content: str) -> tuple[list[Extract
 
     prompt = (
         "You are a medical NLP engine. Your task is to extract medical entities "
-        "and explicitly stated relations from the provided text.\n"
+        "and explicitly stated relations from the provided clinical text.\n"
         "Entities must be medical concepts such as conditions, drugs, labs, symptoms, or procedures.\n"
-        "Explicit relations must be one of: treats, causes, contraindicates, "
-        "prescribed_for, has_symptom. Do NOT extract fuzzy 'mentioned_with' relations.\n"
-        "Only extract a relation if the text explicitly states or strongly implies it "
-        '(e.g. "X treats Y", "X causes Y").\n'
+        "Explicit relations must be one of:\n"
+        "  - treats, causes, contraindicates, prescribed_for, has_symptom, indicates, interacts_with\n"
+        "  - diagnosed_with, history_of, allergic_to (for patient-anchored facts, use source_name: 'patient:self')\n"
+        "\n"
+        "CRITICAL CLINICAL NEGATION RULES:\n"
+        "1. Do NOT extract relations for negated, denied, absent, or ruled-out findings:\n"
+        "   - 'NKDA', 'No known drug allergies' -> DO NOT extract allergic_to\n"
+        "   - 'Denies chest pain', 'No shortness of breath' -> DO NOT extract has_symptom\n"
+        "   - 'Ruled out myocardial infarction' -> DO NOT extract diagnosed_with\n"
+        "   - 'No history of asthma' -> DO NOT extract history_of\n"
+        "2. Do NOT extract fuzzy 'mentioned_with' relations.\n"
         "\n"
         "Respond ONLY with valid JSON in the exact following format, without markdown wrapping:\n"
         "{\n"
@@ -229,20 +360,24 @@ async def extract_entities_and_relations_nlp(content: str) -> tuple[list[Extract
 
         entities = []
         for e in data.get("entities", []):
-            entities.append(
-                ExtractedEntity(
-                    normalized_label=e["name"].lower(),
-                    entity_type=e["entity_type"].lower(),
-                    confidence=1.0,
+            name = e.get("name", "").lower().strip()
+            etype = e.get("entity_type", "concept").lower().strip()
+            if name:
+                entities.append(
+                    ExtractedEntity(
+                        normalized_label=name,
+                        entity_type=etype,
+                        confidence=1.0,
+                    )
                 )
-            )
 
         relations = []
         seen_relations = set()
         for r in data.get("relations", []):
-            subject_label = r.get("source_name", r.get("subject_label", "")).lower()
-            object_label = r.get("target_name", r.get("object_label", "")).lower()
-            relation_type = r.get("relation_type", "").lower()
+            subject_label = r.get("source_name", r.get("subject_label", "")).lower().strip()
+            object_label = r.get("target_name", r.get("object_label", "")).lower().strip()
+            raw_relation = r.get("relation_type", "").lower().strip()
+            relation_type = validate_relation_type(raw_relation)
             if not subject_label or not object_label or not relation_type:
                 continue
             if (subject_label, object_label, relation_type) not in seen_relations:
@@ -253,6 +388,7 @@ async def extract_entities_and_relations_nlp(content: str) -> tuple[list[Extract
                         object_label=object_label,
                         relation_type=relation_type,
                         weight=1.0,
+                        source_layer="nlp",
                     )
                 )
 
@@ -467,8 +603,10 @@ async def find_related_entities(
             )
             new_entities = list(result.scalars().all())
             all_entities.extend(new_entities)
-
-        frontier_ids = next_frontier
+            # Traversal Guard: Do NOT expand outward from patient:self hub node into unrelated conditions
+            frontier_ids = {e.id for e in new_entities if e.normalized_label != CANONICAL_PATIENT_ANCHOR}
+        else:
+            frontier_ids = set()
 
     chunk_ids: set[uuid.UUID] = set()
     if patient_id is not None and all_relations:

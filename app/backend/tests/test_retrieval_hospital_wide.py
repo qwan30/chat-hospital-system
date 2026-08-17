@@ -1,8 +1,11 @@
-import pytest
+from __future__ import annotations
+
 import uuid
-from hospital_ai.services.retrieval import RetrievalService
+
+import pytest
+
 from hospital_ai.services.general_knowledge import GeneralKnowledgeService
-from hospital_ai.db.models import User
+from hospital_ai.services.retrieval import RetrievalService
 
 
 @pytest.mark.asyncio

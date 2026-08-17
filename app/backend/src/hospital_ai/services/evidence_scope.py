@@ -4,7 +4,7 @@ import uuid
 from collections.abc import Collection
 from typing import Optional
 
-from sqlalchemy import select
+from sqlalchemy import and_, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from hospital_ai.core.security import PATIENT_READ_SCOPES
@@ -42,10 +42,8 @@ class ActiveEvidenceScope:
         document_ids: Optional[Collection[uuid.UUID]] = None,
         include_superseded: bool = False,
     ):
-        from sqlalchemy import or_, and_
-
         if patient_id is None and not hospital_wide:
-            return select(DocumentChunk.id).where(DocumentChunk.id == None).scalar_subquery()
+            return select(DocumentChunk.id).where(DocumentChunk.id.is_(None)).scalar_subquery()
 
         stmt = (
             select(DocumentChunk.id)

@@ -1,6 +1,9 @@
-import pytest
+from __future__ import annotations
+
 import uuid
 from datetime import date
+
+import pytest
 
 from hospital_ai.db.models import Patient
 from hospital_ai.services.patient_resolver import PatientResolver
@@ -70,9 +73,7 @@ async def test_resolve_seeded_patient_by_name(session_and_settings):
 
 
 @pytest.mark.asyncio
-async def test_resolve_vietnamese_patient_accent_insensitive(
-    session_and_settings, sample_vietnamese_patient
-):
+async def test_resolve_vietnamese_patient_accent_insensitive(session_and_settings, sample_vietnamese_patient):
     session, _ = session_and_settings
     resolver = PatientResolver(session)
     # Search with no accents
@@ -87,9 +88,7 @@ async def test_resolve_vietnamese_patient_accent_insensitive(
 
 
 @pytest.mark.asyncio
-async def test_resolve_multiple_matches_disambiguation(
-    session_and_settings, sample_multi_patients
-):
+async def test_resolve_multiple_matches_disambiguation(session_and_settings, sample_multi_patients):
     session, _ = session_and_settings
     resolver = PatientResolver(session)
     res = await resolver.resolve("Show me records for Nguyen Van A")

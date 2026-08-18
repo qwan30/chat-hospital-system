@@ -121,6 +121,15 @@ python app/backend/scripts/run_ai_evaluation.py --components corpus --output-dir
 
 ![Deployment Architecture](docs/architecture/deployment-architecture.png)
 
+### 📈 Production Server & Container Monitoring (Dokploy)
+
+The system is deployed on a self-hosted PaaS infrastructure (**Dokploy**) powered by Traefik edge routing, automated SSL/TLS termination, and Docker container orchestration:
+
+- **Real-Time Resource Telemetry:** Active monitoring of CPU load, memory allocation, and host disk capacity across the full stack (FastAPI backend, Redis queue, PostgreSQL with pgvector, and RQ background workers).
+- **Container Hygiene & Volume Tracking:** Real-time visibility into Docker storage distribution (build cache, running containers, images, and persistent volumes) to maintain high availability and support smooth rolling redeployments.
+
+![Production Deployment Monitoring](screen-demo/deployment-monitoring.png)
+
 ---
 
 ## 📸 Application Screenshots
@@ -163,6 +172,13 @@ python app/backend/scripts/run_ai_evaluation.py --components corpus --output-dir
 |:---:|:---:|
 | **Audit Log** — Full event trail with filtering | **Notifications** — Real-time clinical alerts |
 | ![Audit](screen-demo/audit-screen-new.png) | ![Notifications](screen-demo/notification.png) |
+
+### 🖥️ Deployment & Infrastructure Monitoring
+
+| |
+|:---:|
+| **Dokploy Server Telemetry** — Real-time CPU, Memory, Disk Space, and Docker container resource utilization |
+| ![Dokploy Monitoring](screen-demo/deployment-monitoring.png) |
 
 </div>
 

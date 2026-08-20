@@ -112,7 +112,7 @@ async def get_global_timeline(
                 timestamp=doc.created_at,
                 type="document",
                 title="Document uploaded",
-                body=f"{doc.filename} added to patient record",
+                body=f"{doc.title} added to patient record",
                 patient_id=doc.patient_id,
                 metadata={},
             )

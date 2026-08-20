@@ -216,7 +216,7 @@ jobs:
         id: venv-cache
         with:
           path: app/backend/.venv
-          key: venv-backend-test-${{ runner.os }}-${{ hashFiles('app/backend/pyproject.toml') }}
+          key: venv-backend-test-v3-${{ runner.os }}-${{ hashFiles('app/backend/pyproject.toml') }}
 
       - name: Install dependencies
         if: steps.venv-cache.outputs.cache-hit != 'true'
@@ -231,10 +231,10 @@ jobs:
 
       # ── Quality gates ──
       - name: Ruff lint check
-        run: python -m ruff check src/ tests/ > ruff-output.txt || (cat ruff-output.txt; exit 1)
+        run: .venv/bin/python -m ruff check src/ tests/ > ruff-output.txt || (cat ruff-output.txt; exit 1)
 
       - name: Ruff format check
-        run: python -m ruff format --check src/ tests/
+        run: .venv/bin/python -m ruff format --check src/ tests/
 
       # ── Tests ──
       - name: Run pytest (unit + integration)
@@ -243,19 +243,19 @@ jobs:
           HOSPITAL_AI_CHAT_PROVIDER: "stub"
           HOSPITAL_AI_EMBEDDING_PROVIDER: "deterministic"
           HOSPITAL_AI_DISABLE_GUARDRAILS: "true"
-        run: python -m pytest tests/ -v --tb=short --cov=hospital_ai --cov-report=term --cov-fail-under=60 --junitxml=test-results/junit.xml
+        run: .venv/bin/python -m pytest tests/ -v --tb=short --cov=hospital_ai --cov-report=term --cov-fail-under=60 --junitxml=test-results/junit.xml
 
       # ── API Contract Verification ──
       - name: Verify API contracts
-        run: python scripts/verify_contracts.py
+        run: .venv/bin/python scripts/verify_contracts.py
 
       - name: Verify CDI V2 release contracts
         run: |
-          python scripts/verify_cdi_v2_release.py --mode source
+          .venv/bin/python scripts/verify_cdi_v2_release.py --mode source
           echo "RELEASE NO-GO: controlled evidence bundle is produced only by the release evaluation lane."
 
       - name: Run CDI V2 normative acceptance
-        run: python -m pytest tests/cdi_v2/test_normative_acceptance.py -q
+        run: .venv/bin/python -m pytest tests/cdi_v2/test_normative_acceptance.py -q
 
       # ── Artifacts ──
       - name: Upload test results
@@ -379,7 +379,7 @@ jobs:
         id: venv-cache
         with:
           path: app/backend/.venv
-          key: venv-rag-eval-${{ runner.os }}-${{ hashFiles('app/backend/pyproject.toml') }}
+          key: venv-rag-eval-v3-${{ runner.os }}-${{ hashFiles('app/backend/pyproject.toml') }}
 
       - name: Install dependencies
         if: steps.venv-cache.outputs.cache-hit != 'true'
@@ -394,7 +394,7 @@ jobs:
       - name: Run deterministic AI evaluation
         run: |
           set +e
-          python scripts/run_ai_evaluation.py \
+          .venv/bin/python scripts/run_ai_evaluation.py \
             --suite "$AI_EVAL_SUITE" \
             --lane deterministic \
             --components "$AI_EVAL_COMPONENTS" \

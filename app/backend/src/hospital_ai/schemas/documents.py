@@ -53,10 +53,10 @@ class DocumentSearchRequest(BaseModel):
 
 class EvidenceRead(BaseModel):
     evidence_id: str
-    document_id: UUID
+    document_id: Optional[UUID] = None
     document_title: str
     page: int
-    chunk_id: UUID
+    chunk_id: Optional[UUID] = None
     score: float
     content: Optional[str] = None
     metadata: dict[str, Any] = Field(default_factory=dict)

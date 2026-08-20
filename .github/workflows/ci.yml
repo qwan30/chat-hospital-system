@@ -221,6 +221,7 @@ jobs:
       - name: Install dependencies
         run: |
           if [ ! -f .venv/bin/python ]; then
+            rm -rf .venv
             python -m venv .venv
             .venv/bin/pip install --upgrade pip
             # pytest-cov is declared in the [dev] extra; no ad-hoc install needed.
@@ -319,6 +320,7 @@ jobs:
       - name: Install dependencies
         run: |
           if [ ! -f .venv/bin/python ]; then
+            rm -rf .venv
             python -m venv .venv
             .venv/bin/pip install --upgrade pip
             .venv/bin/pip install -e ".[dev,postgres]"
@@ -384,11 +386,13 @@ jobs:
           key: venv-rag-eval-v4-${{ runner.os }}-${{ hashFiles('app/backend/pyproject.toml') }}
 
       - name: Install dependencies
-        if: steps.venv-cache.outputs.cache-hit != 'true'
         run: |
-          python -m venv .venv
-          .venv/bin/pip install --upgrade pip
-          .venv/bin/pip install -e ".[dev]"
+          if [ ! -f .venv/bin/python ]; then
+            rm -rf .venv
+            python -m venv .venv
+            .venv/bin/pip install --upgrade pip
+            .venv/bin/pip install -e ".[dev]"
+          fi
 
       - name: Expose virtualenv
         run: echo "${{ github.workspace }}/app/backend/.venv/bin" >> $GITHUB_PATH

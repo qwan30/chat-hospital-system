@@ -6,7 +6,7 @@ from datetime import UTC, datetime
 from typing import Optional
 
 from fastapi import APIRouter, Depends, Path, Request
-from sqlalchemy import and_, select
+from sqlalchemy import and_, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from hospital_ai.api.deps import get_current_user, get_request_ip, get_session
@@ -157,7 +157,11 @@ async def get_patient_graph(
             DocumentChunk.deleted_at.is_(None),
             DocumentPage.deleted_at.is_(None),
             Document.deleted_at.is_(None),
-            DocumentChunk.generation_id.is_not_distinct_from(Document.active_index_generation_id),
+            or_(
+                Document.active_index_generation_id.is_(None),
+                DocumentChunk.generation_id == Document.active_index_generation_id,
+                DocumentChunk.generation_id.is_not_distinct_from(Document.active_index_generation_id),
+            ),
         )
         .subquery()
     )

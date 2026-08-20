@@ -216,15 +216,17 @@ jobs:
         id: venv-cache
         with:
           path: app/backend/.venv
-          key: venv-backend-test-v3-${{ runner.os }}-${{ hashFiles('app/backend/pyproject.toml') }}
+          key: venv-backend-test-v4-${{ runner.os }}-${{ hashFiles('app/backend/pyproject.toml') }}
 
       - name: Install dependencies
-        if: steps.venv-cache.outputs.cache-hit != 'true'
         run: |
-          python -m venv .venv
-          .venv/bin/pip install --upgrade pip
-          # pytest-cov is declared in the [dev] extra; no ad-hoc install needed.
-          .venv/bin/pip install -e ".[dev,postgres]"
+          if [ ! -f .venv/bin/python ]; then
+            rm -rf .venv
+            python -m venv .venv
+            .venv/bin/pip install --upgrade pip
+            # pytest-cov is declared in the [dev] extra; no ad-hoc install needed.
+            .venv/bin/pip install -e ".[dev,postgres]"
+          fi
 
       - name: Expose virtualenv
         run: echo "${{ github.workspace }}/app/backend/.venv/bin" >> $GITHUB_PATH
@@ -313,14 +315,16 @@ jobs:
         id: venv-cache
         with:
           path: app/backend/.venv
-          key: venv-backend-migration-v3-${{ runner.os }}-${{ hashFiles('app/backend/pyproject.toml') }}
+          key: venv-backend-migration-v4-${{ runner.os }}-${{ hashFiles('app/backend/pyproject.toml') }}
 
       - name: Install dependencies
-        if: steps.venv-cache.outputs.cache-hit != 'true'
         run: |
-          python -m venv .venv
-          .venv/bin/pip install --upgrade pip
-          .venv/bin/pip install -e ".[dev,postgres]"
+          if [ ! -f .venv/bin/python ]; then
+            rm -rf .venv
+            python -m venv .venv
+            .venv/bin/pip install --upgrade pip
+            .venv/bin/pip install -e ".[dev,postgres]"
+          fi
 
       - name: Expose virtualenv
         run: echo "${{ github.workspace }}/app/backend/.venv/bin" >> $GITHUB_PATH
@@ -379,14 +383,16 @@ jobs:
         id: venv-cache
         with:
           path: app/backend/.venv
-          key: venv-rag-eval-v3-${{ runner.os }}-${{ hashFiles('app/backend/pyproject.toml') }}
+          key: venv-rag-eval-v4-${{ runner.os }}-${{ hashFiles('app/backend/pyproject.toml') }}
 
       - name: Install dependencies
-        if: steps.venv-cache.outputs.cache-hit != 'true'
         run: |
-          python -m venv .venv
-          .venv/bin/pip install --upgrade pip
-          .venv/bin/pip install -e ".[dev]"
+          if [ ! -f .venv/bin/python ]; then
+            rm -rf .venv
+            python -m venv .venv
+            .venv/bin/pip install --upgrade pip
+            .venv/bin/pip install -e ".[dev]"
+          fi
 
       - name: Expose virtualenv
         run: echo "${{ github.workspace }}/app/backend/.venv/bin" >> $GITHUB_PATH

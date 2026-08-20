@@ -293,19 +293,6 @@ async def get_patient_graph(
 
     # ── Build edges ───────────────────────────────────────────────────
     edges: list[GraphEdge] = []
-    for node in nodes:
-        if node.id != "pt" and node.type in ("diagnosis", "medication"):
-            edges.append(
-                GraphEdge(
-                    id=f"edge-pt-{node.id}",
-                    from_node="pt",
-                    to_node=node.id,
-                    label="diagnosed_with" if node.type == "diagnosis" else "prescribed",
-                    source_document_id=node.source_document_id,
-                    source_chunk_id=node.source_chunk_id,
-                )
-            )
-
     for rel in relations:
         from_id = db_id_to_node_id.get(rel.source_entity_id)
         to_id = db_id_to_node_id.get(rel.target_entity_id)

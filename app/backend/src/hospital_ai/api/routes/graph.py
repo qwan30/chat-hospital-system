@@ -6,7 +6,7 @@ from datetime import UTC, datetime
 from typing import Optional
 
 from fastapi import APIRouter, Depends, Path, Request
-from sqlalchemy import and_, select
+from sqlalchemy import and_, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from hospital_ai.api.deps import get_current_user, get_request_ip, get_session
@@ -157,7 +157,11 @@ async def get_patient_graph(
             DocumentChunk.deleted_at.is_(None),
             DocumentPage.deleted_at.is_(None),
             Document.deleted_at.is_(None),
-            DocumentChunk.generation_id.is_not_distinct_from(Document.active_index_generation_id),
+            or_(
+                Document.active_index_generation_id.is_(None),
+                DocumentChunk.generation_id == Document.active_index_generation_id,
+                DocumentChunk.generation_id.is_not_distinct_from(Document.active_index_generation_id),
+            ),
         )
         .subquery()
     )
@@ -289,6 +293,19 @@ async def get_patient_graph(
 
     # ── Build edges ───────────────────────────────────────────────────
     edges: list[GraphEdge] = []
+    for node in nodes:
+        if node.id != "pt" and node.type in ("diagnosis", "medication"):
+            edges.append(
+                GraphEdge(
+                    id=f"edge-pt-{node.id}",
+                    from_node="pt",
+                    to_node=node.id,
+                    label="diagnosed_with" if node.type == "diagnosis" else "prescribed",
+                    source_document_id=node.source_document_id,
+                    source_chunk_id=node.source_chunk_id,
+                )
+            )
+
     for rel in relations:
         from_id = db_id_to_node_id.get(rel.source_entity_id)
         to_id = db_id_to_node_id.get(rel.target_entity_id)

@@ -25,7 +25,8 @@ async def test_get_global_timeline_with_events(session_and_settings):
 
     thread = ChatThread(
         patient_id=PATIENT_ALICE_ID,
-        created_by_user_id=DOCTOR_ID,
+        owner_user_id=DOCTOR_ID,
+        created_trace_id="test-trace-123",
         title="Consultation regarding hypertension",
         scope="patient-linked",
     )

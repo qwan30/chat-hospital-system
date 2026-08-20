@@ -243,7 +243,8 @@ function GlobalChat() {
         })),
         citations: (m.citations || []).map((c, idx) => ({
           n: idx + 1,
-          sourceId: c.evidence_id || (c as any).id || `E${idx + 1}`,
+          sourceId: c.document_id || c.evidence_id || `E${idx + 1}`,
+          page: c.page || 1,
         })),
       }));
       setMessages(mapped);
@@ -720,7 +721,8 @@ function GlobalChat() {
         rawCitations: streamResult.citations,
         citations: streamResult.citations?.map((c, idx) => ({
           n: idx + 1, // matches backend's inline [1], [2] format
-          sourceId: c.evidence_id,
+          sourceId: c.document_id || c.evidence_id,
+          page: c.page || 1,
         })),
         extra:
           candidateList.length > 0 ? (

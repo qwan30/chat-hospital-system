@@ -263,9 +263,16 @@ async def get_document_content(
     )
     try:
         content = await asyncio.to_thread(get_storage_service(settings).read_bytes, document.storage_uri)
+        return Response(content=content, media_type=document.mime_type)
     except (FileNotFoundError, ValueError) as exc:
+        pages_result = await session.execute(
+            select(DocumentPage).where(DocumentPage.document_id == document_id).order_by(DocumentPage.page_number)
+        )
+        pages = pages_result.scalars().all()
+        if pages:
+            full_text = "\n\n--- Page Break ---\n\n".join(p.ocr_text for p in pages if p.ocr_text)
+            return Response(content=full_text.encode("utf-8"), media_type=document.mime_type or "text/plain")
         raise NotFoundError("Document content not found.") from exc
-    return Response(content=content, media_type=document.mime_type)
 
 
 @router.get("/{document_id}/pages/{page_number}", response_model=DocumentPageRead)

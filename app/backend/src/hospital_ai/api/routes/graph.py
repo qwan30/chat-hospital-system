@@ -181,7 +181,10 @@ async def get_patient_graph(
             active_patient_sources,
             and_(
                 GraphEntity.source_chunk_id == active_patient_sources.c.chunk_id,
-                GraphEntity.source_document_id == active_patient_sources.c.document_id,
+                or_(
+                    GraphEntity.source_document_id.is_(None),
+                    GraphEntity.source_document_id == active_patient_sources.c.document_id,
+                ),
             ),
         )
         .where(GraphEntity.source_chunk_id.in_(visible_source_ids))
@@ -189,6 +192,17 @@ async def get_patient_graph(
         .limit(200)
     )
     entities = list(entity_result.scalars().all())
+
+    if not entities and visible_source_ids:
+        active_doc_ids = set((await db.scalars(select(active_patient_sources.c.document_id))).all())
+        if active_doc_ids:
+            fallback_entity_result = await db.execute(
+                select(GraphEntity)
+                .where(GraphEntity.source_document_id.in_(active_doc_ids))
+                .order_by(GraphEntity.id)
+                .limit(200)
+            )
+            entities = list(fallback_entity_result.scalars().all())
 
     if not entities:
         # No graph data — return empty graph with placeholder patient node

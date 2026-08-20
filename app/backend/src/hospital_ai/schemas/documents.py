@@ -52,12 +52,12 @@ class DocumentSearchRequest(BaseModel):
 
 
 class EvidenceRead(BaseModel):
-    evidence_id: str
+    evidence_id: str = "E1"
     document_id: Optional[UUID] = None
-    document_title: str
-    page: int
+    document_title: str = "Document"
+    page: int = 1
     chunk_id: Optional[UUID] = None
-    score: float
+    score: float = 1.0
     content: Optional[str] = None
     metadata: dict[str, Any] = Field(default_factory=dict)
     generation_id: Optional[UUID] = None

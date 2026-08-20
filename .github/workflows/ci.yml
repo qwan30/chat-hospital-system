@@ -328,12 +328,12 @@ jobs:
       - name: Apply Alembic migrations
         env:
           HOSPITAL_AI_DATABASE_URL: "postgresql+asyncpg://hospital_ai:hospital_ai@localhost:5432/hospital_ai_test"
-        run: alembic upgrade head
+        run: python -m alembic upgrade head
 
       - name: Check migration-model alignment
         env:
           HOSPITAL_AI_DATABASE_URL: "postgresql+asyncpg://hospital_ai:hospital_ai@localhost:5432/hospital_ai_test"
-        run: alembic check > alembic-check.txt || (cat alembic-check.txt; exit 1)
+        run: python -m alembic check > alembic-check.txt || (cat alembic-check.txt; exit 1)
 
       - name: Upload migration diagnostics
         if: always()

@@ -313,14 +313,14 @@ jobs:
         id: venv-cache
         with:
           path: app/backend/.venv
-          key: venv-backend-migration-${{ runner.os }}-${{ hashFiles('app/backend/pyproject.toml') }}
+          key: venv-backend-migration-v3-${{ runner.os }}-${{ hashFiles('app/backend/pyproject.toml') }}
 
       - name: Install dependencies
         if: steps.venv-cache.outputs.cache-hit != 'true'
         run: |
           python -m venv .venv
           .venv/bin/pip install --upgrade pip
-          .venv/bin/pip install -e ".[postgres]"
+          .venv/bin/pip install -e ".[dev,postgres]"
 
       - name: Expose virtualenv
         run: echo "${{ github.workspace }}/app/backend/.venv/bin" >> $GITHUB_PATH
@@ -328,12 +328,12 @@ jobs:
       - name: Apply Alembic migrations
         env:
           HOSPITAL_AI_DATABASE_URL: "postgresql+asyncpg://hospital_ai:hospital_ai@localhost:5432/hospital_ai_test"
-        run: alembic upgrade head
+        run: .venv/bin/python -m alembic upgrade head
 
       - name: Check migration-model alignment
         env:
           HOSPITAL_AI_DATABASE_URL: "postgresql+asyncpg://hospital_ai:hospital_ai@localhost:5432/hospital_ai_test"
-        run: alembic check > alembic-check.txt || (cat alembic-check.txt; exit 1)
+        run: .venv/bin/python -m alembic check > alembic-check.txt || (cat alembic-check.txt; exit 1)
 
       - name: Upload migration diagnostics
         if: always()

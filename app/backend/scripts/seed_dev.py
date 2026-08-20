@@ -36,7 +36,7 @@ from hospital_ai.db.migrations import (
     PATIENT_ELEANOR_ID,
     seed_synthetic_data,
 )
-from hospital_ai.db.models import AccessRequest, Document, DocumentChunk, DocumentPage, User
+from hospital_ai.db.models import AccessRequest, Document, DocumentChunk, User
 from hospital_ai.db.session import get_session_factory
 from hospital_ai.schemas.hms import HmsAppointmentSummaryImport
 from hospital_ai.services.graph_rag import GraphEntity, GraphRelation
@@ -88,6 +88,7 @@ async def _add_document(
 ) -> tuple[uuid.UUID, uuid.UUID]:
     """Create or update Document with CDI generation, embeddings, and return (chunk_id, doc_id)."""
     from sqlalchemy import select
+
     from hospital_ai.core.config import get_settings
     from hospital_ai.workers.generation_jobs import import_synthetic_generation
 
@@ -152,7 +153,8 @@ async def _add_graph_entity(
     from sqlalchemy import select
 
     r = await session.execute(select(GraphEntity).where(GraphEntity.id == entity_id))
-    if r.scalar_one_or_none() is None:
+    existing = r.scalar_one_or_none()
+    if existing is None:
         session.add(
             GraphEntity(
                 id=entity_id,
@@ -163,6 +165,12 @@ async def _add_graph_entity(
                 confidence=0.95,
             )
         )
+    else:
+        existing.name = name
+        existing.entity_type = entity_type
+        existing.source_chunk_id = chunk_id
+        existing.source_document_id = document_id
+        existing.confidence = 0.95
 
 
 async def _add_graph_relation(
@@ -176,7 +184,8 @@ async def _add_graph_relation(
     from sqlalchemy import select
 
     r = await session.execute(select(GraphRelation).where(GraphRelation.id == relation_id))
-    if r.scalar_one_or_none() is None:
+    existing = r.scalar_one_or_none()
+    if existing is None:
         session.add(
             GraphRelation(
                 id=relation_id,
@@ -187,6 +196,12 @@ async def _add_graph_relation(
                 source_chunk_id=chunk_id,
             )
         )
+    else:
+        existing.source_entity_id = source_entity_id
+        existing.target_entity_id = target_entity_id
+        existing.relation_type = relation_type
+        existing.weight = 1.0
+        existing.source_chunk_id = chunk_id
 
 
 # ── Main seed function ───────────────────────────────────────────────────────
@@ -717,18 +732,18 @@ async def main() -> None:
         E_ELEANOR_SULFA_ALLERGY = uuid.UUID("60000000-0000-0000-0000-000000000028")
         E_ELEANOR_EFGR = uuid.UUID("60000000-0000-0000-0000-000000000029")
 
-        for eid, name, etype in [
-            (E_ELEANOR_APIXABAN, "Apixaban 5mg BID", "drug"),
-            (E_ELEANOR_METOPROLOL, "Metoprolol succinate 50mg", "drug"),
-            (E_ELEANOR_FUROSEMIDE, "Furosemide 40mg", "drug"),
-            (E_ELEANOR_AFIB, "Atrial Fibrillation (AFib)", "condition"),
-            (E_ELEANOR_CKD, "CKD Stage 3", "condition"),
-            (E_ELEANOR_CREATININE, "Creatinine 1.6 mg/dL", "lab"),
-            (E_ELEANOR_BNP, "BNP 420 pg/mL", "lab"),
-            (E_ELEANOR_SULFA_ALLERGY, "Sulfa allergy (hives)", "condition"),
-            (E_ELEANOR_EFGR, "eGFR 42 mL/min", "lab"),
+        for eid, name, etype, cid, did in [
+            (E_ELEANOR_APIXABAN, "Apixaban 5mg BID", "drug", c_eleanor_presc, d_eleanor_presc),
+            (E_ELEANOR_METOPROLOL, "Metoprolol succinate 50mg", "drug", c_eleanor_presc, d_eleanor_presc),
+            (E_ELEANOR_FUROSEMIDE, "Furosemide 40mg", "drug", c_eleanor_presc, d_eleanor_presc),
+            (E_ELEANOR_AFIB, "Atrial Fibrillation (AFib)", "condition", c_eleanor_presc, d_eleanor_presc),
+            (E_ELEANOR_CKD, "CKD Stage 3", "condition", c_eleanor_presc, d_eleanor_presc),
+            (E_ELEANOR_CREATININE, "Creatinine 1.6 mg/dL", "lab", c_eleanor_lab, d_eleanor_lab),
+            (E_ELEANOR_BNP, "BNP 420 pg/mL", "lab", c_eleanor_lab, d_eleanor_lab),
+            (E_ELEANOR_SULFA_ALLERGY, "Sulfa allergy (hives)", "condition", c_eleanor_presc, d_eleanor_presc),
+            (E_ELEANOR_EFGR, "eGFR 42 mL/min", "lab", c_eleanor_lab, d_eleanor_lab),
         ]:
-            await _add_graph_entity(session, eid, name, etype, c_eleanor_presc, d_eleanor_presc)
+            await _add_graph_entity(session, eid, name, etype, cid, did)
 
         for rid, src, tgt, rel in [
             (uuid.UUID("70000000-0000-0000-0000-000000000021"), E_ELEANOR_APIXABAN, E_ELEANOR_AFIB, "treats"),

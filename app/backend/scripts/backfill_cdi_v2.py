@@ -51,7 +51,7 @@ async def run_backfill(args: argparse.Namespace) -> int:
         if args.mode == "enrich-relations":
             from hospital_ai.db.models import DocumentChunk
             from hospital_ai.services.graph_rag import index_chunk_entities
-            
+
             chunk_stmt = (
                 select(DocumentChunk)
                 .join(Document, Document.id == DocumentChunk.document_id)
@@ -75,7 +75,7 @@ async def run_backfill(args: argparse.Namespace) -> int:
                     enriched_count += 1
                 except Exception as e:
                     logger.warning("Failed to enrich chunk %s: %s", chunk.id, e)
-            
+
             await session.commit()
             logger.info("Enrich relations completed: %d chunks processed", enriched_count)
             if args.output:

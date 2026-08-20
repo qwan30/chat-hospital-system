@@ -6,15 +6,16 @@ from datetime import UTC, datetime
 from typing import Optional
 
 from fastapi import APIRouter, Depends, Path, Request
-from sqlalchemy import and_, select
+from sqlalchemy import and_, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from hospital_ai.api.deps import get_current_user, get_request_ip, get_session
 from hospital_ai.core.security import new_trace_id
-from hospital_ai.db.models import Document, DocumentChunk, Patient, User
+from hospital_ai.db.models import Document, DocumentChunk, DocumentPage, Patient, User
 from hospital_ai.schemas.graph import GraphDataResponse, GraphEdge, GraphMetadata, GraphNode, GraphPath, GraphPathStep
 from hospital_ai.services.graph_rag import GraphEntity, GraphRelation
 from hospital_ai.services.permissions import PermissionService
+from hospital_ai.services.retrieval import RetrievalService
 
 logger = logging.getLogger(__name__)
 
@@ -141,18 +142,38 @@ async def get_patient_graph(
             DocumentChunk.id.label("chunk_id"),
             DocumentChunk.document_id.label("document_id"),
         )
+        .join(
+            DocumentPage,
+            and_(
+                DocumentPage.id == DocumentChunk.page_id,
+                DocumentPage.document_id == DocumentChunk.document_id,
+            ),
+        )
         .join(Document, Document.id == DocumentChunk.document_id)
         .where(
             DocumentChunk.patient_id == patient_id,
             Document.patient_id == patient_id,
             Document.status.in_(("ready", "ready_with_warnings")),
             DocumentChunk.deleted_at.is_(None),
+            DocumentPage.deleted_at.is_(None),
             Document.deleted_at.is_(None),
+            or_(
+                Document.active_index_generation_id.is_(None),
+                DocumentChunk.generation_id == Document.active_index_generation_id,
+                DocumentChunk.generation_id.is_not_distinct_from(Document.active_index_generation_id),
+            ),
         )
         .subquery()
     )
     source_chunk_ids = list((await db.scalars(select(active_patient_sources.c.chunk_id))).all())
-    visible_source_ids = set(source_chunk_ids)
+    visible_source_ids = {
+        chunk.chunk_id
+        for chunk in await RetrievalService(db).get_chunks_by_ids(
+            source_chunk_ids,
+            user_id=current_user.id,
+            patient_id=patient_id,
+        )
+    }
 
     entity_result = await db.execute(
         select(GraphEntity)

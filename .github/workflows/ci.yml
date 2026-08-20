@@ -216,7 +216,7 @@ jobs:
         id: venv-cache
         with:
           path: app/backend/.venv
-          key: venv-backend-test-v3-${{ runner.os }}-${{ hashFiles('app/backend/pyproject.toml') }}
+          key: venv-backend-test-v4-${{ runner.os }}-${{ hashFiles('app/backend/pyproject.toml') }}
 
       - name: Install dependencies
         if: steps.venv-cache.outputs.cache-hit != 'true'
@@ -313,7 +313,7 @@ jobs:
         id: venv-cache
         with:
           path: app/backend/.venv
-          key: venv-backend-migration-v3-${{ runner.os }}-${{ hashFiles('app/backend/pyproject.toml') }}
+          key: venv-backend-migration-v4-${{ runner.os }}-${{ hashFiles('app/backend/pyproject.toml') }}
 
       - name: Install dependencies
         if: steps.venv-cache.outputs.cache-hit != 'true'
@@ -379,7 +379,7 @@ jobs:
         id: venv-cache
         with:
           path: app/backend/.venv
-          key: venv-rag-eval-v3-${{ runner.os }}-${{ hashFiles('app/backend/pyproject.toml') }}
+          key: venv-rag-eval-v4-${{ runner.os }}-${{ hashFiles('app/backend/pyproject.toml') }}
 
       - name: Install dependencies
         if: steps.venv-cache.outputs.cache-hit != 'true'

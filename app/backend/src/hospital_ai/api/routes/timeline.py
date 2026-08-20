@@ -1,4 +1,3 @@
-import asyncio
 from datetime import UTC, datetime
 
 from fastapi import APIRouter, Depends
@@ -88,9 +87,9 @@ async def get_global_timeline(
         .limit(limit)
     )
 
-    chat_res, doc_res, audit_res = await asyncio.gather(
-        db.execute(chat_stmt), db.execute(doc_stmt), db.execute(audit_stmt)
-    )
+    chat_res = await db.execute(chat_stmt)
+    doc_res = await db.execute(doc_stmt)
+    audit_res = await db.execute(audit_stmt)
 
     events = []
     for chat in chat_res.scalars().all():

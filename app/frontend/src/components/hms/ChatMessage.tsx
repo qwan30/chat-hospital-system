@@ -39,6 +39,22 @@ export interface MarkdownRendererProps {
   >;
 }
 
+function renderInlineFormatting(text: string, baseKey: string | number) {
+  // Split by markdown bold syntax **...**
+  const subParts = text.split(/(\*\*[^*]+\*\*)/g);
+  return subParts.map((sub, sIdx) => {
+    const boldMatch = sub.match(/^\*\*([^*]+)\*\*$/);
+    if (boldMatch) {
+      return (
+        <strong key={`${baseKey}-${sIdx}`} className="font-semibold text-foreground">
+          {boldMatch[1]}
+        </strong>
+      );
+    }
+    return <span key={`${baseKey}-${sIdx}`}>{sub}</span>;
+  });
+}
+
 export function MarkdownRenderer({
   content,
   allowHtml = false,
@@ -47,11 +63,7 @@ export function MarkdownRenderer({
   citations,
   evidenceById,
 }: MarkdownRendererProps) {
-  // React renders this value as a text child, so markup is escaped instead of
-  // being interpreted by the browser. Regex-based HTML sanitization is
-  // incomplete for malformed and nested markup and must not be used here.
   const sanitized = content;
-
   const parts = sanitized.split(/(\[[a-zA-Z0-9_-]+\])/g);
 
   return (
@@ -102,7 +114,7 @@ export function MarkdownRenderer({
             />
           );
         }
-        return <span key={index}>{part}</span>;
+        return <span key={index}>{renderInlineFormatting(part, index)}</span>;
       })}
     </div>
   );

@@ -42,7 +42,7 @@ class ChatGenerator:
                     LLMMessage(role="user", content=prompt),
                 ]
             )
-            return response.content
+            return response.text
         except Exception:
             # Fall back to stub answer if provider is unavailable
             if self.settings.chat_provider == "stub":
@@ -187,19 +187,25 @@ def meets_evidence_threshold(item: RetrievedChunk, retrieval_mode: str, threshol
     """Return True if `item` clears `threshold` under the active retrieval mode.
 
     Vector and BM25 modes return scores on `[0, 1]` and are compared directly
-    against `threshold`.  Hybrid mode uses Reciprocal Rank Fusion which
+    against `threshold`.  Hybrid mode or Graph RRF fusion uses Reciprocal Rank Fusion which
     produces tiny scores (typically `<= 0.06`); comparing them to a 0.2
-    threshold would silently mark every hybrid query as "no evidence".
+    threshold would silently mark every query as "no evidence".
 
-    For hybrid we look at `metadata["score_list_*"]` (preserved by RRF) and
-    require at least one underlying retriever to clear `threshold`.
+    For hybrid/RRF we look at `metadata["score_list_*"]` (preserved by RRF) and
+    require at least one underlying retriever to clear `threshold`, or any non-zero RRF score.
     """
-    if retrieval_mode != "hybrid":
+    is_rrf = (
+        retrieval_mode == "hybrid"
+        or (item.metadata or {}).get("retrieval_method") == "hybrid_rrf"
+        or "rrf_score" in (item.metadata or {})
+    )
+
+    if not is_rrf:
         return item.score >= threshold
 
     underlying_scores: list[float] = []
     for key, value in (item.metadata or {}).items():
-        if not isinstance(key, str) or not key.startswith("score_list_"):
+        if not isinstance(key, str) or not key.startswith("score_"):
             continue
         try:
             underlying_scores.append(float(value))
@@ -207,11 +213,8 @@ def meets_evidence_threshold(item: RetrievedChunk, retrieval_mode: str, threshol
             continue
 
     if not underlying_scores:
-        print(f"!!! {item.evidence_id} {item.metadata=}")
-        # No score_list_* metadata — fall back to any non-zero RRF score.
         return item.score > 0.0
 
-    print(f"!!! {item.evidence_id} {item.metadata=} max_score={max(underlying_scores)}")
     return max(underlying_scores) >= threshold
 
 

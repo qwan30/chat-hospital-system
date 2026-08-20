@@ -13,9 +13,16 @@ Each patient gets:
 """
 
 import asyncio
+import sys
 import uuid
 from datetime import UTC, date, datetime, timedelta
+from pathlib import Path
 from typing import Optional
+
+# Ensure src is in sys.path
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
+sys.path.insert(0, str(Path(__file__).resolve().parent / "src"))
+sys.path.insert(0, "src")
 
 from sqlalchemy.ext.asyncio import AsyncSession
 

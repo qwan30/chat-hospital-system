@@ -25,6 +25,10 @@ class LLMResponse:
     usage: dict[str, int] = field(default_factory=dict)
     finish_reason: str = ""
 
+    @property
+    def content(self) -> str:
+        return self.text
+
 
 class BaseLLM(ABC):
     """Abstract base class for LLM providers."""

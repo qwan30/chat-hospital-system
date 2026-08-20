@@ -9,8 +9,15 @@ Usage:
 import asyncio
 import hashlib
 import math
+import sys
 import uuid
 from datetime import date
+from pathlib import Path
+
+# Ensure src is in sys.path
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
+sys.path.insert(0, str(Path(__file__).resolve().parent / "src"))
+sys.path.insert(0, "src")
 
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 

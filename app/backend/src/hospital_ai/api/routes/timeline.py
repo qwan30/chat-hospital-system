@@ -13,6 +13,17 @@ from hospital_ai.schemas.timeline import GlobalTimelineResponse, TimelineEventBa
 router = APIRouter(prefix="/timeline", tags=["Timeline"])
 
 
+def _safe_audit_body(audit: AuditLog) -> str:
+    if audit.meta and isinstance(audit.meta, dict):
+        reason = audit.meta.get("reason")
+        if reason:
+            return str(reason)
+        desc_val = audit.meta.get("description") or audit.meta.get("detail")
+        if desc_val:
+            return str(desc_val)
+    return audit.action or "Action logged"
+
+
 @router.get("", response_model=GlobalTimelineResponse)
 async def get_global_timeline(
     limit: int = 50, offset: int = 0, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)
@@ -28,8 +39,10 @@ async def get_global_timeline(
     perm_result = await db.execute(perm_stmt)
     allowed_patients = [row[0] for row in perm_result.all()]
 
+    events: list[TimelineEventBase] = []
+
     if not allowed_patients:
-        # User has no assigned patients, return personal audit logs not linked to patients
+        # User has no assigned patients, return personal audit logs and personal general chats
         audit_stmt = (
             select(AuditLog)
             .where(
@@ -40,21 +53,52 @@ async def get_global_timeline(
             .order_by(desc(AuditLog.created_at))
             .limit(limit)
         )
+        chat_stmt = (
+            select(ChatThread)
+            .where(
+                ChatThread.owner_user_id == current_user.id,
+                ChatThread.patient_id.is_(None),
+                ChatThread.deleted_at.is_(None),
+            )
+            .order_by(desc(ChatThread.created_at))
+            .limit(limit)
+        )
 
         audit_res = await db.execute(audit_stmt)
-        events = []
+        chat_res = await db.execute(chat_stmt)
+
         for audit in audit_res.scalars().all():
-            events.append(
-                TimelineEventBase(
-                    event_id=f"audit-{audit.id}",
-                    timestamp=audit.created_at,
-                    type="audit",
-                    title=audit.action,
-                    body=audit.meta.get("reason", "Action logged") if audit.meta else "Action logged",
-                    patient_id=audit.patient_id,
-                    metadata={},
+            try:
+                events.append(
+                    TimelineEventBase(
+                        event_id=f"audit-{audit.id}",
+                        timestamp=audit.created_at or now,
+                        type="audit",
+                        title=audit.action or "Audit event",
+                        body=_safe_audit_body(audit),
+                        patient_id=audit.patient_id,
+                        metadata={},
+                    )
                 )
-            )
+            except Exception:
+                continue
+
+        for chat in chat_res.scalars().all():
+            try:
+                events.append(
+                    TimelineEventBase(
+                        event_id=f"chat-{chat.id}",
+                        timestamp=chat.created_at or now,
+                        type="chat",
+                        title="AI consult started",
+                        body=chat.title or "New consultation",
+                        patient_id=chat.patient_id,
+                        metadata={},
+                    )
+                )
+            except Exception:
+                continue
+
         events.sort(key=lambda x: x.timestamp, reverse=True)
         paginated_events = events[offset : offset + limit]
         return GlobalTimelineResponse(events=paginated_events, total_count=len(events))
@@ -62,7 +106,13 @@ async def get_global_timeline(
     # 2. Scatter gather with proper soft-delete and RBAC filters
     chat_stmt = (
         select(ChatThread)
-        .where(ChatThread.patient_id.in_(allowed_patients), ChatThread.deleted_at.is_(None))
+        .where(
+            or_(
+                ChatThread.patient_id.in_(allowed_patients),
+                and_(ChatThread.patient_id.is_(None), ChatThread.owner_user_id == current_user.id),
+            ),
+            ChatThread.deleted_at.is_(None),
+        )
         .order_by(desc(ChatThread.created_at))
         .limit(limit)
     )
@@ -91,45 +141,53 @@ async def get_global_timeline(
     doc_res = await db.execute(doc_stmt)
     audit_res = await db.execute(audit_stmt)
 
-    events = []
     for chat in chat_res.scalars().all():
-        events.append(
-            TimelineEventBase(
-                event_id=f"chat-{chat.id}",
-                timestamp=chat.created_at,
-                type="chat",
-                title="AI consult started",
-                body=chat.title or "New consultation",
-                patient_id=chat.patient_id,
-                metadata={},
+        try:
+            events.append(
+                TimelineEventBase(
+                    event_id=f"chat-{chat.id}",
+                    timestamp=chat.created_at or now,
+                    type="chat",
+                    title="AI consult started",
+                    body=chat.title or "New consultation",
+                    patient_id=chat.patient_id,
+                    metadata={},
+                )
             )
-        )
+        except Exception:
+            continue
 
     for doc in doc_res.scalars().all():
-        events.append(
-            TimelineEventBase(
-                event_id=f"doc-{doc.id}",
-                timestamp=doc.created_at,
-                type="document",
-                title="Document uploaded",
-                body=f"{doc.title} added to patient record",
-                patient_id=doc.patient_id,
-                metadata={},
+        try:
+            events.append(
+                TimelineEventBase(
+                    event_id=f"doc-{doc.id}",
+                    timestamp=doc.created_at or now,
+                    type="document",
+                    title="Document uploaded",
+                    body=f"{doc.title or 'Document'} added to patient record",
+                    patient_id=doc.patient_id,
+                    metadata={},
+                )
             )
-        )
+        except Exception:
+            continue
 
     for audit in audit_res.scalars().all():
-        events.append(
-            TimelineEventBase(
-                event_id=f"audit-{audit.id}",
-                timestamp=audit.created_at,
-                type="audit",
-                title=audit.action,
-                body=audit.meta.get("reason", "Action logged") if audit.meta else "Action logged",
-                patient_id=audit.patient_id,
-                metadata={},
+        try:
+            events.append(
+                TimelineEventBase(
+                    event_id=f"audit-{audit.id}",
+                    timestamp=audit.created_at or now,
+                    type="audit",
+                    title=audit.action or "Audit event",
+                    body=_safe_audit_body(audit),
+                    patient_id=audit.patient_id,
+                    metadata={},
+                )
             )
-        )
+        except Exception:
+            continue
 
     # 3. Sort and paginate
     events.sort(key=lambda x: x.timestamp, reverse=True)

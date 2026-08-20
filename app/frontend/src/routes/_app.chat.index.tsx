@@ -222,7 +222,7 @@ function GlobalChat() {
 
   useEffect(() => {
     if (threadDetail?.messages) {
-      if (createdThreadIdRef.current === thread) {
+      if (createdThreadIdRef.current === thread && streamingId !== null) {
         return;
       }
       const mapped = threadDetail.messages.map((m) => ({
@@ -233,17 +233,17 @@ function GlobalChat() {
           hour: "2-digit",
           minute: "2-digit",
         }),
-        rawCitations: m.citations.map((c) => ({
-          evidence_id: c.evidence_id || (c as any).id,
+        rawCitations: (m.citations || []).map((c) => ({
+          evidence_id: c.evidence_id || (c as any).id || "E1",
           document_id: c.document_id,
           document_title: c.document_title || (c as any).source || "Unknown Document",
           page: c.page || 1,
           score: c.score || (c as any).relevance || 0.5,
           content: c.content || (c as any).snippet || "",
         })),
-        citations: m.citations.map((c, idx) => ({
+        citations: (m.citations || []).map((c, idx) => ({
           n: idx + 1,
-          sourceId: c.evidence_id || (c as any).id,
+          sourceId: c.evidence_id || (c as any).id || `E${idx + 1}`,
         })),
       }));
       setMessages(mapped);
@@ -252,7 +252,7 @@ function GlobalChat() {
         setMessages([]);
       }
     }
-  }, [threadDetail, thread]);
+  }, [threadDetail, thread, streamingId]);
 
   useEffect(() => {
     if (!thread) {
@@ -750,12 +750,14 @@ function GlobalChat() {
       setStreamingId(null);
       setStreamingText("");
       setStreamStage(null);
+      createdThreadIdRef.current = null;
       if (activeThreadId) {
         queryClient.invalidateQueries({ queryKey: ["chat-thread", activeThreadId] });
         queryClient.invalidateQueries({ queryKey: ["chat-threads"] });
       }
       return;
     } catch (err: any) {
+      createdThreadIdRef.current = null;
       if (!isCurrentStreamRequest(abortControllerRef.current, requestController)) return;
       console.warn("Backend stream failed:", err);
       const isSimulated = simulate === "stream-fail" && err.name === "AbortError";

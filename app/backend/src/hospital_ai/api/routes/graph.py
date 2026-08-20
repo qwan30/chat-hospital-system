@@ -174,6 +174,7 @@ async def get_patient_graph(
             patient_id=patient_id,
         )
     }
+
     entity_result = await db.execute(
         select(GraphEntity)
         .join(

@@ -48,3 +48,32 @@ async def test_get_global_timeline_with_events(session_and_settings):
 
     doc_event = next(e for e in response.events if e.type == "document")
     assert "Discharge Summary Note" in doc_event.body
+
+
+@pytest.mark.asyncio
+async def test_get_global_timeline_with_empty_audit_meta(session_and_settings):
+    from hospital_ai.db.models import AuditLog
+
+    session, settings = session_and_settings
+    current_user = await session.get(User, DOCTOR_ID)
+
+    audit = AuditLog(
+        actor_user_id=DOCTOR_ID,
+        action="patient.record.view",
+        object_type="patient",
+        outcome="allowed",
+        trace_id="test-trace-audit-1",
+        meta={},
+    )
+    session.add(audit)
+    await session.commit()
+
+    response = await get_global_timeline(
+        limit=50,
+        offset=0,
+        db=session,
+        current_user=current_user,
+    )
+
+    assert response is not None
+    assert isinstance(response.events, list)

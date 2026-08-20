@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { FileText, Loader2, Maximize2, Download } from "lucide-react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
-import { getDocumentBlob } from "@/lib/api/documents";
+import { getDocumentBlob, getDocumentPage } from "@/lib/api/documents";
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { SpreadsheetPreview } from "./SpreadsheetPreview";
@@ -20,29 +20,67 @@ export function DocumentPreview({
   const reduceMotion = useReducedMotion();
   const [blob, setBlob] = useState<Blob | null>(null);
   const [url, setUrl] = useState<string | null>(null);
+  const [textPreview, setTextPreview] = useState<string | null>(null);
   const [failed, setFailed] = useState(false);
+
+  const isTextDoc =
+    mimeType.startsWith("text/") ||
+    mimeType.includes("json") ||
+    mimeType.includes("note") ||
+    mimeType.includes("summary") ||
+    mimeType.includes("prescription") ||
+    mimeType.includes("lab_result") ||
+    (documentTitle &&
+      (documentTitle.toLowerCase().endsWith(".txt") ||
+        documentTitle.toLowerCase().endsWith(".md") ||
+        documentTitle.toLowerCase().endsWith(".json")));
 
   useEffect(() => {
     let currentUrl: string | null = null;
     let active = true;
     setBlob(null);
     setUrl(null);
+    setTextPreview(null);
     setFailed(false);
+
     getDocumentBlob(documentId)
-      .then((fetchedBlob) => {
+      .then(async (fetchedBlob) => {
         if (!active) return;
         setBlob(fetchedBlob);
         currentUrl = URL.createObjectURL(fetchedBlob);
         setUrl(currentUrl);
+
+        if (isTextDoc || fetchedBlob.type.startsWith("text/")) {
+          try {
+            const text = await fetchedBlob.text();
+            if (active) setTextPreview(text);
+          } catch {
+            // ignore text decoding errors
+          }
+        }
       })
       .catch(() => {
-        if (active) setFailed(true);
+        if (!active) return;
+        // Fallback: try fetching the first page OCR/synthetic text
+        getDocumentPage(documentId, 1)
+          .then((pageData) => {
+            if (!active) return;
+            if (pageData?.ocr_text) {
+              setTextPreview(pageData.ocr_text);
+            } else {
+              setFailed(true);
+            }
+          })
+          .catch(() => {
+            if (active) setFailed(true);
+          });
       });
+
     return () => {
       active = false;
       if (currentUrl) URL.revokeObjectURL(currentUrl);
     };
-  }, [documentId]);
+  }, [documentId, isTextDoc]);
 
   const isSpreadsheet =
     mimeType.includes("csv") ||
@@ -61,11 +99,35 @@ export function DocumentPreview({
       {failed ? (
         <motion.p
           key="unavailable"
-          className="text-sm text-muted-foreground"
+          className="text-sm text-muted-foreground p-4"
           {...fade(reduceMotion)}
         >
           Preview unavailable for this document.
         </motion.p>
+      ) : textPreview !== null ? (
+        <motion.div
+          key="text-preview"
+          className="relative w-full h-full flex-1 flex flex-col min-h-0 overflow-hidden bg-muted/10 rounded-xl border p-3.5"
+          {...fade(reduceMotion)}
+        >
+          <div className="flex items-center justify-between pb-2 border-b mb-2.5 shrink-0">
+            <div className="flex items-center gap-1.5 text-xs font-semibold text-foreground/90">
+              <FileText className="h-3.5 w-3.5 text-ai" />
+              <span>Document Content</span>
+            </div>
+            {url && (
+              <Button asChild size="sm" variant="ghost" className="h-6 px-2 text-xs">
+                <a href={url} download={documentTitle || "document.txt"}>
+                  <Download className="h-3 w-3 mr-1" /> Download
+                </a>
+              </Button>
+            )}
+          </div>
+          <pre className="flex-1 overflow-y-auto whitespace-pre-wrap font-mono text-xs text-foreground/90 leading-relaxed pr-1 select-text">
+            {textPreview}
+          </pre>
+          {children}
+        </motion.div>
       ) : !url || !blob ? (
         <motion.div
           key="loading"

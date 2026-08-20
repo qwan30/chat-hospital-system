@@ -8,6 +8,7 @@ import type { StreamCitation } from "@/lib/stream-client";
 export interface ChatCitationRef {
   n: number;
   sourceId: string;
+  page?: number;
 }
 
 export interface ChatMessageData {
@@ -18,7 +19,14 @@ export interface ChatMessageData {
   rawCitations?: StreamCitation[];
   evidenceById?: Record<
     string,
-    { id?: string; n?: number; sourceId?: string; document_id?: string; [key: string]: unknown }
+    {
+      id?: string;
+      n?: number;
+      sourceId?: string;
+      document_id?: string;
+      page?: number;
+      [key: string]: unknown;
+    }
   >;
   graphExplanation?: unknown;
   streamingMode?: string;
@@ -35,7 +43,14 @@ export interface MarkdownRendererProps {
   citations?: ChatCitationRef[];
   evidenceById?: Record<
     string,
-    { id?: string; n?: number; sourceId?: string; document_id?: string; [key: string]: unknown }
+    {
+      id?: string;
+      n?: number;
+      sourceId?: string;
+      document_id?: string;
+      page?: number;
+      [key: string]: unknown;
+    }
   >;
 }
 
@@ -91,7 +106,8 @@ export function MarkdownRenderer({
               <CitationChip
                 key={index}
                 n={ev.n ?? nVal}
-                sourceId={ev.sourceId ?? ev.document_id ?? ev.id ?? ""}
+                sourceId={ev.document_id ?? ev.sourceId ?? ev.id ?? ""}
+                page={ev.page}
                 evidence={ev}
                 className="mx-0.5"
               />
@@ -101,7 +117,13 @@ export function MarkdownRenderer({
             const cit = citations.find((c) => c.n === nVal);
             if (cit) {
               return (
-                <CitationChip key={index} n={cit.n} sourceId={cit.sourceId} className="mx-0.5" />
+                <CitationChip
+                  key={index}
+                  n={cit.n}
+                  sourceId={cit.sourceId}
+                  page={cit.page}
+                  className="mx-0.5"
+                />
               );
             }
           }
@@ -151,15 +173,22 @@ export function ChatMessage({
                 <CitationChip
                   evidence={ev}
                   n={ev.n ?? n}
-                  sourceId={ev.sourceId ?? ev.document_id ?? ev.id ?? id}
+                  sourceId={ev.document_id ?? ev.sourceId ?? ev.id ?? id}
+                  page={ev.page}
                 />
               );
             }
             const nVal = Number(id);
-            if (!isNaN(nVal) && msg.citations) {
-              const cit = msg.citations.find((c) => c.n === nVal);
-              if (cit) {
-                return <CitationChip n={cit.n} sourceId={cit.sourceId} />;
+            if (!isNaN(nVal)) {
+              if (msg.citations) {
+                const cit = msg.citations.find((c) => c.n === nVal);
+                if (cit) {
+                  return <CitationChip n={cit.n} sourceId={cit.sourceId} page={cit.page} />;
+                }
+              }
+              if (msg.rawCitations && msg.rawCitations[nVal - 1]) {
+                const raw = msg.rawCitations[nVal - 1];
+                return <CitationChip n={nVal} sourceId={raw.document_id} page={raw.page} />;
               }
             }
             return <CitationChip n={n ?? 1} sourceId={id} />;

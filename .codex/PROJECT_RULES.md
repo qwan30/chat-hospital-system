@@ -20,3 +20,10 @@ These project-local reminders are loaded by `.codex/hooks/session_start.py` and 
 - Preserve numeric doc prefixes in `docs/`.
 - New docs use lowercase filenames with underscores.
 - Link changes back to the relevant requirement or test case from `docs/` when practical.
+
+## Deterministic Quality Gates (Zero-Tolerance)
+
+- Before finishing any task, run `python app/backend/scripts/verify_deterministic_gates.py` and ensure Exit Code 0.
+- All core functions must maintain CRAP Score <= 35 and 100% Mutation Kill Rate on domain logic.
+- Frontend must pass `bun run typecheck`, `bun run lint`, and `bun run test`.
+

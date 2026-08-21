@@ -238,6 +238,12 @@ jobs:
       - name: Ruff format check
         run: .venv/bin/python -m ruff format --check src/ tests/
 
+      - name: Complexity & CRAP score verification
+        run: .venv/bin/python scripts/calculate_crap_score.py --source-dir src/hospital_ai --max-crap 35.0 --max-complexity 40
+
+      - name: Targeted mutation testing smoke gate
+        run: .venv/bin/python scripts/run_mutation_smoke.py --target-file src/hospital_ai/services/bm25.py --test-target tests/test_bm25.py --max-mutants 8 --min-kill-rate 80.0
+
       # ── Tests ──
       - name: Run pytest (unit + integration)
         env:
@@ -247,9 +253,12 @@ jobs:
           HOSPITAL_AI_DISABLE_GUARDRAILS: "true"
         run: .venv/bin/python -m pytest tests/ -v --tb=short --cov=hospital_ai --cov-report=term --cov-fail-under=60 --junitxml=test-results/junit.xml
 
-      # ── API Contract Verification ──
+      # ── API Contract & Deterministic Gate Verification ──
       - name: Verify API contracts
         run: .venv/bin/python scripts/verify_contracts.py
+
+      - name: Verify master deterministic gates
+        run: .venv/bin/python scripts/verify_deterministic_gates.py --mode smoke
 
       - name: Verify CDI V2 release contracts
         run: |

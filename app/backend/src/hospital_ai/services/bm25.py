@@ -41,11 +41,8 @@ class BM25Scorer:
 
         Returns chunks sorted by BM25 score (descending), limited to top_k.
         """
-        if not chunks or not query.strip():
-            return chunks[:top_k]
-
         query_terms = _tokenize(query)
-        if not query_terms:
+        if not chunks or not query_terms:
             return chunks[:top_k]
 
         # Build document frequency table

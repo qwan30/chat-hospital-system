@@ -212,7 +212,7 @@ jobs:
           python-version: ${{ env.PYTHON_VERSION }}
 
       - name: Cache Virtual Environment
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         id: venv-cache
         with:
           path: app/backend/.venv
@@ -320,7 +320,7 @@ jobs:
           python-version: ${{ env.PYTHON_VERSION }}
 
       - name: Cache Virtual Environment
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         id: venv-cache
         with:
           path: app/backend/.venv
@@ -388,7 +388,7 @@ jobs:
           python-version: ${{ env.PYTHON_VERSION }}
 
       - name: Cache Virtual Environment
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         id: venv-cache
         with:
           path: app/backend/.venv
@@ -562,7 +562,7 @@ jobs:
 
       - name: Cache Playwright browsers
         id: playwright-cache
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: ~/.cache/ms-playwright
           key: playwright-${{ runner.os }}-${{ steps.playwright-version.outputs.version }}
@@ -575,7 +575,7 @@ jobs:
 
       # ── Vite dependency transform cache ──
       - name: Cache Vite build cache
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: app/frontend/node_modules/.vite
           key: vite-${{ runner.os }}-${{ hashFiles('app/frontend/src/**', 'app/frontend/public/**', 'app/frontend/*.ts', 'app/frontend/*.js', 'app/frontend/*.json') }}

@@ -36,7 +36,7 @@ from hospital_ai.db.migrations import (
     PATIENT_ELEANOR_ID,
     seed_synthetic_data,
 )
-from hospital_ai.db.models import AccessRequest, Document, DocumentChunk, User
+from hospital_ai.db.models import AccessRequest, Document, DocumentChunk, DocumentPage, User
 from hospital_ai.db.session import get_session_factory
 from hospital_ai.schemas.hms import HmsAppointmentSummaryImport
 from hospital_ai.services.graph_rag import GraphEntity, GraphRelation
@@ -816,7 +816,122 @@ async def main() -> None:
             )
             await session.commit()
 
-    print("Seeded synthetic users, patients, permissions, HMS appointment evidence, and ChatThreads.")
+        # Seed Graph RAG relations for Eleanor Vance (MRN-0003)
+        eleanor_doc_id = uuid.UUID("77777777-0000-0000-0000-000000000003")
+        existing_doc = await session.get(Document, eleanor_doc_id)
+        if existing_doc is None:
+            eleanor_doc = Document(
+                id=eleanor_doc_id,
+                patient_id=PATIENT_ELEANOR_ID,
+                title="Cardiology Consultation & Management Note",
+                document_type="clinical_note",
+                storage_uri="local://mock-clinical-note-eleanor",
+                mime_type="text/plain",
+                status="ready",
+                uploaded_by=DOCTOR_ID,
+            )
+            session.add(eleanor_doc)
+
+            page_id = uuid.UUID("77777777-0000-0000-0000-000000000004")
+            page = DocumentPage(
+                id=page_id,
+                document_id=eleanor_doc_id,
+                page_number=1,
+                ocr_text=(
+                    "Eleanor Vance is a 74yo female with persistent Atrial Fibrillation on Apixaban. "
+                    "Also diagnosed with Chronic Kidney Disease Stage 3 with baseline eGFR 58 mL/min "
+                    "indicated by elevated Creatinine. "
+                    "Apixaban treats Atrial Fibrillation. Elevated Creatinine indicates Chronic Kidney Disease."
+                ),
+                ocr_confidence=1.0,
+            )
+            session.add(page)
+
+            chunk_id = uuid.UUID("77777777-0000-0000-0000-000000000005")
+            chunk = DocumentChunk(
+                id=chunk_id,
+                document_id=eleanor_doc_id,
+                page_id=page_id,
+                patient_id=PATIENT_ELEANOR_ID,
+                content=page.ocr_text,
+                chunk_index=0,
+            )
+            session.add(chunk)
+            await session.flush()
+
+            # Entities
+            ent_afib = GraphEntity(
+                id=uuid.UUID("77777777-0000-0000-0000-000000000010"),
+                name="Atrial Fibrillation",
+                entity_type="condition",
+                source_chunk_id=chunk_id,
+                source_document_id=eleanor_doc_id,
+                confidence=1.0,
+            )
+            ent_apixaban = GraphEntity(
+                id=uuid.UUID("77777777-0000-0000-0000-000000000011"),
+                name="Apixaban",
+                entity_type="drug",
+                source_chunk_id=chunk_id,
+                source_document_id=eleanor_doc_id,
+                confidence=1.0,
+            )
+            ent_ckd = GraphEntity(
+                id=uuid.UUID("77777777-0000-0000-0000-000000000012"),
+                name="Chronic Kidney Disease",
+                entity_type="condition",
+                source_chunk_id=chunk_id,
+                source_document_id=eleanor_doc_id,
+                confidence=1.0,
+            )
+            ent_creat = GraphEntity(
+                id=uuid.UUID("77777777-0000-0000-0000-000000000013"),
+                name="Creatinine",
+                entity_type="lab",
+                source_chunk_id=chunk_id,
+                source_document_id=eleanor_doc_id,
+                confidence=1.0,
+            )
+            ent_egfr = GraphEntity(
+                id=uuid.UUID("77777777-0000-0000-0000-000000000014"),
+                name="eGFR",
+                entity_type="lab",
+                source_chunk_id=chunk_id,
+                source_document_id=eleanor_doc_id,
+                confidence=1.0,
+            )
+            session.add_all([ent_afib, ent_apixaban, ent_ckd, ent_creat, ent_egfr])
+            await session.flush()
+
+            # Relations
+            rel_1 = GraphRelation(
+                id=uuid.UUID("77777777-0000-0000-0000-000000000020"),
+                source_entity_id=ent_apixaban.id,
+                target_entity_id=ent_afib.id,
+                relation_type="treats",
+                weight=1.0,
+                source_chunk_id=chunk_id,
+            )
+            rel_2 = GraphRelation(
+                id=uuid.UUID("77777777-0000-0000-0000-000000000021"),
+                source_entity_id=ent_creat.id,
+                target_entity_id=ent_ckd.id,
+                relation_type="indicates",
+                weight=1.0,
+                source_chunk_id=chunk_id,
+            )
+            rel_3 = GraphRelation(
+                id=uuid.UUID("77777777-0000-0000-0000-000000000022"),
+                source_entity_id=ent_egfr.id,
+                target_entity_id=ent_ckd.id,
+                relation_type="indicates",
+                weight=1.0,
+                source_chunk_id=chunk_id,
+            )
+            session.add_all([rel_1, rel_2, rel_3])
+            await session.commit()
+
+    print("Seeded synthetic users, patients, permissions, HMS appointment evidence, ChatThreads, and Graph RAG data.")
 
 
 if __name__ == "__main__":

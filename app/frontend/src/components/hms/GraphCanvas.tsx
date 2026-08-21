@@ -303,13 +303,18 @@ function getIntersectionOffset(
 export function GraphCanvas({
   data,
   filters,
+  hiddenTypes,
+  onToggleType,
 }: {
   data: GraphData;
   filters?: DocumentGraphFilters;
+  hiddenTypes?: Set<NodeType>;
+  onToggleType?: (type: NodeType) => void;
 }) {
   const [hover, setHover] = useState<string | null>(null);
   const [selected, setSelected] = useState<string | null>(null);
-  const [hidden, setHidden] = useState<Set<NodeType>>(new Set());
+  const [internalHidden, setInternalHidden] = useState<Set<NodeType>>(new Set());
+  const hidden = hiddenTypes ?? internalHidden;
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [showCooccurrence, setShowCooccurrence] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -328,11 +333,18 @@ export function GraphCanvas({
 
   const active = selected ?? hover;
 
-  // Filter edges based on co-occurrence toggle
+  // Filter edges based on co-occurrence toggle and relation_types filter
   const filteredEdges = useMemo(() => {
-    if (showCooccurrence) return data.edges;
-    return data.edges.filter((e) => e.label !== "mentioned_with");
-  }, [data.edges, showCooccurrence]);
+    let edges = data.edges;
+    if (!showCooccurrence) {
+      edges = edges.filter((e) => e.label !== "mentioned_with");
+    }
+    if (filters?.relation_types && filters.relation_types.length > 0) {
+      const allowed = new Set(filters.relation_types.map((r) => r.toLowerCase()));
+      edges = edges.filter((e) => allowed.has(e.label.toLowerCase()));
+    }
+    return edges;
+  }, [data.edges, showCooccurrence, filters?.relation_types]);
 
   // Run force layout on the data
   const layoutPositions = useMemo(
@@ -362,12 +374,16 @@ export function GraphCanvas({
   }, [filteredEdges]);
 
   const visibleNodes = useMemo(() => {
-    const nodes = data.nodes.filter((n) => !hidden.has(n.type as NodeType));
+    let nodes = data.nodes.filter((n) => !hidden.has(n.type as NodeType));
+    if (filters?.entity_types && filters.entity_types.length > 0) {
+      const allowed = new Set(filters.entity_types.map((t) => t.toLowerCase()));
+      nodes = nodes.filter((n) => allowed.has(n.type.toLowerCase()));
+    }
     if (filters?.node_limit !== undefined && filters.node_limit > 0) {
       return nodes.slice(0, filters.node_limit);
     }
     return nodes;
-  }, [data.nodes, hidden, filters?.node_limit]);
+  }, [data.nodes, hidden, filters?.node_limit, filters?.entity_types]);
   const visibleIds = useMemo(() => new Set(visibleNodes.map((n) => n.id)), [visibleNodes]);
   const visibleEdges = useMemo(() => {
     const edges = filteredEdges.filter(
@@ -396,12 +412,16 @@ export function GraphCanvas({
   };
 
   const toggleType = (t: NodeType) => {
-    setHidden((prev) => {
-      const next = new Set(prev);
-      if (next.has(t)) next.delete(t);
-      else next.add(t);
-      return next;
-    });
+    if (onToggleType) {
+      onToggleType(t);
+    } else {
+      setInternalHidden((prev) => {
+        const next = new Set(prev);
+        if (next.has(t)) next.delete(t);
+        else next.add(t);
+        return next;
+      });
+    }
   };
 
   /* ---- Fit all visible nodes ---- */
@@ -674,7 +694,7 @@ export function GraphCanvas({
             onClick={() => {
               setCamera({ x: 0, y: 0, zoom: 1 });
               setSelected(null);
-              setHidden(new Set());
+              setInternalHidden(new Set());
               setNodePositions(new Map(layoutPositions));
             }}
             aria-label="Reset view"

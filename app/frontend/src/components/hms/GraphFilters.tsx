@@ -81,6 +81,8 @@ export interface GraphFiltersProps {
   supersededEvidenceList?: SupersededEvidenceItem[];
   sourceBackedPaths?: SourceBackedPathItem[];
   finalCitations?: FinalCitationItem[];
+  hiddenTypes?: Set<string>;
+  onToggleType?: (type: string) => void;
 }
 
 export function GraphFilters({
@@ -91,6 +93,8 @@ export function GraphFilters({
   supersededEvidenceList = [],
   sourceBackedPaths = [],
   finalCitations = [],
+  hiddenTypes,
+  onToggleType,
 }: GraphFiltersProps) {
   const supports = (key: GraphFilterKey) => supportedFilters?.includes(key) ?? true;
   const canReadSuperseded = React.useMemo(() => {
@@ -259,7 +263,17 @@ export function GraphFilters({
         )}
       </Card>
 
-      <GraphLegend />
+      <GraphLegend
+        hiddenTypes={hiddenTypes}
+        onToggleType={onToggleType}
+        selectedRelationTypes={filters.relation_types}
+        onToggleRelationType={(rel) => {
+          const current = filters.relation_types || [];
+          const isSelected = current.includes(rel);
+          const updated = isSelected ? current.filter((r) => r !== rel) : [...current, rel];
+          onChange({ ...filters, relation_types: updated });
+        }}
+      />
 
       {canReadSuperseded && filters.include_superseded && supersededEvidenceList.length > 0 && (
         <Card className="p-4 border-warning/40 bg-warning/5 space-y-3">

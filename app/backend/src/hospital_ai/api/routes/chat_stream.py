@@ -910,6 +910,9 @@ async def _apply_stream_completion(
 
         thread = await session.get(ChatThread, thread_id)
         if thread is not None:
+            if patient_id is not None and thread.scope == "general":
+                thread.scope = "patient-linked"
+                thread.patient_id = patient_id
             thread.last_message_at = assistant_message.created_at
 
     if thread_id is not None and completion.validation_status == "passed":
@@ -1334,6 +1337,9 @@ async def chat_stream(
                 )
                 thread = await session.get(ChatThread, payload.thread_id)
                 if thread is not None:
+                    if effective_patient_id is not None and thread.scope == "general":
+                        thread.scope = "patient-linked"
+                        thread.patient_id = effective_patient_id
                     thread.last_message_at = datetime.now(UTC)
 
             await session.commit()

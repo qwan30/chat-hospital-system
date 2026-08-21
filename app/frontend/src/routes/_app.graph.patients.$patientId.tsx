@@ -46,6 +46,16 @@ export const Route = createFileRoute("/_app/graph/patients/$patientId")({
 function Page() {
   const { patientId } = Route.useParams();
   const [filters, setFilters] = useState<DocumentGraphFilters>(DEFAULT_GRAPH_FILTERS);
+  const [hiddenTypes, setHiddenTypes] = useState<Set<any>>(new Set());
+
+  const toggleType = (t: any) => {
+    setHiddenTypes((prev) => {
+      const next = new Set(prev);
+      if (next.has(t)) next.delete(t);
+      else next.add(t);
+      return next;
+    });
+  };
 
   const {
     data: patientGraph,
@@ -148,13 +158,20 @@ function Page() {
       />
 
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-[1fr_360px]">
-        <GraphCanvas data={patientGraph} filters={filters} />
+        <GraphCanvas
+          data={patientGraph}
+          filters={filters}
+          hiddenTypes={hiddenTypes}
+          onToggleType={toggleType}
+        />
 
         <div className="space-y-4">
           <GraphFilters
             filters={filters}
             onChange={setFilters}
             supportedFilters={supportedFilters}
+            hiddenTypes={hiddenTypes}
+            onToggleType={toggleType}
             capabilities={
               session?.role === "cardiologist" ||
               session?.role === "hospitalist" ||

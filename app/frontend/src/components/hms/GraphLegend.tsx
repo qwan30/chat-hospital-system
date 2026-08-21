@@ -1,6 +1,7 @@
 import React from "react";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
+import { cn } from "@/lib/utils";
 import {
   Heart,
   Activity,
@@ -114,7 +115,19 @@ export const NODE_LEGEND_ITEMS = [
   },
 ];
 
-export function GraphLegend() {
+export interface GraphLegendProps {
+  hiddenTypes?: Set<string>;
+  onToggleType?: (type: string) => void;
+  selectedRelationTypes?: string[];
+  onToggleRelationType?: (relation: string) => void;
+}
+
+export function GraphLegend({
+  hiddenTypes,
+  onToggleType,
+  selectedRelationTypes,
+  onToggleRelationType,
+}: GraphLegendProps = {}) {
   return (
     <Card className="p-4 space-y-4 text-xs">
       <div>
@@ -123,12 +136,26 @@ export function GraphLegend() {
           Entity Nodes
         </h4>
         <div className="grid grid-cols-2 gap-2">
-          {NODE_LEGEND_ITEMS.map(({ type, label, Icon, color }) => (
-            <div key={type} className={`flex items-center gap-2 px-2 py-1 rounded border ${color}`}>
-              <Icon className="h-3.5 w-3.5" />
-              <span>{label}</span>
-            </div>
-          ))}
+          {NODE_LEGEND_ITEMS.map(({ type, label, Icon, color }) => {
+            const isOff = hiddenTypes?.has(type);
+            return (
+              <button
+                key={type}
+                type="button"
+                onClick={() => onToggleType?.(type)}
+                className={cn(
+                  "flex items-center gap-2 px-2 py-1 rounded border transition-all text-left",
+                  onToggleType ? "cursor-pointer hover:shadow-xs" : "cursor-default",
+                  color,
+                  isOff && "opacity-40 border-dashed grayscale bg-muted/40 text-muted-foreground",
+                )}
+                title={isOff ? `Show ${label} nodes` : `Hide ${label} nodes`}
+              >
+                <Icon className="h-3.5 w-3.5 shrink-0" />
+                <span className={cn(isOff && "line-through opacity-80")}>{label}</span>
+              </button>
+            );
+          })}
         </div>
       </div>
 
@@ -138,16 +165,29 @@ export function GraphLegend() {
           Clinical Relations (10 Standard Types)
         </h4>
         <div className="flex flex-wrap gap-1.5">
-          {Object.entries(RELATION_STYLES).map(([key, style]) => (
-            <Badge
-              key={key}
-              variant="outline"
-              className={`${style.className} text-[11px] py-0.5`}
-              title={style.description}
-            >
-              {style.label}
-            </Badge>
-          ))}
+          {Object.entries(RELATION_STYLES).map(([key, style]) => {
+            const isSelected = selectedRelationTypes?.includes(key);
+            return (
+              <button
+                key={key}
+                type="button"
+                onClick={() => onToggleRelationType?.(key)}
+                className={cn(onToggleRelationType ? "cursor-pointer" : "cursor-default")}
+              >
+                <Badge
+                  variant="outline"
+                  className={cn(
+                    style.className,
+                    "text-[11px] py-0.5 transition-all",
+                    isSelected && "ring-2 ring-primary ring-offset-1 font-semibold scale-105",
+                  )}
+                  title={style.description}
+                >
+                  {style.label}
+                </Badge>
+              </button>
+            );
+          })}
         </div>
       </div>
     </Card>

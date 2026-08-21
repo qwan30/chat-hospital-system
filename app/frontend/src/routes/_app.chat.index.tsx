@@ -153,6 +153,10 @@ function GlobalChat() {
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
     }
+    setStreamingId(null);
+    setStreamingText("");
+    setStreamStage(null);
+    setStreamError("Stream stopped by user.");
   };
 
   const queryClient = useQueryClient();

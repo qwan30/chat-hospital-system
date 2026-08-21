@@ -147,8 +147,8 @@ export async function streamChat(
     watchdogTimer = setTimeout(() => {
       timeoutTriggered = true;
       internalController.abort();
-      onEvent?.({ type: "error", message: "Stream timed out after 30s of inactivity." });
-    }, 30000);
+      onEvent?.({ type: "error", message: "Stream timed out after 60s of inactivity." });
+    }, 60000);
   };
 
   try {

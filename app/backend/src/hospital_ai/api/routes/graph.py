@@ -228,27 +228,54 @@ async def get_patient_graph(
     # Query relations between these entities
     relation_result = await db.execute(
         select(GraphRelation, active_patient_sources.c.document_id)
-        .outerjoin(active_patient_sources, GraphRelation.source_chunk_id == active_patient_sources.c.chunk_id)
+        .join(active_patient_sources, GraphRelation.source_chunk_id == active_patient_sources.c.chunk_id)
         .where(
             GraphRelation.source_entity_id.in_(entity_id_set),
             GraphRelation.target_entity_id.in_(entity_id_set),
+            GraphRelation.source_chunk_id.in_(visible_source_ids),
         )
         .order_by(GraphRelation.id)
         .limit(500)
     )
     relation_rows = list(relation_result.all())
     relations = [relation for relation, _ in relation_rows]
-    relation_provenance = {}
-    for relation, source_document_id in relation_rows:
-        doc_id = source_document_id
-        chunk_id = relation.source_chunk_id
-        if doc_id is None:
-            source_ent = next((e for e in entities if e.id == relation.source_entity_id), None)
-            if source_ent:
-                doc_id = source_ent.source_document_id
-                if chunk_id is None:
-                    chunk_id = source_ent.source_chunk_id
-        relation_provenance[relation.id] = (doc_id, chunk_id)
+    relation_provenance = {
+        relation.id: (source_document_id, relation.source_chunk_id) for relation, source_document_id in relation_rows
+    }
+
+    if not relations and visible_source_ids:
+        active_doc_ids = set((await db.scalars(select(active_patient_sources.c.document_id))).all())
+        if active_doc_ids:
+            fallback_relation_result = await db.execute(
+                select(GraphRelation)
+                .where(
+                    GraphRelation.source_entity_id.in_(entity_id_set),
+                    GraphRelation.target_entity_id.in_(entity_id_set),
+                )
+                .order_by(GraphRelation.id)
+                .limit(500)
+            )
+            fallback_relations = list(fallback_relation_result.scalars().all())
+            valid_fallback_relations = []
+            for rel in fallback_relations:
+                if rel.source_chunk_id is None:
+                    valid_fallback_relations.append(rel)
+                    source_ent = next((e for e in entities if e.id == rel.source_entity_id), None)
+                    relation_provenance[rel.id] = (
+                        source_ent.source_document_id if source_ent else None,
+                        source_ent.source_chunk_id if source_ent else None,
+                    )
+                else:
+                    chunk = await db.get(DocumentChunk, rel.source_chunk_id)
+                    if (
+                        chunk is not None
+                        and chunk.deleted_at is None
+                        and chunk.document_id in active_doc_ids
+                        and (chunk.patient_id is None or chunk.patient_id == patient_id)
+                    ):
+                        valid_fallback_relations.append(rel)
+                        relation_provenance[rel.id] = (chunk.document_id, rel.source_chunk_id)
+            relations = valid_fallback_relations
 
     # ── Build nodes ───────────────────────────────────────────────────
     nodes: list[GraphNode] = []
@@ -334,37 +361,6 @@ async def get_patient_graph(
                         label=rel.relation_type,
                         source_document_id=source_document_id,
                         source_chunk_id=source_chunk_id,
-                    )
-                )
-
-    # Anchor clinical entities to the patient root node
-    for node in nodes:
-        if node.id == "pt":
-            continue
-        rel_label = None
-        if node.type == "diagnosis":
-            rel_label = "diagnosed_with"
-        elif node.type == "allergy":
-            rel_label = "allergic_to"
-        elif node.type == "encounter":
-            rel_label = "has_encounter"
-        elif node.type == "lab":
-            rel_label = "has_observation"
-        elif node.type == "medication":
-            rel_label = "prescribed_for"
-
-        if rel_label:
-            pair_key = ("pt", node.id, rel_label)
-            if pair_key not in seen_edge_pairs:
-                seen_edge_pairs.add(pair_key)
-                edges.append(
-                    GraphEdge(
-                        id=f"edge-pt-{node.id}",
-                        from_node="pt",
-                        to_node=node.id,
-                        label=rel_label,
-                        source_document_id=node.source_document_id,
-                        source_chunk_id=node.source_chunk_id,
                     )
                 )
 

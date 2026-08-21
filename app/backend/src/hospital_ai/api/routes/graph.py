@@ -308,21 +308,27 @@ async def get_patient_graph(
 
     # ── Build edges ───────────────────────────────────────────────────
     edges: list[GraphEdge] = []
+    seen_edge_pairs = set()
+
     for rel in relations:
         from_id = db_id_to_node_id.get(rel.source_entity_id)
         to_id = db_id_to_node_id.get(rel.target_entity_id)
-        if from_id and to_id:
-            source_document_id, source_chunk_id = relation_provenance[rel.id]
-            edges.append(
-                GraphEdge(
-                    id=f"edge-{rel.id}",
-                    from_node=from_id,
-                    to_node=to_id,
-                    label=rel.relation_type,
-                    source_document_id=source_document_id,
-                    source_chunk_id=source_chunk_id,
+        if from_id and to_id and from_id != to_id:
+            pair_key = (from_id, to_id, rel.relation_type)
+            if pair_key not in seen_edge_pairs:
+                seen_edge_pairs.add(pair_key)
+                provenance = relation_provenance.get(rel.id, (None, None))
+                source_document_id, source_chunk_id = provenance
+                edges.append(
+                    GraphEdge(
+                        id=f"edge-{rel.id}",
+                        from_node=from_id,
+                        to_node=to_id,
+                        label=rel.relation_type,
+                        source_document_id=source_document_id,
+                        source_chunk_id=source_chunk_id,
+                    )
                 )
-            )
 
     # ── Build reasoning paths ─────────────────────────────────────────
     reasoning_path: list[GraphPath] = []

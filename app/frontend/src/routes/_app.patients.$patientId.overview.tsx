@@ -96,11 +96,11 @@ function Page() {
 
       {overview.ai_summary && (
         <Card className="p-5">
-          <div className="mb-2 flex items-center justify-between">
+          <div className="mb-3 flex items-center justify-between border-b pb-2">
             <h3 className="text-sm font-semibold">AI clinical summary</h3>
             <span className="text-xs text-muted-foreground">Generated {lastUpdated}</span>
           </div>
-          <p className="text-sm leading-relaxed text-foreground/90">{overview.ai_summary}</p>
+          {renderClinicalSummary(overview.ai_summary)}
         </Card>
       )}
 
@@ -155,4 +155,45 @@ function formatRelativeTime(isoString: string): string {
   if (diffHr < 24) return `${diffHr}h ago`;
   const diffDay = Math.floor(diffHr / 24);
   return `${diffDay}d ago`;
+}
+
+function renderClinicalSummary(text: string) {
+  if (!text) return null;
+
+  const lines = text.split("\n").filter((l) => l.trim().length > 0);
+
+  return (
+    <div className="space-y-2 text-sm leading-relaxed text-foreground/90">
+      {lines.map((line, lIdx) => {
+        const parts = line.split(/(\*\*[^*]+\*\*|\[[a-zA-Z0-9_-]+\])/g);
+
+        return (
+          <p key={lIdx} className="leading-relaxed">
+            {parts.map((part, pIdx) => {
+              const boldMatch = part.match(/^\*\*([^*]+)\*\*$/);
+              if (boldMatch) {
+                return (
+                  <strong key={pIdx} className="font-semibold text-foreground">
+                    {boldMatch[1]}
+                  </strong>
+                );
+              }
+              const citeMatch = part.match(/^\[([a-zA-Z0-9_-]+)\]$/);
+              if (citeMatch) {
+                return (
+                  <span
+                    key={pIdx}
+                    className="inline-flex h-4 min-w-4 items-center justify-center rounded border border-citation/30 bg-citation/10 px-1 mx-0.5 align-middle font-mono text-[10px] font-semibold text-citation"
+                  >
+                    [{citeMatch[1]}]
+                  </span>
+                );
+              }
+              return <span key={pIdx}>{part}</span>;
+            })}
+          </p>
+        );
+      })}
+    </div>
+  );
 }

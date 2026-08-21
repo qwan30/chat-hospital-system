@@ -14,6 +14,7 @@ import {
   PinOff,
   Edit2,
   Check,
+  Trash2,
 } from "lucide-react";
 import { useState, useMemo, useEffect } from "react";
 import { ChatMessage, type ChatMessageData } from "@/components/hms/ChatMessage";
@@ -43,7 +44,9 @@ import {
   createChatThread,
   getChatThread,
   updateChatThread,
+  deleteChatThread,
 } from "@/lib/api/chat-threads";
+import { toast } from "sonner";
 import { formatDistanceToNow } from "date-fns";
 import {
   DropdownMenu,
@@ -193,6 +196,20 @@ function GlobalChat() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["chat-threads"] });
       setEditingThreadId(null);
+    },
+  });
+
+  const deleteThreadMutation = useMutation({
+    mutationFn: (id: string) => deleteChatThread(id),
+    onSuccess: (_, deletedId) => {
+      queryClient.invalidateQueries({ queryKey: ["chat-threads"] });
+      if (thread === deletedId) {
+        navigate({ search: (prev) => ({ ...prev, thread: undefined }) });
+      }
+      toast.success("Chat thread deleted");
+    },
+    onError: (err) => {
+      toast.error(err instanceof Error ? err.message : "Failed to delete chat thread");
     },
   });
 
@@ -437,6 +454,22 @@ function GlobalChat() {
             ) : (
               <Pin className="h-3.5 w-3.5 rotate-45" />
             )}
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-7 w-7 text-muted-foreground hover:text-destructive hover:bg-destructive/10 cursor-pointer"
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              if (window.confirm("Are you sure you want to delete this chat session?")) {
+                deleteThreadMutation.mutate(t.id);
+              }
+            }}
+            title="Delete session"
+            disabled={deleteThreadMutation.isPending}
+          >
+            <Trash2 className="h-3.5 w-3.5" />
           </Button>
         </div>
       </li>
@@ -935,80 +968,100 @@ function GlobalChat() {
             </div>
           </div>
 
-          {/* Session History Dropdown Button */}
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
+          <div className="flex items-center gap-2">
+            {thread && (
               <Button
                 variant="outline"
                 size="sm"
-                className="gap-1 shadow-sm shrink-0 cursor-pointer"
-              >
-                <Clock className="h-3.5 w-3.5" />
-                <span>History</span>
-                <ChevronDown className="h-3.5 w-3.5 opacity-60" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent
-              align="end"
-              className="w-[280px] max-h-[300px] overflow-y-auto p-1 animate-in fade-in-50 slide-in-from-top-1 duration-200"
-            >
-              <DropdownMenuLabel className="px-2 py-1.5 text-xs font-semibold text-muted-foreground">
-                Recent Chats
-              </DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              {!sortedDropdownThreads || sortedDropdownThreads.length === 0 ? (
-                <div className="p-4 text-center text-xs text-muted-foreground">
-                  No previous sessions
-                </div>
-              ) : (
-                sortedDropdownThreads.map((t) => {
-                  const isPinned = pinnedThreadIds.includes(t.id);
-                  let relativeTime = "";
-                  try {
-                    if (t.created_at) {
-                      relativeTime = formatDistanceToNow(parseUtcDate(t.created_at), {
-                        addSuffix: true,
-                      });
-                    }
-                  } catch (e) {
-                    console.error(e);
+                className="gap-1 shadow-sm shrink-0 text-muted-foreground hover:text-destructive hover:bg-destructive/10 cursor-pointer h-8 text-xs"
+                onClick={() => {
+                  if (window.confirm("Are you sure you want to delete this chat session?")) {
+                    deleteThreadMutation.mutate(thread);
                   }
-                  return (
-                    <DropdownMenuItem key={t.id} className="p-0 cursor-pointer">
-                      <Link
-                        to="/chat"
-                        search={(prev) => ({
-                          ...prev,
-                          patient: t.patient_id ?? undefined,
-                          thread: t.id,
-                        })}
-                        className="flex items-start gap-2 w-full p-2 text-left hover:bg-accent transition-colors"
-                      >
-                        {isPinned ? (
-                          <Pin className="mt-0.5 h-3.5 w-3.5 shrink-0 text-ai rotate-45 fill-ai" />
-                        ) : (
-                          <MessageSquare className="mt-0.5 h-3.5 w-3.5 shrink-0 text-ai" />
-                        )}
-                        <div className="min-w-0 flex-1">
-                          <p className="truncate text-sm font-medium">{t.title}</p>
-                          <div className="flex items-center gap-1.5 flex-wrap mt-0.5">
-                            <span className="text-[9px] text-muted-foreground/80">
-                              {t.patient_id ? "Patient context" : "General context"}
-                            </span>
-                            {relativeTime && (
-                              <span className="text-[9px] text-muted-foreground/60">
-                                • {relativeTime}
+                }}
+                disabled={deleteThreadMutation.isPending}
+                title="Delete this chat session"
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+                <span className="hidden sm:inline">Delete</span>
+              </Button>
+            )}
+
+            {/* Session History Dropdown Button */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="gap-1 shadow-sm shrink-0 cursor-pointer"
+                >
+                  <Clock className="h-3.5 w-3.5" />
+                  <span>History</span>
+                  <ChevronDown className="h-3.5 w-3.5 opacity-60" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent
+                align="end"
+                className="w-[280px] max-h-[300px] overflow-y-auto p-1 animate-in fade-in-50 slide-in-from-top-1 duration-200"
+              >
+                <DropdownMenuLabel className="px-2 py-1.5 text-xs font-semibold text-muted-foreground">
+                  Recent Chats
+                </DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                {!sortedDropdownThreads || sortedDropdownThreads.length === 0 ? (
+                  <div className="p-4 text-center text-xs text-muted-foreground">
+                    No previous sessions
+                  </div>
+                ) : (
+                  sortedDropdownThreads.map((t) => {
+                    const isPinned = pinnedThreadIds.includes(t.id);
+                    let relativeTime = "";
+                    try {
+                      if (t.created_at) {
+                        relativeTime = formatDistanceToNow(parseUtcDate(t.created_at), {
+                          addSuffix: true,
+                        });
+                      }
+                    } catch (e) {
+                      console.error(e);
+                    }
+                    return (
+                      <DropdownMenuItem key={t.id} className="p-0 cursor-pointer">
+                        <Link
+                          to="/chat"
+                          search={(prev) => ({
+                            ...prev,
+                            patient: t.patient_id ?? undefined,
+                            thread: t.id,
+                          })}
+                          className="flex items-start gap-2 w-full p-2 text-left hover:bg-accent transition-colors"
+                        >
+                          {isPinned ? (
+                            <Pin className="mt-0.5 h-3.5 w-3.5 shrink-0 text-ai rotate-45 fill-ai" />
+                          ) : (
+                            <MessageSquare className="mt-0.5 h-3.5 w-3.5 shrink-0 text-ai" />
+                          )}
+                          <div className="min-w-0 flex-1">
+                            <p className="truncate text-sm font-medium">{t.title}</p>
+                            <div className="flex items-center gap-1.5 flex-wrap mt-0.5">
+                              <span className="text-[9px] text-muted-foreground/80">
+                                {t.patient_id ? "Patient context" : "General context"}
                               </span>
-                            )}
+                              {relativeTime && (
+                                <span className="text-[9px] text-muted-foreground/60">
+                                  • {relativeTime}
+                                </span>
+                              )}
+                            </div>
                           </div>
-                        </div>
-                      </Link>
-                    </DropdownMenuItem>
-                  );
-                })
-              )}
-            </DropdownMenuContent>
-          </DropdownMenu>
+                        </Link>
+                      </DropdownMenuItem>
+                    );
+                  })
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
         </div>
 
         <div ref={scrollContainerRef} className="flex-1 overflow-y-auto space-y-5 pr-2 pb-4">

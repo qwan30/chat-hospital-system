@@ -183,7 +183,7 @@ class LocalStorageService:
 
         target_path = Path(target)
         target_path.parent.mkdir(parents=True, exist_ok=True)
-        with target_path.open("xb") as output:
+        with target_path.open("wb") as output:
             output.write(content)
 
     def head_object(self, key: str) -> StorageObjectHead:

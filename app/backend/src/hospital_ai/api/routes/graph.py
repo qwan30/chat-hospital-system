@@ -243,6 +243,40 @@ async def get_patient_graph(
         relation.id: (source_document_id, relation.source_chunk_id) for relation, source_document_id in relation_rows
     }
 
+    if not relations and visible_source_ids:
+        active_doc_ids = set((await db.scalars(select(active_patient_sources.c.document_id))).all())
+        if active_doc_ids:
+            fallback_relation_result = await db.execute(
+                select(GraphRelation)
+                .where(
+                    GraphRelation.source_entity_id.in_(entity_id_set),
+                    GraphRelation.target_entity_id.in_(entity_id_set),
+                )
+                .order_by(GraphRelation.id)
+                .limit(500)
+            )
+            fallback_relations = list(fallback_relation_result.scalars().all())
+            valid_fallback_relations = []
+            for rel in fallback_relations:
+                if rel.source_chunk_id is None:
+                    valid_fallback_relations.append(rel)
+                    source_ent = next((e for e in entities if e.id == rel.source_entity_id), None)
+                    relation_provenance[rel.id] = (
+                        source_ent.source_document_id if source_ent else None,
+                        source_ent.source_chunk_id if source_ent else None,
+                    )
+                else:
+                    chunk = await db.get(DocumentChunk, rel.source_chunk_id)
+                    if (
+                        chunk is not None
+                        and chunk.deleted_at is None
+                        and chunk.document_id in active_doc_ids
+                        and (chunk.patient_id is None or chunk.patient_id == patient_id)
+                    ):
+                        valid_fallback_relations.append(rel)
+                        relation_provenance[rel.id] = (chunk.document_id, rel.source_chunk_id)
+            relations = valid_fallback_relations
+
     # ── Build nodes ───────────────────────────────────────────────────
     nodes: list[GraphNode] = []
     # Always include the patient as root node

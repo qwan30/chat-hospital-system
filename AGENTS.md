@@ -27,7 +27,10 @@ Pip-based Python backend (`pyproject.toml` with hatchling):
 - `cd app/backend && python -m pytest tests/` — run Python tests (262 pass, 2 skip).
 - `cd app/backend && ruff check src/ tests/` — lint backend code.
 - `cd app/backend && ruff format --check src/ tests/` — check backend formatting.
+- `cd app/backend && python scripts/calculate_crap_score.py` — calculate cyclomatic complexity and CRAP score.
+- `cd app/backend && python scripts/run_mutation_smoke.py` — run targeted mutation testing (kill rate >= 80%).
 - `cd app/backend && python scripts/verify_contracts.py` — verify API contracts.
+- `cd app/backend && python scripts/verify_deterministic_gates.py` — master deterministic gatekeeper (run before every commit/PR).
 
 ## Coding Style & Naming Conventions
 Markdown files use ATX headings, short paragraphs, and pipe tables. Use lowercase filenames with hyphens/underscores for new docs under their respective domain folders.

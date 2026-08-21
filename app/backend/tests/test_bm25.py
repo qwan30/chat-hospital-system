@@ -58,13 +58,56 @@ class TestBM25Scorer:
 
     def test_empty_query(self):
         scorer = BM25Scorer()
-        results = scorer.score("", MEDICAL_CHUNKS, top_k=3)
-        assert len(results) == 3  # returns original order
+        chunk = _chunk("Patient history", score=0.75)
+        results = scorer.score("", [chunk], top_k=3)
+        assert len(results) == 1
+        assert results[0].score == 0.75
+        assert "retrieval_method" not in results[0].metadata
+
+        results_ws = scorer.score("   ", [chunk], top_k=3)
+        assert len(results_ws) == 1
+        assert results_ws[0].score == 0.75
+        assert "retrieval_method" not in results_ws[0].metadata
 
     def test_empty_chunks(self):
         scorer = BM25Scorer()
         results = scorer.score("Metformin", [], top_k=5)
         assert results == []
+
+    def test_exact_bm25_mathematical_formula(self):
+        """Verify exact mathematical computation of IDF and TF normalization components."""
+        scorer = BM25Scorer(k1=1.5, b=0.75)
+        doc1 = _chunk("metformin", score=0.0)
+        doc2 = _chunk("metformin", score=0.0)
+        # 2 documents, both contain 'metformin' (df=2), lengths both 1 (dl=1, avg_dl=1)
+        # Expected idf = ln(1 + (2 - 2 + 0.5) / (2 + 0.5)) = ln(1.2) = 0.18232155679
+        # Expected tf_norm = 2.5 / 2.5 = 1.0
+        # Expected raw bm25 = round(0.18232155679, 4) = 0.1823
+        res = scorer.score("metformin", [doc1, doc2], top_k=2)
+        assert len(res) == 2
+        assert res[0].metadata["bm25_raw_score"] == 0.1823
+
+    def test_bm25_idf_math_sensitivity(self):
+        """BM25 scoring formula must precisely rank higher-frequency specific matches over generic ones."""
+        scorer = BM25Scorer(k1=1.5, b=0.75)
+        # E1 has 'Metformin', E7 has 'Metformin' and 'eGFR'
+        results = scorer.score("Metformin renal eGFR", MEDICAL_CHUNKS, top_k=2)
+        assert len(results) == 2
+        # E7 contains all three terms, must strictly outrank E1 which only contains Metformin
+        assert "eGFR" in results[0].content
+        assert results[0].score > results[1].score
+        assert results[0].metadata["bm25_raw_score"] > 0.0
+
+    def test_bm25_rare_vs_frequent_term_idf(self):
+        """Rare terms with lower df must contribute higher IDF than common terms."""
+        scorer = BM25Scorer(k1=1.5, b=0.75)
+        # In MEDICAL_CHUNKS: 'patient' appears in multiple chunks (df ~ 3), 'penicillin' appears only in E6 (df = 1)
+        res = scorer.score("patient penicillin", MEDICAL_CHUNKS, top_k=5)
+        # The penicillin chunk (E6) should strictly rank #1 because penicillin is rare
+        assert "penicillin" in res[0].content
+        # Check raw score difference vs patient-only chunk
+        raw_scores = [r.metadata["bm25_raw_score"] for r in res]
+        assert raw_scores[0] > raw_scores[1]
 
     def test_no_matching_terms(self):
         """Query with no overlapping terms should still return results (with low scores)."""

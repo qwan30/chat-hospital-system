@@ -9,188 +9,192 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as AppRouteImport } from './routes/_app'
 import { Route as IndexRouteImport } from './routes/index'
-import { Route as ErrorIndexRouteImport } from './routes/error.index'
-import { Route as ErrorTimeoutRouteImport } from './routes/error.timeout'
-import { Route as ErrorServerRouteImport } from './routes/error.server'
-import { Route as ErrorRateLimitRouteImport } from './routes/error.rate-limit'
-import { Route as ErrorPatientNotFoundRouteImport } from './routes/error.patient-not-found'
-import { Route as ErrorOfflineRouteImport } from './routes/error.offline'
-import { Route as ErrorOcrFailedRouteImport } from './routes/error.ocr-failed'
-import { Route as ErrorNotFoundRouteImport } from './routes/error.not-found'
-import { Route as ErrorMaintenanceRouteImport } from './routes/error.maintenance'
-import { Route as ErrorLlmOfflineRouteImport } from './routes/error.llm-offline'
-import { Route as ErrorInsufficientEvidenceRouteImport } from './routes/error.insufficient-evidence'
-import { Route as ErrorHmsUnreachableRouteImport } from './routes/error.hms-unreachable'
-import { Route as ErrorForbiddenRouteImport } from './routes/error.forbidden'
-import { Route as ErrorConflictRouteImport } from './routes/error.conflict'
-import { Route as ErrorAuthenticationRequiredRouteImport } from './routes/error.authentication-required'
-import { Route as AuthSessionExpiredRouteImport } from './routes/auth.session-expired'
-import { Route as AuthMfaRouteImport } from './routes/auth.mfa'
-import { Route as AuthLoginRouteImport } from './routes/auth.login'
-import { Route as AuthForgotPasswordRouteImport } from './routes/auth.forgot-password'
-import { Route as AppTimelineRouteImport } from './routes/_app.timeline'
-import { Route as AppSettingsRouteImport } from './routes/_app.settings'
-import { Route as AppScreensRouteImport } from './routes/_app.screens'
-import { Route as AppPatientsRouteImport } from './routes/_app.patients'
-import { Route as AppNotificationsRouteImport } from './routes/_app.notifications'
-import { Route as AppMetricsRouteImport } from './routes/_app.metrics'
-import { Route as AppDocumentsRouteImport } from './routes/_app.documents'
-import { Route as AppDashboardRouteImport } from './routes/_app.dashboard'
-import { Route as AppAuditRouteImport } from './routes/_app.audit'
+import { Route as AppRouteImport } from './routes/_app'
 import { Route as AppAccessPolicyRouteImport } from './routes/_app.access-policy'
-import { Route as AppTimelineIndexRouteImport } from './routes/_app.timeline.index'
-import { Route as AppSettingsIndexRouteImport } from './routes/_app.settings.index'
-import { Route as AppPatientsIndexRouteImport } from './routes/_app.patients.index'
-import { Route as AppMetricsIndexRouteImport } from './routes/_app.metrics.index'
-import { Route as AppDocumentsIndexRouteImport } from './routes/_app.documents.index'
-import { Route as AppDashboardIndexRouteImport } from './routes/_app.dashboard.index'
-import { Route as AppChatIndexRouteImport } from './routes/_app.chat.index'
-import { Route as AppAuditIndexRouteImport } from './routes/_app.audit.index'
+import { Route as AppAuditRouteImport } from './routes/_app.audit'
+import { Route as AppDashboardRouteImport } from './routes/_app.dashboard'
+import { Route as AppDocumentsRouteImport } from './routes/_app.documents'
+import { Route as AppMetricsRouteImport } from './routes/_app.metrics'
+import { Route as AppNotificationsRouteImport } from './routes/_app.notifications'
+import { Route as AppPatientsRouteImport } from './routes/_app.patients'
+import { Route as AppScreensRouteImport } from './routes/_app.screens'
+import { Route as AppSettingsRouteImport } from './routes/_app.settings'
+import { Route as AppTimelineRouteImport } from './routes/_app.timeline'
+import { Route as AuthForgotPasswordRouteImport } from './routes/auth.forgot-password'
+import { Route as AuthLoginRouteImport } from './routes/auth.login'
+import { Route as AuthMfaRouteImport } from './routes/auth.mfa'
+import { Route as AuthSessionExpiredRouteImport } from './routes/auth.session-expired'
+import { Route as ErrorIndexRouteImport } from './routes/error.index'
+import { Route as ErrorAuthenticationRequiredRouteImport } from './routes/error.authentication-required'
+import { Route as ErrorConflictRouteImport } from './routes/error.conflict'
+import { Route as ErrorForbiddenRouteImport } from './routes/error.forbidden'
+import { Route as ErrorHmsUnreachableRouteImport } from './routes/error.hms-unreachable'
+import { Route as ErrorInsufficientEvidenceRouteImport } from './routes/error.insufficient-evidence'
+import { Route as ErrorLlmOfflineRouteImport } from './routes/error.llm-offline'
+import { Route as ErrorMaintenanceRouteImport } from './routes/error.maintenance'
+import { Route as ErrorNotFoundRouteImport } from './routes/error.not-found'
+import { Route as ErrorOcrFailedRouteImport } from './routes/error.ocr-failed'
+import { Route as ErrorOfflineRouteImport } from './routes/error.offline'
+import { Route as ErrorPatientNotFoundRouteImport } from './routes/error.patient-not-found'
+import { Route as ErrorRateLimitRouteImport } from './routes/error.rate-limit'
+import { Route as ErrorServerRouteImport } from './routes/error.server'
+import { Route as ErrorTimeoutRouteImport } from './routes/error.timeout'
 import { Route as AppAccessRequestsIndexRouteImport } from './routes/_app.access-requests.index'
-import { Route as AuthSsoCallbackRouteImport } from './routes/auth.sso.callback'
-import { Route as AppTimelineEventIdRouteImport } from './routes/_app.timeline.$eventId'
-import { Route as AppSettingsWorkspacesRouteImport } from './routes/_app.settings.workspaces'
-import { Route as AppSettingsSecurityRouteImport } from './routes/_app.settings.security'
-import { Route as AppSettingsProfileRouteImport } from './routes/_app.settings.profile'
-import { Route as AppSettingsDisplayRouteImport } from './routes/_app.settings.display'
-import { Route as AppSettingsAiRouteImport } from './routes/_app.settings.ai'
-import { Route as AppPharmacyReviewQueueRouteImport } from './routes/_app.pharmacy.review-queue'
-import { Route as AppPatientsPatientIdRouteImport } from './routes/_app.patients.$patientId'
-import { Route as AppMetricsWorkflowsRouteImport } from './routes/_app.metrics.workflows'
-import { Route as AppMetricsSafeRefusalRouteImport } from './routes/_app.metrics.safe-refusal'
-import { Route as AppMetricsFeedbackRouteImport } from './routes/_app.metrics.feedback'
-import { Route as AppMetricsConfigRouteImport } from './routes/_app.metrics.config'
-import { Route as AppMetricsCitationsRouteImport } from './routes/_app.metrics.citations'
-import { Route as AppMedicationConflictsConflictIdRouteImport } from './routes/_app.medication-conflicts.$conflictId'
-import { Route as AppIntegrationsVectorIndexRouteImport } from './routes/_app.integrations.vector-index'
-import { Route as AppIntegrationsLlmRouteImport } from './routes/_app.integrations.llm'
-import { Route as AppIntegrationsHmsRouteImport } from './routes/_app.integrations.hms'
-import { Route as AppHelpShortcutsRouteImport } from './routes/_app.help.shortcuts'
-import { Route as AppHelpDiagnosticsRouteImport } from './routes/_app.help.diagnostics'
-import { Route as AppDocumentsUploadRouteImport } from './routes/_app.documents.upload'
-import { Route as AppDocumentsSyncHmsRouteImport } from './routes/_app.documents.sync-hms'
-import { Route as AppDocumentsSearchRouteImport } from './routes/_app.documents.search'
-import { Route as AppDocumentsOcrQueueRouteImport } from './routes/_app.documents.ocr-queue'
-import { Route as AppDocumentsDuplicatesRouteImport } from './routes/_app.documents.duplicates'
-import { Route as AppDocumentsDocumentIdRouteImport } from './routes/_app.documents.$documentId'
-import { Route as AppDashboardCustomizeRouteImport } from './routes/_app.dashboard.customize'
-import { Route as AppDashboardActivityRouteImport } from './routes/_app.dashboard.activity'
-import { Route as AppCitationsCompareRouteImport } from './routes/_app.citations.compare'
-import { Route as AppCitationsCitationIdRouteImport } from './routes/_app.citations.$citationId'
-import { Route as AppChatTemplatesRouteImport } from './routes/_app.chat.templates'
-import { Route as AppChatNewRouteImport } from './routes/_app.chat.new'
-import { Route as AppChatHistoryRouteImport } from './routes/_app.chat.history'
-import { Route as AppChatGeneralRouteImport } from './routes/_app.chat.general'
-import { Route as AppAuditExportRouteImport } from './routes/_app.audit.export'
-import { Route as AppAuditDeniedRouteImport } from './routes/_app.audit.denied'
-import { Route as AppAuditComplianceSummaryRouteImport } from './routes/_app.audit.compliance-summary'
-import { Route as AppAdminRolesRouteImport } from './routes/_app.admin.roles'
-import { Route as AppAdminDataRetentionRouteImport } from './routes/_app.admin.data-retention'
-import { Route as AppAdminAbacRouteImport } from './routes/_app.admin.abac'
 import { Route as AppAccessRequestsRequestIdRouteImport } from './routes/_app.access-requests.$requestId'
-import { Route as AppPatientsPatientIdIndexRouteImport } from './routes/_app.patients.$patientId.index'
-import { Route as AppPatientsPatientIdTimelineRouteImport } from './routes/_app.patients.$patientId.timeline'
-import { Route as AppPatientsPatientIdRefreshRouteImport } from './routes/_app.patients.$patientId.refresh'
-import { Route as AppPatientsPatientIdOverviewRouteImport } from './routes/_app.patients.$patientId.overview'
-import { Route as AppPatientsPatientIdMedicationsRouteImport } from './routes/_app.patients.$patientId.medications'
-import { Route as AppPatientsPatientIdMedicationReviewRouteImport } from './routes/_app.patients.$patientId.medication-review'
-import { Route as AppPatientsPatientIdLabsRouteImport } from './routes/_app.patients.$patientId.labs'
-import { Route as AppPatientsPatientIdDocumentsRouteImport } from './routes/_app.patients.$patientId.documents'
-import { Route as AppPatientsPatientIdAccessHistoryRouteImport } from './routes/_app.patients.$patientId.access-history'
-import { Route as AppIntegrationsTracesTraceIdRouteImport } from './routes/_app.integrations.traces.$traceId'
-import { Route as AppIntegrationsHmsDlqRouteImport } from './routes/_app.integrations.hms.dlq'
-import { Route as AppGraphPatientsPatientIdRouteImport } from './routes/_app.graph.patients.$patientId'
-import { Route as AppGraphPathPathIdRouteImport } from './routes/_app.graph.path.$pathId'
-import { Route as AppDocumentsDocumentIdReviewRouteImport } from './routes/_app.documents.$documentId.review'
-import { Route as AppDocumentsDocumentIdRetryRouteImport } from './routes/_app.documents.$documentId.retry'
-import { Route as AppDocumentsDocumentIdEditRouteImport } from './routes/_app.documents.$documentId.edit'
-import { Route as AppChatPatientsPatientIdRouteImport } from './routes/_app.chat.patients.$patientId'
-import { Route as AppAuditTracesTraceIdRouteImport } from './routes/_app.audit.traces.$traceId'
-import { Route as AppAuditEventIdRawRouteImport } from './routes/_app.audit.$eventId.raw'
+import { Route as AppAdminAbacRouteImport } from './routes/_app.admin.abac'
+import { Route as AppAdminDataRetentionRouteImport } from './routes/_app.admin.data-retention'
+import { Route as AppAdminRolesRouteImport } from './routes/_app.admin.roles'
+import { Route as AppAuditIndexRouteImport } from './routes/_app.audit.index'
+import { Route as AppAuditComplianceSummaryRouteImport } from './routes/_app.audit.compliance-summary'
+import { Route as AppAuditDeniedRouteImport } from './routes/_app.audit.denied'
+import { Route as AppAuditExportRouteImport } from './routes/_app.audit.export'
+import { Route as AppChatIndexRouteImport } from './routes/_app.chat.index'
+import { Route as AppChatGeneralRouteImport } from './routes/_app.chat.general'
+import { Route as AppChatHistoryRouteImport } from './routes/_app.chat.history'
+import { Route as AppChatNewRouteImport } from './routes/_app.chat.new'
+import { Route as AppChatTemplatesRouteImport } from './routes/_app.chat.templates'
+import { Route as AppCitationsCitationIdRouteImport } from './routes/_app.citations.$citationId'
+import { Route as AppCitationsCompareRouteImport } from './routes/_app.citations.compare'
+import { Route as AppDashboardIndexRouteImport } from './routes/_app.dashboard.index'
+import { Route as AppDashboardActivityRouteImport } from './routes/_app.dashboard.activity'
+import { Route as AppDashboardCustomizeRouteImport } from './routes/_app.dashboard.customize'
+import { Route as AppDocumentsIndexRouteImport } from './routes/_app.documents.index'
+import { Route as AppDocumentsDocumentIdRouteImport } from './routes/_app.documents.$documentId'
+import { Route as AppDocumentsDuplicatesRouteImport } from './routes/_app.documents.duplicates'
+import { Route as AppDocumentsOcrQueueRouteImport } from './routes/_app.documents.ocr-queue'
+import { Route as AppDocumentsSearchRouteImport } from './routes/_app.documents.search'
+import { Route as AppDocumentsSyncHmsRouteImport } from './routes/_app.documents.sync-hms'
+import { Route as AppDocumentsUploadRouteImport } from './routes/_app.documents.upload'
+import { Route as AppHelpDiagnosticsRouteImport } from './routes/_app.help.diagnostics'
+import { Route as AppHelpShortcutsRouteImport } from './routes/_app.help.shortcuts'
+import { Route as AppIntegrationsHmsRouteImport } from './routes/_app.integrations.hms'
+import { Route as AppIntegrationsLlmRouteImport } from './routes/_app.integrations.llm'
+import { Route as AppIntegrationsVectorIndexRouteImport } from './routes/_app.integrations.vector-index'
+import { Route as AppMedicationConflictsConflictIdRouteImport } from './routes/_app.medication-conflicts.$conflictId'
+import { Route as AppMetricsIndexRouteImport } from './routes/_app.metrics.index'
+import { Route as AppMetricsCitationsRouteImport } from './routes/_app.metrics.citations'
+import { Route as AppMetricsConfigRouteImport } from './routes/_app.metrics.config'
+import { Route as AppMetricsFeedbackRouteImport } from './routes/_app.metrics.feedback'
+import { Route as AppMetricsSafeRefusalRouteImport } from './routes/_app.metrics.safe-refusal'
+import { Route as AppMetricsWorkflowsRouteImport } from './routes/_app.metrics.workflows'
+import { Route as AppPatientsIndexRouteImport } from './routes/_app.patients.index'
+import { Route as AppPatientsPatientIdRouteImport } from './routes/_app.patients.$patientId'
+import { Route as AppPharmacyReviewQueueRouteImport } from './routes/_app.pharmacy.review-queue'
+import { Route as AppSettingsIndexRouteImport } from './routes/_app.settings.index'
+import { Route as AppSettingsAiRouteImport } from './routes/_app.settings.ai'
+import { Route as AppSettingsDisplayRouteImport } from './routes/_app.settings.display'
+import { Route as AppSettingsProfileRouteImport } from './routes/_app.settings.profile'
+import { Route as AppSettingsSecurityRouteImport } from './routes/_app.settings.security'
+import { Route as AppSettingsWorkspacesRouteImport } from './routes/_app.settings.workspaces'
+import { Route as AppTimelineIndexRouteImport } from './routes/_app.timeline.index'
+import { Route as AppTimelineEventIdRouteImport } from './routes/_app.timeline.$eventId'
+import { Route as AuthSsoCallbackRouteImport } from './routes/auth.sso.callback'
 import { Route as AppAccessRequestsRequestIdReviewRouteImport } from './routes/_app.access-requests.$requestId.review'
+import { Route as AppAuditEventIdRawRouteImport } from './routes/_app.audit.$eventId.raw'
+import { Route as AppAuditTracesTraceIdRouteImport } from './routes/_app.audit.traces.$traceId'
+import { Route as AppChatPatientsPatientIdRouteImport } from './routes/_app.chat.patients.$patientId'
+import { Route as AppDocumentsDocumentIdEditRouteImport } from './routes/_app.documents.$documentId.edit'
+import { Route as AppDocumentsDocumentIdRetryRouteImport } from './routes/_app.documents.$documentId.retry'
+import { Route as AppDocumentsDocumentIdReviewRouteImport } from './routes/_app.documents.$documentId.review'
+import { Route as AppGraphPathPathIdRouteImport } from './routes/_app.graph.path.$pathId'
+import { Route as AppGraphPatientsPatientIdRouteImport } from './routes/_app.graph.patients.$patientId'
+import { Route as AppIntegrationsHmsDlqRouteImport } from './routes/_app.integrations.hms.dlq'
+import { Route as AppIntegrationsTracesTraceIdRouteImport } from './routes/_app.integrations.traces.$traceId'
+import { Route as AppPatientsPatientIdIndexRouteImport } from './routes/_app.patients.$patientId.index'
+import { Route as AppPatientsPatientIdAccessHistoryRouteImport } from './routes/_app.patients.$patientId.access-history'
+import { Route as AppPatientsPatientIdDocumentsRouteImport } from './routes/_app.patients.$patientId.documents'
+import { Route as AppPatientsPatientIdLabsRouteImport } from './routes/_app.patients.$patientId.labs'
+import { Route as AppPatientsPatientIdMedicationReviewRouteImport } from './routes/_app.patients.$patientId.medication-review'
+import { Route as AppPatientsPatientIdMedicationsRouteImport } from './routes/_app.patients.$patientId.medications'
+import { Route as AppPatientsPatientIdOverviewRouteImport } from './routes/_app.patients.$patientId.overview'
+import { Route as AppPatientsPatientIdRefreshRouteImport } from './routes/_app.patients.$patientId.refresh'
+import { Route as AppPatientsPatientIdTimelineRouteImport } from './routes/_app.patients.$patientId.timeline'
 import { Route as AppIntegrationsHmsJobsJobIdRouteImport } from './routes/_app.integrations.hms.jobs.$jobId'
 import { Route as AppIntegrationsHmsPatientsPatientIdSyncRouteImport } from './routes/_app.integrations.hms.patients.$patientId.sync'
 
-const AppRoute = AppRouteImport.update({
-  id: '/_app',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AppRoute = AppRouteImport.update({
+  id: '/_app',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AppAccessPolicyRoute = AppAccessPolicyRouteImport.update({
+  id: '/access-policy',
+  path: '/access-policy',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppAuditRoute = AppAuditRouteImport.update({
+  id: '/audit',
+  path: '/audit',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppDashboardRoute = AppDashboardRouteImport.update({
+  id: '/dashboard',
+  path: '/dashboard',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppDocumentsRoute = AppDocumentsRouteImport.update({
+  id: '/documents',
+  path: '/documents',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppMetricsRoute = AppMetricsRouteImport.update({
+  id: '/metrics',
+  path: '/metrics',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppNotificationsRoute = AppNotificationsRouteImport.update({
+  id: '/notifications',
+  path: '/notifications',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppPatientsRoute = AppPatientsRouteImport.update({
+  id: '/patients',
+  path: '/patients',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppScreensRoute = AppScreensRouteImport.update({
+  id: '/screens',
+  path: '/screens',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppSettingsRoute = AppSettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppTimelineRoute = AppTimelineRouteImport.update({
+  id: '/timeline',
+  path: '/timeline',
+  getParentRoute: () => AppRoute,
+} as any)
+const AuthForgotPasswordRoute = AuthForgotPasswordRouteImport.update({
+  id: '/auth/forgot-password',
+  path: '/auth/forgot-password',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuthLoginRoute = AuthLoginRouteImport.update({
+  id: '/auth/login',
+  path: '/auth/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuthMfaRoute = AuthMfaRouteImport.update({
+  id: '/auth/mfa',
+  path: '/auth/mfa',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuthSessionExpiredRoute = AuthSessionExpiredRouteImport.update({
+  id: '/auth/session-expired',
+  path: '/auth/session-expired',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ErrorIndexRoute = ErrorIndexRouteImport.update({
   id: '/error/',
   path: '/error/',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ErrorTimeoutRoute = ErrorTimeoutRouteImport.update({
-  id: '/error/timeout',
-  path: '/error/timeout',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ErrorServerRoute = ErrorServerRouteImport.update({
-  id: '/error/server',
-  path: '/error/server',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ErrorRateLimitRoute = ErrorRateLimitRouteImport.update({
-  id: '/error/rate-limit',
-  path: '/error/rate-limit',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ErrorPatientNotFoundRoute = ErrorPatientNotFoundRouteImport.update({
-  id: '/error/patient-not-found',
-  path: '/error/patient-not-found',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ErrorOfflineRoute = ErrorOfflineRouteImport.update({
-  id: '/error/offline',
-  path: '/error/offline',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ErrorOcrFailedRoute = ErrorOcrFailedRouteImport.update({
-  id: '/error/ocr-failed',
-  path: '/error/ocr-failed',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ErrorNotFoundRoute = ErrorNotFoundRouteImport.update({
-  id: '/error/not-found',
-  path: '/error/not-found',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ErrorMaintenanceRoute = ErrorMaintenanceRouteImport.update({
-  id: '/error/maintenance',
-  path: '/error/maintenance',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ErrorLlmOfflineRoute = ErrorLlmOfflineRouteImport.update({
-  id: '/error/llm-offline',
-  path: '/error/llm-offline',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ErrorInsufficientEvidenceRoute =
-  ErrorInsufficientEvidenceRouteImport.update({
-    id: '/error/insufficient-evidence',
-    path: '/error/insufficient-evidence',
-    getParentRoute: () => rootRouteImport,
-  } as any)
-const ErrorHmsUnreachableRoute = ErrorHmsUnreachableRouteImport.update({
-  id: '/error/hms-unreachable',
-  path: '/error/hms-unreachable',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ErrorForbiddenRoute = ErrorForbiddenRouteImport.update({
-  id: '/error/forbidden',
-  path: '/error/forbidden',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ErrorConflictRoute = ErrorConflictRouteImport.update({
-  id: '/error/conflict',
-  path: '/error/conflict',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ErrorAuthenticationRequiredRoute =
@@ -199,322 +203,75 @@ const ErrorAuthenticationRequiredRoute =
     path: '/error/authentication-required',
     getParentRoute: () => rootRouteImport,
   } as any)
-const AuthSessionExpiredRoute = AuthSessionExpiredRouteImport.update({
-  id: '/auth/session-expired',
-  path: '/auth/session-expired',
+const ErrorConflictRoute = ErrorConflictRouteImport.update({
+  id: '/error/conflict',
+  path: '/error/conflict',
   getParentRoute: () => rootRouteImport,
 } as any)
-const AuthMfaRoute = AuthMfaRouteImport.update({
-  id: '/auth/mfa',
-  path: '/auth/mfa',
+const ErrorForbiddenRoute = ErrorForbiddenRouteImport.update({
+  id: '/error/forbidden',
+  path: '/error/forbidden',
   getParentRoute: () => rootRouteImport,
 } as any)
-const AuthLoginRoute = AuthLoginRouteImport.update({
-  id: '/auth/login',
-  path: '/auth/login',
+const ErrorHmsUnreachableRoute = ErrorHmsUnreachableRouteImport.update({
+  id: '/error/hms-unreachable',
+  path: '/error/hms-unreachable',
   getParentRoute: () => rootRouteImport,
 } as any)
-const AuthForgotPasswordRoute = AuthForgotPasswordRouteImport.update({
-  id: '/auth/forgot-password',
-  path: '/auth/forgot-password',
+const ErrorInsufficientEvidenceRoute =
+  ErrorInsufficientEvidenceRouteImport.update({
+    id: '/error/insufficient-evidence',
+    path: '/error/insufficient-evidence',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ErrorLlmOfflineRoute = ErrorLlmOfflineRouteImport.update({
+  id: '/error/llm-offline',
+  path: '/error/llm-offline',
   getParentRoute: () => rootRouteImport,
 } as any)
-const AppTimelineRoute = AppTimelineRouteImport.update({
-  id: '/timeline',
-  path: '/timeline',
-  getParentRoute: () => AppRoute,
+const ErrorMaintenanceRoute = ErrorMaintenanceRouteImport.update({
+  id: '/error/maintenance',
+  path: '/error/maintenance',
+  getParentRoute: () => rootRouteImport,
 } as any)
-const AppSettingsRoute = AppSettingsRouteImport.update({
-  id: '/settings',
-  path: '/settings',
-  getParentRoute: () => AppRoute,
+const ErrorNotFoundRoute = ErrorNotFoundRouteImport.update({
+  id: '/error/not-found',
+  path: '/error/not-found',
+  getParentRoute: () => rootRouteImport,
 } as any)
-const AppScreensRoute = AppScreensRouteImport.update({
-  id: '/screens',
-  path: '/screens',
-  getParentRoute: () => AppRoute,
+const ErrorOcrFailedRoute = ErrorOcrFailedRouteImport.update({
+  id: '/error/ocr-failed',
+  path: '/error/ocr-failed',
+  getParentRoute: () => rootRouteImport,
 } as any)
-const AppPatientsRoute = AppPatientsRouteImport.update({
-  id: '/patients',
-  path: '/patients',
-  getParentRoute: () => AppRoute,
+const ErrorOfflineRoute = ErrorOfflineRouteImport.update({
+  id: '/error/offline',
+  path: '/error/offline',
+  getParentRoute: () => rootRouteImport,
 } as any)
-const AppNotificationsRoute = AppNotificationsRouteImport.update({
-  id: '/notifications',
-  path: '/notifications',
-  getParentRoute: () => AppRoute,
+const ErrorPatientNotFoundRoute = ErrorPatientNotFoundRouteImport.update({
+  id: '/error/patient-not-found',
+  path: '/error/patient-not-found',
+  getParentRoute: () => rootRouteImport,
 } as any)
-const AppMetricsRoute = AppMetricsRouteImport.update({
-  id: '/metrics',
-  path: '/metrics',
-  getParentRoute: () => AppRoute,
+const ErrorRateLimitRoute = ErrorRateLimitRouteImport.update({
+  id: '/error/rate-limit',
+  path: '/error/rate-limit',
+  getParentRoute: () => rootRouteImport,
 } as any)
-const AppDocumentsRoute = AppDocumentsRouteImport.update({
-  id: '/documents',
-  path: '/documents',
-  getParentRoute: () => AppRoute,
+const ErrorServerRoute = ErrorServerRouteImport.update({
+  id: '/error/server',
+  path: '/error/server',
+  getParentRoute: () => rootRouteImport,
 } as any)
-const AppDashboardRoute = AppDashboardRouteImport.update({
-  id: '/dashboard',
-  path: '/dashboard',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppAuditRoute = AppAuditRouteImport.update({
-  id: '/audit',
-  path: '/audit',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppAccessPolicyRoute = AppAccessPolicyRouteImport.update({
-  id: '/access-policy',
-  path: '/access-policy',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppTimelineIndexRoute = AppTimelineIndexRouteImport.update({
-  id: '/',
-  path: '/',
-  getParentRoute: () => AppTimelineRoute,
-} as any)
-const AppSettingsIndexRoute = AppSettingsIndexRouteImport.update({
-  id: '/',
-  path: '/',
-  getParentRoute: () => AppSettingsRoute,
-} as any)
-const AppPatientsIndexRoute = AppPatientsIndexRouteImport.update({
-  id: '/',
-  path: '/',
-  getParentRoute: () => AppPatientsRoute,
-} as any)
-const AppMetricsIndexRoute = AppMetricsIndexRouteImport.update({
-  id: '/',
-  path: '/',
-  getParentRoute: () => AppMetricsRoute,
-} as any)
-const AppDocumentsIndexRoute = AppDocumentsIndexRouteImport.update({
-  id: '/',
-  path: '/',
-  getParentRoute: () => AppDocumentsRoute,
-} as any)
-const AppDashboardIndexRoute = AppDashboardIndexRouteImport.update({
-  id: '/',
-  path: '/',
-  getParentRoute: () => AppDashboardRoute,
-} as any)
-const AppChatIndexRoute = AppChatIndexRouteImport.update({
-  id: '/chat/',
-  path: '/chat/',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppAuditIndexRoute = AppAuditIndexRouteImport.update({
-  id: '/',
-  path: '/',
-  getParentRoute: () => AppAuditRoute,
+const ErrorTimeoutRoute = ErrorTimeoutRouteImport.update({
+  id: '/error/timeout',
+  path: '/error/timeout',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const AppAccessRequestsIndexRoute = AppAccessRequestsIndexRouteImport.update({
   id: '/access-requests/',
   path: '/access-requests/',
-  getParentRoute: () => AppRoute,
-} as any)
-const AuthSsoCallbackRoute = AuthSsoCallbackRouteImport.update({
-  id: '/auth/sso/callback',
-  path: '/auth/sso/callback',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const AppTimelineEventIdRoute = AppTimelineEventIdRouteImport.update({
-  id: '/$eventId',
-  path: '/$eventId',
-  getParentRoute: () => AppTimelineRoute,
-} as any)
-const AppSettingsWorkspacesRoute = AppSettingsWorkspacesRouteImport.update({
-  id: '/workspaces',
-  path: '/workspaces',
-  getParentRoute: () => AppSettingsRoute,
-} as any)
-const AppSettingsSecurityRoute = AppSettingsSecurityRouteImport.update({
-  id: '/security',
-  path: '/security',
-  getParentRoute: () => AppSettingsRoute,
-} as any)
-const AppSettingsProfileRoute = AppSettingsProfileRouteImport.update({
-  id: '/profile',
-  path: '/profile',
-  getParentRoute: () => AppSettingsRoute,
-} as any)
-const AppSettingsDisplayRoute = AppSettingsDisplayRouteImport.update({
-  id: '/display',
-  path: '/display',
-  getParentRoute: () => AppSettingsRoute,
-} as any)
-const AppSettingsAiRoute = AppSettingsAiRouteImport.update({
-  id: '/ai',
-  path: '/ai',
-  getParentRoute: () => AppSettingsRoute,
-} as any)
-const AppPharmacyReviewQueueRoute = AppPharmacyReviewQueueRouteImport.update({
-  id: '/pharmacy/review-queue',
-  path: '/pharmacy/review-queue',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppPatientsPatientIdRoute = AppPatientsPatientIdRouteImport.update({
-  id: '/$patientId',
-  path: '/$patientId',
-  getParentRoute: () => AppPatientsRoute,
-} as any)
-const AppMetricsWorkflowsRoute = AppMetricsWorkflowsRouteImport.update({
-  id: '/workflows',
-  path: '/workflows',
-  getParentRoute: () => AppMetricsRoute,
-} as any)
-const AppMetricsSafeRefusalRoute = AppMetricsSafeRefusalRouteImport.update({
-  id: '/safe-refusal',
-  path: '/safe-refusal',
-  getParentRoute: () => AppMetricsRoute,
-} as any)
-const AppMetricsFeedbackRoute = AppMetricsFeedbackRouteImport.update({
-  id: '/feedback',
-  path: '/feedback',
-  getParentRoute: () => AppMetricsRoute,
-} as any)
-const AppMetricsConfigRoute = AppMetricsConfigRouteImport.update({
-  id: '/config',
-  path: '/config',
-  getParentRoute: () => AppMetricsRoute,
-} as any)
-const AppMetricsCitationsRoute = AppMetricsCitationsRouteImport.update({
-  id: '/citations',
-  path: '/citations',
-  getParentRoute: () => AppMetricsRoute,
-} as any)
-const AppMedicationConflictsConflictIdRoute =
-  AppMedicationConflictsConflictIdRouteImport.update({
-    id: '/medication-conflicts/$conflictId',
-    path: '/medication-conflicts/$conflictId',
-    getParentRoute: () => AppRoute,
-  } as any)
-const AppIntegrationsVectorIndexRoute =
-  AppIntegrationsVectorIndexRouteImport.update({
-    id: '/integrations/vector-index',
-    path: '/integrations/vector-index',
-    getParentRoute: () => AppRoute,
-  } as any)
-const AppIntegrationsLlmRoute = AppIntegrationsLlmRouteImport.update({
-  id: '/integrations/llm',
-  path: '/integrations/llm',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppIntegrationsHmsRoute = AppIntegrationsHmsRouteImport.update({
-  id: '/integrations/hms',
-  path: '/integrations/hms',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppHelpShortcutsRoute = AppHelpShortcutsRouteImport.update({
-  id: '/help/shortcuts',
-  path: '/help/shortcuts',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppHelpDiagnosticsRoute = AppHelpDiagnosticsRouteImport.update({
-  id: '/help/diagnostics',
-  path: '/help/diagnostics',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppDocumentsUploadRoute = AppDocumentsUploadRouteImport.update({
-  id: '/upload',
-  path: '/upload',
-  getParentRoute: () => AppDocumentsRoute,
-} as any)
-const AppDocumentsSyncHmsRoute = AppDocumentsSyncHmsRouteImport.update({
-  id: '/sync-hms',
-  path: '/sync-hms',
-  getParentRoute: () => AppDocumentsRoute,
-} as any)
-const AppDocumentsSearchRoute = AppDocumentsSearchRouteImport.update({
-  id: '/search',
-  path: '/search',
-  getParentRoute: () => AppDocumentsRoute,
-} as any)
-const AppDocumentsOcrQueueRoute = AppDocumentsOcrQueueRouteImport.update({
-  id: '/ocr-queue',
-  path: '/ocr-queue',
-  getParentRoute: () => AppDocumentsRoute,
-} as any)
-const AppDocumentsDuplicatesRoute = AppDocumentsDuplicatesRouteImport.update({
-  id: '/duplicates',
-  path: '/duplicates',
-  getParentRoute: () => AppDocumentsRoute,
-} as any)
-const AppDocumentsDocumentIdRoute = AppDocumentsDocumentIdRouteImport.update({
-  id: '/$documentId',
-  path: '/$documentId',
-  getParentRoute: () => AppDocumentsRoute,
-} as any)
-const AppDashboardCustomizeRoute = AppDashboardCustomizeRouteImport.update({
-  id: '/customize',
-  path: '/customize',
-  getParentRoute: () => AppDashboardRoute,
-} as any)
-const AppDashboardActivityRoute = AppDashboardActivityRouteImport.update({
-  id: '/activity',
-  path: '/activity',
-  getParentRoute: () => AppDashboardRoute,
-} as any)
-const AppCitationsCompareRoute = AppCitationsCompareRouteImport.update({
-  id: '/citations/compare',
-  path: '/citations/compare',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppCitationsCitationIdRoute = AppCitationsCitationIdRouteImport.update({
-  id: '/citations/$citationId',
-  path: '/citations/$citationId',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppChatTemplatesRoute = AppChatTemplatesRouteImport.update({
-  id: '/chat/templates',
-  path: '/chat/templates',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppChatNewRoute = AppChatNewRouteImport.update({
-  id: '/chat/new',
-  path: '/chat/new',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppChatHistoryRoute = AppChatHistoryRouteImport.update({
-  id: '/chat/history',
-  path: '/chat/history',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppChatGeneralRoute = AppChatGeneralRouteImport.update({
-  id: '/chat/general',
-  path: '/chat/general',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppAuditExportRoute = AppAuditExportRouteImport.update({
-  id: '/export',
-  path: '/export',
-  getParentRoute: () => AppAuditRoute,
-} as any)
-const AppAuditDeniedRoute = AppAuditDeniedRouteImport.update({
-  id: '/denied',
-  path: '/denied',
-  getParentRoute: () => AppAuditRoute,
-} as any)
-const AppAuditComplianceSummaryRoute =
-  AppAuditComplianceSummaryRouteImport.update({
-    id: '/compliance-summary',
-    path: '/compliance-summary',
-    getParentRoute: () => AppAuditRoute,
-  } as any)
-const AppAdminRolesRoute = AppAdminRolesRouteImport.update({
-  id: '/admin/roles',
-  path: '/admin/roles',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppAdminDataRetentionRoute = AppAdminDataRetentionRouteImport.update({
-  id: '/admin/data-retention',
-  path: '/admin/data-retention',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppAdminAbacRoute = AppAdminAbacRouteImport.update({
-  id: '/admin/abac',
-  path: '/admin/abac',
   getParentRoute: () => AppRoute,
 } as any)
 const AppAccessRequestsRequestIdRoute =
@@ -523,86 +280,275 @@ const AppAccessRequestsRequestIdRoute =
     path: '/access-requests/$requestId',
     getParentRoute: () => AppRoute,
   } as any)
-const AppPatientsPatientIdIndexRoute =
-  AppPatientsPatientIdIndexRouteImport.update({
-    id: '/',
-    path: '/',
-    getParentRoute: () => AppPatientsPatientIdRoute,
-  } as any)
-const AppPatientsPatientIdTimelineRoute =
-  AppPatientsPatientIdTimelineRouteImport.update({
-    id: '/timeline',
-    path: '/timeline',
-    getParentRoute: () => AppPatientsPatientIdRoute,
-  } as any)
-const AppPatientsPatientIdRefreshRoute =
-  AppPatientsPatientIdRefreshRouteImport.update({
-    id: '/refresh',
-    path: '/refresh',
-    getParentRoute: () => AppPatientsPatientIdRoute,
-  } as any)
-const AppPatientsPatientIdOverviewRoute =
-  AppPatientsPatientIdOverviewRouteImport.update({
-    id: '/overview',
-    path: '/overview',
-    getParentRoute: () => AppPatientsPatientIdRoute,
-  } as any)
-const AppPatientsPatientIdMedicationsRoute =
-  AppPatientsPatientIdMedicationsRouteImport.update({
-    id: '/medications',
-    path: '/medications',
-    getParentRoute: () => AppPatientsPatientIdRoute,
-  } as any)
-const AppPatientsPatientIdMedicationReviewRoute =
-  AppPatientsPatientIdMedicationReviewRouteImport.update({
-    id: '/medication-review',
-    path: '/medication-review',
-    getParentRoute: () => AppPatientsPatientIdRoute,
-  } as any)
-const AppPatientsPatientIdLabsRoute =
-  AppPatientsPatientIdLabsRouteImport.update({
-    id: '/labs',
-    path: '/labs',
-    getParentRoute: () => AppPatientsPatientIdRoute,
-  } as any)
-const AppPatientsPatientIdDocumentsRoute =
-  AppPatientsPatientIdDocumentsRouteImport.update({
-    id: '/documents',
-    path: '/documents',
-    getParentRoute: () => AppPatientsPatientIdRoute,
-  } as any)
-const AppPatientsPatientIdAccessHistoryRoute =
-  AppPatientsPatientIdAccessHistoryRouteImport.update({
-    id: '/access-history',
-    path: '/access-history',
-    getParentRoute: () => AppPatientsPatientIdRoute,
-  } as any)
-const AppIntegrationsTracesTraceIdRoute =
-  AppIntegrationsTracesTraceIdRouteImport.update({
-    id: '/integrations/traces/$traceId',
-    path: '/integrations/traces/$traceId',
-    getParentRoute: () => AppRoute,
-  } as any)
-const AppIntegrationsHmsDlqRoute = AppIntegrationsHmsDlqRouteImport.update({
-  id: '/dlq',
-  path: '/dlq',
-  getParentRoute: () => AppIntegrationsHmsRoute,
-} as any)
-const AppGraphPatientsPatientIdRoute =
-  AppGraphPatientsPatientIdRouteImport.update({
-    id: '/graph/patients/$patientId',
-    path: '/graph/patients/$patientId',
-    getParentRoute: () => AppRoute,
-  } as any)
-const AppGraphPathPathIdRoute = AppGraphPathPathIdRouteImport.update({
-  id: '/graph/path/$pathId',
-  path: '/graph/path/$pathId',
+const AppAdminAbacRoute = AppAdminAbacRouteImport.update({
+  id: '/admin/abac',
+  path: '/admin/abac',
   getParentRoute: () => AppRoute,
 } as any)
-const AppDocumentsDocumentIdReviewRoute =
-  AppDocumentsDocumentIdReviewRouteImport.update({
+const AppAdminDataRetentionRoute = AppAdminDataRetentionRouteImport.update({
+  id: '/admin/data-retention',
+  path: '/admin/data-retention',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppAdminRolesRoute = AppAdminRolesRouteImport.update({
+  id: '/admin/roles',
+  path: '/admin/roles',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppAuditIndexRoute = AppAuditIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AppAuditRoute,
+} as any)
+const AppAuditComplianceSummaryRoute =
+  AppAuditComplianceSummaryRouteImport.update({
+    id: '/compliance-summary',
+    path: '/compliance-summary',
+    getParentRoute: () => AppAuditRoute,
+  } as any)
+const AppAuditDeniedRoute = AppAuditDeniedRouteImport.update({
+  id: '/denied',
+  path: '/denied',
+  getParentRoute: () => AppAuditRoute,
+} as any)
+const AppAuditExportRoute = AppAuditExportRouteImport.update({
+  id: '/export',
+  path: '/export',
+  getParentRoute: () => AppAuditRoute,
+} as any)
+const AppChatIndexRoute = AppChatIndexRouteImport.update({
+  id: '/chat/',
+  path: '/chat/',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppChatGeneralRoute = AppChatGeneralRouteImport.update({
+  id: '/chat/general',
+  path: '/chat/general',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppChatHistoryRoute = AppChatHistoryRouteImport.update({
+  id: '/chat/history',
+  path: '/chat/history',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppChatNewRoute = AppChatNewRouteImport.update({
+  id: '/chat/new',
+  path: '/chat/new',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppChatTemplatesRoute = AppChatTemplatesRouteImport.update({
+  id: '/chat/templates',
+  path: '/chat/templates',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppCitationsCitationIdRoute = AppCitationsCitationIdRouteImport.update({
+  id: '/citations/$citationId',
+  path: '/citations/$citationId',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppCitationsCompareRoute = AppCitationsCompareRouteImport.update({
+  id: '/citations/compare',
+  path: '/citations/compare',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppDashboardIndexRoute = AppDashboardIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AppDashboardRoute,
+} as any)
+const AppDashboardActivityRoute = AppDashboardActivityRouteImport.update({
+  id: '/activity',
+  path: '/activity',
+  getParentRoute: () => AppDashboardRoute,
+} as any)
+const AppDashboardCustomizeRoute = AppDashboardCustomizeRouteImport.update({
+  id: '/customize',
+  path: '/customize',
+  getParentRoute: () => AppDashboardRoute,
+} as any)
+const AppDocumentsIndexRoute = AppDocumentsIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AppDocumentsRoute,
+} as any)
+const AppDocumentsDocumentIdRoute = AppDocumentsDocumentIdRouteImport.update({
+  id: '/$documentId',
+  path: '/$documentId',
+  getParentRoute: () => AppDocumentsRoute,
+} as any)
+const AppDocumentsDuplicatesRoute = AppDocumentsDuplicatesRouteImport.update({
+  id: '/duplicates',
+  path: '/duplicates',
+  getParentRoute: () => AppDocumentsRoute,
+} as any)
+const AppDocumentsOcrQueueRoute = AppDocumentsOcrQueueRouteImport.update({
+  id: '/ocr-queue',
+  path: '/ocr-queue',
+  getParentRoute: () => AppDocumentsRoute,
+} as any)
+const AppDocumentsSearchRoute = AppDocumentsSearchRouteImport.update({
+  id: '/search',
+  path: '/search',
+  getParentRoute: () => AppDocumentsRoute,
+} as any)
+const AppDocumentsSyncHmsRoute = AppDocumentsSyncHmsRouteImport.update({
+  id: '/sync-hms',
+  path: '/sync-hms',
+  getParentRoute: () => AppDocumentsRoute,
+} as any)
+const AppDocumentsUploadRoute = AppDocumentsUploadRouteImport.update({
+  id: '/upload',
+  path: '/upload',
+  getParentRoute: () => AppDocumentsRoute,
+} as any)
+const AppHelpDiagnosticsRoute = AppHelpDiagnosticsRouteImport.update({
+  id: '/help/diagnostics',
+  path: '/help/diagnostics',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppHelpShortcutsRoute = AppHelpShortcutsRouteImport.update({
+  id: '/help/shortcuts',
+  path: '/help/shortcuts',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppIntegrationsHmsRoute = AppIntegrationsHmsRouteImport.update({
+  id: '/integrations/hms',
+  path: '/integrations/hms',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppIntegrationsLlmRoute = AppIntegrationsLlmRouteImport.update({
+  id: '/integrations/llm',
+  path: '/integrations/llm',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppIntegrationsVectorIndexRoute =
+  AppIntegrationsVectorIndexRouteImport.update({
+    id: '/integrations/vector-index',
+    path: '/integrations/vector-index',
+    getParentRoute: () => AppRoute,
+  } as any)
+const AppMedicationConflictsConflictIdRoute =
+  AppMedicationConflictsConflictIdRouteImport.update({
+    id: '/medication-conflicts/$conflictId',
+    path: '/medication-conflicts/$conflictId',
+    getParentRoute: () => AppRoute,
+  } as any)
+const AppMetricsIndexRoute = AppMetricsIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AppMetricsRoute,
+} as any)
+const AppMetricsCitationsRoute = AppMetricsCitationsRouteImport.update({
+  id: '/citations',
+  path: '/citations',
+  getParentRoute: () => AppMetricsRoute,
+} as any)
+const AppMetricsConfigRoute = AppMetricsConfigRouteImport.update({
+  id: '/config',
+  path: '/config',
+  getParentRoute: () => AppMetricsRoute,
+} as any)
+const AppMetricsFeedbackRoute = AppMetricsFeedbackRouteImport.update({
+  id: '/feedback',
+  path: '/feedback',
+  getParentRoute: () => AppMetricsRoute,
+} as any)
+const AppMetricsSafeRefusalRoute = AppMetricsSafeRefusalRouteImport.update({
+  id: '/safe-refusal',
+  path: '/safe-refusal',
+  getParentRoute: () => AppMetricsRoute,
+} as any)
+const AppMetricsWorkflowsRoute = AppMetricsWorkflowsRouteImport.update({
+  id: '/workflows',
+  path: '/workflows',
+  getParentRoute: () => AppMetricsRoute,
+} as any)
+const AppPatientsIndexRoute = AppPatientsIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AppPatientsRoute,
+} as any)
+const AppPatientsPatientIdRoute = AppPatientsPatientIdRouteImport.update({
+  id: '/$patientId',
+  path: '/$patientId',
+  getParentRoute: () => AppPatientsRoute,
+} as any)
+const AppPharmacyReviewQueueRoute = AppPharmacyReviewQueueRouteImport.update({
+  id: '/pharmacy/review-queue',
+  path: '/pharmacy/review-queue',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppSettingsIndexRoute = AppSettingsIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AppSettingsRoute,
+} as any)
+const AppSettingsAiRoute = AppSettingsAiRouteImport.update({
+  id: '/ai',
+  path: '/ai',
+  getParentRoute: () => AppSettingsRoute,
+} as any)
+const AppSettingsDisplayRoute = AppSettingsDisplayRouteImport.update({
+  id: '/display',
+  path: '/display',
+  getParentRoute: () => AppSettingsRoute,
+} as any)
+const AppSettingsProfileRoute = AppSettingsProfileRouteImport.update({
+  id: '/profile',
+  path: '/profile',
+  getParentRoute: () => AppSettingsRoute,
+} as any)
+const AppSettingsSecurityRoute = AppSettingsSecurityRouteImport.update({
+  id: '/security',
+  path: '/security',
+  getParentRoute: () => AppSettingsRoute,
+} as any)
+const AppSettingsWorkspacesRoute = AppSettingsWorkspacesRouteImport.update({
+  id: '/workspaces',
+  path: '/workspaces',
+  getParentRoute: () => AppSettingsRoute,
+} as any)
+const AppTimelineIndexRoute = AppTimelineIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AppTimelineRoute,
+} as any)
+const AppTimelineEventIdRoute = AppTimelineEventIdRouteImport.update({
+  id: '/$eventId',
+  path: '/$eventId',
+  getParentRoute: () => AppTimelineRoute,
+} as any)
+const AuthSsoCallbackRoute = AuthSsoCallbackRouteImport.update({
+  id: '/auth/sso/callback',
+  path: '/auth/sso/callback',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AppAccessRequestsRequestIdReviewRoute =
+  AppAccessRequestsRequestIdReviewRouteImport.update({
     id: '/review',
     path: '/review',
+    getParentRoute: () => AppAccessRequestsRequestIdRoute,
+  } as any)
+const AppAuditEventIdRawRoute = AppAuditEventIdRawRouteImport.update({
+  id: '/$eventId/raw',
+  path: '/$eventId/raw',
+  getParentRoute: () => AppAuditRoute,
+} as any)
+const AppAuditTracesTraceIdRoute = AppAuditTracesTraceIdRouteImport.update({
+  id: '/traces/$traceId',
+  path: '/traces/$traceId',
+  getParentRoute: () => AppAuditRoute,
+} as any)
+const AppChatPatientsPatientIdRoute =
+  AppChatPatientsPatientIdRouteImport.update({
+    id: '/chat/patients/$patientId',
+    path: '/chat/patients/$patientId',
+    getParentRoute: () => AppRoute,
+  } as any)
+const AppDocumentsDocumentIdEditRoute =
+  AppDocumentsDocumentIdEditRouteImport.update({
+    id: '/edit',
+    path: '/edit',
     getParentRoute: () => AppDocumentsDocumentIdRoute,
   } as any)
 const AppDocumentsDocumentIdRetryRoute =
@@ -611,33 +557,87 @@ const AppDocumentsDocumentIdRetryRoute =
     path: '/retry',
     getParentRoute: () => AppDocumentsDocumentIdRoute,
   } as any)
-const AppDocumentsDocumentIdEditRoute =
-  AppDocumentsDocumentIdEditRouteImport.update({
-    id: '/edit',
-    path: '/edit',
-    getParentRoute: () => AppDocumentsDocumentIdRoute,
-  } as any)
-const AppChatPatientsPatientIdRoute =
-  AppChatPatientsPatientIdRouteImport.update({
-    id: '/chat/patients/$patientId',
-    path: '/chat/patients/$patientId',
-    getParentRoute: () => AppRoute,
-  } as any)
-const AppAuditTracesTraceIdRoute = AppAuditTracesTraceIdRouteImport.update({
-  id: '/traces/$traceId',
-  path: '/traces/$traceId',
-  getParentRoute: () => AppAuditRoute,
-} as any)
-const AppAuditEventIdRawRoute = AppAuditEventIdRawRouteImport.update({
-  id: '/$eventId/raw',
-  path: '/$eventId/raw',
-  getParentRoute: () => AppAuditRoute,
-} as any)
-const AppAccessRequestsRequestIdReviewRoute =
-  AppAccessRequestsRequestIdReviewRouteImport.update({
+const AppDocumentsDocumentIdReviewRoute =
+  AppDocumentsDocumentIdReviewRouteImport.update({
     id: '/review',
     path: '/review',
-    getParentRoute: () => AppAccessRequestsRequestIdRoute,
+    getParentRoute: () => AppDocumentsDocumentIdRoute,
+  } as any)
+const AppGraphPathPathIdRoute = AppGraphPathPathIdRouteImport.update({
+  id: '/graph/path/$pathId',
+  path: '/graph/path/$pathId',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppGraphPatientsPatientIdRoute =
+  AppGraphPatientsPatientIdRouteImport.update({
+    id: '/graph/patients/$patientId',
+    path: '/graph/patients/$patientId',
+    getParentRoute: () => AppRoute,
+  } as any)
+const AppIntegrationsHmsDlqRoute = AppIntegrationsHmsDlqRouteImport.update({
+  id: '/dlq',
+  path: '/dlq',
+  getParentRoute: () => AppIntegrationsHmsRoute,
+} as any)
+const AppIntegrationsTracesTraceIdRoute =
+  AppIntegrationsTracesTraceIdRouteImport.update({
+    id: '/integrations/traces/$traceId',
+    path: '/integrations/traces/$traceId',
+    getParentRoute: () => AppRoute,
+  } as any)
+const AppPatientsPatientIdIndexRoute =
+  AppPatientsPatientIdIndexRouteImport.update({
+    id: '/',
+    path: '/',
+    getParentRoute: () => AppPatientsPatientIdRoute,
+  } as any)
+const AppPatientsPatientIdAccessHistoryRoute =
+  AppPatientsPatientIdAccessHistoryRouteImport.update({
+    id: '/access-history',
+    path: '/access-history',
+    getParentRoute: () => AppPatientsPatientIdRoute,
+  } as any)
+const AppPatientsPatientIdDocumentsRoute =
+  AppPatientsPatientIdDocumentsRouteImport.update({
+    id: '/documents',
+    path: '/documents',
+    getParentRoute: () => AppPatientsPatientIdRoute,
+  } as any)
+const AppPatientsPatientIdLabsRoute =
+  AppPatientsPatientIdLabsRouteImport.update({
+    id: '/labs',
+    path: '/labs',
+    getParentRoute: () => AppPatientsPatientIdRoute,
+  } as any)
+const AppPatientsPatientIdMedicationReviewRoute =
+  AppPatientsPatientIdMedicationReviewRouteImport.update({
+    id: '/medication-review',
+    path: '/medication-review',
+    getParentRoute: () => AppPatientsPatientIdRoute,
+  } as any)
+const AppPatientsPatientIdMedicationsRoute =
+  AppPatientsPatientIdMedicationsRouteImport.update({
+    id: '/medications',
+    path: '/medications',
+    getParentRoute: () => AppPatientsPatientIdRoute,
+  } as any)
+const AppPatientsPatientIdOverviewRoute =
+  AppPatientsPatientIdOverviewRouteImport.update({
+    id: '/overview',
+    path: '/overview',
+    getParentRoute: () => AppPatientsPatientIdRoute,
+  } as any)
+const AppPatientsPatientIdRefreshRoute =
+  AppPatientsPatientIdRefreshRouteImport.update({
+    id: '/refresh',
+    path: '/refresh',
+    getParentRoute: () => AppPatientsPatientIdRoute,
+  } as any)
+const AppPatientsPatientIdTimelineRoute =
+  AppPatientsPatientIdTimelineRouteImport.update({
+    id: '/timeline',
+    path: '/timeline',
+    getParentRoute: () => AppPatientsPatientIdRoute,
   } as any)
 const AppIntegrationsHmsJobsJobIdRoute =
   AppIntegrationsHmsJobsJobIdRouteImport.update({
@@ -1293,13 +1293,6 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/_app': {
-      id: '/_app'
-      path: ''
-      fullPath: '/'
-      preLoaderRoute: typeof AppRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/': {
       id: '/'
       path: '/'
@@ -1307,193 +1300,18 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/error/': {
-      id: '/error/'
-      path: '/error'
-      fullPath: '/error/'
-      preLoaderRoute: typeof ErrorIndexRouteImport
+    '/_app': {
+      id: '/_app'
+      path: ''
+      fullPath: '/'
+      preLoaderRoute: typeof AppRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/error/timeout': {
-      id: '/error/timeout'
-      path: '/error/timeout'
-      fullPath: '/error/timeout'
-      preLoaderRoute: typeof ErrorTimeoutRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/error/server': {
-      id: '/error/server'
-      path: '/error/server'
-      fullPath: '/error/server'
-      preLoaderRoute: typeof ErrorServerRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/error/rate-limit': {
-      id: '/error/rate-limit'
-      path: '/error/rate-limit'
-      fullPath: '/error/rate-limit'
-      preLoaderRoute: typeof ErrorRateLimitRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/error/patient-not-found': {
-      id: '/error/patient-not-found'
-      path: '/error/patient-not-found'
-      fullPath: '/error/patient-not-found'
-      preLoaderRoute: typeof ErrorPatientNotFoundRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/error/offline': {
-      id: '/error/offline'
-      path: '/error/offline'
-      fullPath: '/error/offline'
-      preLoaderRoute: typeof ErrorOfflineRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/error/ocr-failed': {
-      id: '/error/ocr-failed'
-      path: '/error/ocr-failed'
-      fullPath: '/error/ocr-failed'
-      preLoaderRoute: typeof ErrorOcrFailedRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/error/not-found': {
-      id: '/error/not-found'
-      path: '/error/not-found'
-      fullPath: '/error/not-found'
-      preLoaderRoute: typeof ErrorNotFoundRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/error/maintenance': {
-      id: '/error/maintenance'
-      path: '/error/maintenance'
-      fullPath: '/error/maintenance'
-      preLoaderRoute: typeof ErrorMaintenanceRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/error/llm-offline': {
-      id: '/error/llm-offline'
-      path: '/error/llm-offline'
-      fullPath: '/error/llm-offline'
-      preLoaderRoute: typeof ErrorLlmOfflineRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/error/insufficient-evidence': {
-      id: '/error/insufficient-evidence'
-      path: '/error/insufficient-evidence'
-      fullPath: '/error/insufficient-evidence'
-      preLoaderRoute: typeof ErrorInsufficientEvidenceRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/error/hms-unreachable': {
-      id: '/error/hms-unreachable'
-      path: '/error/hms-unreachable'
-      fullPath: '/error/hms-unreachable'
-      preLoaderRoute: typeof ErrorHmsUnreachableRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/error/forbidden': {
-      id: '/error/forbidden'
-      path: '/error/forbidden'
-      fullPath: '/error/forbidden'
-      preLoaderRoute: typeof ErrorForbiddenRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/error/conflict': {
-      id: '/error/conflict'
-      path: '/error/conflict'
-      fullPath: '/error/conflict'
-      preLoaderRoute: typeof ErrorConflictRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/error/authentication-required': {
-      id: '/error/authentication-required'
-      path: '/error/authentication-required'
-      fullPath: '/error/authentication-required'
-      preLoaderRoute: typeof ErrorAuthenticationRequiredRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/auth/session-expired': {
-      id: '/auth/session-expired'
-      path: '/auth/session-expired'
-      fullPath: '/auth/session-expired'
-      preLoaderRoute: typeof AuthSessionExpiredRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/auth/mfa': {
-      id: '/auth/mfa'
-      path: '/auth/mfa'
-      fullPath: '/auth/mfa'
-      preLoaderRoute: typeof AuthMfaRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/auth/login': {
-      id: '/auth/login'
-      path: '/auth/login'
-      fullPath: '/auth/login'
-      preLoaderRoute: typeof AuthLoginRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/auth/forgot-password': {
-      id: '/auth/forgot-password'
-      path: '/auth/forgot-password'
-      fullPath: '/auth/forgot-password'
-      preLoaderRoute: typeof AuthForgotPasswordRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/_app/timeline': {
-      id: '/_app/timeline'
-      path: '/timeline'
-      fullPath: '/timeline'
-      preLoaderRoute: typeof AppTimelineRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/settings': {
-      id: '/_app/settings'
-      path: '/settings'
-      fullPath: '/settings'
-      preLoaderRoute: typeof AppSettingsRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/screens': {
-      id: '/_app/screens'
-      path: '/screens'
-      fullPath: '/screens'
-      preLoaderRoute: typeof AppScreensRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/patients': {
-      id: '/_app/patients'
-      path: '/patients'
-      fullPath: '/patients'
-      preLoaderRoute: typeof AppPatientsRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/notifications': {
-      id: '/_app/notifications'
-      path: '/notifications'
-      fullPath: '/notifications'
-      preLoaderRoute: typeof AppNotificationsRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/metrics': {
-      id: '/_app/metrics'
-      path: '/metrics'
-      fullPath: '/metrics'
-      preLoaderRoute: typeof AppMetricsRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/documents': {
-      id: '/_app/documents'
-      path: '/documents'
-      fullPath: '/documents'
-      preLoaderRoute: typeof AppDocumentsRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/dashboard': {
-      id: '/_app/dashboard'
-      path: '/dashboard'
-      fullPath: '/dashboard'
-      preLoaderRoute: typeof AppDashboardRouteImport
+    '/_app/access-policy': {
+      id: '/_app/access-policy'
+      path: '/access-policy'
+      fullPath: '/access-policy'
+      preLoaderRoute: typeof AppAccessPolicyRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/audit': {
@@ -1503,354 +1321,200 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppAuditRouteImport
       parentRoute: typeof AppRoute
     }
-    '/_app/access-policy': {
-      id: '/_app/access-policy'
-      path: '/access-policy'
-      fullPath: '/access-policy'
-      preLoaderRoute: typeof AppAccessPolicyRouteImport
+    '/_app/dashboard': {
+      id: '/_app/dashboard'
+      path: '/dashboard'
+      fullPath: '/dashboard'
+      preLoaderRoute: typeof AppDashboardRouteImport
       parentRoute: typeof AppRoute
     }
-    '/_app/timeline/': {
-      id: '/_app/timeline/'
-      path: '/'
-      fullPath: '/timeline/'
-      preLoaderRoute: typeof AppTimelineIndexRouteImport
-      parentRoute: typeof AppTimelineRoute
-    }
-    '/_app/settings/': {
-      id: '/_app/settings/'
-      path: '/'
-      fullPath: '/settings/'
-      preLoaderRoute: typeof AppSettingsIndexRouteImport
-      parentRoute: typeof AppSettingsRoute
-    }
-    '/_app/patients/': {
-      id: '/_app/patients/'
-      path: '/'
-      fullPath: '/patients/'
-      preLoaderRoute: typeof AppPatientsIndexRouteImport
-      parentRoute: typeof AppPatientsRoute
-    }
-    '/_app/metrics/': {
-      id: '/_app/metrics/'
-      path: '/'
-      fullPath: '/metrics/'
-      preLoaderRoute: typeof AppMetricsIndexRouteImport
-      parentRoute: typeof AppMetricsRoute
-    }
-    '/_app/documents/': {
-      id: '/_app/documents/'
-      path: '/'
-      fullPath: '/documents/'
-      preLoaderRoute: typeof AppDocumentsIndexRouteImport
-      parentRoute: typeof AppDocumentsRoute
-    }
-    '/_app/dashboard/': {
-      id: '/_app/dashboard/'
-      path: '/'
-      fullPath: '/dashboard/'
-      preLoaderRoute: typeof AppDashboardIndexRouteImport
-      parentRoute: typeof AppDashboardRoute
-    }
-    '/_app/chat/': {
-      id: '/_app/chat/'
-      path: '/chat'
-      fullPath: '/chat/'
-      preLoaderRoute: typeof AppChatIndexRouteImport
+    '/_app/documents': {
+      id: '/_app/documents'
+      path: '/documents'
+      fullPath: '/documents'
+      preLoaderRoute: typeof AppDocumentsRouteImport
       parentRoute: typeof AppRoute
     }
-    '/_app/audit/': {
-      id: '/_app/audit/'
-      path: '/'
-      fullPath: '/audit/'
-      preLoaderRoute: typeof AppAuditIndexRouteImport
-      parentRoute: typeof AppAuditRoute
+    '/_app/metrics': {
+      id: '/_app/metrics'
+      path: '/metrics'
+      fullPath: '/metrics'
+      preLoaderRoute: typeof AppMetricsRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/notifications': {
+      id: '/_app/notifications'
+      path: '/notifications'
+      fullPath: '/notifications'
+      preLoaderRoute: typeof AppNotificationsRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/patients': {
+      id: '/_app/patients'
+      path: '/patients'
+      fullPath: '/patients'
+      preLoaderRoute: typeof AppPatientsRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/screens': {
+      id: '/_app/screens'
+      path: '/screens'
+      fullPath: '/screens'
+      preLoaderRoute: typeof AppScreensRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/settings': {
+      id: '/_app/settings'
+      path: '/settings'
+      fullPath: '/settings'
+      preLoaderRoute: typeof AppSettingsRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/timeline': {
+      id: '/_app/timeline'
+      path: '/timeline'
+      fullPath: '/timeline'
+      preLoaderRoute: typeof AppTimelineRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/auth/forgot-password': {
+      id: '/auth/forgot-password'
+      path: '/auth/forgot-password'
+      fullPath: '/auth/forgot-password'
+      preLoaderRoute: typeof AuthForgotPasswordRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/auth/login': {
+      id: '/auth/login'
+      path: '/auth/login'
+      fullPath: '/auth/login'
+      preLoaderRoute: typeof AuthLoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/auth/mfa': {
+      id: '/auth/mfa'
+      path: '/auth/mfa'
+      fullPath: '/auth/mfa'
+      preLoaderRoute: typeof AuthMfaRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/auth/session-expired': {
+      id: '/auth/session-expired'
+      path: '/auth/session-expired'
+      fullPath: '/auth/session-expired'
+      preLoaderRoute: typeof AuthSessionExpiredRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/error/': {
+      id: '/error/'
+      path: '/error'
+      fullPath: '/error/'
+      preLoaderRoute: typeof ErrorIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/error/authentication-required': {
+      id: '/error/authentication-required'
+      path: '/error/authentication-required'
+      fullPath: '/error/authentication-required'
+      preLoaderRoute: typeof ErrorAuthenticationRequiredRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/error/conflict': {
+      id: '/error/conflict'
+      path: '/error/conflict'
+      fullPath: '/error/conflict'
+      preLoaderRoute: typeof ErrorConflictRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/error/forbidden': {
+      id: '/error/forbidden'
+      path: '/error/forbidden'
+      fullPath: '/error/forbidden'
+      preLoaderRoute: typeof ErrorForbiddenRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/error/hms-unreachable': {
+      id: '/error/hms-unreachable'
+      path: '/error/hms-unreachable'
+      fullPath: '/error/hms-unreachable'
+      preLoaderRoute: typeof ErrorHmsUnreachableRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/error/insufficient-evidence': {
+      id: '/error/insufficient-evidence'
+      path: '/error/insufficient-evidence'
+      fullPath: '/error/insufficient-evidence'
+      preLoaderRoute: typeof ErrorInsufficientEvidenceRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/error/llm-offline': {
+      id: '/error/llm-offline'
+      path: '/error/llm-offline'
+      fullPath: '/error/llm-offline'
+      preLoaderRoute: typeof ErrorLlmOfflineRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/error/maintenance': {
+      id: '/error/maintenance'
+      path: '/error/maintenance'
+      fullPath: '/error/maintenance'
+      preLoaderRoute: typeof ErrorMaintenanceRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/error/not-found': {
+      id: '/error/not-found'
+      path: '/error/not-found'
+      fullPath: '/error/not-found'
+      preLoaderRoute: typeof ErrorNotFoundRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/error/ocr-failed': {
+      id: '/error/ocr-failed'
+      path: '/error/ocr-failed'
+      fullPath: '/error/ocr-failed'
+      preLoaderRoute: typeof ErrorOcrFailedRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/error/offline': {
+      id: '/error/offline'
+      path: '/error/offline'
+      fullPath: '/error/offline'
+      preLoaderRoute: typeof ErrorOfflineRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/error/patient-not-found': {
+      id: '/error/patient-not-found'
+      path: '/error/patient-not-found'
+      fullPath: '/error/patient-not-found'
+      preLoaderRoute: typeof ErrorPatientNotFoundRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/error/rate-limit': {
+      id: '/error/rate-limit'
+      path: '/error/rate-limit'
+      fullPath: '/error/rate-limit'
+      preLoaderRoute: typeof ErrorRateLimitRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/error/server': {
+      id: '/error/server'
+      path: '/error/server'
+      fullPath: '/error/server'
+      preLoaderRoute: typeof ErrorServerRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/error/timeout': {
+      id: '/error/timeout'
+      path: '/error/timeout'
+      fullPath: '/error/timeout'
+      preLoaderRoute: typeof ErrorTimeoutRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/_app/access-requests/': {
       id: '/_app/access-requests/'
       path: '/access-requests'
       fullPath: '/access-requests/'
       preLoaderRoute: typeof AppAccessRequestsIndexRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/auth/sso/callback': {
-      id: '/auth/sso/callback'
-      path: '/auth/sso/callback'
-      fullPath: '/auth/sso/callback'
-      preLoaderRoute: typeof AuthSsoCallbackRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/_app/timeline/$eventId': {
-      id: '/_app/timeline/$eventId'
-      path: '/$eventId'
-      fullPath: '/timeline/$eventId'
-      preLoaderRoute: typeof AppTimelineEventIdRouteImport
-      parentRoute: typeof AppTimelineRoute
-    }
-    '/_app/settings/workspaces': {
-      id: '/_app/settings/workspaces'
-      path: '/workspaces'
-      fullPath: '/settings/workspaces'
-      preLoaderRoute: typeof AppSettingsWorkspacesRouteImport
-      parentRoute: typeof AppSettingsRoute
-    }
-    '/_app/settings/security': {
-      id: '/_app/settings/security'
-      path: '/security'
-      fullPath: '/settings/security'
-      preLoaderRoute: typeof AppSettingsSecurityRouteImport
-      parentRoute: typeof AppSettingsRoute
-    }
-    '/_app/settings/profile': {
-      id: '/_app/settings/profile'
-      path: '/profile'
-      fullPath: '/settings/profile'
-      preLoaderRoute: typeof AppSettingsProfileRouteImport
-      parentRoute: typeof AppSettingsRoute
-    }
-    '/_app/settings/display': {
-      id: '/_app/settings/display'
-      path: '/display'
-      fullPath: '/settings/display'
-      preLoaderRoute: typeof AppSettingsDisplayRouteImport
-      parentRoute: typeof AppSettingsRoute
-    }
-    '/_app/settings/ai': {
-      id: '/_app/settings/ai'
-      path: '/ai'
-      fullPath: '/settings/ai'
-      preLoaderRoute: typeof AppSettingsAiRouteImport
-      parentRoute: typeof AppSettingsRoute
-    }
-    '/_app/pharmacy/review-queue': {
-      id: '/_app/pharmacy/review-queue'
-      path: '/pharmacy/review-queue'
-      fullPath: '/pharmacy/review-queue'
-      preLoaderRoute: typeof AppPharmacyReviewQueueRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/patients/$patientId': {
-      id: '/_app/patients/$patientId'
-      path: '/$patientId'
-      fullPath: '/patients/$patientId'
-      preLoaderRoute: typeof AppPatientsPatientIdRouteImport
-      parentRoute: typeof AppPatientsRoute
-    }
-    '/_app/metrics/workflows': {
-      id: '/_app/metrics/workflows'
-      path: '/workflows'
-      fullPath: '/metrics/workflows'
-      preLoaderRoute: typeof AppMetricsWorkflowsRouteImport
-      parentRoute: typeof AppMetricsRoute
-    }
-    '/_app/metrics/safe-refusal': {
-      id: '/_app/metrics/safe-refusal'
-      path: '/safe-refusal'
-      fullPath: '/metrics/safe-refusal'
-      preLoaderRoute: typeof AppMetricsSafeRefusalRouteImport
-      parentRoute: typeof AppMetricsRoute
-    }
-    '/_app/metrics/feedback': {
-      id: '/_app/metrics/feedback'
-      path: '/feedback'
-      fullPath: '/metrics/feedback'
-      preLoaderRoute: typeof AppMetricsFeedbackRouteImport
-      parentRoute: typeof AppMetricsRoute
-    }
-    '/_app/metrics/config': {
-      id: '/_app/metrics/config'
-      path: '/config'
-      fullPath: '/metrics/config'
-      preLoaderRoute: typeof AppMetricsConfigRouteImport
-      parentRoute: typeof AppMetricsRoute
-    }
-    '/_app/metrics/citations': {
-      id: '/_app/metrics/citations'
-      path: '/citations'
-      fullPath: '/metrics/citations'
-      preLoaderRoute: typeof AppMetricsCitationsRouteImport
-      parentRoute: typeof AppMetricsRoute
-    }
-    '/_app/medication-conflicts/$conflictId': {
-      id: '/_app/medication-conflicts/$conflictId'
-      path: '/medication-conflicts/$conflictId'
-      fullPath: '/medication-conflicts/$conflictId'
-      preLoaderRoute: typeof AppMedicationConflictsConflictIdRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/integrations/vector-index': {
-      id: '/_app/integrations/vector-index'
-      path: '/integrations/vector-index'
-      fullPath: '/integrations/vector-index'
-      preLoaderRoute: typeof AppIntegrationsVectorIndexRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/integrations/llm': {
-      id: '/_app/integrations/llm'
-      path: '/integrations/llm'
-      fullPath: '/integrations/llm'
-      preLoaderRoute: typeof AppIntegrationsLlmRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/integrations/hms': {
-      id: '/_app/integrations/hms'
-      path: '/integrations/hms'
-      fullPath: '/integrations/hms'
-      preLoaderRoute: typeof AppIntegrationsHmsRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/help/shortcuts': {
-      id: '/_app/help/shortcuts'
-      path: '/help/shortcuts'
-      fullPath: '/help/shortcuts'
-      preLoaderRoute: typeof AppHelpShortcutsRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/help/diagnostics': {
-      id: '/_app/help/diagnostics'
-      path: '/help/diagnostics'
-      fullPath: '/help/diagnostics'
-      preLoaderRoute: typeof AppHelpDiagnosticsRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/documents/upload': {
-      id: '/_app/documents/upload'
-      path: '/upload'
-      fullPath: '/documents/upload'
-      preLoaderRoute: typeof AppDocumentsUploadRouteImport
-      parentRoute: typeof AppDocumentsRoute
-    }
-    '/_app/documents/sync-hms': {
-      id: '/_app/documents/sync-hms'
-      path: '/sync-hms'
-      fullPath: '/documents/sync-hms'
-      preLoaderRoute: typeof AppDocumentsSyncHmsRouteImport
-      parentRoute: typeof AppDocumentsRoute
-    }
-    '/_app/documents/search': {
-      id: '/_app/documents/search'
-      path: '/search'
-      fullPath: '/documents/search'
-      preLoaderRoute: typeof AppDocumentsSearchRouteImport
-      parentRoute: typeof AppDocumentsRoute
-    }
-    '/_app/documents/ocr-queue': {
-      id: '/_app/documents/ocr-queue'
-      path: '/ocr-queue'
-      fullPath: '/documents/ocr-queue'
-      preLoaderRoute: typeof AppDocumentsOcrQueueRouteImport
-      parentRoute: typeof AppDocumentsRoute
-    }
-    '/_app/documents/duplicates': {
-      id: '/_app/documents/duplicates'
-      path: '/duplicates'
-      fullPath: '/documents/duplicates'
-      preLoaderRoute: typeof AppDocumentsDuplicatesRouteImport
-      parentRoute: typeof AppDocumentsRoute
-    }
-    '/_app/documents/$documentId': {
-      id: '/_app/documents/$documentId'
-      path: '/$documentId'
-      fullPath: '/documents/$documentId'
-      preLoaderRoute: typeof AppDocumentsDocumentIdRouteImport
-      parentRoute: typeof AppDocumentsRoute
-    }
-    '/_app/dashboard/customize': {
-      id: '/_app/dashboard/customize'
-      path: '/customize'
-      fullPath: '/dashboard/customize'
-      preLoaderRoute: typeof AppDashboardCustomizeRouteImport
-      parentRoute: typeof AppDashboardRoute
-    }
-    '/_app/dashboard/activity': {
-      id: '/_app/dashboard/activity'
-      path: '/activity'
-      fullPath: '/dashboard/activity'
-      preLoaderRoute: typeof AppDashboardActivityRouteImport
-      parentRoute: typeof AppDashboardRoute
-    }
-    '/_app/citations/compare': {
-      id: '/_app/citations/compare'
-      path: '/citations/compare'
-      fullPath: '/citations/compare'
-      preLoaderRoute: typeof AppCitationsCompareRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/citations/$citationId': {
-      id: '/_app/citations/$citationId'
-      path: '/citations/$citationId'
-      fullPath: '/citations/$citationId'
-      preLoaderRoute: typeof AppCitationsCitationIdRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/chat/templates': {
-      id: '/_app/chat/templates'
-      path: '/chat/templates'
-      fullPath: '/chat/templates'
-      preLoaderRoute: typeof AppChatTemplatesRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/chat/new': {
-      id: '/_app/chat/new'
-      path: '/chat/new'
-      fullPath: '/chat/new'
-      preLoaderRoute: typeof AppChatNewRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/chat/history': {
-      id: '/_app/chat/history'
-      path: '/chat/history'
-      fullPath: '/chat/history'
-      preLoaderRoute: typeof AppChatHistoryRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/chat/general': {
-      id: '/_app/chat/general'
-      path: '/chat/general'
-      fullPath: '/chat/general'
-      preLoaderRoute: typeof AppChatGeneralRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/audit/export': {
-      id: '/_app/audit/export'
-      path: '/export'
-      fullPath: '/audit/export'
-      preLoaderRoute: typeof AppAuditExportRouteImport
-      parentRoute: typeof AppAuditRoute
-    }
-    '/_app/audit/denied': {
-      id: '/_app/audit/denied'
-      path: '/denied'
-      fullPath: '/audit/denied'
-      preLoaderRoute: typeof AppAuditDeniedRouteImport
-      parentRoute: typeof AppAuditRoute
-    }
-    '/_app/audit/compliance-summary': {
-      id: '/_app/audit/compliance-summary'
-      path: '/compliance-summary'
-      fullPath: '/audit/compliance-summary'
-      preLoaderRoute: typeof AppAuditComplianceSummaryRouteImport
-      parentRoute: typeof AppAuditRoute
-    }
-    '/_app/admin/roles': {
-      id: '/_app/admin/roles'
-      path: '/admin/roles'
-      fullPath: '/admin/roles'
-      preLoaderRoute: typeof AppAdminRolesRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/admin/data-retention': {
-      id: '/_app/admin/data-retention'
-      path: '/admin/data-retention'
-      fullPath: '/admin/data-retention'
-      preLoaderRoute: typeof AppAdminDataRetentionRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/admin/abac': {
-      id: '/_app/admin/abac'
-      path: '/admin/abac'
-      fullPath: '/admin/abac'
-      preLoaderRoute: typeof AppAdminAbacRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/access-requests/$requestId': {
@@ -1860,102 +1524,375 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppAccessRequestsRequestIdRouteImport
       parentRoute: typeof AppRoute
     }
-    '/_app/patients/$patientId/': {
-      id: '/_app/patients/$patientId/'
+    '/_app/admin/abac': {
+      id: '/_app/admin/abac'
+      path: '/admin/abac'
+      fullPath: '/admin/abac'
+      preLoaderRoute: typeof AppAdminAbacRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/admin/data-retention': {
+      id: '/_app/admin/data-retention'
+      path: '/admin/data-retention'
+      fullPath: '/admin/data-retention'
+      preLoaderRoute: typeof AppAdminDataRetentionRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/admin/roles': {
+      id: '/_app/admin/roles'
+      path: '/admin/roles'
+      fullPath: '/admin/roles'
+      preLoaderRoute: typeof AppAdminRolesRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/audit/': {
+      id: '/_app/audit/'
       path: '/'
-      fullPath: '/patients/$patientId/'
-      preLoaderRoute: typeof AppPatientsPatientIdIndexRouteImport
-      parentRoute: typeof AppPatientsPatientIdRoute
+      fullPath: '/audit/'
+      preLoaderRoute: typeof AppAuditIndexRouteImport
+      parentRoute: typeof AppAuditRoute
     }
-    '/_app/patients/$patientId/timeline': {
-      id: '/_app/patients/$patientId/timeline'
-      path: '/timeline'
-      fullPath: '/patients/$patientId/timeline'
-      preLoaderRoute: typeof AppPatientsPatientIdTimelineRouteImport
-      parentRoute: typeof AppPatientsPatientIdRoute
+    '/_app/audit/compliance-summary': {
+      id: '/_app/audit/compliance-summary'
+      path: '/compliance-summary'
+      fullPath: '/audit/compliance-summary'
+      preLoaderRoute: typeof AppAuditComplianceSummaryRouteImport
+      parentRoute: typeof AppAuditRoute
     }
-    '/_app/patients/$patientId/refresh': {
-      id: '/_app/patients/$patientId/refresh'
-      path: '/refresh'
-      fullPath: '/patients/$patientId/refresh'
-      preLoaderRoute: typeof AppPatientsPatientIdRefreshRouteImport
-      parentRoute: typeof AppPatientsPatientIdRoute
+    '/_app/audit/denied': {
+      id: '/_app/audit/denied'
+      path: '/denied'
+      fullPath: '/audit/denied'
+      preLoaderRoute: typeof AppAuditDeniedRouteImport
+      parentRoute: typeof AppAuditRoute
     }
-    '/_app/patients/$patientId/overview': {
-      id: '/_app/patients/$patientId/overview'
-      path: '/overview'
-      fullPath: '/patients/$patientId/overview'
-      preLoaderRoute: typeof AppPatientsPatientIdOverviewRouteImport
-      parentRoute: typeof AppPatientsPatientIdRoute
+    '/_app/audit/export': {
+      id: '/_app/audit/export'
+      path: '/export'
+      fullPath: '/audit/export'
+      preLoaderRoute: typeof AppAuditExportRouteImport
+      parentRoute: typeof AppAuditRoute
     }
-    '/_app/patients/$patientId/medications': {
-      id: '/_app/patients/$patientId/medications'
-      path: '/medications'
-      fullPath: '/patients/$patientId/medications'
-      preLoaderRoute: typeof AppPatientsPatientIdMedicationsRouteImport
-      parentRoute: typeof AppPatientsPatientIdRoute
-    }
-    '/_app/patients/$patientId/medication-review': {
-      id: '/_app/patients/$patientId/medication-review'
-      path: '/medication-review'
-      fullPath: '/patients/$patientId/medication-review'
-      preLoaderRoute: typeof AppPatientsPatientIdMedicationReviewRouteImport
-      parentRoute: typeof AppPatientsPatientIdRoute
-    }
-    '/_app/patients/$patientId/labs': {
-      id: '/_app/patients/$patientId/labs'
-      path: '/labs'
-      fullPath: '/patients/$patientId/labs'
-      preLoaderRoute: typeof AppPatientsPatientIdLabsRouteImport
-      parentRoute: typeof AppPatientsPatientIdRoute
-    }
-    '/_app/patients/$patientId/documents': {
-      id: '/_app/patients/$patientId/documents'
-      path: '/documents'
-      fullPath: '/patients/$patientId/documents'
-      preLoaderRoute: typeof AppPatientsPatientIdDocumentsRouteImport
-      parentRoute: typeof AppPatientsPatientIdRoute
-    }
-    '/_app/patients/$patientId/access-history': {
-      id: '/_app/patients/$patientId/access-history'
-      path: '/access-history'
-      fullPath: '/patients/$patientId/access-history'
-      preLoaderRoute: typeof AppPatientsPatientIdAccessHistoryRouteImport
-      parentRoute: typeof AppPatientsPatientIdRoute
-    }
-    '/_app/integrations/traces/$traceId': {
-      id: '/_app/integrations/traces/$traceId'
-      path: '/integrations/traces/$traceId'
-      fullPath: '/integrations/traces/$traceId'
-      preLoaderRoute: typeof AppIntegrationsTracesTraceIdRouteImport
+    '/_app/chat/': {
+      id: '/_app/chat/'
+      path: '/chat'
+      fullPath: '/chat/'
+      preLoaderRoute: typeof AppChatIndexRouteImport
       parentRoute: typeof AppRoute
     }
-    '/_app/integrations/hms/dlq': {
-      id: '/_app/integrations/hms/dlq'
-      path: '/dlq'
-      fullPath: '/integrations/hms/dlq'
-      preLoaderRoute: typeof AppIntegrationsHmsDlqRouteImport
-      parentRoute: typeof AppIntegrationsHmsRoute
-    }
-    '/_app/graph/patients/$patientId': {
-      id: '/_app/graph/patients/$patientId'
-      path: '/graph/patients/$patientId'
-      fullPath: '/graph/patients/$patientId'
-      preLoaderRoute: typeof AppGraphPatientsPatientIdRouteImport
+    '/_app/chat/general': {
+      id: '/_app/chat/general'
+      path: '/chat/general'
+      fullPath: '/chat/general'
+      preLoaderRoute: typeof AppChatGeneralRouteImport
       parentRoute: typeof AppRoute
     }
-    '/_app/graph/path/$pathId': {
-      id: '/_app/graph/path/$pathId'
-      path: '/graph/path/$pathId'
-      fullPath: '/graph/path/$pathId'
-      preLoaderRoute: typeof AppGraphPathPathIdRouteImport
+    '/_app/chat/history': {
+      id: '/_app/chat/history'
+      path: '/chat/history'
+      fullPath: '/chat/history'
+      preLoaderRoute: typeof AppChatHistoryRouteImport
       parentRoute: typeof AppRoute
     }
-    '/_app/documents/$documentId/review': {
-      id: '/_app/documents/$documentId/review'
+    '/_app/chat/new': {
+      id: '/_app/chat/new'
+      path: '/chat/new'
+      fullPath: '/chat/new'
+      preLoaderRoute: typeof AppChatNewRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/chat/templates': {
+      id: '/_app/chat/templates'
+      path: '/chat/templates'
+      fullPath: '/chat/templates'
+      preLoaderRoute: typeof AppChatTemplatesRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/citations/$citationId': {
+      id: '/_app/citations/$citationId'
+      path: '/citations/$citationId'
+      fullPath: '/citations/$citationId'
+      preLoaderRoute: typeof AppCitationsCitationIdRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/citations/compare': {
+      id: '/_app/citations/compare'
+      path: '/citations/compare'
+      fullPath: '/citations/compare'
+      preLoaderRoute: typeof AppCitationsCompareRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/dashboard/': {
+      id: '/_app/dashboard/'
+      path: '/'
+      fullPath: '/dashboard/'
+      preLoaderRoute: typeof AppDashboardIndexRouteImport
+      parentRoute: typeof AppDashboardRoute
+    }
+    '/_app/dashboard/activity': {
+      id: '/_app/dashboard/activity'
+      path: '/activity'
+      fullPath: '/dashboard/activity'
+      preLoaderRoute: typeof AppDashboardActivityRouteImport
+      parentRoute: typeof AppDashboardRoute
+    }
+    '/_app/dashboard/customize': {
+      id: '/_app/dashboard/customize'
+      path: '/customize'
+      fullPath: '/dashboard/customize'
+      preLoaderRoute: typeof AppDashboardCustomizeRouteImport
+      parentRoute: typeof AppDashboardRoute
+    }
+    '/_app/documents/': {
+      id: '/_app/documents/'
+      path: '/'
+      fullPath: '/documents/'
+      preLoaderRoute: typeof AppDocumentsIndexRouteImport
+      parentRoute: typeof AppDocumentsRoute
+    }
+    '/_app/documents/$documentId': {
+      id: '/_app/documents/$documentId'
+      path: '/$documentId'
+      fullPath: '/documents/$documentId'
+      preLoaderRoute: typeof AppDocumentsDocumentIdRouteImport
+      parentRoute: typeof AppDocumentsRoute
+    }
+    '/_app/documents/duplicates': {
+      id: '/_app/documents/duplicates'
+      path: '/duplicates'
+      fullPath: '/documents/duplicates'
+      preLoaderRoute: typeof AppDocumentsDuplicatesRouteImport
+      parentRoute: typeof AppDocumentsRoute
+    }
+    '/_app/documents/ocr-queue': {
+      id: '/_app/documents/ocr-queue'
+      path: '/ocr-queue'
+      fullPath: '/documents/ocr-queue'
+      preLoaderRoute: typeof AppDocumentsOcrQueueRouteImport
+      parentRoute: typeof AppDocumentsRoute
+    }
+    '/_app/documents/search': {
+      id: '/_app/documents/search'
+      path: '/search'
+      fullPath: '/documents/search'
+      preLoaderRoute: typeof AppDocumentsSearchRouteImport
+      parentRoute: typeof AppDocumentsRoute
+    }
+    '/_app/documents/sync-hms': {
+      id: '/_app/documents/sync-hms'
+      path: '/sync-hms'
+      fullPath: '/documents/sync-hms'
+      preLoaderRoute: typeof AppDocumentsSyncHmsRouteImport
+      parentRoute: typeof AppDocumentsRoute
+    }
+    '/_app/documents/upload': {
+      id: '/_app/documents/upload'
+      path: '/upload'
+      fullPath: '/documents/upload'
+      preLoaderRoute: typeof AppDocumentsUploadRouteImport
+      parentRoute: typeof AppDocumentsRoute
+    }
+    '/_app/help/diagnostics': {
+      id: '/_app/help/diagnostics'
+      path: '/help/diagnostics'
+      fullPath: '/help/diagnostics'
+      preLoaderRoute: typeof AppHelpDiagnosticsRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/help/shortcuts': {
+      id: '/_app/help/shortcuts'
+      path: '/help/shortcuts'
+      fullPath: '/help/shortcuts'
+      preLoaderRoute: typeof AppHelpShortcutsRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/integrations/hms': {
+      id: '/_app/integrations/hms'
+      path: '/integrations/hms'
+      fullPath: '/integrations/hms'
+      preLoaderRoute: typeof AppIntegrationsHmsRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/integrations/llm': {
+      id: '/_app/integrations/llm'
+      path: '/integrations/llm'
+      fullPath: '/integrations/llm'
+      preLoaderRoute: typeof AppIntegrationsLlmRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/integrations/vector-index': {
+      id: '/_app/integrations/vector-index'
+      path: '/integrations/vector-index'
+      fullPath: '/integrations/vector-index'
+      preLoaderRoute: typeof AppIntegrationsVectorIndexRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/medication-conflicts/$conflictId': {
+      id: '/_app/medication-conflicts/$conflictId'
+      path: '/medication-conflicts/$conflictId'
+      fullPath: '/medication-conflicts/$conflictId'
+      preLoaderRoute: typeof AppMedicationConflictsConflictIdRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/metrics/': {
+      id: '/_app/metrics/'
+      path: '/'
+      fullPath: '/metrics/'
+      preLoaderRoute: typeof AppMetricsIndexRouteImport
+      parentRoute: typeof AppMetricsRoute
+    }
+    '/_app/metrics/citations': {
+      id: '/_app/metrics/citations'
+      path: '/citations'
+      fullPath: '/metrics/citations'
+      preLoaderRoute: typeof AppMetricsCitationsRouteImport
+      parentRoute: typeof AppMetricsRoute
+    }
+    '/_app/metrics/config': {
+      id: '/_app/metrics/config'
+      path: '/config'
+      fullPath: '/metrics/config'
+      preLoaderRoute: typeof AppMetricsConfigRouteImport
+      parentRoute: typeof AppMetricsRoute
+    }
+    '/_app/metrics/feedback': {
+      id: '/_app/metrics/feedback'
+      path: '/feedback'
+      fullPath: '/metrics/feedback'
+      preLoaderRoute: typeof AppMetricsFeedbackRouteImport
+      parentRoute: typeof AppMetricsRoute
+    }
+    '/_app/metrics/safe-refusal': {
+      id: '/_app/metrics/safe-refusal'
+      path: '/safe-refusal'
+      fullPath: '/metrics/safe-refusal'
+      preLoaderRoute: typeof AppMetricsSafeRefusalRouteImport
+      parentRoute: typeof AppMetricsRoute
+    }
+    '/_app/metrics/workflows': {
+      id: '/_app/metrics/workflows'
+      path: '/workflows'
+      fullPath: '/metrics/workflows'
+      preLoaderRoute: typeof AppMetricsWorkflowsRouteImport
+      parentRoute: typeof AppMetricsRoute
+    }
+    '/_app/patients/': {
+      id: '/_app/patients/'
+      path: '/'
+      fullPath: '/patients/'
+      preLoaderRoute: typeof AppPatientsIndexRouteImport
+      parentRoute: typeof AppPatientsRoute
+    }
+    '/_app/patients/$patientId': {
+      id: '/_app/patients/$patientId'
+      path: '/$patientId'
+      fullPath: '/patients/$patientId'
+      preLoaderRoute: typeof AppPatientsPatientIdRouteImport
+      parentRoute: typeof AppPatientsRoute
+    }
+    '/_app/pharmacy/review-queue': {
+      id: '/_app/pharmacy/review-queue'
+      path: '/pharmacy/review-queue'
+      fullPath: '/pharmacy/review-queue'
+      preLoaderRoute: typeof AppPharmacyReviewQueueRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/settings/': {
+      id: '/_app/settings/'
+      path: '/'
+      fullPath: '/settings/'
+      preLoaderRoute: typeof AppSettingsIndexRouteImport
+      parentRoute: typeof AppSettingsRoute
+    }
+    '/_app/settings/ai': {
+      id: '/_app/settings/ai'
+      path: '/ai'
+      fullPath: '/settings/ai'
+      preLoaderRoute: typeof AppSettingsAiRouteImport
+      parentRoute: typeof AppSettingsRoute
+    }
+    '/_app/settings/display': {
+      id: '/_app/settings/display'
+      path: '/display'
+      fullPath: '/settings/display'
+      preLoaderRoute: typeof AppSettingsDisplayRouteImport
+      parentRoute: typeof AppSettingsRoute
+    }
+    '/_app/settings/profile': {
+      id: '/_app/settings/profile'
+      path: '/profile'
+      fullPath: '/settings/profile'
+      preLoaderRoute: typeof AppSettingsProfileRouteImport
+      parentRoute: typeof AppSettingsRoute
+    }
+    '/_app/settings/security': {
+      id: '/_app/settings/security'
+      path: '/security'
+      fullPath: '/settings/security'
+      preLoaderRoute: typeof AppSettingsSecurityRouteImport
+      parentRoute: typeof AppSettingsRoute
+    }
+    '/_app/settings/workspaces': {
+      id: '/_app/settings/workspaces'
+      path: '/workspaces'
+      fullPath: '/settings/workspaces'
+      preLoaderRoute: typeof AppSettingsWorkspacesRouteImport
+      parentRoute: typeof AppSettingsRoute
+    }
+    '/_app/timeline/': {
+      id: '/_app/timeline/'
+      path: '/'
+      fullPath: '/timeline/'
+      preLoaderRoute: typeof AppTimelineIndexRouteImport
+      parentRoute: typeof AppTimelineRoute
+    }
+    '/_app/timeline/$eventId': {
+      id: '/_app/timeline/$eventId'
+      path: '/$eventId'
+      fullPath: '/timeline/$eventId'
+      preLoaderRoute: typeof AppTimelineEventIdRouteImport
+      parentRoute: typeof AppTimelineRoute
+    }
+    '/auth/sso/callback': {
+      id: '/auth/sso/callback'
+      path: '/auth/sso/callback'
+      fullPath: '/auth/sso/callback'
+      preLoaderRoute: typeof AuthSsoCallbackRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/_app/access-requests/$requestId/review': {
+      id: '/_app/access-requests/$requestId/review'
       path: '/review'
-      fullPath: '/documents/$documentId/review'
-      preLoaderRoute: typeof AppDocumentsDocumentIdReviewRouteImport
+      fullPath: '/access-requests/$requestId/review'
+      preLoaderRoute: typeof AppAccessRequestsRequestIdReviewRouteImport
+      parentRoute: typeof AppAccessRequestsRequestIdRoute
+    }
+    '/_app/audit/$eventId/raw': {
+      id: '/_app/audit/$eventId/raw'
+      path: '/$eventId/raw'
+      fullPath: '/audit/$eventId/raw'
+      preLoaderRoute: typeof AppAuditEventIdRawRouteImport
+      parentRoute: typeof AppAuditRoute
+    }
+    '/_app/audit/traces/$traceId': {
+      id: '/_app/audit/traces/$traceId'
+      path: '/traces/$traceId'
+      fullPath: '/audit/traces/$traceId'
+      preLoaderRoute: typeof AppAuditTracesTraceIdRouteImport
+      parentRoute: typeof AppAuditRoute
+    }
+    '/_app/chat/patients/$patientId': {
+      id: '/_app/chat/patients/$patientId'
+      path: '/chat/patients/$patientId'
+      fullPath: '/chat/patients/$patientId'
+      preLoaderRoute: typeof AppChatPatientsPatientIdRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/documents/$documentId/edit': {
+      id: '/_app/documents/$documentId/edit'
+      path: '/edit'
+      fullPath: '/documents/$documentId/edit'
+      preLoaderRoute: typeof AppDocumentsDocumentIdEditRouteImport
       parentRoute: typeof AppDocumentsDocumentIdRoute
     }
     '/_app/documents/$documentId/retry': {
@@ -1965,40 +1902,103 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppDocumentsDocumentIdRetryRouteImport
       parentRoute: typeof AppDocumentsDocumentIdRoute
     }
-    '/_app/documents/$documentId/edit': {
-      id: '/_app/documents/$documentId/edit'
-      path: '/edit'
-      fullPath: '/documents/$documentId/edit'
-      preLoaderRoute: typeof AppDocumentsDocumentIdEditRouteImport
+    '/_app/documents/$documentId/review': {
+      id: '/_app/documents/$documentId/review'
+      path: '/review'
+      fullPath: '/documents/$documentId/review'
+      preLoaderRoute: typeof AppDocumentsDocumentIdReviewRouteImport
       parentRoute: typeof AppDocumentsDocumentIdRoute
     }
-    '/_app/chat/patients/$patientId': {
-      id: '/_app/chat/patients/$patientId'
-      path: '/chat/patients/$patientId'
-      fullPath: '/chat/patients/$patientId'
-      preLoaderRoute: typeof AppChatPatientsPatientIdRouteImport
+    '/_app/graph/path/$pathId': {
+      id: '/_app/graph/path/$pathId'
+      path: '/graph/path/$pathId'
+      fullPath: '/graph/path/$pathId'
+      preLoaderRoute: typeof AppGraphPathPathIdRouteImport
       parentRoute: typeof AppRoute
     }
-    '/_app/audit/traces/$traceId': {
-      id: '/_app/audit/traces/$traceId'
-      path: '/traces/$traceId'
-      fullPath: '/audit/traces/$traceId'
-      preLoaderRoute: typeof AppAuditTracesTraceIdRouteImport
-      parentRoute: typeof AppAuditRoute
+    '/_app/graph/patients/$patientId': {
+      id: '/_app/graph/patients/$patientId'
+      path: '/graph/patients/$patientId'
+      fullPath: '/graph/patients/$patientId'
+      preLoaderRoute: typeof AppGraphPatientsPatientIdRouteImport
+      parentRoute: typeof AppRoute
     }
-    '/_app/audit/$eventId/raw': {
-      id: '/_app/audit/$eventId/raw'
-      path: '/$eventId/raw'
-      fullPath: '/audit/$eventId/raw'
-      preLoaderRoute: typeof AppAuditEventIdRawRouteImport
-      parentRoute: typeof AppAuditRoute
+    '/_app/integrations/hms/dlq': {
+      id: '/_app/integrations/hms/dlq'
+      path: '/dlq'
+      fullPath: '/integrations/hms/dlq'
+      preLoaderRoute: typeof AppIntegrationsHmsDlqRouteImport
+      parentRoute: typeof AppIntegrationsHmsRoute
     }
-    '/_app/access-requests/$requestId/review': {
-      id: '/_app/access-requests/$requestId/review'
-      path: '/review'
-      fullPath: '/access-requests/$requestId/review'
-      preLoaderRoute: typeof AppAccessRequestsRequestIdReviewRouteImport
-      parentRoute: typeof AppAccessRequestsRequestIdRoute
+    '/_app/integrations/traces/$traceId': {
+      id: '/_app/integrations/traces/$traceId'
+      path: '/integrations/traces/$traceId'
+      fullPath: '/integrations/traces/$traceId'
+      preLoaderRoute: typeof AppIntegrationsTracesTraceIdRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/patients/$patientId/': {
+      id: '/_app/patients/$patientId/'
+      path: '/'
+      fullPath: '/patients/$patientId/'
+      preLoaderRoute: typeof AppPatientsPatientIdIndexRouteImport
+      parentRoute: typeof AppPatientsPatientIdRoute
+    }
+    '/_app/patients/$patientId/access-history': {
+      id: '/_app/patients/$patientId/access-history'
+      path: '/access-history'
+      fullPath: '/patients/$patientId/access-history'
+      preLoaderRoute: typeof AppPatientsPatientIdAccessHistoryRouteImport
+      parentRoute: typeof AppPatientsPatientIdRoute
+    }
+    '/_app/patients/$patientId/documents': {
+      id: '/_app/patients/$patientId/documents'
+      path: '/documents'
+      fullPath: '/patients/$patientId/documents'
+      preLoaderRoute: typeof AppPatientsPatientIdDocumentsRouteImport
+      parentRoute: typeof AppPatientsPatientIdRoute
+    }
+    '/_app/patients/$patientId/labs': {
+      id: '/_app/patients/$patientId/labs'
+      path: '/labs'
+      fullPath: '/patients/$patientId/labs'
+      preLoaderRoute: typeof AppPatientsPatientIdLabsRouteImport
+      parentRoute: typeof AppPatientsPatientIdRoute
+    }
+    '/_app/patients/$patientId/medication-review': {
+      id: '/_app/patients/$patientId/medication-review'
+      path: '/medication-review'
+      fullPath: '/patients/$patientId/medication-review'
+      preLoaderRoute: typeof AppPatientsPatientIdMedicationReviewRouteImport
+      parentRoute: typeof AppPatientsPatientIdRoute
+    }
+    '/_app/patients/$patientId/medications': {
+      id: '/_app/patients/$patientId/medications'
+      path: '/medications'
+      fullPath: '/patients/$patientId/medications'
+      preLoaderRoute: typeof AppPatientsPatientIdMedicationsRouteImport
+      parentRoute: typeof AppPatientsPatientIdRoute
+    }
+    '/_app/patients/$patientId/overview': {
+      id: '/_app/patients/$patientId/overview'
+      path: '/overview'
+      fullPath: '/patients/$patientId/overview'
+      preLoaderRoute: typeof AppPatientsPatientIdOverviewRouteImport
+      parentRoute: typeof AppPatientsPatientIdRoute
+    }
+    '/_app/patients/$patientId/refresh': {
+      id: '/_app/patients/$patientId/refresh'
+      path: '/refresh'
+      fullPath: '/patients/$patientId/refresh'
+      preLoaderRoute: typeof AppPatientsPatientIdRefreshRouteImport
+      parentRoute: typeof AppPatientsPatientIdRoute
+    }
+    '/_app/patients/$patientId/timeline': {
+      id: '/_app/patients/$patientId/timeline'
+      path: '/timeline'
+      fullPath: '/patients/$patientId/timeline'
+      preLoaderRoute: typeof AppPatientsPatientIdTimelineRouteImport
+      parentRoute: typeof AppPatientsPatientIdRoute
     }
     '/_app/integrations/hms/jobs/$jobId': {
       id: '/_app/integrations/hms/jobs/$jobId'

@@ -17,9 +17,11 @@ export interface TokenResponse {
 }
 
 export async function login(email: string, password: string): Promise<TokenResponse> {
+  const form = new URLSearchParams({ username: email, password });
   return apiFetch<TokenResponse>("/auth/token", {
     method: "POST",
-    body: JSON.stringify({ email, password }),
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: form.toString(),
   });
 }
 

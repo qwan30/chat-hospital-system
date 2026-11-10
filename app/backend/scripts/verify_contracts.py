@@ -8,6 +8,24 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "../s
 from hospital_ai.core.config import get_settings
 from hospital_ai.main import create_app
 
+API_ROOT_PREFIXES = (
+    "/access-requests",
+    "/audit",
+    "/auth",
+    "/chat",
+    "/chat-threads",
+    "/dashboard",
+    "/documents",
+    "/graph",
+    "/health",
+    "/medication-safety",
+    "/metrics",
+    "/patients",
+    "/search",
+    "/timeline",
+    "/api",
+)
+
 
 def get_backend_paths():
     app = create_app()
@@ -30,14 +48,41 @@ def normalize_path(path):
     return path
 
 
+def discover_frontend_scan_files(frontend_root: str) -> list[str]:
+    """Return core frontend client files plus all API modules in src/lib/api/*.ts."""
+    base_files = [
+        "src/lib/api-client.ts",
+        "src/lib/auth-context.tsx",
+        "src/lib/stream-client.ts",
+    ]
+    api_dir = os.path.join(frontend_root, "src", "lib", "api")
+    if os.path.isdir(api_dir):
+        for entry in sorted(os.listdir(api_dir)):
+            if (
+                entry.endswith(".ts")
+                and not entry.endswith(".test.ts")
+                and entry != "example.functions.ts"
+            ):
+                base_files.append(f"src/lib/api/{entry}")
+    return base_files
+
+
+def _is_candidate_api_path(path: str) -> bool:
+    if not path or not path.startswith("/") or path.startswith("//"):
+        return False
+    if re.search(r"\.(png|jpg|svg|ico|css|woff2?|ttf|jsx?|tsx?)$", path):
+        return False
+    norm = normalize_path(path)
+    return any(norm == prefix or norm.startswith(f"{prefix}/") for prefix in API_ROOT_PREFIXES)
+
+
 def get_frontend_paths(frontend_root, scan_files):
     """Scan multiple frontend files for API path references.
 
     Detects:
-    - apiFetch<...>("/path", ...)
-    - fetch(`.../path`, ...)
-    - fetch(url + "/path", ...)
-    - String literals starting with / that look like API routes
+    - apiFetch<...>("/path", ...) and apiFetchBlob(`/path`)
+    - Template literals starting with ${baseUrl}/path
+    - String / template literals starting with / that match API root prefixes
     """
     paths = []
 
@@ -48,52 +93,35 @@ def get_frontend_paths(frontend_root, scan_files):
         with open(file_path, encoding="utf-8") as f:
             content = f.read()
 
-        # Find apiFetch<...>("..." or `...`) calls — direct string literal args
-        pattern = r'apiFetch(?:<[^>]+>)?\(\s*[`"\']([^`"\']+)[`"\'\s]*,?'
-        for match in re.finditer(pattern, content):
-            paths.append(match.group(1))
+        # 1. Direct apiFetch / apiFetchBlob literal or template literal arguments
+        call_pattern = r"(?:apiFetch(?:Blob)?)(?:<[^>]+>)?\(\s*([`\"'])(/[^`\"']+)\1"
+        for match in re.finditer(call_pattern, content):
+            candidate = match.group(2).strip()
+            if _is_candidate_api_path(candidate):
+                paths.append(candidate)
 
-        # Find template-literal paths: `${...}/auth/me`, `${...}/patients/...`
-        template_pattern = r"\$\{[^}]*\}(/[a-zA-Z0-9_/\-.*]+)"
-        for match in re.finditer(template_pattern, content):
-            path = match.group(1)
-            if path and path.startswith("/"):
-                paths.append(path)
+        # 2. Template literals prefixed by a base URL interpolation: `${baseUrl}/auth/me`
+        base_template_pattern = r"`\$\{[^}]+\}(/[^`]+)`"
+        for match in re.finditer(base_template_pattern, content):
+            candidate = match.group(1).strip()
+            if _is_candidate_api_path(candidate):
+                paths.append(candidate)
 
-        # Find string-concatenation paths: base + "/path"
-        concat_pattern = r'["\']\s*\+\s*["\'](/[^"\']+)["\']'
-        for match in re.finditer(concat_pattern, content):
-            paths.append(match.group(1))
-
-        # Match literal paths starting with / (for inline fetch, axios, etc.)
-        literal_pattern = r'[`"\'](/\w[^`"\'\s?]{2,})[`"\']'
+        # 3. Any string or template literal starting with / that is a root API path
+        literal_pattern = r"([`\"'])(/[a-zA-Z0-9_/\-.$?={}&()*]+)\1"
         for match in re.finditer(literal_pattern, content):
-            path = match.group(1)
-            # Filter out file paths, CSS, HTML, and non-API patterns
-            if (
-                path not in paths
-                and not path.startswith("//")
-                and not path.startswith("/@")
-                and not path.startswith("/_")
-                and not path.startswith("/node_modules")
-                and not re.search(r"\.(png|jpg|svg|ico|css|woff2?|ttf|jsx?|tsx?)$", path)
-            ):
-                paths.append(path)
+            candidate = match.group(2).strip()
+            if _is_candidate_api_path(candidate):
+                paths.append(candidate)
 
-    return list(set(paths))
+    return sorted(set(paths))
 
 
 def verify():
     backend_paths = get_backend_paths()
     frontend_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../frontend"))
 
-    # Scan frontend files that make real API calls (not mock data)
-    scan_files = [
-        "src/lib/api-client.ts",
-        "src/lib/auth-context.tsx",
-        "src/lib/stream-client.ts",
-    ]
-
+    scan_files = discover_frontend_scan_files(frontend_root)
     frontend_paths = get_frontend_paths(frontend_root, scan_files)
 
     normalized_backend = {normalize_path(p): p for p in backend_paths}
@@ -109,7 +137,6 @@ def verify():
 
     # Known gaps tracked as TODOs — warn but don't block CI
     KNOWN_MISMATCHES = {
-        "/auth/token",  # TODO: backend needs JWT token endpoint (currently uses static tokens)
         "/api",  # Vite dev proxy prefix — frontend uses /api as base URL, Vite rewrites to /api/v1
     }
 
@@ -131,8 +158,8 @@ def verify():
                 matched = True
                 matched_backend_path = normalized_backend[norm_b]
                 break
-            # Simple wildcard matching: replace * with .*
-            pattern = re.escape(norm_b).replace(r"\*", ".*")
+            # Segment-exact wildcard matching: replace * with [^/]+ so /documents/* does not swallow sub-routes
+            pattern = re.escape(norm_b).replace(r"\*", "[^/]+")
             if re.match(f"^{pattern}$", norm_f):
                 matched = True
                 matched_backend_path = normalized_backend[norm_b]
@@ -140,7 +167,9 @@ def verify():
 
         if not matched:
             if norm_f in KNOWN_MISMATCHES:
-                print(f"WRN Known gap: Frontend calls '{f_path}' — no backend route (tracked as TODO).")
+                print(
+                    f"WRN Known gap: Frontend calls '{f_path}' — no backend route (tracked as TODO)."
+                )
                 warnings += 1
             else:
                 print(

@@ -111,3 +111,26 @@ def test_adversarial_date_swap_across_clauses_rejected() -> None:
     )
     assert result.passed is False
     assert result.claims[0].reason == "EVENT_DATE_MISMATCH"
+
+
+def test_extracted_claim_validation_helpers_directly() -> None:
+    from hospital_ai.services.claim_validation import (
+        Claim,
+        _check_multi_date_clause_alignment,
+        _check_negation_consistency,
+    )
+
+    claim = Claim(text="Patient underwent surgery on 2026-05-10 [E1].", evidence_ids=["E1"])
+    evidence = (
+        "Patient was admitted on 2026-05-01. Patient underwent surgery on 2026-05-02. Patient discharged on 2026-05-10."
+    )
+    date_res = _check_multi_date_clause_alignment(claim, evidence, {"2026-05-10"})
+    assert date_res is not None
+    assert date_res.passed is False
+    assert date_res.reason == "EVENT_DATE_MISMATCH"
+
+    neg_claim = Claim(text="The patient has no allergy [E1].", evidence_ids=["E1"])
+    neg_res = _check_negation_consistency(neg_claim, "Allergy: penicillin")
+    assert neg_res is not None
+    assert neg_res.passed is False
+    assert neg_res.reason == "NEGATION_CONFLICT"

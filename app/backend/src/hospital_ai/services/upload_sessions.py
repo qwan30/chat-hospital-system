@@ -137,6 +137,84 @@ class SyntheticCleanMalwareScanner:
         return MalwareScanResult(status="clean")
 
 
+def _extract_and_validate_create_params(
+    *,
+    payload: Any,
+    patient_id: Optional[uuid.UUID],
+    filename: Optional[str],
+    expected_size: Optional[int],
+    expected_sha256: Optional[str],
+    claimed_mime_type: Optional[str],
+    title: Optional[str],
+    document_type: Optional[str],
+) -> tuple[Optional[uuid.UUID], str, str, str, int, str, str]:
+    if payload is not None:
+        patient_id = payload.patient_id
+        filename = payload.filename
+        title = payload.title
+        document_type = payload.document_type
+        expected_size = payload.expected_size
+        expected_sha256 = payload.expected_sha256
+        claimed_mime_type = payload.claimed_mime_type
+
+    if not filename or expected_size is None or expected_size <= 0:
+        raise ValidationAppError("Upload filename and positive expected size are required.")
+    if (
+        not expected_sha256
+        or len(expected_sha256) != 64
+        or any(char not in "0123456789abcdefABCDEF" for char in expected_sha256)
+    ):
+        raise ValidationAppError("A valid expected SHA256 is required.")
+    normalized_sha = expected_sha256.lower()
+    if claimed_mime_type not in ALLOWED_MIME_TYPES:
+        raise ValidationAppError("Unsupported upload MIME type.")
+    return (
+        patient_id,
+        filename,
+        title or filename or "upload",
+        document_type or "unknown",
+        expected_size,
+        normalized_sha,
+        claimed_mime_type,
+    )
+
+
+def _assert_object_key_available(storage: Any, object_key: str) -> None:
+    try:
+        res = storage.head_object(object_key)
+    except FileNotFoundError:
+        return
+    except ConflictError:
+        raise
+    except Exception as exc:
+        raise ValidationAppError("Unable to verify storage object availability.") from exc
+    if isinstance(res, (dict, StorageObjectHead)):
+        raise ConflictError("Object key already exists in storage.")
+    raise ValidationAppError("Unable to verify storage object availability.")
+
+
+async def _create_presigned_put_or_rollback(
+    session: AsyncSession, storage: Any, object_key: str, mime_type: str
+) -> tuple[str, dict[str, str]]:
+    if not hasattr(storage, "create_presigned_put"):
+        await session.rollback()
+        raise ValidationAppError("Storage upload session is unavailable.")
+    try:
+        put_res = storage.create_presigned_put(
+            key=object_key,
+            content_type=mime_type,
+            expires_seconds=3600,
+        )
+    except Exception as exc:
+        await session.rollback()
+        raise ValidationAppError("Unable to create storage upload session.") from exc
+    if not hasattr(put_res, "url") or not isinstance(put_res.url, str) or not put_res.url:
+        await session.rollback()
+        raise ValidationAppError("Storage upload session is invalid.")
+    headers = put_res.required_headers if isinstance(put_res.required_headers, dict) else {}
+    return put_res.url, headers
+
+
 class UploadSessionService:
     def __init__(
         self, session: AsyncSession, storage: Any, content_reader: UploadContentReader, scanner: MalwareScanner
@@ -172,38 +250,38 @@ class UploadSessionService:
         title: Optional[str] = None,
         document_type: Optional[str] = None,
     ) -> UploadSessionRead:
-        if payload is not None:
-            patient_id = payload.patient_id
-            filename = payload.filename
-            title = payload.title
-            document_type = payload.document_type
-            expected_size = payload.expected_size
-            expected_sha256 = payload.expected_sha256
-            claimed_mime_type = payload.claimed_mime_type
+        (
+            patient_id,
+            valid_filename,
+            effective_title,
+            effective_doc_type,
+            valid_size,
+            normalized_sha,
+            valid_mime,
+        ) = _extract_and_validate_create_params(
+            payload=payload,
+            patient_id=patient_id,
+            filename=filename,
+            expected_size=expected_size,
+            expected_sha256=expected_sha256,
+            claimed_mime_type=claimed_mime_type,
+            title=title,
+            document_type=document_type,
+        )
 
-        if not filename or expected_size is None or expected_size <= 0:
-            raise ValidationAppError("Upload filename and positive expected size are required.")
-        if (
-            not expected_sha256
-            or len(expected_sha256) != 64
-            or any(char not in "0123456789abcdefABCDEF" for char in expected_sha256)
-        ):
-            raise ValidationAppError("A valid expected SHA256 is required.")
-        expected_sha256 = expected_sha256.lower()
-        if claimed_mime_type not in ALLOWED_MIME_TYPES:
-            raise ValidationAppError("Unsupported upload MIME type.")
-
-        # Check idempotency if key provided
-        if idempotency_key and actor and hasattr(actor, "id"):
-            idemp_service = IdempotencyService(self.session, actor.id)
+        actor_id = getattr(actor, "id", None) if actor is not None else None
+        idemp_service: Optional[IdempotencyService] = None
+        decision: Optional[Any] = None
+        if idempotency_key and actor_id is not None:
+            idemp_service = IdempotencyService(self.session, actor_id)
             idemp_payload = {
                 "patient_id": str(patient_id),
-                "filename": filename,
+                "filename": valid_filename,
                 "title": title,
                 "document_type": document_type,
-                "expected_size": expected_size,
-                "expected_sha256": expected_sha256,
-                "claimed_mime_type": claimed_mime_type,
+                "expected_size": valid_size,
+                "expected_sha256": normalized_sha,
+                "claimed_mime_type": valid_mime,
             }
             decision = await idemp_service.begin("upload.create", idempotency_key, idemp_payload)
             if decision.is_in_progress:
@@ -213,38 +291,23 @@ class UploadSessionService:
 
         doc_id = uuid.uuid4()
         upload_id = uuid.uuid4()
-        ext = Path(filename).suffix.strip(".") if filename and "." in filename else "pdf"
+        ext = Path(valid_filename).suffix.strip(".") if "." in valid_filename else "pdf"
         object_key = f"source/{patient_id}/{doc_id}/{upload_id}/original.{ext}"
 
-        # Duplicate check
-        try:
-            res = self.storage.head_object(object_key)
-        except FileNotFoundError:
-            pass
-        except ConflictError:
-            raise
-        except Exception as e:
-            raise ValidationAppError("Unable to verify storage object availability.") from e
-        else:
-            if isinstance(res, (dict, StorageObjectHead)):
-                raise ConflictError("Object key already exists in storage.")
-            raise ValidationAppError("Unable to verify storage object availability.")
+        _assert_object_key_available(self.storage, object_key)
 
+        effective_actor_id = actor_id if actor_id is not None else uuid.uuid4()
         doc = Document(
             id=doc_id,
             patient_id=patient_id,
-            uploaded_by=actor.id if actor and hasattr(actor, "id") else uuid.uuid4(),
-            title=title or filename or "upload",
-            document_type=document_type or "unknown",
+            uploaded_by=effective_actor_id,
+            title=effective_title,
+            document_type=effective_doc_type,
             storage_uri="pending",
-            mime_type=claimed_mime_type or "application/octet-stream",
+            mime_type=valid_mime,
             status="uploaded",
         )
         self.session.add(doc)
-        # The upload row references the document, but the models intentionally
-        # do not expose an ORM relationship between these two records. Flush
-        # the parent explicitly so PostgreSQL cannot observe the child insert
-        # before its referenced document exists.
         await self.session.flush()
 
         upload = DocumentUpload(
@@ -252,31 +315,15 @@ class UploadSessionService:
             document_id=doc_id,
             state="pending_upload",
             object_key=object_key,
-            expected_sha256=expected_sha256,
-            byte_size=expected_size,
-            mime_type=claimed_mime_type,
-            actor_user_id=actor.id if actor and hasattr(actor, "id") else uuid.uuid4(),
+            expected_sha256=normalized_sha,
+            byte_size=valid_size,
+            mime_type=valid_mime,
+            actor_user_id=effective_actor_id,
         )
         self.session.add(upload)
         await self.session.flush()
 
-        if not hasattr(self.storage, "create_presigned_put"):
-            await self.session.rollback()
-            raise ValidationAppError("Storage upload session is unavailable.")
-        try:
-            put_res = self.storage.create_presigned_put(
-                key=object_key,
-                content_type=claimed_mime_type,
-                expires_seconds=3600,
-            )
-        except Exception as exc:
-            await self.session.rollback()
-            raise ValidationAppError("Unable to create storage upload session.") from exc
-        if not hasattr(put_res, "url") or not isinstance(put_res.url, str) or not put_res.url:
-            await self.session.rollback()
-            raise ValidationAppError("Storage upload session is invalid.")
-        presigned = put_res.url
-        headers = put_res.required_headers if isinstance(put_res.required_headers, dict) else {}
+        presigned, headers = await _create_presigned_put_or_rollback(self.session, self.storage, object_key, valid_mime)
 
         res_model = UploadSessionRead(
             document_id=doc_id,
@@ -287,7 +334,7 @@ class UploadSessionService:
             state="pending_upload",
         )
 
-        if idempotency_key and actor and hasattr(actor, "id") and "decision" in locals() and not decision.is_replay:
+        if idemp_service is not None and decision is not None and not decision.is_replay:
             await idemp_service.complete(decision.record_id, 201, json.loads(res_model.json()))
 
         return res_model

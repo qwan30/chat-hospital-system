@@ -195,6 +195,81 @@ def combine(evidence_texts: Mapping[str, str] | list[str] | tuple[str, ...]) -> 
     return " ".join(evidence_texts)
 
 
+def _split_multi_date_clause(
+    clause: str, target_date: str, claim_event_tokens: set[str]
+) -> Optional[tuple[list[tuple[str, set[str]]], list[tuple[str, set[str]]]]]:
+    sub_clauses = [sc.strip() for sc in re.split(r",|\band\b|\bthen\b", clause, flags=re.IGNORECASE) if sc.strip()]
+    dated_subs = [sc for sc in sub_clauses if _extract_dates(sc)]
+    sub_token_sets = [_meaningful_tokens(_DATE_PATTERN.sub(" ", sc)) for sc in dated_subs]
+    shared_tokens = set.intersection(*sub_token_sets) if len(sub_token_sets) > 1 else set()
+    if _extract_numbers(clause) and not all(_extract_numbers(sc) for sc in dated_subs):
+        first_num_match = _NUMBER_PATTERN.search(_DATE_PATTERN.sub(" ", clause))
+        if first_num_match:
+            shared_tokens |= _meaningful_tokens(clause[: first_num_match.start()])
+    matching_subs = [sc for sc in sub_clauses if target_date in _extract_dates(sc)]
+    bound_subs = [
+        sc
+        for sc in matching_subs
+        if len(_extract_dates(sc)) == 1
+        and ((_meaningful_tokens(_DATE_PATTERN.sub(" ", sc)) - shared_tokens) & claim_event_tokens)
+    ]
+    if not bound_subs:
+        return None
+    matched = [(sc, shared_tokens) for sc in bound_subs]
+    others = [(sc, shared_tokens) for sc in dated_subs if target_date not in _extract_dates(sc)]
+    return matched, others
+
+
+def _max_clause_token_overlap(claim_event_tokens: set[str], clauses_with_exclusions: list[tuple[str, set[str]]]) -> int:
+    return max(
+        (
+            len(claim_event_tokens & (_meaningful_tokens(_DATE_PATTERN.sub(" ", c)) - excl))
+            for c, excl in clauses_with_exclusions
+        ),
+        default=0,
+    )
+
+
+def _check_multi_date_clause_alignment(claim: Claim, evidence: str, claim_dates: set[str]) -> Optional[ClaimResult]:
+    clauses = [c.strip() for c in re.split(r"[.;\n]+", evidence) if c.strip()]
+    claim_event_tokens = _meaningful_tokens(_DATE_PATTERN.sub(" ", claim.text))
+    for d in claim_dates:
+        matching_clauses = [c for c in clauses if d in _extract_dates(c)]
+        effective_matching: list[tuple[str, set[str]]] = []
+        effective_other_clauses: list[tuple[str, set[str]]] = [
+            (c, set()) for c in clauses if _extract_dates(c) and d not in _extract_dates(c)
+        ]
+        for c in matching_clauses:
+            if len(_extract_dates(c)) > 1:
+                split_res = _split_multi_date_clause(c, d, claim_event_tokens)
+                if split_res is None:
+                    return _deterministic_failure(claim, "DATE_AMBIGUOUS")
+                matched_subs, other_subs = split_res
+                effective_matching.extend(matched_subs)
+                effective_other_clauses.extend(other_subs)
+            else:
+                effective_matching.append((c, set()))
+        matching_overlap = _max_clause_token_overlap(claim_event_tokens, effective_matching)
+        other_overlap = _max_clause_token_overlap(claim_event_tokens, effective_other_clauses)
+        if matching_overlap == 0 or other_overlap > matching_overlap:
+            return _deterministic_failure(claim, "EVENT_DATE_MISMATCH")
+    return None
+
+
+def _check_negation_consistency(claim: Claim, evidence: str) -> Optional[ClaimResult]:
+    claim_text = claim.text
+    claim_is_negated = _has_negation(claim_text)
+    evidence_is_negated = _has_negation(evidence)
+    claim_mentions_allergy = "allerg" in claim_text.lower()
+    evidence_mentions_allergy = "allerg" in evidence.lower()
+    shared_topics = _meaningful_tokens(claim_text) & _meaningful_tokens(evidence)
+    if (
+        claim_mentions_allergy or evidence_mentions_allergy or shared_topics
+    ) and claim_is_negated != evidence_is_negated:
+        return _deterministic_failure(claim, "NEGATION_CONFLICT")
+    return None
+
+
 def deterministic_entailment(claim: Claim, evidence: str, strict_fields: set[str]) -> ClaimResult:
     """Run deterministic field checks and a conservative lexical support check."""
     claim_text = claim.text
@@ -208,88 +283,14 @@ def deterministic_entailment(claim: Claim, evidence: str, strict_fields: set[str
         if not claim_dates <= evidence_dates:
             return _deterministic_failure(claim, "DATE_MISMATCH")
         if len(evidence_dates) > 1:
-            clauses = [c.strip() for c in re.split(r"[.;\n]+", evidence) if c.strip()]
-            claim_event_tokens = _meaningful_tokens(_DATE_PATTERN.sub(" ", claim_text))
-            for d in claim_dates:
-                matching_clauses = [c for c in clauses if d in _extract_dates(c)]
-                effective_matching: list[tuple[str, set[str]]] = []
-                effective_other_clauses: list[tuple[str, set[str]]] = [
-                    (c, set())
-                    for c in clauses
-                    if _extract_dates(c) and d not in _extract_dates(c)
-                ]
-                for c in matching_clauses:
-                    if len(_extract_dates(c)) > 1:
-                        sub_clauses = [
-                            sc.strip()
-                            for sc in re.split(r",|\band\b|\bthen\b", c, flags=re.IGNORECASE)
-                            if sc.strip()
-                        ]
-                        dated_subs = [sc for sc in sub_clauses if _extract_dates(sc)]
-                        sub_token_sets = [
-                            _meaningful_tokens(_DATE_PATTERN.sub(" ", sc))
-                            for sc in dated_subs
-                        ]
-                        shared_tokens = (
-                            set.intersection(*sub_token_sets)
-                            if len(sub_token_sets) > 1
-                            else set()
-                        )
-                        if _extract_numbers(c) and not all(_extract_numbers(sc) for sc in dated_subs):
-                            first_num_match = _NUMBER_PATTERN.search(_DATE_PATTERN.sub(" ", c))
-                            if first_num_match:
-                                shared_tokens |= _meaningful_tokens(c[: first_num_match.start()])
-                        matching_subs = [sc for sc in sub_clauses if d in _extract_dates(sc)]
-                        bound_subs = [
-                            sc
-                            for sc in matching_subs
-                            if len(_extract_dates(sc)) == 1
-                            and (
-                                (_meaningful_tokens(_DATE_PATTERN.sub(" ", sc)) - shared_tokens)
-                                & claim_event_tokens
-                            )
-                        ]
-                        if not bound_subs:
-                            return _deterministic_failure(claim, "DATE_AMBIGUOUS")
-                        for sc in bound_subs:
-                            effective_matching.append((sc, shared_tokens))
-                        for sc in dated_subs:
-                            if d not in _extract_dates(sc):
-                                effective_other_clauses.append((sc, shared_tokens))
-                    else:
-                        effective_matching.append((c, set()))
-                matching_overlap = max(
-                    (
-                        len(
-                            claim_event_tokens
-                            & (_meaningful_tokens(_DATE_PATTERN.sub(" ", c)) - excl)
-                        )
-                        for c, excl in effective_matching
-                    ),
-                    default=0,
-                )
-                other_overlap = max(
-                    (
-                        len(
-                            claim_event_tokens
-                            & (_meaningful_tokens(_DATE_PATTERN.sub(" ", c)) - excl)
-                        )
-                        for c, excl in effective_other_clauses
-                    ),
-                    default=0,
-                )
-                if matching_overlap == 0 or other_overlap > matching_overlap:
-                    return _deterministic_failure(claim, "EVENT_DATE_MISMATCH")
+            date_failure = _check_multi_date_clause_alignment(claim, evidence, claim_dates)
+            if date_failure is not None:
+                return date_failure
+
     if "negation" in strict_fields:
-        claim_is_negated = _has_negation(claim_text)
-        evidence_is_negated = _has_negation(evidence)
-        claim_mentions_allergy = "allerg" in claim_text.lower()
-        evidence_mentions_allergy = "allerg" in evidence.lower()
-        shared_topics = _meaningful_tokens(claim_text) & _meaningful_tokens(evidence)
-        if (
-            claim_mentions_allergy or evidence_mentions_allergy or shared_topics
-        ) and claim_is_negated != evidence_is_negated:
-            return _deterministic_failure(claim, "NEGATION_CONFLICT")
+        neg_failure = _check_negation_consistency(claim, evidence)
+        if neg_failure is not None:
+            return neg_failure
 
     claim_tokens = _meaningful_tokens(claim_text)
     evidence_tokens = _meaningful_tokens(evidence)

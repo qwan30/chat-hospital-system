@@ -456,3 +456,40 @@ async def test_concurrent_finalize_handles_safely(session_and_settings) -> None:
 
     doc = await session.get(Document, created.document_id)
     assert doc.finalized_upload_id == created.upload_id
+
+
+def test_extract_and_validate_create_params_normalizes_sha_and_rejects_bad_mime() -> None:
+    from hospital_ai.services.upload_sessions import _extract_and_validate_create_params
+
+    pid = uuid.uuid4()
+    res = _extract_and_validate_create_params(
+        payload=None,
+        patient_id=pid,
+        filename="report.pdf",
+        expected_size=128,
+        expected_sha256="A" * 64,
+        claimed_mime_type="application/pdf",
+        title="Discharge Report",
+        document_type="clinical_note",
+    )
+    assert res == (
+        pid,
+        "report.pdf",
+        "Discharge Report",
+        "clinical_note",
+        128,
+        "a" * 64,
+        "application/pdf",
+    )
+
+    with pytest.raises(ValidationAppError, match="MIME"):
+        _extract_and_validate_create_params(
+            payload=None,
+            patient_id=pid,
+            filename="report.exe",
+            expected_size=128,
+            expected_sha256="a" * 64,
+            claimed_mime_type="application/x-msdownload",
+            title=None,
+            document_type=None,
+        )

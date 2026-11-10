@@ -2,7 +2,7 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import { render, screen, act } from "@testing-library/react";
 import React from "react";
-import { SsoCallback } from "./auth.sso.callback";
+import { SsoCallback } from "@/components/hms/SsoCallbackCard";
 
 // Mock useNavigate from tanstack router
 const mockNavigate = vi.fn();

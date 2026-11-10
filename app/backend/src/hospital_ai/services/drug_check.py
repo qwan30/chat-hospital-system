@@ -199,17 +199,35 @@ class DrugCheckService:
             drug_entity_ids = {e.id for e in patient_drug_entities}
             drug_id_to_name = {e.id: e.normalized_label for e in patient_drug_entities}
 
-            result = await self.session.execute(
+            rel_stmt = (
                 select(GraphRelationAssertion, GraphRelationEvidence.chunk_id)
-                .join(GraphRelationEvidence)
+                .join(
+                    GraphRelationEvidence,
+                    GraphRelationEvidence.assertion_id == GraphRelationAssertion.id,
+                )
+                .join(Document, Document.id == GraphRelationEvidence.document_id)
                 .where(
                     or_(
                         GraphRelationAssertion.subject_entity_id.in_(drug_entity_ids),
                         GraphRelationAssertion.object_entity_id.in_(drug_entity_ids),
                     ),
                     GraphRelationAssertion.patient_id == patient_id,
+                    GraphRelationAssertion.lifecycle_status == "active",
+                    Document.deleted_at.is_(None),
+                    Document.status.in_(("ready", "ready_with_warnings")),
+                    Document.active_index_generation_id == GraphRelationEvidence.generation_id,
                 )
             )
+            if user_id is not None:
+                rel_stmt = rel_stmt.where(
+                    GraphRelationEvidence.chunk_id.in_(
+                        ActiveEvidenceScope(self.session).authorized_chunk_ids(
+                            user_id=user_id,
+                            patient_id=patient_id,
+                        )
+                    )
+                )
+            result = await self.session.execute(rel_stmt)
             relations_and_chunks = result.all()
 
             if relations_and_chunks:
@@ -222,9 +240,16 @@ class DrugCheckService:
                 entity_name_map = dict(drug_id_to_name)
                 if related_entity_ids:
                     result = await self.session.execute(
-                        select(GraphEntity).where(GraphEntity.id.in_(related_entity_ids))
+                        select(GraphEntity).where(
+                            GraphEntity.id.in_(related_entity_ids),
+                            GraphEntity.lifecycle_status == "active",
+                        )
                     )
-                    for entity in result.scalars().all():
+                    raw_related_entities = list(result.scalars().all())
+                    valid_related_entities, _ = await self._filter_generation_valid_entities(
+                        patient_id, raw_related_entities, user_id=user_id
+                    )
+                    for entity in valid_related_entities:
                         entity_name_map[entity.id] = entity.normalized_label
 
                 for rel, chunk_id in relations_and_chunks:
@@ -235,8 +260,10 @@ class DrugCheckService:
                         drug_id = rel.object_entity_id
                         other_id = rel.subject_entity_id
 
-                    drug_name = entity_name_map.get(drug_id, "unknown")
-                    other_name = entity_name_map.get(other_id, "unknown")
+                    if drug_id not in entity_name_map or other_id not in entity_name_map:
+                        continue
+                    drug_name = entity_name_map[drug_id]
+                    other_name = entity_name_map[other_id]
                     severity = _severity_for(rel.relation_type)
 
                     if severity_order.index(severity) > min_idx:

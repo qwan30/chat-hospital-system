@@ -4,7 +4,7 @@ import json
 import logging
 import uuid
 
-from sqlalchemy import select
+from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from hospital_ai.core.config import get_settings
@@ -20,24 +20,42 @@ async def run_cdss_analysis(session: AsyncSession, document_id: uuid.UUID) -> No
     """Run CDSS analysis on a newly indexed document."""
     # 1. Get the document
     document = await session.get(Document, document_id)
-    if not document:
-        logger.warning("CDSS: Document %s not found.", document_id)
+    if not document or document.deleted_at is not None:
+        logger.warning("CDSS: Document %s not found or deleted.", document_id)
         return
 
-    # 2. Get the text content from chunks
-    result = await session.execute(select(DocumentChunk).where(DocumentChunk.document_id == document_id))
+    # 2. Get the text content from active-generation, non-deleted chunks
+    chunk_stmt = select(DocumentChunk).where(
+        DocumentChunk.document_id == document_id,
+        DocumentChunk.deleted_at.is_(None),
+    )
+    if document.active_index_generation_id is not None:
+        chunk_stmt = chunk_stmt.where(
+            DocumentChunk.generation_id == document.active_index_generation_id
+        )
+    result = await session.execute(chunk_stmt)
     chunks = result.scalars().all()
+    if not chunks:
+        return
     text_content = "\n".join(chunk.content for chunk in chunks)
 
-    # 3. Fetch patient's existing GraphContext summary
-    entity_result = await session.execute(select(GraphEntity).where(GraphEntity.patient_id == document.patient_id))
+    # 3. Fetch patient's existing active GraphContext summary
+    entity_result = await session.execute(
+        select(GraphEntity).where(
+            GraphEntity.patient_id == document.patient_id,
+            GraphEntity.lifecycle_status == "active",
+        )
+    )
     all_entities = entity_result.scalars().all()
     all_entities_map = {e.id: e.normalized_label for e in all_entities}
     entity_ids = list(all_entities_map.keys())
 
     if entity_ids:
         relation_result = await session.execute(
-            select(GraphRelationAssertion).where(GraphRelationAssertion.patient_id == document.patient_id)
+            select(GraphRelationAssertion).where(
+                GraphRelationAssertion.patient_id == document.patient_id,
+                GraphRelationAssertion.lifecycle_status == "active",
+            )
         )
         all_relations = relation_result.scalars().all()
     else:
@@ -96,7 +114,15 @@ async def run_cdss_analysis(session: AsyncSession, document_id: uuid.UUID) -> No
         data = json.loads(resp_text)
         alerts_data = data.get("alerts", [])
 
-        # 5. Save alerts
+        # 5. Replace stale unacknowledged alerts for this document while preserving acknowledged ones
+        await session.execute(
+            delete(ClinicalAlert).where(
+                ClinicalAlert.patient_id == document.patient_id,
+                ClinicalAlert.source_document_id == document_id,
+                ClinicalAlert.is_acknowledged.is_(False),
+            )
+        )
+
         for alert_info in alerts_data:
             # ClinicalAlert.severity is constrained to low/medium/high by
             # ck_clinical_alerts_severity. An unrecognised value means the model
@@ -125,8 +151,7 @@ async def run_cdss_analysis(session: AsyncSession, document_id: uuid.UUID) -> No
             )
             session.add(alert)
 
-        if alerts_data:
-            await session.commit()
+        await session.commit()
 
     except Exception:
         logger.exception("CDSS analysis failed for %s", document_id)

@@ -339,3 +339,57 @@ async def test_metric_event_zero_latency(session_and_settings):
 
     assert event.actual_ai_time_sec >= 1
     assert event.estimated_time_saved_sec >= 0
+
+
+@pytest.mark.asyncio
+async def test_vector_metrics_scopes_sources_to_authorized_patients(session_and_settings):
+    from starlette.requests import Request
+    from hospital_ai.api.routes.metrics_endpoint import get_vector_metrics
+    from hospital_ai.db.clinical_documents import DocumentIndexGeneration
+    from hospital_ai.db.migrations import NURSE_ID, PATIENT_BOB_ID
+    from hospital_ai.db.models import Document, DocumentChunk, DocumentPage
+
+    session, _ = session_and_settings
+    nurse = await session.get(User, NURSE_ID)
+    assert nurse is not None
+
+    # Create a ready document for Bob (Nurse only has access to Alice in seed data, NOT Bob)
+    unauth_doc = Document(
+        id=uuid.uuid4(),
+        patient_id=PATIENT_BOB_ID,
+        uploaded_by=DOCTOR_ID,
+        title="Bob Secret Chart",
+        document_type="note",
+        storage_uri="memory://bob-secret.pdf",
+        mime_type="application/pdf",
+        status="ready",
+    )
+    gen = DocumentIndexGeneration(
+        id=uuid.uuid4(),
+        document_id=unauth_doc.id,
+        revision_set_id=uuid.uuid4(),
+        revision_set_sha256="9" * 64,
+        state="active",
+    )
+    unauth_doc.active_index_generation_id = gen.id
+    page = DocumentPage(id=uuid.uuid4(), document_id=unauth_doc.id, page_number=1, ocr_text="Bob secret")
+    chunk = DocumentChunk(
+        id=uuid.uuid4(),
+        document_id=unauth_doc.id,
+        page_id=page.id,
+        patient_id=PATIENT_BOB_ID,
+        generation_id=gen.id,
+        chunk_index=0,
+        content="Bob secret",
+        token_count=2,
+        embedding=[0.0] * 1024,
+        meta={},
+    )
+    session.add_all([unauth_doc, gen, page, chunk])
+    await session.commit()
+
+    req = Request({"type": "http", "headers": [], "client": ("127.0.0.1", 12345)})
+    res = await get_vector_metrics(request=req, session=session, current_user=nurse)
+    returned_doc_ids = {s["document_id"] for s in res["sources"]}
+    assert str(unauth_doc.id) not in returned_doc_ids
+

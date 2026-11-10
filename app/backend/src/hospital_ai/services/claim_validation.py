@@ -205,11 +205,81 @@ def deterministic_entailment(claim: Claim, evidence: str, strict_fields: set[str
     claim_dates = _extract_dates(claim_text)
     evidence_dates = _extract_dates(evidence)
     if "date" in strict_fields and claim_dates:
-        if len(evidence_dates) != 1:
-            return _deterministic_failure(claim, "DATE_AMBIGUOUS")
         if not claim_dates <= evidence_dates:
             return _deterministic_failure(claim, "DATE_MISMATCH")
-
+        if len(evidence_dates) > 1:
+            clauses = [c.strip() for c in re.split(r"[.;\n]+", evidence) if c.strip()]
+            claim_event_tokens = _meaningful_tokens(_DATE_PATTERN.sub(" ", claim_text))
+            for d in claim_dates:
+                matching_clauses = [c for c in clauses if d in _extract_dates(c)]
+                effective_matching: list[tuple[str, set[str]]] = []
+                effective_other_clauses: list[tuple[str, set[str]]] = [
+                    (c, set())
+                    for c in clauses
+                    if _extract_dates(c) and d not in _extract_dates(c)
+                ]
+                for c in matching_clauses:
+                    if len(_extract_dates(c)) > 1:
+                        sub_clauses = [
+                            sc.strip()
+                            for sc in re.split(r",|\band\b|\bthen\b", c, flags=re.IGNORECASE)
+                            if sc.strip()
+                        ]
+                        dated_subs = [sc for sc in sub_clauses if _extract_dates(sc)]
+                        sub_token_sets = [
+                            _meaningful_tokens(_DATE_PATTERN.sub(" ", sc))
+                            for sc in dated_subs
+                        ]
+                        shared_tokens = (
+                            set.intersection(*sub_token_sets)
+                            if len(sub_token_sets) > 1
+                            else set()
+                        )
+                        if _extract_numbers(c) and not all(_extract_numbers(sc) for sc in dated_subs):
+                            first_num_match = _NUMBER_PATTERN.search(_DATE_PATTERN.sub(" ", c))
+                            if first_num_match:
+                                shared_tokens |= _meaningful_tokens(c[: first_num_match.start()])
+                        matching_subs = [sc for sc in sub_clauses if d in _extract_dates(sc)]
+                        bound_subs = [
+                            sc
+                            for sc in matching_subs
+                            if len(_extract_dates(sc)) == 1
+                            and (
+                                (_meaningful_tokens(_DATE_PATTERN.sub(" ", sc)) - shared_tokens)
+                                & claim_event_tokens
+                            )
+                        ]
+                        if not bound_subs:
+                            return _deterministic_failure(claim, "DATE_AMBIGUOUS")
+                        for sc in bound_subs:
+                            effective_matching.append((sc, shared_tokens))
+                        for sc in dated_subs:
+                            if d not in _extract_dates(sc):
+                                effective_other_clauses.append((sc, shared_tokens))
+                    else:
+                        effective_matching.append((c, set()))
+                matching_overlap = max(
+                    (
+                        len(
+                            claim_event_tokens
+                            & (_meaningful_tokens(_DATE_PATTERN.sub(" ", c)) - excl)
+                        )
+                        for c, excl in effective_matching
+                    ),
+                    default=0,
+                )
+                other_overlap = max(
+                    (
+                        len(
+                            claim_event_tokens
+                            & (_meaningful_tokens(_DATE_PATTERN.sub(" ", c)) - excl)
+                        )
+                        for c, excl in effective_other_clauses
+                    ),
+                    default=0,
+                )
+                if matching_overlap == 0 or other_overlap > matching_overlap:
+                    return _deterministic_failure(claim, "EVENT_DATE_MISMATCH")
     if "negation" in strict_fields:
         claim_is_negated = _has_negation(claim_text)
         evidence_is_negated = _has_negation(evidence)

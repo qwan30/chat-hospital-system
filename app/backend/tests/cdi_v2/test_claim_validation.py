@@ -74,3 +74,40 @@ def test_auxiliary_judge_cannot_override_deterministic_failure() -> None:
 
     assert result.passed is False
     assert result.claims[0].reason == "NUMBER_MISMATCH"
+
+
+def test_multi_date_clauses_legitimate_claim_passes() -> None:
+    from hospital_ai.services.claim_validation import ClaimValidator
+
+    evidence = {
+        "E1": (
+            "Patient was admitted on 2026-05-01. "
+            "Patient underwent surgery on 2026-05-02. "
+            "Patient discharged on 2026-05-10."
+        )
+    }
+    result = ClaimValidator().validate_sentence(
+        "Patient underwent surgery on 2026-05-02 [E1].",
+        evidence,
+        validation_context(),
+    )
+    assert result.passed is True
+
+
+def test_adversarial_date_swap_across_clauses_rejected() -> None:
+    from hospital_ai.services.claim_validation import ClaimValidator
+
+    evidence = {
+        "E1": (
+            "Patient was admitted on 2026-05-01. "
+            "Patient underwent surgery on 2026-05-02. "
+            "Patient discharged on 2026-05-10."
+        )
+    }
+    result = ClaimValidator().validate_sentence(
+        "Patient underwent surgery on 2026-05-10 [E1].",
+        evidence,
+        validation_context(),
+    )
+    assert result.passed is False
+    assert result.claims[0].reason == "EVENT_DATE_MISMATCH"

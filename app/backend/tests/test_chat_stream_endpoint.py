@@ -18,8 +18,10 @@ from sqlalchemy.ext.asyncio import async_sessionmaker
 from starlette.requests import Request
 
 from hospital_ai.api.routes.chat_stream import chat_stream
+from hospital_ai.db.clinical_documents import DocumentIndexGeneration
+from hospital_ai.db.clinical_graph import GraphEntity, GraphMention
 from hospital_ai.db.migrations import DOCTOR_ID, PATIENT_ALICE_ID, PATIENT_BOB_ID
-from hospital_ai.db.models import AiQuery, AuditLog, ChatMessage, ChatThread, User
+from hospital_ai.db.models import AiQuery, AuditLog, ChatMessage, ChatThread, Document, DocumentChunk, User
 from hospital_ai.schemas.chat import ChatContext, ChatRequest
 from hospital_ai.services.chat import SAFE_INJECTION_DETECTED_ANSWER, SAFE_NO_EVIDENCE_ANSWER
 from hospital_ai.services.guardrails import GuardrailResult
@@ -582,3 +584,187 @@ async def test_chat_stream_persistence_cancellation_finalizes_exactly_once(sessi
 
     messages = (await session.execute(select(ChatMessage).where(ChatMessage.thread_id == thread.id))).scalars().all()
     assert [message.role for message in messages] == ["user", "assistant"]
+
+
+@pytest.mark.asyncio
+async def test_chat_stream_critical_drug_interaction_intercept(session_and_settings, monkeypatch):
+    session, settings = session_and_settings
+    doctor = await session.get(User, DOCTOR_ID)
+    assert doctor is not None
+
+    # 1. Seed indexed document, chunk, and active patient medication (warfarin)
+    doc = await create_indexed_document(
+        session,
+        patient_id=PATIENT_ALICE_ID,
+        uploaded_by=DOCTOR_ID,
+        title="chart.pdf",
+        content="Patient takes warfarin 5mg daily.",
+    )
+    chunk = (await session.execute(select(DocumentChunk).where(DocumentChunk.document_id == doc.id))).scalar_one()
+
+    warfarin = GraphEntity(
+        id=uuid.uuid4(),
+        patient_id=PATIENT_ALICE_ID,
+        normalized_label="warfarin",
+        entity_type="drug",
+        lifecycle_status="active",
+    )
+    session.add(warfarin)
+    await session.flush()
+
+    mention = GraphMention(
+        id=uuid.uuid4(),
+        patient_id=PATIENT_ALICE_ID,
+        entity_id=warfarin.id,
+        generation_id=chunk.generation_id,
+        document_id=doc.id,
+        revision_set_id=chunk.revision_set_id,
+        page_revision_id=chunk.page_revision_id,
+        chunk_id=chunk.id,
+        independent_source_identity="chart.pdf:1:1",
+    )
+    session.add(mention)
+    await session.commit()
+
+    # 2. Mock catalog to return critical contraindication for query drug
+    from hospital_ai.services.drug_catalog import CatalogInteraction, get_drug_catalog_service
+
+    catalog = get_drug_catalog_service()
+    monkeypatch.setattr(
+        catalog,
+        "get_interaction",
+        lambda d1, d2: CatalogInteraction(
+            drug_a=d1,
+            drug_b=d2,
+            interaction_type="contraindicated",
+            severity="critical",
+            mechanism_action="Fatal bleeding risk.",
+            clinical_recommendation="Do not administer.",
+        )
+        if "aspirin" in (d1, d2) and "warfarin" in (d1, d2)
+        else None,
+    )
+
+    # 3. Assert zero provider/LLM/embedding/retrieval calls
+    embed = AsyncMock(side_effect=AssertionError("EmbeddingService.embed must not run"))
+    vector_search = AsyncMock(side_effect=AssertionError("RetrievalService.search must not run"))
+    hybrid_search = AsyncMock(side_effect=AssertionError("RetrievalService.hybrid_search must not run"))
+    llm_get = Mock(
+        side_effect=AssertionError("LLMManager.get must not be called when critical interaction is intercepted")
+    )
+    monkeypatch.setattr("hospital_ai.api.routes.chat_stream.EmbeddingService.embed", embed)
+    monkeypatch.setattr("hospital_ai.api.routes.chat_stream.RetrievalService.search", vector_search)
+    monkeypatch.setattr("hospital_ai.api.routes.chat_stream.RetrievalService.hybrid_search", hybrid_search)
+    monkeypatch.setattr("hospital_ai.api.routes.chat_stream.LLMManager.get", llm_get)
+    monkeypatch.setattr(
+        "hospital_ai.services.graph_rag.get_llm_manager",
+        Mock(side_effect=AssertionError("LLM must not be called")),
+    )
+    # 4. Invoke chat_stream
+    req = ChatRequest(
+        question="Can I prescribe aspirin 1000mg for Alice?",
+        patient_id=PATIENT_ALICE_ID,
+    )
+    resp = await chat_stream(
+        payload=req,
+        request=_request(),
+        session=session,
+        current_user=doctor,
+        settings=settings,
+    )
+
+    # 5. Read SSE events
+    body = b"".join([chunk.encode("utf-8") if isinstance(chunk, str) else chunk async for chunk in resp.body_iterator])
+    events = _parse_sse_events(body)
+    tokens = [e.get("content", "") for e in events if e.get("type") == "token"]
+    full_text = "".join(tokens)
+
+    assert "CLINICAL CONTRAINDICATION" in full_text
+    assert any(e.get("type") == "done" for e in events)
+    embed.assert_not_awaited()
+    vector_search.assert_not_awaited()
+    hybrid_search.assert_not_awaited()
+
+    # 6. Assert terminal persistence in DB
+    query_stmt = select(AiQuery).where(AiQuery.patient_id == PATIENT_ALICE_ID, AiQuery.question == req.question)
+    ai_query = (await session.execute(query_stmt)).scalar_one()
+    assert ai_query.status == "failed"
+
+    audit_stmt = select(AuditLog).where(AuditLog.object_id == ai_query.id)
+    audit = (await session.execute(audit_stmt)).scalar_one()
+    assert audit.outcome == "denied"
+    assert audit.meta.get("reason") == "clinical_contraindication_blocked"
+
+
+@pytest.mark.asyncio
+async def test_chat_stream_high_drug_interaction_injects_warning(session_and_settings, monkeypatch):
+    session, settings = session_and_settings
+    doctor = await session.get(User, DOCTOR_ID)
+    assert doctor is not None
+
+    doc = await create_indexed_document(
+        session,
+        patient_id=PATIENT_ALICE_ID,
+        uploaded_by=DOCTOR_ID,
+        title="chart.pdf",
+        content="Patient takes warfarin 5mg daily. Status: stable.",
+    )
+    chunk = (await session.execute(select(DocumentChunk).where(DocumentChunk.document_id == doc.id))).scalar_one()
+
+    warfarin = GraphEntity(
+        id=uuid.uuid4(),
+        patient_id=PATIENT_ALICE_ID,
+        normalized_label="warfarin",
+        entity_type="drug",
+        lifecycle_status="active",
+    )
+    session.add(warfarin)
+    await session.flush()
+
+    mention = GraphMention(
+        id=uuid.uuid4(),
+        patient_id=PATIENT_ALICE_ID,
+        entity_id=warfarin.id,
+        generation_id=chunk.generation_id,
+        document_id=doc.id,
+        revision_set_id=chunk.revision_set_id,
+        page_revision_id=chunk.page_revision_id,
+        chunk_id=chunk.id,
+        independent_source_identity="chart.pdf:1:1",
+    )
+    session.add(mention)
+    await session.commit()
+
+    captured_messages = []
+    orig_stream = StubLLM.stream
+
+    async def _capturing_stream(self, messages, **kw):
+        captured_messages.extend(messages)
+        async for tok in orig_stream(self, messages, **kw):
+            yield tok
+
+    monkeypatch.setattr(StubLLM, "stream", _capturing_stream)
+
+    req = ChatRequest(
+        question="Can I prescribe aspirin 81mg for Alice?",
+        patient_id=PATIENT_ALICE_ID,
+    )
+    resp = await chat_stream(
+        payload=req,
+        request=_request(),
+        session=session,
+        current_user=doctor,
+        settings=settings,
+    )
+
+    body = b"".join([chunk.encode("utf-8") if isinstance(chunk, str) else chunk async for chunk in resp.body_iterator])
+    events = _parse_sse_events(body)
+
+    system_msgs = [m.content for m in captured_messages if m.role == "system"]
+    assert any("[CLINICAL WARNING:" in content for content in system_msgs)
+
+    meta_events = [e for e in events if e.get("type") == "metadata"]
+    assert len(meta_events) == 1
+    assert "warnings" in meta_events[0]
+    assert len(meta_events[0]["warnings"]) >= 1
+    assert meta_events[0]["warnings"][0]["severity"] == "high"

@@ -106,6 +106,7 @@ _DENIED_REASONS = {
     "output_guardrail_blocked",
     "missing_patient_read_scope",
     "permission_denied",
+    "clinical_contraindication_blocked",
 }
 
 
@@ -243,6 +244,7 @@ async def _generate_validated_sse_events(
     query_id: UUID,
     on_complete: Optional[OnCompleteCallback],
     stream_state: dict[str, Any],
+    drug_warnings: Optional[list] = None,
 ) -> AsyncIterator[str]:
     """Stream only sentence-validated output from the provider.
 
@@ -281,13 +283,17 @@ async def _generate_validated_sse_events(
     try:
         llm = LLMManager(settings).get()
         prompt = build_grounded_prompt(question, evidence, conversation_history)
+        system_content = (
+            "You are a clinical knowledge assistant. Answer accurately and concisely "
+            "based on the authorized evidence. Cite each factual claim with [E1] or [E2]."
+        )
+        high_warnings = [w for w in (drug_warnings or []) if getattr(w, "severity", None) == "high"]
+        if high_warnings:
+            system_content += "\n\n" + "\n".join(f"[CLINICAL WARNING: {w.message}]" for w in high_warnings)
         messages = [
             LLMMessage(
                 role="system",
-                content=(
-                    "You are a clinical knowledge assistant. Answer accurately and concisely "
-                    "based on the authorized evidence. Cite each factual claim with [E1] or [E2]."
-                ),
+                content=system_content,
             ),
             LLMMessage(role="user", content=prompt),
         ]
@@ -305,15 +311,25 @@ async def _generate_validated_sse_events(
                 preamble.append({"type": "status", "stage": event.content or "retrieving"})
                 continue
             if event.type == "metadata":
-                preamble.append(
-                    {
-                        "type": "metadata",
-                        "confidence": provisional_confidence,
-                        "pipeline": "simple_qa",
-                        "model": llm.model_name(),
-                        "validation_mode": "sentence_buffered",
-                    }
-                )
+                meta_payload: dict[str, Any] = {
+                    "type": "metadata",
+                    "confidence": provisional_confidence,
+                    "pipeline": "simple_qa",
+                    "model": llm.model_name(),
+                    "validation_mode": "sentence_buffered",
+                }
+                if drug_warnings:
+                    meta_payload["warnings"] = [
+                        {
+                            "drug_name": w.drug_name,
+                            "interacting_entity": w.interacting_entity,
+                            "interaction_type": w.interaction_type,
+                            "severity": w.severity,
+                            "message": w.message,
+                        }
+                        for w in drug_warnings
+                    ]
+                preamble.append(meta_payload)
                 continue
             if event.type == "token":
                 validation_passed = event.validation_passed is not False
@@ -473,6 +489,7 @@ async def _generate_sse_events(
     pipeline_name: str,
     resolved_patient: Optional[Any] = None,
     on_complete: Optional[OnCompleteCallback] = None,
+    drug_warnings: Optional[list] = None,
 ) -> AsyncIterator[str]:
     """Generate SSE events with token-by-token streaming.
 
@@ -614,13 +631,17 @@ async def _generate_sse_events(
         # Build prompt
         prompt = build_grounded_prompt(question, evidence, conversation_history)
 
+        system_content = (
+            "You are a clinical knowledge assistant. Answer accurately and concisely "
+            "based on the authorized evidence. Cite each factual claim with [E1] or [E2]."
+        )
+        high_warnings = [w for w in (drug_warnings or []) if getattr(w, "severity", None) == "high"]
+        if high_warnings:
+            system_content += "\n\n" + "\n".join(f"[CLINICAL WARNING: {w.message}]" for w in high_warnings)
         messages = [
             LLMMessage(
                 role="system",
-                content=(
-                    "You are a clinical knowledge assistant. Answer accurately and concisely "
-                    "based on the authorized evidence. Cite each factual claim with [E1] or [E2]."
-                ),
+                content=system_content,
             ),
             LLMMessage(role="user", content=prompt),
         ]
@@ -732,15 +753,25 @@ async def _generate_sse_events(
         scoring_pool = cited_evidence or evidence
         avg_score = sum(e.score for e in scoring_pool) / len(scoring_pool) if scoring_pool else 0.0
         confidence = confidence_from_score(avg_score)
-        meta_event = json.dumps(
-            {
-                "type": "metadata",
-                "confidence": confidence,
-                "pipeline": actual_pipeline,
-                "model": llm.model_name(),
-                "validation_mode": "sentence_buffered",
-            }
-        )
+        meta_payload: dict[str, Any] = {
+            "type": "metadata",
+            "confidence": confidence,
+            "pipeline": actual_pipeline,
+            "model": llm.model_name(),
+            "validation_mode": "sentence_buffered",
+        }
+        if drug_warnings:
+            meta_payload["warnings"] = [
+                {
+                    "drug_name": w.drug_name,
+                    "interacting_entity": w.interacting_entity,
+                    "interaction_type": w.interaction_type,
+                    "severity": w.severity,
+                    "message": w.message,
+                }
+                for w in drug_warnings
+            ]
+        meta_event = json.dumps(meta_payload)
         yield f"data: {meta_event}\n\n"
 
         await complete_terminal(
@@ -1145,6 +1176,52 @@ async def chat_stream(
             media_type="text/event-stream",
         )
 
+    # Pre-flight clinical drug interaction check
+    drug_warnings: list = []
+    if effective_patient_id:
+        from hospital_ai.services.drug_check import DrugCheckService
+
+        ddi_service = DrugCheckService(session)
+        drug_warnings = await ddi_service.check_interactions(
+            query_text=payload.question,
+            patient_id=effective_patient_id,
+            min_severity="low",
+            user_id=current_user.id,
+        )
+        critical_ddi = [w for w in drug_warnings if w.severity == "critical"]
+        if critical_ddi:
+            contraindication_msg = (
+                "CLINICAL CONTRAINDICATION: Prescribing this medication is strictly contraindicated "
+                f"for this patient: {critical_ddi[0].message}"
+            )
+            await _finalize_stream_outcome(
+                session,
+                ai_query=ai_query,
+                completion=StreamCompletion(
+                    validation_status="failed",
+                    answer=contraindication_msg,
+                    failure_reason="clinical_contraindication_blocked",
+                ),
+                user_id=current_user.id,
+                patient_id=effective_patient_id,
+                trace_id=trace_id,
+                ip_address=get_request_ip(request),
+                started=started,
+                evidence_count=0,
+                metadata={"reason": "clinical_contraindication_blocked", "details": critical_ddi[0].message},
+            )
+            await session.commit()
+
+            return StreamingResponse(
+                _safe_refusal_stream(
+                    answer=contraindication_msg,
+                    query_id=ai_query.id,
+                    reason="clinical_contraindication_blocked",
+                    model=_resolve_model_name(settings),
+                ),
+                media_type="text/event-stream",
+            )
+
     # Gather conversation history
     conversation_history: list = []
     if payload.thread_id:
@@ -1197,7 +1274,11 @@ async def chat_stream(
                 if query_entities:
                     entity_names = [e.normalized_label for e in query_entities]
                     graph_ctx = await find_related_entities(
-                        session, entity_names, max_hops=2, patient_id=effective_patient_id
+                        session,
+                        entity_names,
+                        max_hops=2,
+                        patient_id=effective_patient_id,
+                        include_patient_conditions=True,
                     )
                     if graph_ctx.related_chunk_ids:
                         graph_chunks = await retrieval_svc.get_chunks_by_ids(
@@ -1436,6 +1517,7 @@ async def chat_stream(
             pipeline_name=selected_pipeline,
             resolved_patient=resolved_patient,
             on_complete=_on_complete,
+            drug_warnings=drug_warnings,
         ),
         media_type="text/event-stream",
         headers={

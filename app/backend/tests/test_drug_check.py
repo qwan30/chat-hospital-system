@@ -15,8 +15,10 @@ import uuid
 import pytest
 from sqlalchemy import select
 
+from hospital_ai.db.clinical_documents import DocumentIndexGeneration
+from hospital_ai.db.clinical_graph import GraphEntity, GraphMention
 from hospital_ai.db.migrations import DOCTOR_ID, PATIENT_ALICE_ID
-from hospital_ai.db.models import DocumentChunk
+from hospital_ai.db.models import Document, DocumentChunk
 from hospital_ai.services.drug_check import (
     DrugCheckService,
     DrugWarning,
@@ -224,3 +226,196 @@ def test_drug_warning_frozen():
     )
     with pytest.raises(AttributeError):
         warning.drug_name = "changed"
+
+
+# ── Candidate drug catalog cross-referencing & lifecycle/generation filtering ──
+
+
+@pytest.mark.asyncio
+async def test_drug_check_detects_candidate_drug_interaction(session_and_settings):
+    session, _ = session_and_settings
+    patient_id = PATIENT_ALICE_ID
+
+    doc = Document(
+        id=uuid.uuid4(),
+        patient_id=patient_id,
+        uploaded_by=DOCTOR_ID,
+        title="chart.pdf",
+        document_type="note",
+        storage_uri="memory://chart.pdf",
+        mime_type="application/pdf",
+        status="ready",
+    )
+    gen = DocumentIndexGeneration(
+        id=uuid.uuid4(),
+        document_id=doc.id,
+        revision_set_id=uuid.uuid4(),
+        revision_set_sha256="0" * 64,
+        state="active",
+    )
+    doc.active_index_generation_id = gen.id
+    session.add_all([doc, gen])
+    await session.flush()
+
+    aspirin = GraphEntity(
+        id=uuid.uuid4(),
+        patient_id=patient_id,
+        normalized_label="aspirin",
+        entity_type="drug",
+        lifecycle_status="active",
+    )
+    session.add(aspirin)
+    await session.flush()
+
+    mention = GraphMention(
+        id=uuid.uuid4(),
+        patient_id=patient_id,
+        entity_id=aspirin.id,
+        generation_id=gen.id,
+        document_id=doc.id,
+        revision_set_id=gen.revision_set_id,
+        page_revision_id=uuid.uuid4(),
+        chunk_id=uuid.uuid4(),
+        independent_source_identity="chart.pdf:1:1",
+    )
+    session.add(mention)
+    await session.commit()
+
+    service = DrugCheckService(session)
+    warnings = await service.check_interactions(
+        query_text="Can we prescribe warfarin 5mg to this patient?",
+        patient_id=patient_id,
+    )
+    assert len(warnings) >= 1
+    warfarin_warnings = [
+        w
+        for w in warnings
+        if "warfarin" in w.drug_name.lower() or "aspirin" in w.drug_name.lower()
+    ]
+    assert len(warfarin_warnings) >= 1
+    assert warfarin_warnings[0].severity in ("high", "critical")
+
+
+@pytest.mark.asyncio
+async def test_drug_check_ignores_discontinued_medication(session_and_settings):
+    session, _ = session_and_settings
+    patient_id = PATIENT_ALICE_ID
+
+    doc = Document(
+        id=uuid.uuid4(),
+        patient_id=patient_id,
+        uploaded_by=DOCTOR_ID,
+        title="old.pdf",
+        document_type="note",
+        storage_uri="memory://old.pdf",
+        mime_type="application/pdf",
+        status="ready",
+    )
+    gen = DocumentIndexGeneration(
+        id=uuid.uuid4(),
+        document_id=doc.id,
+        revision_set_id=uuid.uuid4(),
+        revision_set_sha256="0" * 64,
+        state="active",
+    )
+    doc.active_index_generation_id = gen.id
+    session.add_all([doc, gen])
+    await session.flush()
+
+    discontinued_warfarin = GraphEntity(
+        id=uuid.uuid4(),
+        patient_id=patient_id,
+        normalized_label="warfarin",
+        entity_type="drug",
+        lifecycle_status="discontinued",
+    )
+    session.add(discontinued_warfarin)
+    await session.flush()
+
+    mention = GraphMention(
+        id=uuid.uuid4(),
+        patient_id=patient_id,
+        entity_id=discontinued_warfarin.id,
+        generation_id=gen.id,
+        document_id=doc.id,
+        revision_set_id=gen.revision_set_id,
+        page_revision_id=uuid.uuid4(),
+        chunk_id=uuid.uuid4(),
+        independent_source_identity="old.pdf:1:1",
+    )
+    session.add(mention)
+    await session.commit()
+
+    service = DrugCheckService(session)
+    warnings = await service.check_interactions(
+        query_text="Can we start aspirin 81mg daily?",
+        patient_id=patient_id,
+        min_severity="high",
+    )
+    assert len(warnings) == 0
+
+
+@pytest.mark.asyncio
+async def test_drug_check_ignores_unapproved_generation_medication(session_and_settings):
+    session, _ = session_and_settings
+    patient_id = PATIENT_ALICE_ID
+
+    doc = Document(
+        id=uuid.uuid4(),
+        patient_id=patient_id,
+        uploaded_by=DOCTOR_ID,
+        title="unapproved.pdf",
+        document_type="note",
+        storage_uri="memory://unapproved.pdf",
+        mime_type="application/pdf",
+        status="ready",
+    )
+    active_gen = DocumentIndexGeneration(
+        id=uuid.uuid4(),
+        document_id=doc.id,
+        revision_set_id=uuid.uuid4(),
+        revision_set_sha256="1" * 64,
+        state="active",
+    )
+    unapproved_gen = DocumentIndexGeneration(
+        id=uuid.uuid4(),
+        document_id=doc.id,
+        revision_set_id=uuid.uuid4(),
+        revision_set_sha256="2" * 64,
+        state="building",
+    )
+    doc.active_index_generation_id = active_gen.id
+    session.add_all([doc, active_gen, unapproved_gen])
+    await session.flush()
+
+    unapproved_warfarin = GraphEntity(
+        id=uuid.uuid4(),
+        patient_id=patient_id,
+        normalized_label="warfarin",
+        entity_type="drug",
+        lifecycle_status="active",
+    )
+    session.add(unapproved_warfarin)
+    await session.flush()
+
+    mention = GraphMention(
+        id=uuid.uuid4(),
+        patient_id=patient_id,
+        entity_id=unapproved_warfarin.id,
+        generation_id=unapproved_gen.id,
+        document_id=doc.id,
+        revision_set_id=unapproved_gen.revision_set_id,
+        page_revision_id=uuid.uuid4(),
+        chunk_id=uuid.uuid4(),
+        independent_source_identity="unapproved.pdf:1:1",
+    )
+    session.add(mention)
+    await session.commit()
+
+    service = DrugCheckService(session)
+    warnings = await service.check_interactions(
+        query_text="Can we start aspirin 81mg daily?",
+        patient_id=patient_id,
+        min_severity="high",
+    )
+    assert len(warnings) == 0

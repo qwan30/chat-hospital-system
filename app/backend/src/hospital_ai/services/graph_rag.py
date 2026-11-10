@@ -42,6 +42,8 @@ logger = logging.getLogger(__name__)
 # ── Ontology & Allowlist ──────────────────────────────────────────────────
 
 CANONICAL_PATIENT_ANCHOR = "patient:self"
+ALLOWED_PATIENT_ANCHOR_RELATIONS = frozenset({"allergic_to", "contraindicates"})
+MAX_GRAPH_CONTEXT_ENTITIES = 15
 
 VALID_RELATION_TYPES = frozenset(
     [
@@ -508,6 +510,7 @@ async def find_related_entities(
     *,
     max_hops: int = 2,
     patient_id: Optional[uuid.UUID] = None,
+    include_patient_conditions: bool = False,
 ) -> GraphContext:
     if not entity_names:
         return GraphContext(entities=[], relations=[], related_chunk_ids=set(), summary="No entities to query.")
@@ -568,6 +571,12 @@ async def find_related_entities(
     all_entities = list(seed_entities)
     all_relations: list[GraphRelationAssertion] = []
     frontier_ids = visited_ids.copy()
+    patient_anchor_ids: set[uuid.UUID] = {
+        e.id for e in seed_entities if e.normalized_label == CANONICAL_PATIENT_ANCHOR
+    }
+    allowed_anchor_relations = set(ALLOWED_PATIENT_ANCHOR_RELATIONS)
+    if include_patient_conditions:
+        allowed_anchor_relations.update({"diagnosed_with", "history_of", "has_observation"})
 
     for _ in range(max_hops):
         if not frontier_ids:
@@ -585,7 +594,28 @@ async def find_related_entities(
         )
         relations = list(result.scalars().all())
 
-        new_relations = [r for r in relations if r.id not in visited_relation_ids]
+        anchor_frontier_ids = frontier_ids & patient_anchor_ids
+        non_anchor_frontier_ids = frontier_ids - patient_anchor_ids
+        new_relations = []
+        for r in relations:
+            if r.id in visited_relation_ids:
+                continue
+            touches_anchor_in_frontier = (
+                r.subject_entity_id in anchor_frontier_ids
+                or r.object_entity_id in anchor_frontier_ids
+            )
+            touches_non_anchor_in_frontier = (
+                r.subject_entity_id in non_anchor_frontier_ids
+                or r.object_entity_id in non_anchor_frontier_ids
+            )
+            if (
+                touches_anchor_in_frontier
+                and not touches_non_anchor_in_frontier
+                and r.relation_type not in allowed_anchor_relations
+            ):
+                continue
+            new_relations.append(r)
+
         all_relations.extend(new_relations)
         for r in new_relations:
             visited_relation_ids.add(r.id)
@@ -603,11 +633,21 @@ async def find_related_entities(
             )
             new_entities = list(result.scalars().all())
             all_entities.extend(new_entities)
-            # Traversal Guard: Do NOT expand outward from patient:self hub node into unrelated conditions
-            frontier_ids = {e.id for e in new_entities if e.normalized_label != CANONICAL_PATIENT_ANCHOR}
+            patient_anchor_ids.update(
+                e.id for e in new_entities if e.normalized_label == CANONICAL_PATIENT_ANCHOR
+            )
+            frontier_ids = {e.id for e in new_entities}
         else:
             frontier_ids = set()
 
+    if len(all_entities) > MAX_GRAPH_CONTEXT_ENTITIES:
+        all_entities = all_entities[:MAX_GRAPH_CONTEXT_ENTITIES]
+        capped_entity_ids = {e.id for e in all_entities}
+        all_relations = [
+            r
+            for r in all_relations
+            if r.subject_entity_id in capped_entity_ids and r.object_entity_id in capped_entity_ids
+        ]
     chunk_ids: set[uuid.UUID] = set()
     if patient_id is not None and all_relations:
         assertion_ids = [r.id for r in all_relations]

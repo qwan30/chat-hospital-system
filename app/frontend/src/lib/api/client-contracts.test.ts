@@ -23,7 +23,13 @@ describe("Frontend API client contracts", () => {
     const spy = vi.spyOn(apiClient, "apiFetch").mockResolvedValue({
       access_token: "tok",
       token_type: "bearer",
-      user: { id: "1", email: "doctor@example.test", full_name: "Doc", role: "cardiologist", is_active: true },
+      user: {
+        id: "1",
+        email: "doctor@example.test",
+        full_name: "Doc",
+        role: "cardiologist",
+        is_active: true,
+      },
     });
     await login("doctor@example.test", "demo");
     expect(spy).toHaveBeenCalledWith("/auth/token", {

@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Hospital AI — Codebase Scan & Architecture Audit</title>
+<style>
+  :root {
+    --bg: #0d1117;
+    --surface: #161b22;
+    --surface-elevated: #21262d;
+    --border: #30363d;
+    --text-primary: #f0f6fc;
+    --text-secondary: #8b949e;
+    --accent: #58a6ff;
+    --core-asset: #3fb950;
+    --extract-merge: #d29922;
+    --rebuild: #f85149;
+    --deprecate: #da3633;
+    --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background-color: var(--bg);
+    color: var(--text-primary);
+    font-family: var(--font);
+    line-height: 1.6;
+    padding: 32px 24px;
+  }
+  .container { max-width: 1280px; margin: 0 auto; }
+  header {
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 24px;
+    margin-bottom: 32px;
+  }
+  h1 { font-size: 28px; font-weight: 600; color: #fff; margin-bottom: 8px; }
+  .badge {
+    display: inline-block;
+    padding: 2px 10px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+  }
+  .badge-core { background: rgba(63, 185, 80, 0.15); color: var(--core-asset); border: 1px solid rgba(63, 185, 80, 0.3); }
+  .badge-extract { background: rgba(210, 153, 34, 0.15); color: var(--extract-merge); border: 1px solid rgba(210, 153, 34, 0.3); }
+  .badge-deprecate { background: rgba(218, 54, 51, 0.15); color: var(--deprecate); border: 1px solid rgba(218, 54, 51, 0.3); }
+  .badge-warning { background: rgba(240, 136, 62, 0.15); color: #f0883e; border: 1px solid rgba(240, 136, 62, 0.3); }
+
+  .kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 16px;
+    margin-bottom: 36px;
+  }
+  .kpi-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 20px;
+  }
+  .kpi-title { font-size: 13px; color: var(--text-secondary); text-transform: uppercase; font-weight: 600; margin-bottom: 6px; }
+  .kpi-value { font-size: 28px; font-weight: 700; color: #fff; }
+  .kpi-sub { font-size: 13px; color: var(--text-secondary); margin-top: 4px; }
+
+  .section-title { font-size: 20px; font-weight: 600; margin-bottom: 16px; display: flex; align-items: center; gap: 8px; }
+  .filter-bar {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+  }
+  .filter-btn {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--text-secondary);
+    padding: 6px 14px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 500;
+    transition: all 0.2s;
+  }
+  .filter-btn:hover, .filter-btn.active {
+    background: var(--surface-elevated);
+    color: #fff;
+    border-color: var(--accent);
+  }
+
+  .module-list { display: flex; flex-direction: column; gap: 16px; margin-bottom: 40px; }
+  .module-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+    transition: border-color 0.2s;
+  }
+  .module-card:hover { border-color: #58a6ff66; }
+  .module-header {
+    padding: 16px 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    cursor: pointer;
+    background: var(--surface);
+    user-select: none;
+  }
+  .module-name { font-size: 16px; font-weight: 600; color: #fff; }
+  .module-meta { font-size: 13px; color: var(--text-secondary); margin-top: 2px; }
+  .module-body {
+    padding: 20px;
+    border-top: 1px solid var(--border);
+    background: var(--surface-elevated);
+    display: block;
+  }
+  .module-body.collapsed { display: none; }
+  
+  table { width: 100%; border-collapse: collapse; margin: 16px 0; font-size: 14px; }
+  th, td { text-align: left; padding: 10px 14px; border-bottom: 1px solid var(--border); }
+  th { background: var(--surface); color: var(--text-secondary); font-weight: 600; }
+  tr:hover td { background: rgba(255, 255, 255, 0.02); }
+
+  .callout {
+    padding: 14px 18px;
+    border-radius: 6px;
+    margin: 16px 0;
+    font-size: 14px;
+  }
+  .callout-warning { background: rgba(210, 153, 34, 0.12); border-left: 4px solid var(--extract-merge); color: #e3b341; }
+  .callout-danger { background: rgba(218, 54, 51, 0.12); border-left: 4px solid var(--deprecate); color: #ff7b72; }
+  .callout-info { background: rgba(88, 166, 255, 0.12); border-left: 4px solid var(--accent); color: #79c0ff; }
+
+  .code-tag {
+    font-family: ui-monospace, SFMono-Regular, SF Mono, Menlo, Consolas, Liberation Mono, monospace;
+    font-size: 12px;
+    background: rgba(110, 118, 129, 0.4);
+    padding: 2px 6px;
+    border-radius: 4px;
+  }
+</style>
+</head>
+<body>
+<div class="container">
+  <header>
+    <h1>🏥 AI-Powered Hospital Knowledge Assistant — Repo-Scan Audit</h1>
+    <p style="color: var(--text-secondary); margin-top: 6px;">
+      Empirical Codebase Inventory, Multi-Module Verdicts, and Verified Source Findings
+    </p>
+  </header>
+
+  <!-- KPI SUMMARY -->
+  <div class="kpi-grid">
+    <div class="kpi-card">
+      <div class="kpi-title">Workspace Disk Footprint</div>
+      <div class="kpi-value">6.56 GB</div>
+      <div class="kpi-sub">188,300 total physical files</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-title">Real Project Source</div>
+      <div class="kpi-value">142,910 SLOC</div>
+      <div class="kpi-sub">Across 929 real source / doc files (~74 MB)</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-title">Local Untracked Artifacts</div>
+      <div class="kpi-value">~6.48 GB</div>
+      <div class="kpi-sub">Ignored by .gitignore but present on disk</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-title">Backend Test Suites</div>
+      <div class="kpi-value">824 Tests</div>
+      <div class="kpi-sub">128 test files (Pytest, Mutation, CRAP gates)</div>
+    </div>
+  </div>
+
+  <!-- VERIFIED VS UNVERIFIED FINDINGS -->
+  <div class="section-title">🔍 Verification Matrix: Source Reality vs Documentation Claims</div>
+  <div class="callout callout-info">
+    <strong>Auditing Principle:</strong> Claims stated in documentation (e.g. "zero PHI leakage", "production certification", "100% WCAG compliance") are treated as design goals until verified against executed test runs and source code bodies.
+  </div>
+
+  <table>
+    <thead>
+      <tr>
+        <th style="width: 25%;">Area / Claim</th>
+        <th style="width: 35%;">Documentation Claim</th>
+        <th style="width: 40%;">Source Code & Runtime Reality</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>PHI Scope & Retrieval</strong></td>
+        <td>"Zero PHI leakage across role boundaries"</td>
+        <td>
+          <span class="badge badge-warning">Partial Caveat</span><br>
+          SQL query enforces active patient scope (<span class="code-tag">ActiveEvidenceScope</span>). However, role-based filtering (<span class="code-tag">_apply_role_filters</span>) runs in Python memory <em>after</em> <span class="code-tag">LIMIT :top_k</span>. Chunks of unauthorized document types are retrieved into memory and then pruned, which may shrink the returned context below <span class="code-tag">top_k</span>.
+        </td>
+      </tr>
+      <tr>
+        <td><strong>AI Evaluation & Release Gate</strong></td>
+        <td>"Production-grade clinical assistant ready for deployment"</td>
+        <td>
+          <span class="badge badge-deprecate">Gate Conditional / NO-GO</span><br>
+          <span class="code-tag">README.md</span> and runner confirm the 50-case sentinel dataset (<span class="code-tag">rag_sentinel_v2.jsonl</span>) remains in <span class="code-tag">draft</span> status, requiring 2 independent sign-offs. Past CI runs showed NLP extraction failures on synthetic data.
+        </td>
+      </tr>
+      <tr>
+        <td><strong>Accessibility (WCAG 2.1 AA)</strong></td>
+        <td>"Target: WCAG 2.1 AA compliant across all clinical screens"</td>
+        <td>
+          <span class="badge badge-warning">Design Target / Uncertified</span><br>
+          Axe-core tests are written in Playwright E2E suites (<span class="code-tag">app/frontend/e2e</span>). In recorded CI runs, E2E jobs were deferred due to backend service orchestration requirements.
+        </td>
+      </tr>
+      <tr>
+        <td><strong>Contract Integrity</strong></td>
+        <td>"Frontend and Backend fully integrated"</td>
+        <td>
+          <span class="badge badge-core">Verified Passing</span><br>
+          <span class="code-tag">verify_contracts.py</span> ran with 73 backend routes matched against frontend API client calls. Only 1 known gap detected (<span class="code-tag">/api</span> fallback route tracked as TODO).
+        </td>
+      </tr>
+      <tr>
+        <td><strong>Untracked Disk Overhead</strong></td>
+        <td>"Need to add ignored patterns to .gitignore"</td>
+        <td>
+          <span class="badge badge-core">Clarified</span><br>
+          <span class="code-tag">.gitignore</span> <strong>already correctly includes</strong> <span class="code-tag">.next/</span> (line 2), <span class="code-tag">.local_storage/</span> (line 37), <span class="code-tag">.gitnexus</span> (line 47), <span class="code-tag">.codegraph/</span> (line 51), and <span class="code-tag">.review-*</span> (line 84). The disk overhead is from local builds and review checkouts, not tracking leaks.
+        </td>
+      </tr>
+    </tbody>
+  </table>
+
+  <!-- MODULE VERDICTS DRILL-DOWN -->
+  <div class="section-title" style="margin-top: 40px;">📦 Module Scorecards & Four-Level Verdicts</div>
+  <div class="filter-bar">
+    <button class="filter-btn active" onclick="filterModules('all')">All Modules (9)</button>
+    <button class="filter-btn" onclick="filterModules('core')">Core Asset (5)</button>
+    <button class="filter-btn" onclick="filterModules('extract')">Extract & Merge (2)</button>
+    <button class="filter-btn" onclick="filterModules('deprecate')">Deprecate / Purge (2)</button>
+  </div>
+
+  <div class="module-list">
+    <!-- Module 1 -->
+    <div class="module-card" data-verdict="core">
+      <div class="module-header" onclick="toggleModule(this)">
+        <div>
+          <span class="module-name">1. RAG & Clinical Graph Engine</span>
+          <div class="module-meta">app/backend/src/hospital_ai/services/{retrieval.py, graph_rag.py, bm25.py, reranking.py} • 25,648 SLOC</div>
+        </div>
+        <span class="badge badge-core">Core Asset</span>
+      </div>
+      <div class="module-body">
+        <p><strong>Ownership:</strong> Core IP & domain engine.</p>
+        <p><strong>Architecture:</strong> SQL-backed GraphRAG without external graph DB dependencies (PostgreSQL 2-hop BFS traversal). Integrates pgvector HNSW vector search, PostgreSQL BM25 (tsvector), and Reciprocal Rank Fusion (RRF).</p>
+        <p><strong>Critical Risk:</strong> Role-based access filters operate post-SQL query, potentially starving retrieval top-k if retrieved chunks are filtered out by user role.</p>
+      </div>
+    </div>
+
+    <!-- Module 2 -->
+    <div class="module-card" data-verdict="core">
+      <div class="module-header" onclick="toggleModule(this)">
+        <div>
+          <span class="module-name">2. SSE Streaming & Citation Validation</span>
+          <div class="module-meta">app/backend/src/hospital_ai/api/routes/chat_stream.py • app/frontend/src/lib/stream-client.ts</div>
+        </div>
+        <span class="badge badge-core">Core Asset</span>
+      </div>
+      <div class="module-body">
+        <p><strong>Ownership:</strong> Core clinical communication channel.</p>
+        <p><strong>Architecture:</strong> Server-Sent Events (SSE) with streaming citation matching. Client can send abort signals; stream parser validates citation IDs against retrieved evidence IDs. Emits safe refusal ("Unable to answer") when evidence is insufficient.</p>
+      </div>
+    </div>
+
+    <!-- Module 3 -->
+    <div class="module-card" data-verdict="core">
+      <div class="module-header" onclick="toggleModule(this)">
+        <div>
+          <span class="module-name">3. CDI V2 Document Ingestion & Revision Pipeline</span>
+          <div class="module-meta">app/backend/src/hospital_ai/{loaders/, services/ocr.py, workers/jobs.py, api/routes/document_revisions.py}</div>
+        </div>
+        <span class="badge badge-core">Core Asset</span>
+      </div>
+      <div class="module-body">
+        <p><strong>Ownership:</strong> Core document management and clinical audit trail.</p>
+        <p><strong>Architecture:</strong> Redis/RQ asynchronous job worker with dead-letter queue. Multi-format support (PDF, DOCX, HL7, tables). Immutable upload sessions, page-by-page OCR diffing, and reviewer approval state machine.</p>
+      </div>
+    </div>
+
+    <!-- Module 4 -->
+    <div class="module-card" data-verdict="core">
+      <div class="module-header" onclick="toggleModule(this)">
+        <div>
+          <span class="module-name">4. Frontend Clinical Shell & Visualizers</span>
+          <div class="module-meta">app/frontend/src/components/hms/ • app/frontend/src/routes/ • 29,361 SLOC (React 19, TanStack Start)</div>
+        </div>
+        <span class="badge badge-core">Core Asset</span>
+      </div>
+      <div class="module-body">
+        <p><strong>Ownership:</strong> Primary user-facing clinical interface.</p>
+        <p><strong>Architecture:</strong> High-performance modern web app using TanStack Start + Vite 8 + Bun + Tailwind CSS v4. Features Evidence Rail, interactive SVG Graph Canvas with patient node anchoring, Document Workspace with side-by-side OCR diffing, and degraded state banners.</p>
+        <p><strong>Build Verification:</strong> Typecheck (<span class="code-tag">tsc --noEmit</span>) passed with 0 errors.</p>
+      </div>
+    </div>
+
+    <!-- Module 5 -->
+    <div class="module-card" data-verdict="core">
+      <div class="module-header" onclick="toggleModule(this)">
+        <div>
+          <span class="module-name">5. Deterministic Quality Gates & Mutation Testing</span>
+          <div class="module-meta">app/backend/scripts/{verify_deterministic_gates.py, run_mutation_smoke.py, calculate_crap_score.py}</div>
+        </div>
+        <span class="badge badge-core">Core Asset</span>
+      </div>
+      <div class="module-body">
+        <p><strong>Ownership:</strong> Code quality & release gatekeeper.</p>
+        <p><strong>Capabilities:</strong> Enforces Mutmut mutation testing (kill rate >= 80%), Radon CRAP score calculation, API contract checking, and regression verification.</p>
+      </div>
+    </div>
+
+    <!-- Module 6 -->
+    <div class="module-card" data-verdict="extract">
+      <div class="module-header" onclick="toggleModule(this)">
+        <div>
+          <span class="module-name">6. Synthetic Patient Datasets & Audit Logs</span>
+          <div class="module-meta">app/backend/data/ vs app/backend/data/hosp_ai_synthetic_dataset/</div>
+        </div>
+        <span class="badge badge-extract">Extract & Merge</span>
+      </div>
+      <div class="module-body">
+        <p><strong>Issue:</strong> 100% exact duplicate directory tree committed under <span class="code-tag">app/backend/data/hosp_ai_synthetic_dataset/app/backend/data/...</span>.</p>
+        <p><strong>Duplicate Impact:</strong> Includes a redundant 5.7 MB <span class="code-tag">audit_logs.jsonl</span> file, 100 duplicate patient documents, and 100 duplicate lab panels.</p>
+        <p><strong>Action:</strong> Consolidate to a single canonical dataset path under <span class="code-tag">app/backend/data/</span> and delete the redundant nested copy.</p>
+      </div>
+    </div>
+
+    <!-- Module 7 -->
+    <div class="module-card" data-verdict="extract">
+      <div class="module-header" onclick="toggleModule(this)">
+        <div>
+          <span class="module-name">7. CodeGraph & GitNexus Local Database Artifacts</span>
+          <div class="module-meta">.gitnexus/ (397.6 MB) • .codegraph/ (397.6 MB) • app/.codegraph/ (10.6 MB)</div>
+        </div>
+        <span class="badge badge-extract">Extract & Merge</span>
+      </div>
+      <div class="module-body">
+        <p><strong>Issue:</strong> Multiple identical local graph indexes and RocksDB WAL files (<span class="code-tag">lbug</span>, <span class="code-tag">codegraph.db</span>) totaling ~800 MB on disk.</p>
+        <p><strong>Status:</strong> Already ignored by <span class="code-tag">.gitignore</span>. Can be cleared or re-indexed on demand without affecting repository tracking.</p>
+      </div>
+    </div>
+
+    <!-- Module 8 -->
+    <div class="module-card" data-verdict="deprecate">
+      <div class="module-header" onclick="toggleModule(this)">
+        <div>
+          <span class="module-name">8. Next.js Residual Build Artifacts</span>
+          <div class="module-meta">app/frontend/.next/ (1,798 files • 812.29 MB)</div>
+        </div>
+        <span class="badge badge-deprecate">Deprecate / Purge</span>
+      </div>
+      <div class="module-body">
+        <p><strong>Issue:</strong> Leftover compilation cache from an earlier Next.js setup prior to migrating to TanStack Start + Vite.</p>
+        <p><strong>Action:</strong> Completely dead weight. Safely delete from local disk to reclaim 812 MB immediately.</p>
+      </div>
+    </div>
+
+    <!-- Module 9 -->
+    <div class="module-card" data-verdict="deprecate">
+      <div class="module-header" onclick="toggleModule(this)">
+        <div>
+          <span class="module-name">9. Competing Python Virtual Environments & Review Snapshots</span>
+          <div class="module-meta">app/backend/{.venv, .venv-dev, venv} • .review-prb-20260815* • ~4 GB disk space</div>
+        </div>
+        <span class="badge badge-deprecate">Deprecate / Purge</span>
+      </div>
+      <div class="module-body">
+        <p><strong>Issue:</strong> 3 virtual environments existing simultaneously inside <span class="code-tag">app/backend</span> (41,436 files, 2.44 GB). Furthermore, untracked review snapshots (<span class="code-tag">.review-prb-*</span>, <span class="code-tag">.review-archive-*</span>) consume 1.7 GB.</p>
+        <p><strong>Action:</strong> Standardize on a single virtual environment (<span class="code-tag">uv</span> / <span class="code-tag">.venv</span>) and purge the stale review copies.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+function toggleModule(header) {
+  const body = header.nextElementSibling;
+  body.classList.toggle('collapsed');
+}
+
+function filterModules(type) {
+  document.querySelectorAll('.filter-btn').forEach(btn => btn.classList.remove('active'));
+  event.target.classList.add('active');
+  const cards = document.querySelectorAll('.module-card');
+  cards.forEach(card => {
+    if (type === 'all' || card.dataset.verdict === type) {
+      card.style.display = 'block';
+    } else {
+      card.style.display = 'none';
+    }
+  });
+}
+</script>
+</body>
+</html>

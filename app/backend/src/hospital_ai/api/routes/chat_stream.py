@@ -106,6 +106,7 @@ _DENIED_REASONS = {
     "output_guardrail_blocked",
     "missing_patient_read_scope",
     "permission_denied",
+    "clinical_contraindication_blocked",
 }
 
 
@@ -243,6 +244,7 @@ async def _generate_validated_sse_events(
     query_id: UUID,
     on_complete: Optional[OnCompleteCallback],
     stream_state: dict[str, Any],
+    drug_warnings: Optional[list] = None,
 ) -> AsyncIterator[str]:
     """Stream only sentence-validated output from the provider.
 
@@ -281,13 +283,17 @@ async def _generate_validated_sse_events(
     try:
         llm = LLMManager(settings).get()
         prompt = build_grounded_prompt(question, evidence, conversation_history)
+        system_content = (
+            "You are a clinical knowledge assistant. Answer accurately and concisely "
+            "based on the authorized evidence. Cite each factual claim with [E1] or [E2]."
+        )
+        high_warnings = [w for w in (drug_warnings or []) if getattr(w, "severity", None) == "high"]
+        if high_warnings:
+            system_content += "\n\n" + "\n".join(f"[CLINICAL WARNING: {w.message}]" for w in high_warnings)
         messages = [
             LLMMessage(
                 role="system",
-                content=(
-                    "You are a clinical knowledge assistant. Answer accurately and concisely "
-                    "based on the authorized evidence. Cite each factual claim with [E1] or [E2]."
-                ),
+                content=system_content,
             ),
             LLMMessage(role="user", content=prompt),
         ]
@@ -305,15 +311,25 @@ async def _generate_validated_sse_events(
                 preamble.append({"type": "status", "stage": event.content or "retrieving"})
                 continue
             if event.type == "metadata":
-                preamble.append(
-                    {
-                        "type": "metadata",
-                        "confidence": provisional_confidence,
-                        "pipeline": "simple_qa",
-                        "model": llm.model_name(),
-                        "validation_mode": "sentence_buffered",
-                    }
-                )
+                meta_payload: dict[str, Any] = {
+                    "type": "metadata",
+                    "confidence": provisional_confidence,
+                    "pipeline": "simple_qa",
+                    "model": llm.model_name(),
+                    "validation_mode": "sentence_buffered",
+                }
+                if drug_warnings:
+                    meta_payload["warnings"] = [
+                        {
+                            "drug_name": w.drug_name,
+                            "interacting_entity": w.interacting_entity,
+                            "interaction_type": w.interaction_type,
+                            "severity": w.severity,
+                            "message": w.message,
+                        }
+                        for w in drug_warnings
+                    ]
+                preamble.append(meta_payload)
                 continue
             if event.type == "token":
                 validation_passed = event.validation_passed is not False
@@ -473,6 +489,7 @@ async def _generate_sse_events(
     pipeline_name: str,
     resolved_patient: Optional[Any] = None,
     on_complete: Optional[OnCompleteCallback] = None,
+    drug_warnings: Optional[list] = None,
 ) -> AsyncIterator[str]:
     """Generate SSE events with token-by-token streaming.
 
@@ -614,13 +631,17 @@ async def _generate_sse_events(
         # Build prompt
         prompt = build_grounded_prompt(question, evidence, conversation_history)
 
+        system_content = (
+            "You are a clinical knowledge assistant. Answer accurately and concisely "
+            "based on the authorized evidence. Cite each factual claim with [E1] or [E2]."
+        )
+        high_warnings = [w for w in (drug_warnings or []) if getattr(w, "severity", None) == "high"]
+        if high_warnings:
+            system_content += "\n\n" + "\n".join(f"[CLINICAL WARNING: {w.message}]" for w in high_warnings)
         messages = [
             LLMMessage(
                 role="system",
-                content=(
-                    "You are a clinical knowledge assistant. Answer accurately and concisely "
-                    "based on the authorized evidence. Cite each factual claim with [E1] or [E2]."
-                ),
+                content=system_content,
             ),
             LLMMessage(role="user", content=prompt),
         ]
@@ -732,15 +753,25 @@ async def _generate_sse_events(
         scoring_pool = cited_evidence or evidence
         avg_score = sum(e.score for e in scoring_pool) / len(scoring_pool) if scoring_pool else 0.0
         confidence = confidence_from_score(avg_score)
-        meta_event = json.dumps(
-            {
-                "type": "metadata",
-                "confidence": confidence,
-                "pipeline": actual_pipeline,
-                "model": llm.model_name(),
-                "validation_mode": "sentence_buffered",
-            }
-        )
+        meta_payload: dict[str, Any] = {
+            "type": "metadata",
+            "confidence": confidence,
+            "pipeline": actual_pipeline,
+            "model": llm.model_name(),
+            "validation_mode": "sentence_buffered",
+        }
+        if drug_warnings:
+            meta_payload["warnings"] = [
+                {
+                    "drug_name": w.drug_name,
+                    "interacting_entity": w.interacting_entity,
+                    "interaction_type": w.interaction_type,
+                    "severity": w.severity,
+                    "message": w.message,
+                }
+                for w in drug_warnings
+            ]
+        meta_event = json.dumps(meta_payload)
         yield f"data: {meta_event}\n\n"
 
         await complete_terminal(
@@ -991,6 +1022,447 @@ def _log_telemetry(
     logger.info("Telemetry: %s", json.dumps(telemetry))
 
 
+def _build_disambiguation_sse_response(patient_res: Any, ai_query_id: UUID, settings: Settings) -> StreamingResponse:
+    disam_event = {
+        "type": "disambiguation_required",
+        "matched_term": patient_res.matched_term,
+        "candidates": [
+            {
+                "patient_id": str(p.id),
+                "patient_name": p.full_name,
+                "mrn": p.mrn,
+                "dob": p.dob,
+                "department": p.department,
+            }
+            for p in patient_res.patients
+        ],
+    }
+    candidates = disam_event.get("candidates", [])
+    lines = [
+        f"{i + 1}. **{c['patient_name']}** (MRN: `{c['mrn']}`, Khoa: {c.get('department') or 'N/A'})"
+        for i, c in enumerate(candidates)
+    ]
+    disam_msg = (
+        f"Hệ thống tìm thấy **{len(candidates)} bệnh nhân** có tên tương tự trong hệ thống:\n\n"
+        + "\n".join(lines)
+        + "\n\nVui lòng chỉ định rõ mã MRN hoặc chọn hồ sơ bệnh nhân cụ thể."
+    )
+
+    async def disambiguation_stream() -> AsyncIterator[str]:
+        yield f"data: {json.dumps(disam_event)}\n\n"
+        token_event = {
+            "type": "token",
+            "content": disam_msg,
+            "sequence": 1,
+            "validation_mode": "sentence_buffered",
+        }
+        yield f"data: {json.dumps(token_event)}\n\n"
+        meta_event = json.dumps(
+            {
+                "type": "metadata",
+                "confidence": "high",
+                "pipeline": "simple_qa",
+                "model": _resolve_model_name(settings),
+                "validation_mode": "sentence_buffered",
+            }
+        )
+        yield f"data: {meta_event}\n\n"
+        yield f"data: {json.dumps({'type': 'done', 'query_id': str(ai_query_id)})}\n\n"
+
+    return StreamingResponse(disambiguation_stream(), media_type="text/event-stream")
+
+
+async def _check_stream_patient_scope_or_deny(
+    session: AsyncSession,
+    *,
+    ai_query: AiQuery,
+    user_id: UUID,
+    effective_patient_id: Optional[UUID],
+    trace_id: str,
+    ip_address: str,
+    started: float,
+    settings: Settings,
+) -> Optional[StreamingResponse]:
+    if not effective_patient_id:
+        return None
+    has_scope = await PermissionService(session).has_patient_scope(
+        user_id=user_id,
+        patient_id=effective_patient_id,
+        accepted_scopes=PATIENT_READ_SCOPES,
+    )
+    if has_scope:
+        return None
+    await _finalize_stream_outcome(
+        session,
+        ai_query=ai_query,
+        completion=StreamCompletion(
+            validation_status="failed",
+            answer=PERMISSION_DENIED_CHAT_ANSWER,
+            failure_reason="missing_patient_read_scope",
+        ),
+        user_id=user_id,
+        patient_id=effective_patient_id,
+        trace_id=trace_id,
+        ip_address=ip_address,
+        started=started,
+        evidence_count=0,
+    )
+    await session.commit()
+    _log_telemetry(settings=settings, patient_id=effective_patient_id, failure_reason="permission_denied")
+
+    async def denied_stream() -> AsyncIterator[str]:
+        event = json.dumps({"type": "error", "message": "User is not authorized for this patient."})
+        yield f"data: {event}\n\n"
+
+    return StreamingResponse(denied_stream(), media_type="text/event-stream")
+
+
+async def _check_stream_input_guardrail_or_deny(
+    session: AsyncSession,
+    *,
+    question: str,
+    ai_query: AiQuery,
+    user_id: UUID,
+    effective_patient_id: Optional[UUID],
+    trace_id: str,
+    ip_address: str,
+    started: float,
+    settings: Settings,
+) -> Optional[StreamingResponse]:
+    input_result = await get_input_guardrail().scan(question)
+    if not input_result.blocked:
+        return None
+    await _finalize_stream_outcome(
+        session,
+        ai_query=ai_query,
+        completion=StreamCompletion(
+            validation_status="failed",
+            answer=SAFE_INJECTION_DETECTED_ANSWER,
+            failure_reason="input_guardrail_blocked",
+        ),
+        user_id=user_id,
+        patient_id=effective_patient_id,
+        trace_id=trace_id,
+        ip_address=ip_address,
+        started=started,
+        evidence_count=0,
+        metadata={"details": input_result.reason},
+    )
+    await session.commit()
+    return StreamingResponse(
+        _safe_refusal_stream(
+            answer=SAFE_INJECTION_DETECTED_ANSWER,
+            query_id=ai_query.id,
+            reason="input_guardrail_blocked",
+            model=settings.chat_model if settings.chat_provider == "ollama" else "stub",
+        ),
+        media_type="text/event-stream",
+    )
+
+
+async def _check_stream_preflight_ddi_or_deny(
+    session: AsyncSession,
+    *,
+    question: str,
+    ai_query: AiQuery,
+    user_id: UUID,
+    effective_patient_id: Optional[UUID],
+    trace_id: str,
+    ip_address: str,
+    started: float,
+    settings: Settings,
+) -> tuple[list, Optional[StreamingResponse]]:
+    if not effective_patient_id:
+        return [], None
+    from hospital_ai.services.drug_check import DrugCheckService
+
+    ddi_service = DrugCheckService(session)
+    drug_warnings = await ddi_service.check_interactions(
+        query_text=question,
+        patient_id=effective_patient_id,
+        min_severity="low",
+        user_id=user_id,
+    )
+    critical_ddi = [w for w in drug_warnings if w.severity == "critical"]
+    if not critical_ddi:
+        return drug_warnings, None
+    contraindication_msg = (
+        "CLINICAL CONTRAINDICATION: Prescribing this medication is strictly contraindicated "
+        f"for this patient: {critical_ddi[0].message}"
+    )
+    await _finalize_stream_outcome(
+        session,
+        ai_query=ai_query,
+        completion=StreamCompletion(
+            validation_status="failed",
+            answer=contraindication_msg,
+            failure_reason="clinical_contraindication_blocked",
+        ),
+        user_id=user_id,
+        patient_id=effective_patient_id,
+        trace_id=trace_id,
+        ip_address=ip_address,
+        started=started,
+        evidence_count=0,
+        metadata={"reason": "clinical_contraindication_blocked", "details": critical_ddi[0].message},
+    )
+    await session.commit()
+    return drug_warnings, StreamingResponse(
+        _safe_refusal_stream(
+            answer=contraindication_msg,
+            query_id=ai_query.id,
+            reason="clinical_contraindication_blocked",
+            model=_resolve_model_name(settings),
+        ),
+        media_type="text/event-stream",
+    )
+
+
+async def _enrich_stream_evidence_with_graph(
+    session: AsyncSession,
+    *,
+    retrieval_svc: RetrievalService,
+    evidence: list[RetrievedChunk],
+    question: str,
+    top_k: int,
+    user_id: UUID,
+    effective_patient_id: Optional[UUID],
+    hospital_wide: bool,
+) -> list[RetrievedChunk]:
+    if not effective_patient_id:
+        return evidence
+    try:
+        from hospital_ai.services.bm25 import reciprocal_rank_fusion
+        from hospital_ai.services.chat import extract_entities_and_relations_nlp, find_related_entities
+
+        query_entities, _ = await extract_entities_and_relations_nlp(question)
+        if not query_entities:
+            return evidence
+        entity_names = [e.normalized_label for e in query_entities]
+        graph_ctx = await find_related_entities(
+            session,
+            entity_names,
+            max_hops=2,
+            patient_id=effective_patient_id,
+            include_patient_conditions=True,
+        )
+        if not graph_ctx.related_chunk_ids:
+            return evidence
+        graph_chunks = await retrieval_svc.get_chunks_by_ids(
+            list(graph_ctx.related_chunk_ids),
+            user_id=user_id,
+            patient_id=effective_patient_id,
+            hospital_wide=hospital_wide,
+        )
+        graph_evidence = [
+            RetrievedChunk(
+                evidence_id=ge.evidence_id,
+                document_id=ge.document_id,
+                document_title=ge.document_title,
+                page=ge.page,
+                chunk_id=ge.chunk_id,
+                score=ge.score,
+                content=ge.content,
+                metadata={**ge.metadata, "retrieval_method": "graph"},
+                patient_id=ge.patient_id,
+                generation_id=ge.generation_id,
+                revision_set_id=ge.revision_set_id,
+                page_revision_id=ge.page_revision_id,
+                active_index_generation_id=ge.active_index_generation_id,
+                approval_state=ge.approval_state,
+                retrieval_method="graph",
+                source_hash=ge.source_hash,
+                start_offset=ge.start_offset,
+                end_offset=ge.end_offset,
+                bounding_boxes=ge.bounding_boxes,
+            )
+            for ge in graph_chunks
+        ]
+        if evidence and graph_evidence:
+            return reciprocal_rank_fusion(evidence, graph_evidence, top_k=top_k)
+        if graph_evidence:
+            return graph_evidence[:top_k]
+    except Exception:
+        logger.warning("Graph RAG enrichment skipped", exc_info=True)
+    return evidence
+
+
+async def _retrieve_and_enrich_stream_evidence(
+    session: AsyncSession,
+    *,
+    payload: ChatRequest,
+    user_id: UUID,
+    effective_patient_id: Optional[UUID],
+    resolved_patient: Any,
+    settings: Settings,
+) -> tuple[list[RetrievedChunk], int, str]:
+    query_embedding = await EmbeddingService(settings).embed(payload.question)
+    retrieval_svc = RetrievalService(session)
+    retrieval_mode = settings.retrieval_mode
+    hospital_wide = effective_patient_id is None
+    if retrieval_mode in ("bm25", "hybrid"):
+        evidence = await retrieval_svc.hybrid_search(
+            user_id=user_id,
+            patient_id=effective_patient_id,
+            hospital_wide=hospital_wide,
+            query_embedding=query_embedding,
+            query_text=payload.question,
+            top_k=payload.top_k,
+            retrieval_mode=retrieval_mode,
+        )
+    else:
+        evidence = await retrieval_svc.search(
+            user_id=user_id,
+            patient_id=effective_patient_id,
+            hospital_wide=hospital_wide,
+            query_embedding=query_embedding,
+            top_k=payload.top_k,
+        )
+
+    evidence = await _enrich_stream_evidence_with_graph(
+        session,
+        retrieval_svc=retrieval_svc,
+        evidence=evidence,
+        question=payload.question,
+        top_k=payload.top_k,
+        user_id=user_id,
+        effective_patient_id=effective_patient_id,
+        hospital_wide=hospital_wide,
+    )
+
+    requested_document_ids = set(payload.context.document_ids or []) if payload.context else set()
+    if requested_document_ids:
+        evidence = [item for item in evidence if item.document_id in requested_document_ids]
+
+    if hospital_wide and not evidence:
+        from hospital_ai.services.general_knowledge import rank_general_knowledge
+
+        gk_evidence = rank_general_knowledge(payload.question, payload.top_k)
+        if gk_evidence:
+            evidence = gk_evidence
+    elif resolved_patient and not evidence:
+        evidence = [
+            RetrievedChunk(
+                evidence_id="E1",
+                document_id=resolved_patient.id,
+                document_title=f"Patient Profile: {resolved_patient.full_name}",
+                page=1,
+                chunk_id=resolved_patient.id,
+                score=0.95,
+                content=(
+                    f"Patient Name: {resolved_patient.full_name}\n"
+                    f"MRN: {resolved_patient.mrn}\n"
+                    f"DOB: {resolved_patient.dob or 'N/A'}\n"
+                    f"Department: {resolved_patient.department or 'N/A'}\n"
+                    f"Status: {resolved_patient.status}"
+                ),
+                metadata={
+                    "source_scope": "patient-profile",
+                    "patient_id": str(resolved_patient.id),
+                },
+            )
+        ]
+
+    return evidence, retrieval_svc.blocked_chunk_count, retrieval_mode
+
+
+async def _handle_no_evidence_stream_response(
+    session: AsyncSession,
+    *,
+    payload: ChatRequest,
+    ai_query: AiQuery,
+    user_id: UUID,
+    effective_patient_id: Optional[UUID],
+    evidence: list[RetrievedChunk],
+    blocked_chunk_count: int,
+    trace_id: str,
+    ip_address: str,
+    started: float,
+    settings: Settings,
+) -> StreamingResponse:
+    is_blocked = blocked_chunk_count > 0
+    answer_text = PERMISSION_DENIED_CHAT_ANSWER if is_blocked else SAFE_NO_EVIDENCE_ANSWER
+    failure_reason = "permission_denied" if is_blocked else "no_evidence"
+    completion = StreamCompletion(
+        validation_status="failed",
+        answer=answer_text,
+        failure_reason=failure_reason,
+    )
+    await _finalize_stream_outcome(
+        session,
+        ai_query=ai_query,
+        completion=completion,
+        user_id=user_id,
+        patient_id=effective_patient_id,
+        trace_id=trace_id,
+        ip_address=ip_address,
+        started=started,
+        evidence_count=0,
+    )
+    result_status = ai_query.status
+
+    if payload.thread_id is not None:
+        scope = "patient-linked" if effective_patient_id is not None else "general"
+        permission_state = "allowed" if effective_patient_id is not None else "not-required"
+        now = datetime.now(UTC)
+        session.add(
+            ChatMessage(
+                thread_id=payload.thread_id,
+                sender_user_id=user_id,
+                patient_id=effective_patient_id,
+                role="user",
+                scope=scope,
+                content=payload.question,
+                patient_permission_state=permission_state,
+                citations=[],
+                meta={"streaming": True},
+                trace_id=trace_id,
+                created_at=now,
+            )
+        )
+        session.add(
+            ChatMessage(
+                thread_id=payload.thread_id,
+                ai_query_id=ai_query.id,
+                patient_id=effective_patient_id,
+                role="assistant",
+                scope=scope,
+                content=answer_text,
+                patient_permission_state=permission_state if not is_blocked else "denied",
+                citations=[],
+                meta={"streaming": True, "result": result_status, "confidence": "low"},
+                trace_id=trace_id,
+                created_at=datetime.now(UTC),
+            )
+        )
+        thread = await session.get(ChatThread, payload.thread_id)
+        if thread is not None:
+            if effective_patient_id is not None and thread.scope == "general":
+                thread.scope = "patient-linked"
+                thread.patient_id = effective_patient_id
+            thread.last_message_at = datetime.now(UTC)
+
+    await session.commit()
+
+    _log_telemetry(
+        settings=settings,
+        patient_id=effective_patient_id,
+        evidence=evidence,
+        blocked_count=blocked_chunk_count,
+        failure_reason="denied" if is_blocked else "no_evidence",
+    )
+
+    return StreamingResponse(
+        _safe_refusal_stream(
+            answer=answer_text,
+            query_id=ai_query.id,
+            reason=failure_reason,
+            model=settings.chat_model if settings.chat_provider == "ollama" else "stub",
+        ),
+        media_type="text/event-stream",
+    )
+
+
 @router.post("/stream")
 @limiter.limit("5/minute")
 async def chat_stream(
@@ -1006,11 +1478,11 @@ async def chat_stream(
     """
     started = time.perf_counter()
     trace_id = new_trace_id()
+    request_ip = get_request_ip(request)
 
     resolved_patient = None
     effective_patient_id = payload.patient_id or (payload.context.patient_id if payload.context else None)
 
-    # Create AI query record early
     ai_query = AiQuery(
         user_id=current_user.id,
         patient_id=effective_patient_id,
@@ -1031,121 +1503,49 @@ async def chat_stream(
         elif patient_res.status == "multiple_matches" and patient_res.patients:
             ai_query.status = "disambiguation_required"
             await session.flush()
-            disam_event = {
-                "type": "disambiguation_required",
-                "matched_term": patient_res.matched_term,
-                "candidates": [
-                    {
-                        "patient_id": str(p.id),
-                        "patient_name": p.full_name,
-                        "mrn": p.mrn,
-                        "dob": p.dob,
-                        "department": p.department,
-                    }
-                    for p in patient_res.patients
-                ],
-            }
-            candidates = disam_event.get("candidates", [])
-            lines = [
-                f"{i + 1}. **{c['patient_name']}** (MRN: `{c['mrn']}`, Khoa: {c.get('department') or 'N/A'})"
-                for i, c in enumerate(candidates)
-            ]
-            disam_msg = (
-                f"Hệ thống tìm thấy **{len(candidates)} bệnh nhân** có tên tương tự trong hệ thống:\n\n"
-                + "\n".join(lines)
-                + "\n\nVui lòng chỉ định rõ mã MRN hoặc chọn hồ sơ bệnh nhân cụ thể."
-            )
+            return _build_disambiguation_sse_response(patient_res, ai_query.id, settings)
 
-            async def disambiguation_stream() -> AsyncIterator[str]:
-                yield f"data: {json.dumps(disam_event)}\n\n"
-                token_event = {
-                    "type": "token",
-                    "content": disam_msg,
-                    "sequence": 1,
-                    "validation_mode": "sentence_buffered",
-                }
-                yield f"data: {json.dumps(token_event)}\n\n"
-                meta_event = json.dumps(
-                    {
-                        "type": "metadata",
-                        "confidence": "high",
-                        "pipeline": "simple_qa",
-                        "model": _resolve_model_name(settings),
-                        "validation_mode": "sentence_buffered",
-                    }
-                )
-                yield f"data: {meta_event}\n\n"
-                yield f"data: {json.dumps({'type': 'done', 'query_id': str(ai_query.id)})}\n\n"
+    scope_denied = await _check_stream_patient_scope_or_deny(
+        session,
+        ai_query=ai_query,
+        user_id=current_user.id,
+        effective_patient_id=effective_patient_id,
+        trace_id=trace_id,
+        ip_address=request_ip,
+        started=started,
+        settings=settings,
+    )
+    if scope_denied is not None:
+        return scope_denied
 
-            return StreamingResponse(disambiguation_stream(), media_type="text/event-stream")
+    guardrail_denied = await _check_stream_input_guardrail_or_deny(
+        session,
+        question=payload.question,
+        ai_query=ai_query,
+        user_id=current_user.id,
+        effective_patient_id=effective_patient_id,
+        trace_id=trace_id,
+        ip_address=request_ip,
+        started=started,
+        settings=settings,
+    )
+    if guardrail_denied is not None:
+        return guardrail_denied
 
-    # Permission check
-    if effective_patient_id:
-        has_scope = await PermissionService(session).has_patient_scope(
-            user_id=current_user.id,
-            patient_id=effective_patient_id,
-            accepted_scopes=PATIENT_READ_SCOPES,
-        )
-    else:
-        has_scope = True
+    drug_warnings, ddi_denied = await _check_stream_preflight_ddi_or_deny(
+        session,
+        question=payload.question,
+        ai_query=ai_query,
+        user_id=current_user.id,
+        effective_patient_id=effective_patient_id,
+        trace_id=trace_id,
+        ip_address=request_ip,
+        started=started,
+        settings=settings,
+    )
+    if ddi_denied is not None:
+        return ddi_denied
 
-    if not has_scope:
-        await _finalize_stream_outcome(
-            session,
-            ai_query=ai_query,
-            completion=StreamCompletion(
-                validation_status="failed",
-                answer=PERMISSION_DENIED_CHAT_ANSWER,
-                failure_reason="missing_patient_read_scope",
-            ),
-            user_id=current_user.id,
-            patient_id=effective_patient_id,
-            trace_id=trace_id,
-            ip_address=get_request_ip(request),
-            started=started,
-            evidence_count=0,
-        )
-        await session.commit()
-
-        _log_telemetry(settings=settings, patient_id=effective_patient_id, failure_reason="permission_denied")
-
-        async def denied_stream() -> AsyncIterator[str]:
-            event = json.dumps({"type": "error", "message": "User is not authorized for this patient."})
-            yield f"data: {event}\n\n"
-
-        return StreamingResponse(denied_stream(), media_type="text/event-stream")
-
-    input_result = await get_input_guardrail().scan(payload.question)
-    if input_result.blocked:
-        await _finalize_stream_outcome(
-            session,
-            ai_query=ai_query,
-            completion=StreamCompletion(
-                validation_status="failed",
-                answer=SAFE_INJECTION_DETECTED_ANSWER,
-                failure_reason="input_guardrail_blocked",
-            ),
-            user_id=current_user.id,
-            patient_id=effective_patient_id,
-            trace_id=trace_id,
-            ip_address=get_request_ip(request),
-            started=started,
-            evidence_count=0,
-            metadata={"details": input_result.reason},
-        )
-        await session.commit()
-
-        return StreamingResponse(
-            _safe_refusal_stream(
-                answer=SAFE_INJECTION_DETECTED_ANSWER,
-                query_id=ai_query.id,
-                reason="input_guardrail_blocked",
-                model=settings.chat_model if settings.chat_provider == "ollama" else "stub",
-            ),
-            media_type="text/event-stream",
-        )
-
-    # Gather conversation history
     conversation_history: list = []
     if payload.thread_id:
         from hospital_ai.services.chat import ChatService
@@ -1155,222 +1555,39 @@ async def chat_stream(
             payload.thread_id, current_user.id, effective_patient_id
         )
 
-    is_chitchat = is_chitchat_query(payload.question)
-
     blocked_chunk_count = 0
-    if is_chitchat:
-        evidence = []
+    if is_chitchat_query(payload.question):
+        evidence: list[RetrievedChunk] = []
         selected_pipeline = "chitchat"
         retrieval_mode = settings.retrieval_mode
     else:
-        # Retrieve evidence (mirror chat.py mode dispatch).
-        query_embedding = await EmbeddingService(settings).embed(payload.question)
-        retrieval_svc = RetrievalService(session)
-        retrieval_mode = settings.retrieval_mode
-        hospital_wide = effective_patient_id is None
-        if retrieval_mode in ("bm25", "hybrid"):
-            evidence = await retrieval_svc.hybrid_search(
-                user_id=current_user.id,
-                patient_id=effective_patient_id,
-                hospital_wide=hospital_wide,
-                query_embedding=query_embedding,
-                query_text=payload.question,
-                top_k=payload.top_k,
-                retrieval_mode=retrieval_mode,
-            )
-        else:
-            evidence = await retrieval_svc.search(
-                user_id=current_user.id,
-                patient_id=effective_patient_id,
-                hospital_wide=hospital_wide,
-                query_embedding=query_embedding,
-                top_k=payload.top_k,
-            )
-
-        # ── Graph RAG Enrichment ─────────────────────────────────────────────
-        try:
-            if effective_patient_id:
-                from hospital_ai.services.bm25 import reciprocal_rank_fusion
-                from hospital_ai.services.chat import extract_entities_and_relations_nlp, find_related_entities
-
-                query_entities, _ = await extract_entities_and_relations_nlp(payload.question)
-                if query_entities:
-                    entity_names = [e.normalized_label for e in query_entities]
-                    graph_ctx = await find_related_entities(
-                        session, entity_names, max_hops=2, patient_id=effective_patient_id
-                    )
-                    if graph_ctx.related_chunk_ids:
-                        graph_chunks = await retrieval_svc.get_chunks_by_ids(
-                            list(graph_ctx.related_chunk_ids),
-                            user_id=current_user.id,
-                            patient_id=effective_patient_id,
-                            hospital_wide=hospital_wide,
-                        )
-                        graph_evidence = [
-                            RetrievedChunk(
-                                evidence_id=ge.evidence_id,
-                                document_id=ge.document_id,
-                                document_title=ge.document_title,
-                                page=ge.page,
-                                chunk_id=ge.chunk_id,
-                                score=ge.score,
-                                content=ge.content,
-                                metadata={**ge.metadata, "retrieval_method": "graph"},
-                                patient_id=ge.patient_id,
-                                generation_id=ge.generation_id,
-                                revision_set_id=ge.revision_set_id,
-                                page_revision_id=ge.page_revision_id,
-                                active_index_generation_id=ge.active_index_generation_id,
-                                approval_state=ge.approval_state,
-                                retrieval_method="graph",
-                                source_hash=ge.source_hash,
-                                start_offset=ge.start_offset,
-                                end_offset=ge.end_offset,
-                                bounding_boxes=ge.bounding_boxes,
-                            )
-                            for ge in graph_chunks
-                        ]
-                        if evidence and graph_evidence:
-                            evidence = reciprocal_rank_fusion(evidence, graph_evidence, top_k=payload.top_k)
-                        elif graph_evidence:
-                            evidence = graph_evidence[: payload.top_k]
-        except Exception:
-            logger.warning("Graph RAG enrichment skipped", exc_info=True)
-
-        # A chat attachment is an explicit evidence scope, not merely a UI
-        # hint.  Permission filtering still happens inside retrieval; this
-        # additional allow-list ensures only the requested document can reach
-        # prompt construction or the streamed citation payload.
-        requested_document_ids = set(payload.context.document_ids or []) if payload.context else set()
-        if requested_document_ids:
-            evidence = [item for item in evidence if item.document_id in requested_document_ids]
-
-        if hospital_wide and not evidence:
-            from hospital_ai.services.general_knowledge import rank_general_knowledge
-
-            gk_evidence = rank_general_knowledge(payload.question, payload.top_k)
-            if gk_evidence:
-                evidence = gk_evidence
-        elif resolved_patient and not evidence:
-            evidence = [
-                RetrievedChunk(
-                    evidence_id="E1",
-                    document_id=resolved_patient.id,
-                    document_title=f"Patient Profile: {resolved_patient.full_name}",
-                    page=1,
-                    chunk_id=resolved_patient.id,
-                    score=0.95,
-                    content=(
-                        f"Patient Name: {resolved_patient.full_name}\n"
-                        f"MRN: {resolved_patient.mrn}\n"
-                        f"DOB: {resolved_patient.dob or 'N/A'}\n"
-                        f"Department: {resolved_patient.department or 'N/A'}\n"
-                        f"Status: {resolved_patient.status}"
-                    ),
-                    metadata={
-                        "source_scope": "patient-profile",
-                        "patient_id": str(resolved_patient.id),
-                    },
-                )
-            ]
-
-        blocked_chunk_count = retrieval_svc.blocked_chunk_count
-
+        evidence, blocked_chunk_count, retrieval_mode = await _retrieve_and_enrich_stream_evidence(
+            session,
+            payload=payload,
+            user_id=current_user.id,
+            effective_patient_id=effective_patient_id,
+            resolved_patient=resolved_patient,
+            settings=settings,
+        )
         if not evidence or not meets_evidence_threshold(evidence[0], retrieval_mode, settings.evidence_threshold):
-            is_blocked = blocked_chunk_count > 0
-            answer_text = PERMISSION_DENIED_CHAT_ANSWER if is_blocked else SAFE_NO_EVIDENCE_ANSWER
-            failure_reason = "permission_denied" if is_blocked else "no_evidence"
-            completion = StreamCompletion(
-                validation_status="failed",
-                answer=answer_text,
-                failure_reason=failure_reason,
-            )
-            await _finalize_stream_outcome(
+            return await _handle_no_evidence_stream_response(
                 session,
+                payload=payload,
                 ai_query=ai_query,
-                completion=completion,
                 user_id=current_user.id,
-                patient_id=effective_patient_id,
-                trace_id=trace_id,
-                ip_address=get_request_ip(request),
-                started=started,
-                evidence_count=0,
-            )
-            result_status = ai_query.status
-
-            # Persist a thread message pair for the no-evidence outcome too,
-            # otherwise the user sees an answer in the UI that vanishes on
-            # reload.  Mirrors the parity contract above.
-            if payload.thread_id is not None:
-                scope = "patient-linked" if effective_patient_id is not None else "general"
-                permission_state = "allowed" if effective_patient_id is not None else "not-required"
-                now = datetime.now(UTC)
-                session.add(
-                    ChatMessage(
-                        thread_id=payload.thread_id,
-                        sender_user_id=current_user.id,
-                        patient_id=effective_patient_id,
-                        role="user",
-                        scope=scope,
-                        content=payload.question,
-                        patient_permission_state=permission_state,
-                        citations=[],
-                        meta={"streaming": True},
-                        trace_id=trace_id,
-                        created_at=now,
-                    )
-                )
-                session.add(
-                    ChatMessage(
-                        thread_id=payload.thread_id,
-                        ai_query_id=ai_query.id,
-                        patient_id=effective_patient_id,
-                        role="assistant",
-                        scope=scope,
-                        content=answer_text,
-                        patient_permission_state=permission_state if not is_blocked else "denied",
-                        citations=[],
-                        meta={"streaming": True, "result": result_status, "confidence": "low"},
-                        trace_id=trace_id,
-                        created_at=datetime.now(UTC),
-                    )
-                )
-                thread = await session.get(ChatThread, payload.thread_id)
-                if thread is not None:
-                    if effective_patient_id is not None and thread.scope == "general":
-                        thread.scope = "patient-linked"
-                        thread.patient_id = effective_patient_id
-                    thread.last_message_at = datetime.now(UTC)
-
-            await session.commit()
-
-            _log_telemetry(
-                settings=settings,
-                patient_id=effective_patient_id,
+                effective_patient_id=effective_patient_id,
                 evidence=evidence,
-                blocked_count=blocked_chunk_count,
-                failure_reason="denied" if is_blocked else "no_evidence",
+                blocked_chunk_count=blocked_chunk_count,
+                trace_id=trace_id,
+                ip_address=request_ip,
+                started=started,
+                settings=settings,
             )
-
-            return StreamingResponse(
-                _safe_refusal_stream(
-                    answer=answer_text,
-                    query_id=ai_query.id,
-                    reason=failure_reason,
-                    model=settings.chat_model if settings.chat_provider == "ollama" else "stub",
-                ),
-                media_type="text/event-stream",
-            )
-
         selected_pipeline = _select_pipeline(payload.pipeline, payload.question)
 
-    # Stream response
     ai_query.status = "streaming"
     await session.commit()
 
-    # Capture state for the post-stream persistence callback. The callback
-    # uses a fresh session bound to the same engine because the request-bound
-    # `session` may be closed by the time streaming finishes.
     session_factory = (
         async_sessionmaker(session.bind, expire_on_commit=False) if session.bind is not None else get_session_factory()
     )
@@ -1379,7 +1596,7 @@ async def chat_stream(
     captured_thread_id = payload.thread_id
     captured_query_id = ai_query.id
     captured_question = payload.question
-    captured_ip = get_request_ip(request)
+    captured_ip = request_ip
     completion_state = {"finished": False}
 
     async def _on_complete(completion: StreamCompletion) -> None:
@@ -1436,6 +1653,7 @@ async def chat_stream(
             pipeline_name=selected_pipeline,
             resolved_patient=resolved_patient,
             on_complete=_on_complete,
+            drug_warnings=drug_warnings,
         ),
         media_type="text/event-stream",
         headers={

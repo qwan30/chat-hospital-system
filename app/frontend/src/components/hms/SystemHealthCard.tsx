@@ -1,5 +1,7 @@
+import { useQuery } from "@tanstack/react-query";
 import { Card } from "@/components/ui/card";
-import { systemHealth } from "@/data/health";
+import { systemHealth, type HealthMetric } from "@/data/health";
+import { getDashboardSummary, type SystemsHealth } from "@/lib/api/dashboard";
 import { CheckCircle2, AlertTriangle, XCircle } from "lucide-react";
 
 const iconFor = {
@@ -13,7 +15,53 @@ const toneFor = {
   down: "text-destructive",
 };
 
-export function SystemHealthCard() {
+function toHealthStatus(raw: string | undefined): "ok" | "degraded" | "down" {
+  const normalized = (raw ?? "").toLowerCase();
+  if (normalized === "online" || normalized === "ok" || normalized === "healthy") {
+    return "ok";
+  }
+  if (normalized === "down" || normalized === "offline" || normalized === "error") {
+    return "down";
+  }
+  return "degraded";
+}
+
+export function SystemHealthCard({ health }: { health?: SystemsHealth } = {}) {
+  const { data } = useQuery({
+    queryKey: ["dashboard", "summary"],
+    queryFn: getDashboardSummary,
+    enabled: !health,
+    staleTime: 30_000,
+  });
+
+  const liveHealth = health ?? data?.systems_health;
+  const docStats = data?.document_stats;
+
+  const metrics: HealthMetric[] = liveHealth
+    ? [
+        {
+          name: "HMS FHIR bridge",
+          status: toHealthStatus(liveHealth.hms_api),
+          detail: "Core clinical BFF & patient scope sync",
+          value: liveHealth.hms_api,
+        },
+        {
+          name: "LLM runtime (Ollama)",
+          status: toHealthStatus(liveHealth.ollama_inference),
+          detail: "Local clinical inference & guardrails",
+          value: liveHealth.ollama_inference,
+        },
+        {
+          name: "Vector index (pgvector)",
+          status: docStats && docStats.failed > 0 ? "degraded" : "ok",
+          detail: docStats
+            ? `${docStats.indexed} indexed · ${docStats.processing} processing · ${docStats.failed} failed`
+            : "Active generation index",
+          value: docStats ? `${docStats.indexed} docs` : "ready",
+        },
+      ]
+    : systemHealth;
+
   return (
     <Card className="p-5">
       <div className="mb-4 flex items-center justify-between">
@@ -23,7 +71,7 @@ export function SystemHealthCard() {
         </div>
       </div>
       <ul className="space-y-3">
-        {systemHealth.map((m) => {
+        {metrics.map((m) => {
           const Icon = iconFor[m.status];
           return (
             <li

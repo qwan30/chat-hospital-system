@@ -25,6 +25,9 @@ pnpm-debug.log*
 .tmp-ci-*
 .tmp-pytest*
 .tmp-pydantic2-venv/
+.venv-dev/
+.verify-pycache/
+.review*
 
 
 *.tsbuildinfo

@@ -1,8 +1,8 @@
-import { useRouter } from "@tanstack/react-router";
+import { useRouter, type ErrorComponentProps } from "@tanstack/react-router";
 import { AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
-export function RouteError({ error, reset }: { error: Error; reset: () => void }) {
+export function RouteError({ reset }: ErrorComponentProps) {
   const router = useRouter();
 
   return (

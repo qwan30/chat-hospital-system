@@ -14,8 +14,16 @@ export interface ChatResponse {
 }
 
 export async function sendMessage(request: ChatRequest): Promise<ChatResponse> {
+  const payload = {
+    question: request.message,
+    patient_id: request.patient_id,
+    thread_id: request.thread_id,
+    ...(request.document_ids
+      ? { context: { patient_id: request.patient_id, document_ids: request.document_ids } }
+      : {}),
+  };
   return apiFetch<ChatResponse>("/chat", {
     method: "POST",
-    body: JSON.stringify(request),
+    body: JSON.stringify(payload),
   });
 }

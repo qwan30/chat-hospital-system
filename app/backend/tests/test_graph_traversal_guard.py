@@ -87,3 +87,135 @@ async def test_traversal_guard_prevents_patient_hub_expansion(session_and_settin
     assert "hypertension" not in extracted_labels, (
         "Traversal guard failed: hypertension leaked via patient hub expansion"
     )
+
+
+@pytest.mark.asyncio
+async def test_traversal_allows_critical_allergy_and_contraindication_across_patient_anchor(
+    session_and_settings: tuple[AsyncSession, Settings],
+):
+    """Verify that critical safety relations (allergic_to, contraindicates) traverse across patient:self by default."""
+    db_session, _ = session_and_settings
+    patient_id = uuid.uuid4()
+    patient = Patient(id=patient_id, full_name="Test Patient", mrn=f"MRN-{uuid.uuid4().hex[:6]}")
+    db_session.add(patient)
+    await db_session.flush()
+
+    metformin = GraphEntity(patient_id=patient_id, entity_type="drug", normalized_label="metformin")
+    patient_anchor = GraphEntity(
+        patient_id=patient_id, entity_type="patient_anchor", normalized_label=CANONICAL_PATIENT_ANCHOR
+    )
+    penicillin = GraphEntity(patient_id=patient_id, entity_type="allergy", normalized_label="penicillin")
+    nsaid = GraphEntity(patient_id=patient_id, entity_type="drug", normalized_label="nsaid")
+    unrelated_asthma = GraphEntity(patient_id=patient_id, entity_type="condition", normalized_label="asthma")
+
+    db_session.add_all([metformin, patient_anchor, penicillin, nsaid, unrelated_asthma])
+    await db_session.flush()
+
+    db_session.add_all(
+        [
+            GraphRelationAssertion(
+                patient_id=patient_id,
+                subject_entity_id=metformin.id,
+                object_entity_id=patient_anchor.id,
+                relation_type="prescribed_for",
+                normalized_value="prescribed_for",
+            ),
+            GraphRelationAssertion(
+                patient_id=patient_id,
+                subject_entity_id=patient_anchor.id,
+                object_entity_id=penicillin.id,
+                relation_type="allergic_to",
+                normalized_value="allergic_to",
+            ),
+            GraphRelationAssertion(
+                patient_id=patient_id,
+                subject_entity_id=patient_anchor.id,
+                object_entity_id=nsaid.id,
+                relation_type="contraindicates",
+                normalized_value="contraindicates",
+            ),
+            GraphRelationAssertion(
+                patient_id=patient_id,
+                subject_entity_id=patient_anchor.id,
+                object_entity_id=unrelated_asthma.id,
+                relation_type="history_of",
+                normalized_value="history_of",
+            ),
+        ]
+    )
+    await db_session.flush()
+
+    context = await find_related_entities(
+        db_session,
+        entity_names=["metformin"],
+        max_hops=2,
+        patient_id=patient_id,
+    )
+    extracted_labels = {e.normalized_label for e in context.entities}
+    assert "metformin" in extracted_labels
+    assert CANONICAL_PATIENT_ANCHOR in extracted_labels
+    assert "penicillin" in extracted_labels
+    assert "nsaid" in extracted_labels
+    assert "asthma" not in extracted_labels
+
+
+@pytest.mark.asyncio
+async def test_traversal_allows_conditions_when_include_patient_conditions_enabled(
+    session_and_settings: tuple[AsyncSession, Settings],
+):
+    """Verify that patient conditions traverse across patient:self when include_patient_conditions=True."""
+    db_session, _ = session_and_settings
+    patient_id = uuid.uuid4()
+    patient = Patient(id=patient_id, full_name="Test Patient", mrn=f"MRN-{uuid.uuid4().hex[:6]}")
+    db_session.add(patient)
+    await db_session.flush()
+
+    diltiazem = GraphEntity(patient_id=patient_id, entity_type="drug", normalized_label="diltiazem")
+    patient_anchor = GraphEntity(
+        patient_id=patient_id, entity_type="patient_anchor", normalized_label=CANONICAL_PATIENT_ANCHOR
+    )
+    heart_failure = GraphEntity(patient_id=patient_id, entity_type="condition", normalized_label="heart_failure")
+    asthma = GraphEntity(patient_id=patient_id, entity_type="condition", normalized_label="asthma")
+
+    db_session.add_all([diltiazem, patient_anchor, heart_failure, asthma])
+    await db_session.flush()
+
+    db_session.add_all(
+        [
+            GraphRelationAssertion(
+                patient_id=patient_id,
+                subject_entity_id=diltiazem.id,
+                object_entity_id=patient_anchor.id,
+                relation_type="prescribed_for",
+                normalized_value="prescribed_for",
+            ),
+            GraphRelationAssertion(
+                patient_id=patient_id,
+                subject_entity_id=patient_anchor.id,
+                object_entity_id=heart_failure.id,
+                relation_type="diagnosed_with",
+                normalized_value="diagnosed_with",
+            ),
+            GraphRelationAssertion(
+                patient_id=patient_id,
+                subject_entity_id=patient_anchor.id,
+                object_entity_id=asthma.id,
+                relation_type="history_of",
+                normalized_value="history_of",
+            ),
+        ]
+    )
+    await db_session.flush()
+
+    context = await find_related_entities(
+        db_session,
+        entity_names=["diltiazem"],
+        max_hops=2,
+        patient_id=patient_id,
+        include_patient_conditions=True,
+    )
+    extracted_labels = {e.normalized_label for e in context.entities}
+    assert "diltiazem" in extracted_labels
+    assert CANONICAL_PATIENT_ANCHOR in extracted_labels
+    assert "heart_failure" in extracted_labels
+    assert "asthma" in extracted_labels

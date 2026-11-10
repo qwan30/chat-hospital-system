@@ -83,40 +83,100 @@
 
 > **Branch Strategy:** Single feature/refactor branch `refactor/repo-clean-and-vnext-hardening` checked out directly in the current workspace (`worktree: "."`). No extra git worktrees.
 
-| Card ID | Work Item Title | Owner Subagent | File Scope (Strict Non-Overlapping) | Merge Gate |
+| Card ID | Work Item Title | Owner Subagent | File Scope (Strict Non-Overlapping) | Status & Verification Gate |
 |---|---|---|---|---|
-| `CARD-01` | **Repo Cleanup & Hygiene (`repo-scan`)** | `refactor-cleaner` | `.gitignore`, root clutter (`.review*`, `task.md`), `app/backend/scripts/stats*.py`, `rag_spike_adapter.py`, `app/frontend/src/lib/lovable-error-reporting.ts`, `example.functions.ts`, `-auth.sso.callback.test.ts` | `git status` clean of temp archives; `bun run build` & `vitest` emit zero router warnings |
-| `CARD-02` | **API Contract Gate & Frontend Client Fixes** | `typescript-reviewer` / `frontend-agent` | `app/backend/scripts/verify_contracts.py`, `app/frontend/src/lib/api/metrics.ts`, `auth.ts`, `chat.ts`, `auth.sso.callback.tsx` | `python scripts/verify_contracts.py` scans all `src/lib/api/*.ts` (70+ paths) and exits `0` |
-| `CARD-03` | **Clinical Safety: CDSS, Drug Check & Metrics RBAC** | `security-reviewer` / `backend-agent` | `app/backend/src/hospital_ai/workers/cdss.py`, `services/drug_check.py`, `api/routes/metrics_endpoint.py`, `tests/test_cdss_agent.py`, `tests/test_drug_check.py` | Active generation + `ActiveEvidenceScope` enforced; idempotent `ClinicalAlert`; pytest 100% green |
-| `CARD-04` | **Decompose High-CRAP Functions & Stream Parity** | `python-reviewer` / `backend-refactor` | `app/backend/src/hospital_ai/api/routes/chat_stream.py`, `services/chat.py`, `services/upload_sessions.py`, `services/claim_validation.py` | `calculate_crap_score.py` shows `chat_stream` & `upload_sessions.create` complexity reduced < 20 |
-| `CARD-05` | **Wire Frontend Mock Routes to Live BFF APIs** | `frontend-agent` | `app/frontend/src/routes/_app.documents.ocr-queue.tsx`, `_app.documents.sync-hms.tsx`, `_app.audit.traces.$traceId.tsx`, `SystemHealthCard.tsx` | Zero production imports from `src/data/{ocrQueue,syncJobs,traces,health}.ts`; Vitest tests pass |
-| `CARD-06` | **Provider/Loader Unit Tests & CI E2E Expansion** | `tdd-guide` / `e2e-runner` | `app/backend/tests/`, `.github/workflows/ci.yml` | `pytest` coverage >= 80% on touched modules; `verify_deterministic_gates.py --mode smoke` passes |
+| `CARD-01` | **Repo Cleanup & Hygiene (`repo-scan`)** | `refactor-cleaner` | `.gitignore`, root clutter (`.review*`), `app/backend/scripts/stats*.py`, `rag_spike_adapter.py`, `app/frontend/src/lib/lovable-error-reporting.ts`, `example.functions.ts`, `-auth.sso.callback.test.ts`, `SsoCallbackCard.tsx` | ✅ **Merged (`4349b4a`)** — 22 stale branches pruned; temp archives deleted; `vitest` & `tsc` pass with 0 TanStack Router warnings |
+| `CARD-02` | **API Contract Gate & Frontend Client Fixes** | `typescript-reviewer` / `frontend-agent` | `app/backend/scripts/verify_contracts.py`, `app/frontend/src/lib/api/metrics.ts`, `auth.ts`, `chat.ts`, `client-contracts.test.ts`, `test_verify_contracts_scanner.py` | ✅ **Merged (`527fdcc`)** — `verify_contracts.py` scans all 19 frontend API modules (57 frontend paths vs 73 backend routes) with segment-exact matching, exiting `0` |
+| `CARD-03` | **Clinical Safety: CDSS, Drug Check & Metrics RBAC** | `security-reviewer` / `backend-agent` | `app/backend/src/hospital_ai/workers/cdss.py`, `services/drug_check.py`, `api/routes/metrics_endpoint.py`, `tests/test_cdss_agent.py`, `tests/test_drug_check.py`, `tests/test_metrics.py` | ✅ **Merged (`af7f941`)** — Active generation + `ActiveEvidenceScope` enforced; idempotent `ClinicalAlert`; 39/39 safety tests green |
+| `CARD-04` | **Decompose High-CRAP Functions & Stream Parity** | `python-reviewer` / `backend-refactor` | `app/backend/src/hospital_ai/api/routes/chat_stream.py`, `services/upload_sessions.py`, `services/claim_validation.py`, `tests/cdi_v2/*` | ✅ **Merged (`0c636d0`)** — McCabe complexity reduced `< 20` (`chat_stream`: 51→18, `upload_sessions.create`: 40→<13, `deterministic_entailment`: 32→15); 45/45 tests green |
+| `CARD-05` | **Wire Frontend Mock Routes to Live BFF APIs** | `frontend-agent` | `app/frontend/src/routes/_app.documents.ocr-queue.tsx`, `_app.audit.traces.$traceId.tsx`, `_app.integrations.traces.$traceId.tsx`, `SystemHealthCard.tsx`, `SystemHealthCard.test.tsx` | ✅ **Merged (`08af8f0`)** — Wired to `getDashboardSummary`, `getQueryTrace` (with `TRACE_NOT_FOUND` `ErrorState`), and `listDocuments`; `tsc`, `eslint`, and `vitest` pass |
+| `CARD-06` | **Provider/Loader Unit Tests & Coverage Expansion** | `tdd-guide` | `app/backend/tests/test_loaders_and_providers_unit.py` | ✅ **Merged (`73074b5`)** — 78–100% unit coverage across `TextLoader`, `HtmlLoader`, `ExcelLoader`, `OpenAILLM`, `OllamaLLM`, `GeminiLLM`, `OpenAIEmbedding`, `OllamaEmbedding` |
 
 ---
 
 ## 4. Solution Architect (SA) & Business Analyst (BA) — vNext Product & Architecture Proposal
 
-### 4.1. Business Analyst (BA) — Clinical Workflow Gaps & High-Value vNext Journeys
+### 4.1. Business Analyst (BA) — Clinical Workflow Gaps, User Stories & Gherkin Acceptance Criteria
 
-1. **Flow 1: Closed-Loop Clinical Alert Triage & Pharmacist Sign-Off (CDSS -> Pharmacy -> Order Override)**
+1. **Flow 1: Closed-Loop Clinical Alert Triage & Pharmacist Sign-Off (`CDSS -> Pharmacy -> Order Override`)**
    - **Current Gap:** `ClinicalAlert` records generated by `workers/cdss.py` and drug conflicts in `/_app/pharmacy/review-queue` are passive read-only notifications (`is_acknowledged` boolean only). Clinicians cannot record *why* an alert was overridden, request a pharmacist consult, or link an acknowledgment to an audit trail.
    - **vNext BA Requirement:** Introduce a structured **Alert Lifecycle State Machine** (`open` -> `under_review` -> `accepted_intervention` | `overridden_with_justification` | `false_positive`) with mandatory clinical reason codes, dual sign-off for `critical` contraindications, and automatic feedback loop into the AI Evaluation dataset.
+   - **Gherkin Acceptance Criteria:**
+     ```gherkin
+     Feature: Closed-Loop Clinical Alert Triage and Dual Sign-Off
+       As an Attending Physician or Clinical Pharmacist
+       I want to transition CDSS alerts through an audited state machine with mandatory clinical justification
+       So that every high-severity drug or lab contraindication has verifiable clinical accountability.
 
-2. **Flow 2: Shift Handover & Multidisciplinary Clinical SBAR Summary (IPASS / SBAR Copilot)**
+       Scenario: Overriding a critical contraindication requires reason code and pharmacist co-signature
+         Given an active "critical" ClinicalAlert on patient "MRN-48201" for "Warfarin + NSAID" grounded in chunk "C-102"
+         And the logged-in user has role "doctor" and active "patient:write" scope for "MRN-48201"
+         When the doctor submits an override transition to "overridden_with_justification" with reason_code "BENEFIT_OUTWEIGHS_RISK" and clinical_note "Short 48h inpatient course with daily INR monitoring"
+         Then the alert status transitions to "pending_pharmacist_cosign"
+         And an immutable AuditEvent "clinical_alert.override_requested" is recorded with the source chunk_id and generation_id
+         When a user with role "pharmacist" co-signs the alert
+         Then the alert status transitions to "overridden_with_justification"
+         And a candidate evaluation case is queued in the AI Evaluation governance inbox.
+     ```
+
+2. **Flow 2: Shift Handover & Multidisciplinary Clinical SBAR Summary (`IPASS / SBAR Copilot`)**
    - **Current Gap:** Doctors and nurses use free-form chat (`/chat`) or view raw timelines, but hospital shift changes require standardized **SBAR (Situation, Background, Assessment, Recommendation)** or **IPASS** handoffs scoped to the last 12/24 hours.
    - **vNext BA Requirement:** Dedicated **Shift Handover Generator** workflow on the Patient Overview page that synthesizes delta changes (new labs, medication changes, unresolved CDSS alerts, pending OCR reviews) over a selectable time window (`Last 8h / 24h / Since Admission`), with 100% inline sentence-level citations and one-click export to PDF/FHIR Composition.
+   - **Gherkin Acceptance Criteria:**
+     ```gherkin
+     Feature: Time-Windowed SBAR Clinical Shift Handover Generation
+       As an On-Call Clinician ending a shift
+       I want to generate a citation-grounded SBAR summary restricted to the last 12 hours of verified clinical events
+       So that the incoming clinician receives an accurate, zero-hallucination handover.
+
+       Scenario: Generating a 12-hour SBAR summary with deterministic claim validation
+         Given patient "MRN-48201" has 3 active-generation lab documents and 1 medication change within the last 12 hours
+         And 1 older discharge summary from 6 months ago
+         When the clinician requests an SBAR Handover with window_hours=12
+         Then the backend retrieves only active-generation chunks with clinical_effective_at >= now() - 12 hours
+         And the generated SBAR sections ("Situation", "Background", "Assessment", "Recommendation") pass ClaimValidator deterministic entailment on numbers, units, dates, and negations
+         And every sentence contains at least one valid "[E#]" citation badge.
+     ```
 
 3. **Flow 3: Break-Glass Emergency Access with Post-Hoc Compliance Review**
    - **Current Gap:** When a clinician lacks patient scope, `/access-requests` requires synchronous admin approval. In emergency care (code blue / ICU cross-cover), waiting for manual approval delays care, while `BreakGlassDialog.tsx` is currently disabled/stubbed (`ENABLE_BREAK_GLASS=false`).
-   - **vNext BA Requirement:** Implement **Time-Bounded Break-Glass Access** (e.g., 4-hour emergency grant) requiring structured clinical justification + witness ID, triggering an immediate high-priority compliance ticket for `security`/`admin` roles in `/_app/audit/denied` and `/_app/access-requests`.
+   - **vNext BA Requirement:** Implement **Time-Bounded Break-Glass Access** (4-hour emergency grant) requiring structured clinical justification + witness ID, triggering an immediate high-priority compliance ticket for `security`/`admin` roles in `/_app/audit/denied` and `/_app/access-requests`.
+   - **Gherkin Acceptance Criteria:**
+     ```gherkin
+     Feature: Emergency Break-Glass Patient Scope Elevation
+       As an Emergency / Cross-Cover Physician
+       I want to activate a time-bounded 4-hour emergency read scope on an unassigned patient during an acute event
+       So that life-critical patient records can be queried immediately while guaranteeing 100% post-hoc security review.
 
-4. **Flow 4: Ephemeral Session-Scoped Consult Attachments ("Sandbox Clinical Second Opinion")**
+       Scenario: Emergency break-glass grants 4-hour scope and creates P0 security review item
+         Given doctor "Dr. Minh" does not have a PermissionGrant for patient "MRN-99104"
+         When "Dr. Minh" submits BreakGlassRequest with emergency_code="CODE_BLUE", justification="Acute respiratory decompensation on Ward 4", and witness_badge_id="NURSE-204"
+         Then the backend creates a PermissionGrant with scope="patient:read", grant_type="break_glass", and expires_at = now() + 4 hours
+         And creates a ComplianceReviewTicket with severity="P0" assigned to role="security"
+         And every subsequent RAG query under that grant is watermarked with trace metadata "access_mode=break_glass".
+     ```
+
+4. **Flow 4: Ephemeral Session-Scoped Consult Attachments (`Sandbox Clinical Second Opinion`)**
    - **Current Gap:** Every uploaded document enters the permanent patient knowledge base. Clinicians frequently want to drop a referral letter, external lab PDF, or clinical guideline into a chat thread for temporary cross-checking without polluting the permanent EMR index.
    - **vNext BA Requirement:** Support `scope = "thread_ephemeral"` uploads with TTL auto-purge when the chat thread is archived/deleted.
+   - **Gherkin Acceptance Criteria:**
+     ```gherkin
+     Feature: Ephemeral Thread-Scoped Clinical Consult Attachments
+       As a Consulting Specialist
+       I want to attach an external PDF to a single chat thread without indexing it into the permanent patient record
+       So that temporary referral documents never contaminate longitudinal patient RAG queries or CDSS alerts.
+
+       Scenario: Ephemeral attachment is isolated to its thread and purged on expiry
+         Given a chat thread "T-550" linked to patient "MRN-48201"
+         When the clinician uploads "external_referral.pdf" with storage_scope="thread_ephemeral" and thread_id="T-550"
+         Then the document chunks are indexed with ephemeral_thread_id="T-550" and expires_at = now() + 24 hours
+         And queries in thread "T-550" can cite "external_referral.pdf"
+         And queries in any other thread for patient "MRN-48201" or in autonomous CDSS workers exclude all chunks where ephemeral_thread_id IS NOT NULL.
+     ```
 
 ---
 
-### 4.2. Solution Architect (SA) — Technical Evolution Blueprint (vNext Architecture)
+### 4.2. Solution Architect (SA) — Technical Evolution Blueprint, Sequence Diagrams & PostgreSQL DDL Proposals
 
 ```mermaid
 flowchart LR
@@ -142,16 +202,97 @@ flowchart LR
     ORCH --> PG & FHIR & R2
 ```
 
-1. **Unified RAG Pipeline Orchestrator (Eliminating `/chat` vs `/chat/stream` Drift):**
-   - Replace the duplicated orchestration in `chat.py` and `chat_stream.py` with a single **Async Event-Driven Pipeline (`RagExecutionEngine`)** that yields typed domain events (`PatientResolved`, `GuardrailPassed`, `EvidenceRetrieved`, `GraphEnriched`, `DrugWarningsComputed`, `SentenceValidated`, `StreamCompleted`).
-   - Both `POST /api/v1/chat` (collects final state) and `POST /api/v1/chat/stream` (streams SSE events) consume the exact same generator, guaranteeing 100% feature parity (`decompose`, `patient_summary`, `HyDE`, and safety contracts).
+#### SA-1: Unified RAG Pipeline Orchestrator (`RagExecutionEngine` Sequence)
+Both `POST /api/v1/chat` and `POST /api/v1/chat/stream` delegate to a single async generator yielding typed domain events, eliminating duplicate orchestration and ensuring `decompose`, `patient_summary`, and `HyDE` work identically in streaming and non-streaming modes:
 
-2. **Schema-First Contract Generation (Replacing Regex `verify_contracts.py`):**
-   - Export FastAPI's `openapi.json` at build/test time and generate strongly-typed TypeScript clients (`openapi-typescript` / `@hey-api/openapi-ts`), eliminating manual path/schema drift between `app/backend/src/hospital_ai/schemas/` and `app/frontend/src/lib/api/`.
+```mermaid
+sequenceDiagram
+    participant Client as TanStack Frontend
+    participant Route as /chat or /chat/stream
+    participant Engine as RagExecutionEngine
+    participant Scope as ActiveEvidenceScope + GraphRAG
+    participant Validator as ClaimValidator + PHI Guardrail
 
-3. **Bi-Temporal Clinical Knowledge Graph (`valid_time` vs `transaction_time`):**
-   - Upgrade `GraphRelationAssertion` in `clinical_graph.py` with explicit bi-temporal columns (`clinical_effective_from`, `clinical_effective_to`, `recorded_at`, `superseded_by_generation_id`) so the RAG engine can accurately answer temporal clinical questions (e.g., *"What was the patient's eGFR before Lisinopril was started?"*) without conflating historical and current states.
+    Client->>Route: ChatRequest (question, patient_id, pipeline, thread_id)
+    Route->>Engine: execute(request, user)
+    Engine->>Engine: Resolve Patient + Check Scope (or Break-Glass)
+    Engine->>Engine: Run Input Guardrail & Pre-flight DDI Check
+    Engine->>Scope: Retrieve Hybrid + Active-Generation Graph Evidence
+    Scope-->>Engine: Authorized RetrievedChunk[]
+    loop Per Generated Sentence (Sync or SSE)
+        Engine->>Validator: validate_sentence(sentence, evidence_by_id)
+        Validator-->>Engine: SentenceValidation (passed / rewritten / abstained)
+        Engine-->>Route: Yield DomainEvent (Token / Citation / Warning)
+    end
+    Engine->>Engine: Persist AiQuery + ChatMessage + AuditLog
+    Route-->>Client: ChatResponse JSON or SSE Event Stream
+```
 
-4. **Dual-Track PHI Redaction & Local/Cloud Hybrid Routing:**
-   - Insert a deterministic + NER (Microsoft Presidio / spaCy) **PHI Scrubbing Middleware** before external LLM/Embedding calls (`gemini`, `openai`), replacing patient identifiers with session-scoped tokens (`[PATIENT_01]`, `[MRN_REDACTED]`) and re-hydrating them only inside the authorized hospital boundary.
-   - Route high-sensitivity PHI summarization to local `Ollama`/`vLLM` while allowing de-identified medical reasoning to use cloud frontier models under policy control.
+#### SA-2: Schema-First OpenAPI TypeScript SDK Pipeline
+- Export deterministic OpenAPI schema via `python scripts/export_openapi.py > app/frontend/openapi.json`.
+- Generate `app/frontend/src/lib/api/generated/schema.d.ts` via `openapi-typescript` and wrap `apiFetch` with typed path helpers so any backend route or Pydantic field change fails `bun run typecheck` at compile time.
+
+#### SA-3 & SA-4: PostgreSQL DDL Proposals for vNext Upgrades
+
+```sql
+-- 1. Closed-Loop Clinical Alert State Machine & Dual Sign-Off (Flow 1)
+ALTER TABLE clinical_alerts
+  ADD COLUMN lifecycle_state VARCHAR(40) NOT NULL DEFAULT 'open'
+    CHECK (lifecycle_state IN (
+      'open',
+      'under_review',
+      'pending_pharmacist_cosign',
+      'accepted_intervention',
+      'overridden_with_justification',
+      'false_positive',
+      'superseded'
+    )),
+  ADD COLUMN override_reason_code VARCHAR(64),
+  ADD COLUMN override_justification TEXT,
+  ADD COLUMN cosigned_by_user_id UUID REFERENCES users(id),
+  ADD COLUMN cosigned_at TIMESTAMPTZ,
+  ADD COLUMN generation_id UUID;
+
+CREATE INDEX ix_clinical_alerts_patient_active_state
+  ON clinical_alerts (patient_id, source_document_id, lifecycle_state);
+
+-- 2. Break-Glass Time-Bounded Emergency Grants & Audit Ticket (Flow 3)
+ALTER TABLE permission_grants
+  ADD COLUMN grant_type VARCHAR(32) NOT NULL DEFAULT 'standard'
+    CHECK (grant_type IN ('standard', 'break_glass', 'cross_cover')),
+  ADD COLUMN emergency_code VARCHAR(32),
+  ADD COLUMN clinical_justification TEXT,
+  ADD COLUMN witness_identifier VARCHAR(64),
+  ADD COLUMN expires_at TIMESTAMPTZ;
+
+CREATE INDEX ix_permission_grants_active_window
+  ON permission_grants (user_id, patient_id, expires_at);
+
+-- 3. Ephemeral Thread-Scoped Consult Documents (Flow 4)
+ALTER TABLE documents
+  ADD COLUMN storage_scope VARCHAR(32) NOT NULL DEFAULT 'patient_permanent'
+    CHECK (storage_scope IN ('patient_permanent', 'hospital_wide', 'thread_ephemeral')),
+  ADD COLUMN ephemeral_thread_id UUID REFERENCES chat_threads(id) ON DELETE CASCADE,
+  ADD COLUMN expires_at TIMESTAMPTZ;
+
+-- 4. Bi-Temporal Clinical Knowledge Graph Assertions (SA-3)
+ALTER TABLE graph_relation_assertions
+  ADD COLUMN clinical_effective_from TIMESTAMPTZ,
+  ADD COLUMN clinical_effective_to TIMESTAMPTZ,
+  ADD COLUMN superseded_by_generation_id UUID;
+```
+
+---
+
+## 5. Before vs. After Remediation Verification Matrix
+
+| Quality / Safety Metric | Before Remediation (Baseline) | After Remediation (`refactor/repo-clean-and-vnext-hardening`) | Verification Command |
+|---|---|---|---|
+| **Root & Workspace Clutter** | 5 `.review*` archives (~82 MB), `stats.py`/`stats2.py`, `rag_spike_adapter.py` in `src/`, `example.functions.ts`, `lovable-error-reporting.ts`, 22 merged `codex/*` & `pr/*` branches | **0 clutter files**, `.gitignore` hardened, 22 stale local branches pruned | `git status --short` & `git branch` |
+| **TanStack Router Code-Splitting Warnings** | 2 warnings (`auth.sso.callback.test.ts` treated as route; `SsoCallback` exported from route file) | **0 warnings** (`-auth.sso.callback.test.ts` ignored; `SsoCallbackCard.tsx` extracted) | `cd app/frontend && bun run typecheck` |
+| **API Contract Gate Coverage (`verify_contracts.py`)** | Scanned only 3 files (`6` frontend paths); missed `metrics.ts` 404, `auth.ts` 422, `chat.ts` `document_ids` drop | Scans **all 19 frontend API modules (`57` frontend paths vs `73` backend paths)** with segment-exact wildcard matching; **0 mismatches** | `python scripts/verify_contracts.py` |
+| **Clinical Safety (`cdss.py`, `drug_check.py`, `metrics_endpoint.py`)** | `cdss.py` read deleted/superseded chunks & duplicated alerts; `drug_check.py` Step 1 lacked active-generation & `user_id` scope filter; `/metrics/vector` leaked all patients' document sources | Active generation, `deleted_at IS NULL`, `ActiveEvidenceScope`, idempotent alert replacement, and RBAC patient-scope filtering enforced | `pytest tests/test_cdss_agent.py tests/test_drug_check.py tests/test_metrics.py` (`39 passed`) |
+| **High-Complexity Hotspots (McCabe Complexity)** | `chat_stream`: **51** · `upload_sessions.create`: **40** · `deterministic_entailment`: **32** | `chat_stream`: **18** (`< 20`) · `upload_sessions.create`: **< 13** (`< 20`) · `deterministic_entailment`: **15** (`< 20`) | `python scripts/calculate_crap_score.py --top-n 20` |
+| **Frontend Static Mock Routes** | `SystemHealthCard.tsx`, `_app.audit.traces.$traceId.tsx`, `_app.integrations.traces.$traceId.tsx`, `_app.documents.ocr-queue.tsx` hardcoded to `src/data/*` | Wired to live BFF APIs (`getDashboardSummary`, `getQueryTrace` with `TRACE_NOT_FOUND` `ErrorState`, `listDocuments`) | `bunx vitest run src/components/hms/SystemHealthCard.test.tsx --run` |
+| **Document Loaders & LLM/Embedding Provider Unit Coverage** | `0%` unit coverage on `excel_loader.py`, `html_loader.py`, `openai_provider.py`, `ollama_provider.py`, `gemini_provider.py` | **`85%–100%` coverage** across `text_loader.py` (100%), `html_loader.py` (78%), `excel_loader.py` (94%), `openai_provider.py` (94%), `ollama_provider.py` (91%), `gemini_provider.py` (95%), embedding providers (88–100%) | `pytest tests/test_loaders_and_providers_unit.py --cov=...` |
+

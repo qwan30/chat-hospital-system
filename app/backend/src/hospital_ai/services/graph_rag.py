@@ -571,9 +571,7 @@ async def find_related_entities(
     all_entities = list(seed_entities)
     all_relations: list[GraphRelationAssertion] = []
     frontier_ids = visited_ids.copy()
-    patient_anchor_ids: set[uuid.UUID] = {
-        e.id for e in seed_entities if e.normalized_label == CANONICAL_PATIENT_ANCHOR
-    }
+    patient_anchor_ids: set[uuid.UUID] = {e.id for e in seed_entities if e.normalized_label == CANONICAL_PATIENT_ANCHOR}
     allowed_anchor_relations = set(ALLOWED_PATIENT_ANCHOR_RELATIONS)
     if include_patient_conditions:
         allowed_anchor_relations.update({"diagnosed_with", "history_of", "has_observation"})
@@ -601,12 +599,10 @@ async def find_related_entities(
             if r.id in visited_relation_ids:
                 continue
             touches_anchor_in_frontier = (
-                r.subject_entity_id in anchor_frontier_ids
-                or r.object_entity_id in anchor_frontier_ids
+                r.subject_entity_id in anchor_frontier_ids or r.object_entity_id in anchor_frontier_ids
             )
             touches_non_anchor_in_frontier = (
-                r.subject_entity_id in non_anchor_frontier_ids
-                or r.object_entity_id in non_anchor_frontier_ids
+                r.subject_entity_id in non_anchor_frontier_ids or r.object_entity_id in non_anchor_frontier_ids
             )
             if (
                 touches_anchor_in_frontier
@@ -633,9 +629,7 @@ async def find_related_entities(
             )
             new_entities = list(result.scalars().all())
             all_entities.extend(new_entities)
-            patient_anchor_ids.update(
-                e.id for e in new_entities if e.normalized_label == CANONICAL_PATIENT_ANCHOR
-            )
+            patient_anchor_ids.update(e.id for e in new_entities if e.normalized_label == CANONICAL_PATIENT_ANCHOR)
             frontier_ids = {e.id for e in new_entities}
         else:
             frontier_ids = set()

@@ -18,10 +18,9 @@ from sqlalchemy.ext.asyncio import async_sessionmaker
 from starlette.requests import Request
 
 from hospital_ai.api.routes.chat_stream import chat_stream
-from hospital_ai.db.clinical_documents import DocumentIndexGeneration
 from hospital_ai.db.clinical_graph import GraphEntity, GraphMention
 from hospital_ai.db.migrations import DOCTOR_ID, PATIENT_ALICE_ID, PATIENT_BOB_ID
-from hospital_ai.db.models import AiQuery, AuditLog, ChatMessage, ChatThread, Document, DocumentChunk, User
+from hospital_ai.db.models import AiQuery, AuditLog, ChatMessage, ChatThread, DocumentChunk, User
 from hospital_ai.schemas.chat import ChatContext, ChatRequest
 from hospital_ai.services.chat import SAFE_INJECTION_DETECTED_ANSWER, SAFE_NO_EVIDENCE_ANSWER
 from hospital_ai.services.guardrails import GuardrailResult
@@ -633,16 +632,18 @@ async def test_chat_stream_critical_drug_interaction_intercept(session_and_setti
     monkeypatch.setattr(
         catalog,
         "get_interaction",
-        lambda d1, d2: CatalogInteraction(
-            drug_a=d1,
-            drug_b=d2,
-            interaction_type="contraindicated",
-            severity="critical",
-            mechanism_action="Fatal bleeding risk.",
-            clinical_recommendation="Do not administer.",
-        )
-        if "aspirin" in (d1, d2) and "warfarin" in (d1, d2)
-        else None,
+        lambda d1, d2: (
+            CatalogInteraction(
+                drug_a=d1,
+                drug_b=d2,
+                interaction_type="contraindicated",
+                severity="critical",
+                mechanism_action="Fatal bleeding risk.",
+                clinical_recommendation="Do not administer.",
+            )
+            if "aspirin" in (d1, d2) and "warfarin" in (d1, d2)
+            else None
+        ),
     )
 
     # 3. Assert zero provider/LLM/embedding/retrieval calls

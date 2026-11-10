@@ -344,6 +344,7 @@ async def test_metric_event_zero_latency(session_and_settings):
 @pytest.mark.asyncio
 async def test_vector_metrics_scopes_sources_to_authorized_patients(session_and_settings):
     from starlette.requests import Request
+
     from hospital_ai.api.routes.metrics_endpoint import get_vector_metrics
     from hospital_ai.db.clinical_documents import DocumentIndexGeneration
     from hospital_ai.db.migrations import NURSE_ID, PATIENT_BOB_ID
@@ -392,4 +393,3 @@ async def test_vector_metrics_scopes_sources_to_authorized_patients(session_and_
     res = await get_vector_metrics(request=req, session=session, current_user=nurse)
     returned_doc_ids = {s["document_id"] for s in res["sources"]}
     assert str(unauth_doc.id) not in returned_doc_ids
-

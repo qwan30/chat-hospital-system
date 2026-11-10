@@ -29,9 +29,7 @@ def test_adversarial_date_swap_rejection():
     validator = ClaimValidator()
     evidence = {
         "E1": (
-            "Patient admitted on 2026-05-01. "
-            "Underwent coronary bypass surgery on 2026-05-02. "
-            "Discharged on 2026-05-10."
+            "Patient admitted on 2026-05-01. Underwent coronary bypass surgery on 2026-05-02. Discharged on 2026-05-10."
         )
     }
     swapped_claim = "Patient underwent coronary bypass surgery on 2026-05-10 [E1]."
@@ -44,15 +42,12 @@ def test_multi_date_legitimate_claim_acceptance():
     validator = ClaimValidator()
     evidence = {
         "E1": (
-            "Patient admitted on 2026-05-01. "
-            "Underwent coronary bypass surgery on 2026-05-02. "
-            "Discharged on 2026-05-10."
+            "Patient admitted on 2026-05-01. Underwent coronary bypass surgery on 2026-05-02. Discharged on 2026-05-10."
         )
     }
     legitimate_claim = "Patient underwent coronary bypass surgery on 2026-05-02 [E1]."
     res = validator.validate_sentence(legitimate_claim, evidence, ValidationContext())
     assert res.passed is True
-
 
     # Sub-clause event-date binding within a single sentence
     subclause_evidence = {"E1": "Admitted on 2026-05-01, operated on 2026-05-02."}
@@ -78,6 +73,7 @@ def test_multi_date_legitimate_claim_acceptance():
     )
     assert ambiguous_res.passed is False
     assert ambiguous_res.claims[0].reason == "DATE_AMBIGUOUS"
+
 
 @pytest.mark.asyncio
 async def test_candidate_drug_ddi_warning(
@@ -137,10 +133,7 @@ async def test_candidate_drug_ddi_warning(
         patient_id=patient_id,
     )
     assert len(warnings) >= 1
-    assert any(
-        "warfarin" in w.drug_name.lower() or "aspirin" in w.drug_name.lower()
-        for w in warnings
-    )
+    assert any("warfarin" in w.drug_name.lower() or "aspirin" in w.drug_name.lower() for w in warnings)
 
 
 @pytest.mark.asyncio

@@ -147,23 +147,15 @@ class DrugCheckService:
         if not patient_id:
             return []
 
-        catalog_mentions = {
-            d.lower().strip() for d in self.catalog.extract_drug_mentions(query_text)
-        }
+        catalog_mentions = {d.lower().strip() for d in self.catalog.extract_drug_mentions(query_text)}
         try:
             if use_llm:
                 entities, _ = await extract_entities_and_relations_nlp(query_text)
-                nlp_drugs = {
-                    e.normalized_label.lower().strip()
-                    for e in entities
-                    if e.entity_type == "drug"
-                }
+                nlp_drugs = {e.normalized_label.lower().strip() for e in entities if e.entity_type == "drug"}
             else:
                 entities, _ = await extract_entities_and_relations_offline(query_text)
                 nlp_drugs = {
-                    e.normalized_label.lower().strip()
-                    for e in entities
-                    if e.entity_type in ("drug", "concept")
+                    e.normalized_label.lower().strip() for e in entities if e.entity_type in ("drug", "concept")
                 }
         except Exception:
             nlp_drugs = set()
@@ -173,11 +165,7 @@ class DrugCheckService:
             return []
 
         severity_order = ["critical", "high", "medium", "low"]
-        min_idx = (
-            severity_order.index(min_severity)
-            if min_severity in severity_order
-            else len(severity_order)
-        )
+        min_idx = severity_order.index(min_severity) if min_severity in severity_order else len(severity_order)
 
         warnings: list[DrugWarning] = []
         seen: set[tuple[str, str, str]] = set()
@@ -296,10 +284,8 @@ class DrugCheckService:
             )
         )
         raw_active_entities = list(active_result.scalars().all())
-        valid_active_entities, valid_chunk_by_entity = (
-            await self._filter_generation_valid_entities(
-                patient_id, raw_active_entities, user_id=user_id
-            )
+        valid_active_entities, valid_chunk_by_entity = await self._filter_generation_valid_entities(
+            patient_id, raw_active_entities, user_id=user_id
         )
 
         for candidate in sorted(candidate_drugs):
@@ -313,10 +299,7 @@ class DrugCheckService:
                     continue
 
                 severity = interaction.severity
-                if (
-                    severity not in severity_order
-                    or severity_order.index(severity) > min_idx
-                ):
+                if severity not in severity_order or severity_order.index(severity) > min_idx:
                     continue
 
                 key = (
@@ -328,9 +311,7 @@ class DrugCheckService:
                     continue
                 seen.add(key)
 
-                chunk_id = valid_chunk_by_entity.get(
-                    patient_entity.id, uuid.UUID(int=0)
-                )
+                chunk_id = valid_chunk_by_entity.get(patient_entity.id, uuid.UUID(int=0))
                 warnings.append(
                     DrugWarning(
                         drug_name=candidate,

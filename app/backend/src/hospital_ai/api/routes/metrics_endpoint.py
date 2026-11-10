@@ -72,9 +72,7 @@ async def get_vector_metrics(
             and_(
                 DocumentChunk.document_id == Document.id,
                 DocumentChunk.deleted_at.is_(None),
-                DocumentChunk.generation_id.is_not_distinct_from(
-                    Document.active_index_generation_id
-                ),
+                DocumentChunk.generation_id.is_not_distinct_from(Document.active_index_generation_id),
             ),
             isouter=True,
         )
@@ -83,9 +81,7 @@ async def get_vector_metrics(
     )
 
     result = await session.execute(sources_stmt)
-    sources = [
-        {"document_id": str(row.id), "chunk_count": row.chunk_count} for row in result.all()
-    ]
+    sources = [{"document_id": str(row.id), "chunk_count": row.chunk_count} for row in result.all()]
 
     return {
         "indexed_document_count": indexed_document_count,

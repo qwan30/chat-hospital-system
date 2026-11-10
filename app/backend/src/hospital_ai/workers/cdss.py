@@ -30,9 +30,7 @@ async def run_cdss_analysis(session: AsyncSession, document_id: uuid.UUID) -> No
         DocumentChunk.deleted_at.is_(None),
     )
     if document.active_index_generation_id is not None:
-        chunk_stmt = chunk_stmt.where(
-            DocumentChunk.generation_id == document.active_index_generation_id
-        )
+        chunk_stmt = chunk_stmt.where(DocumentChunk.generation_id == document.active_index_generation_id)
     result = await session.execute(chunk_stmt)
     chunks = result.scalars().all()
     if not chunks:

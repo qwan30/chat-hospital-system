@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import UTC
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -123,7 +124,8 @@ async def test_run_cdss_analysis_propagates_provider_failures(session_and_settin
 @pytest.mark.asyncio
 async def test_cdss_re_run_is_idempotent_and_preserves_acknowledged_alerts(session_and_settings):
     import uuid
-    from datetime import datetime, timezone
+    from datetime import datetime
+
     from hospital_ai.db.clinical_documents import DocumentIndexGeneration
     from hospital_ai.db.clinical_graph import GraphEntity
 
@@ -199,7 +201,7 @@ async def test_cdss_re_run_is_idempotent_and_preserves_acknowledged_alerts(sessi
         token_count=4,
         embedding=[0.0] * 1024,
         meta={},
-        deleted_at=datetime.now(timezone.utc),
+        deleted_at=datetime.now(UTC),
     )
     inactive_entity = GraphEntity(
         id=uuid.uuid4(),
@@ -252,10 +254,7 @@ async def test_cdss_re_run_is_idempotent_and_preserves_acknowledged_alerts(sessi
     assert "DELETED_CHUNK_TEXT" not in sent_prompt
     assert "discontinued_heparin_secret" not in sent_prompt
 
-    result = await db_session.execute(
-        select(ClinicalAlert).where(ClinicalAlert.source_document_id == document.id)
-    )
+    result = await db_session.execute(select(ClinicalAlert).where(ClinicalAlert.source_document_id == document.id))
     alerts = result.scalars().all()
     titles = sorted(a.title for a in alerts)
     assert titles == ["Acknowledged Historical Alert", "Fresh Alert"]
-

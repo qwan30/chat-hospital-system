@@ -287,11 +287,7 @@ async def test_drug_check_detects_candidate_drug_interaction(session_and_setting
         patient_id=patient_id,
     )
     assert len(warnings) >= 1
-    warfarin_warnings = [
-        w
-        for w in warnings
-        if "warfarin" in w.drug_name.lower() or "aspirin" in w.drug_name.lower()
-    ]
+    warfarin_warnings = [w for w in warnings if "warfarin" in w.drug_name.lower() or "aspirin" in w.drug_name.lower()]
     assert len(warfarin_warnings) >= 1
     assert warfarin_warnings[0].severity in ("high", "critical")
 
@@ -528,4 +524,3 @@ async def test_check_interactions_blocks_superseded_or_unauthorized_relation_evi
         patient_id=patient_id,
     )
     assert all(w.interacting_entity != "experimental_compound_x" for w in warnings)
-
